@@ -6,6 +6,6 @@ mod whitespace;
 
 pub use self::{
     literals::{literal, Literal, LiteralValue},
-    names::{is_name_start_char, name},
+    names::Name,
     whitespace::whitespace,
 };

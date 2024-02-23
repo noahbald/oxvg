@@ -37,19 +37,25 @@ pub fn element(
     parent: Option<Rc<RefCell<Node>>>,
 ) -> Result<(Cursor, Element), Box<SvgParseError>> {
     partial.next();
-    match partial.next() {
+    match partial.peek() {
         // [15], [19], [28]
-        Some('!') => Ok(decoration(
-            partial,
-            cursor.advance(),
-            Decoration::Decoration,
-        )?),
+        Some('!') => {
+            partial.next();
+            Ok(decoration(
+                partial,
+                cursor.advance(),
+                Decoration::Decoration,
+            )?)
+        }
         // [16], [23], [77]
-        Some('?') => Ok(decoration(
-            partial,
-            cursor.advance(),
-            Decoration::Declaration,
-        )?),
+        Some('?') => {
+            partial.next();
+            Ok(decoration(
+                partial,
+                cursor.advance(),
+                Decoration::Declaration,
+            )?)
+        }
         // [39], [40], [42], [43]
         Some(_) => Ok(tag_type(partial, cursor, parent)?),
         None => Ok((cursor, Element::EndOfFile)),
@@ -58,6 +64,9 @@ pub fn element(
 
 #[test]
 fn test_element() {
+    let mut tag = "<svg attr=\"hi\">".chars().peekable();
+    dbg!(element(&mut tag, Cursor::default(), None));
+
     let mut decoration = "<!-- Hello, World! -->".chars().peekable();
     dbg!(element(&mut decoration, Cursor::default(), None));
 

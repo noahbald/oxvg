@@ -5,7 +5,7 @@ use crate::{
     cursor::Cursor,
     diagnostics::SvgParseError,
     markup::{attributes, Attribute},
-    syntactic_constructs::{name, whitespace},
+    syntactic_constructs::{whitespace, Name},
     Element, Node, Span, SvgParseErrorMessage,
 };
 use core::fmt;
@@ -16,7 +16,7 @@ use std::{cell::RefCell, iter::Peekable, rc::Rc};
 #[derive(PartialEq, Debug)]
 pub struct EmptyElemTag {
     parent: Option<Rc<RefCell<Node>>>,
-    pub tag_name: String,
+    pub tag_name: Name,
     attributes: Vec<Attribute>,
     pub span: Span,
 }
@@ -25,7 +25,7 @@ pub struct EmptyElemTag {
 #[derive(PartialEq, Default, Debug)]
 pub struct STag {
     parent: Option<Rc<RefCell<Node>>>,
-    pub tag_name: String,
+    pub tag_name: Name,
     attributes: Vec<Attribute>,
     pub span: Span,
 }
@@ -35,7 +35,7 @@ impl STag {
         Self {
             parent: None,
             span: cursor.as_span((&name).len()),
-            tag_name: name,
+            tag_name: name.into(),
             attributes: vec![],
         }
     }
@@ -45,7 +45,7 @@ impl STag {
 #[derive(PartialEq, Default, Debug)]
 pub struct ETag {
     pub start_tag: Rc<RefCell<STag>>,
-    pub tag_name: String,
+    pub tag_name: Name,
     pub span: Span,
 }
 
@@ -65,6 +65,11 @@ impl Display for TagType {
     }
 }
 
+/// Consumes the partial from name start char [\[4\]](https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-NameStartChar) until '>'
+///
+/// # Errors
+///
+/// This function will return an error if the tag is malformed
 pub fn tag_type(
     partial: &mut Peekable<impl Iterator<Item = char>>,
     cursor: Cursor,
@@ -75,7 +80,7 @@ pub fn tag_type(
         // [42]
         partial.next();
         let cursor = cursor.advance();
-        let (cursor, tag_name) = name(partial, cursor)?;
+        let (cursor, tag_name) = Name::new(partial, cursor)?;
         let length = tag_name.len() + 2;
         let cursor = whitespace(partial, cursor, false)?;
         let cursor = char(partial, cursor, Some('>'))?;
@@ -89,8 +94,12 @@ pub fn tag_type(
         ));
     };
 
-    let (cursor, tag_name) = name(partial, cursor)?;
-    let cursor = whitespace(partial, cursor, true)?;
+    let (cursor, tag_name) = Name::new(partial, cursor)?;
+    let cursor = match partial.peek() {
+        Some('>') => cursor,
+        Some('/') => cursor,
+        _ => whitespace(partial, cursor, true)?,
+    };
     let (cursor, attributes) = attributes(partial, cursor)?;
 
     let cursor = cursor.advance();
@@ -128,4 +137,28 @@ pub fn tag_type(
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     }
+}
+
+#[test]
+fn test_tag_type() {
+    let mut open_tag = "svg attr=\"hi\">!</svg>".chars().peekable();
+    assert!(matches!(
+        tag_type(&mut open_tag, Cursor::default(), None),
+        Ok((.., Element::StartTag(_)))
+    ));
+    assert_eq!(open_tag.next(), Some('!'));
+
+    let mut empty_tag = "svg attr=\"hi\" />!".chars().peekable();
+    assert!(matches!(
+        tag_type(&mut empty_tag, Cursor::default(), None),
+        Ok((.., Element::EmptyTag(_)))
+    ));
+    assert_eq!(open_tag.next(), Some('!'));
+
+    let mut end_tag = "/svg>!".chars().peekable();
+    assert!(matches!(
+        tag_type(&mut end_tag, Cursor::default(), None),
+        Ok((.., Element::EndTag(_)))
+    ));
+    assert_eq!(end_tag.next(), Some('!'));
 }

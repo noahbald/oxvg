@@ -2,7 +2,7 @@ use std::iter::Peekable;
 
 use crate::{
     cursor::Cursor, diagnostics::SvgParseError, markup::Element,
-    syntactic_constructs::is_name_start_char, SvgParseErrorMessage,
+    syntactic_constructs::Name, SvgParseErrorMessage,
 };
 
 pub enum Decoration {
@@ -48,10 +48,10 @@ pub fn decoration(
         // As per https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-TextDecl
         // As per https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-XMLDecl
         // [23], [33], [77]
-        'X' | 'x' if matches!(form, Decoration::Declaration) => ("<xml", "?"),
+        'X' | 'x' if matches!(form, Decoration::Declaration) => ("<?xml", "?"),
         // FIXME: This match will fail for any 'x' prefix, eg <?Xylophone ?>
         // [16]
-        c if matches!(form, Decoration::Declaration) && is_name_start_char(&c) => ("<", "?"),
+        c if matches!(form, Decoration::Declaration) && Name::is_name_start_char(&c) => ("<?", "?"),
         c => Err(SvgParseError::new_curse( 
             cursor,
             SvgParseErrorMessage::UnexpectedChar(
@@ -68,7 +68,7 @@ pub fn decoration(
     let end: String = text.1.into();
     let mut text: String = text.0.into();
     let _ = partial.take(text.len() - 3).collect::<String>();
-    let mut cursor = cursor.advance_by(text.len());
+    let mut cursor = cursor.advance_by(text.len() - 2);
 
     for char in partial.by_ref() {
         // Naiively push the character, as we don't care about this content for SVGs
@@ -97,5 +97,32 @@ pub fn decoration(
 #[test]
 fn test_decoration() {
     let mut comment = "-- Hello, world -->".chars().peekable();
-    dbg!(decoration(&mut comment, Cursor::default(), Decoration::Decoration));
+    assert_eq!(
+        decoration(&mut comment, Cursor::default(), Decoration::Decoration),
+        Ok((Cursor::default().advance_by(19), Element::Comment("<!-- Hello, world -->".into())))
+    );
+
+    let mut cdata = "[CDATA[ Hello, world ]]>".chars().peekable();
+    assert_eq!(
+        decoration(&mut cdata, Cursor::default(), Decoration::Decoration),
+        Ok((Cursor::default().advance_by(24), Element::CData("<![CDATA[ Hello, world ]]>".into())))
+    );
+
+    let mut doctype = "DOCTYPE Hello, world>".chars().peekable();
+    assert_eq!(
+        decoration(&mut doctype, Cursor::default(), Decoration::Decoration),
+        Ok((Cursor::default().advance_by(21), Element::DocType("<!DOCTYPE Hello, world>".into())))
+    );
+
+    let mut xml_declaration = "xml Hello, world ?>".chars().peekable();
+    assert_eq!(
+        decoration(&mut xml_declaration, Cursor::default(), Decoration::Declaration),
+        Ok((Cursor::default().advance_by(19), Element::XMLDeclaration("<?xml Hello, world ?>".into())))
+    );
+
+    let mut processing_instructions = "ELEMENT Hello, world>".chars().peekable();
+    assert_eq!(
+        decoration(&mut processing_instructions, Cursor::default(), Decoration::Decoration),
+        Ok((Cursor::default().advance_by(21), Element::ProcessingInstructions("<!ELEMENT Hello, world>".into())))
+    );
 }

@@ -4,14 +4,14 @@ use crate::{
     char,
     cursor::Span,
     diagnostics::SvgParseError,
-    syntactic_constructs::{literal, name, whitespace, Literal, LiteralValue},
+    syntactic_constructs::{literal, whitespace, Literal, LiteralValue, Name},
     Cursor,
 };
 use std::iter::Peekable;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
-    name: String,
+    name: Name,
     value: LiteralValue,
 }
 
@@ -42,7 +42,7 @@ pub fn attribute(
     cursor: Cursor,
 ) -> Result<(Cursor, Attribute), Box<SvgParseError>> {
     // [41]
-    let (cursor, name) = name(partial, cursor)?;
+    let (cursor, name) = Name::new(partial, cursor)?;
     let cursor = char(partial, cursor, Some('='))?;
     let (cursor, value) = literal(partial, cursor, Literal::AttValue)?;
     let cursor = whitespace(partial, cursor, false)?;

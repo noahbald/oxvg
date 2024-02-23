@@ -1,7 +1,7 @@
 // [4.1 Character and Entity References](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references)
 
 use crate::characters::{char, is_char};
-use crate::syntactic_constructs::name;
+use crate::syntactic_constructs::Name;
 use crate::{cursor::Cursor, diagnostics::SvgParseError, SvgParseErrorMessage};
 use std::iter::Peekable;
 
@@ -55,8 +55,8 @@ pub fn reference(
         }
         Some(&c) => {
             let cursor = char(partial, cursor, Some(c))?;
-            let (cursor, ref_name) = name(partial, cursor)?;
-            text.push_str(&ref_name);
+            let (cursor, ref_name) = Name::new(partial, cursor)?;
+            text.push_str(ref_name.as_str());
             let cursor = char(partial, cursor, Some(';'))?;
             text.push(';');
             return Ok((

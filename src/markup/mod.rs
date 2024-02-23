@@ -29,6 +29,15 @@ pub enum Markup {
     CharData(String),
 }
 
+/// Consumes the partial until it reaches the end of a piece of markup.
+/// Markup can be:
+/// - An element, starting with '<'; or
+/// - A reference, starting with '&' or '%'; or
+/// - Character data
+///
+/// # Errors
+///
+/// This function will return an error if the partial has ended
 pub fn markup(
     partial: &mut Peekable<impl Iterator<Item = char>>,
     cursor: Cursor,
@@ -45,15 +54,18 @@ pub fn markup(
             reference(partial, cursor).map(|(c, r)| (c, Markup::Reference(r)))
         }
         Some(_) => char_data(partial, cursor).map(|(c, s)| (c, Markup::CharData(s))),
-        None => Err(SvgParseError::new_curse(
-            cursor,
-            SvgParseErrorMessage::UnexpectedEndOfFile,
-        ))?,
+        None => Ok((cursor, Markup::Element(Element::EndOfFile))),
     }
 }
 
 #[test]
 fn test_markup() {
+    let mut tag = "<svg attr=\"hi\">".chars().peekable();
+    assert!(matches!(
+        markup(&mut tag, Cursor::default(), None),
+        Ok((.., Markup::Element(Element::StartTag(_))))
+    ));
+
     let mut element = "<!-- Hello, world -->".chars().peekable();
     dbg!(markup(&mut element, Cursor::default(), None));
 

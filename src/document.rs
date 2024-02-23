@@ -5,6 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, iter::Peekable, rc::Rc};
 
+#[derive(Debug)]
 pub struct Document {
     pub prolog: Vec<Markup>,
     pub element: Rc<RefCell<Node>>,
@@ -108,4 +109,9 @@ pub fn node(
         _ => unreachable!(),
     }
     Ok((cursor, node))
+}
+
+#[test]
+fn test_document() {
+    dbg!(Document::parse("<svg attr=\"hi\">\n</svg>"));
 }

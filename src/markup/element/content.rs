@@ -1,11 +1,8 @@
 // [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-starttags)
 
 use crate::{
-    cursor::Cursor,
-    diagnostics::SvgParseError,
-    document::node,
-    markup::{markup, STag},
-    ETag, Element, Markup, Node, SvgParseErrorMessage,
+    cursor::Cursor, diagnostics::SvgParseError, document::node, markup::markup, ETag, Element,
+    Markup, Node, STag, SvgParseErrorMessage,
 };
 use std::{cell::RefCell, iter::Peekable, rc::Rc};
 
@@ -46,16 +43,12 @@ pub fn content(
                     content.push(NodeContent::Node(Rc::new(RefCell::new(Node::EmptyNode(t)))))
                 }
                 Element::EndTag(t) if t.tag_name == tag_name => {
-                    dbg!("matched tag_name:", &t);
                     return Ok((cursor, content, t));
                 }
-                Element::EndTag(t) => {
-                    dbg!("unmatched tag_name:", &t, &tag_name);
-                    Err(SvgParseError::new_span(
-                        t.span,
-                        SvgParseErrorMessage::UnmatchedTag(t.tag_name, tag_name.clone()),
-                    ))?
-                }
+                Element::EndTag(t) => Err(SvgParseError::new_span(
+                    t.span,
+                    SvgParseErrorMessage::UnmatchedTag(t.tag_name.into(), tag_name.clone().into()),
+                ))?,
                 Element::EndOfFile => Err(SvgParseError::new_curse(
                     cursor,
                     SvgParseErrorMessage::ExpectedEndOfFile,
