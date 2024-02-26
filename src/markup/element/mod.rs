@@ -5,6 +5,7 @@ mod tag;
 use crate::{
     cursor::Cursor,
     diagnostics::SvgParseError,
+    file_reader::FileReader,
     markup::{decoration, Decoration},
     Node,
 };
@@ -32,47 +33,38 @@ pub enum Element {
 }
 
 pub fn element(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<(Cursor, Element), Box<SvgParseError>> {
-    partial.next();
-    match partial.peek() {
+) -> Result<Element, Box<SvgParseError>> {
+    file_reader.next();
+    match file_reader.peek() {
         // [15], [19], [28]
         Some('!') => {
-            partial.next();
-            Ok(decoration(
-                partial,
-                cursor.advance(),
-                Decoration::Decoration,
-            )?)
+            file_reader.next();
+            Ok(decoration(file_reader, Decoration::Decoration)?)
         }
         // [16], [23], [77]
         Some('?') => {
-            partial.next();
-            Ok(decoration(
-                partial,
-                cursor.advance(),
-                Decoration::Declaration,
-            )?)
+            file_reader.next();
+            Ok(decoration(file_reader, Decoration::Declaration)?)
         }
         // [39], [40], [42], [43]
-        Some(_) => Ok(tag_type(partial, cursor, parent)?),
-        None => Ok((cursor, Element::EndOfFile)),
+        Some(_) => Ok(tag_type(file_reader, parent)?),
+        None => Ok(Element::EndOfFile),
     }
 }
 
 #[test]
 fn test_element() {
-    let mut tag = "<svg attr=\"hi\">".chars().peekable();
-    dbg!(element(&mut tag, Cursor::default(), None));
+    let mut tag = "<svg attr=\"hi\">";
+    dbg!(element(&mut FileReader::new(tag), None));
 
-    let mut decoration = "<!-- Hello, World! -->".chars().peekable();
-    dbg!(element(&mut decoration, Cursor::default(), None));
+    let mut decoration = "<!-- Hello, World! -->";
+    dbg!(element(&mut FileReader::new(decoration), None));
 
-    let mut declaration = "<!DOCTYPE html>".chars().peekable();
-    dbg!(element(&mut declaration, Cursor::default(), None));
+    let mut declaration = "<!DOCTYPE html>";
+    dbg!(element(&mut FileReader::new(declaration), None));
 
-    let mut tag = "<hello>".chars().peekable();
-    dbg!(element(&mut tag, Cursor::default(), None));
+    let mut tag = "<hello>";
+    dbg!(element(&mut FileReader::new(tag), None));
 }

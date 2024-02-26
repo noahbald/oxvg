@@ -1,8 +1,7 @@
 use std::iter::Peekable;
 
 use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, markup::Element,
-    syntactic_constructs::Name, SvgParseErrorMessage,
+    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, markup::Element, syntactic_constructs::Name, SvgParseErrorMessage
 };
 
 pub enum Decoration {
@@ -11,16 +10,15 @@ pub enum Decoration {
 }
 
 pub fn decoration(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     form: Decoration,
-) -> Result<(Cursor, Element), Box<SvgParseError>> {
+) -> Result<Element, Box<SvgParseError>> {
     // NOTE: We are not processing the body of any decorations/declarations here
     println!("Warning: decorations and declarations are ignored (ie. `<!` and `<?`)");
-    let start = match partial.next() {
+    let start = match file_reader.next() {
         Some(c) => c,
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     };
@@ -28,19 +26,19 @@ pub fn decoration(
         // [15]
         '-' if matches!(form, Decoration::Decoration) => ("<!--", "--"),
         // [19], [21]
-        '[' if matches!(form, Decoration::Decoration) && partial.peek() == Some(&'C')=> ("<![CDATA[", "]]"),
+        '[' if matches!(form, Decoration::Decoration) && file_reader.peek() == Some(&'C')=> ("<![CDATA[", "]]"),
         // [61]
         '[' if matches!(form, Decoration::Decoration) => ("<![", "]]"),
         // [28]
         'D' if matches!(form, Decoration::Decoration) => ("<!DOCTYPE", ""),
         // [29], [45]
-        'E' if matches!(form, Decoration::Decoration) && partial.peek() == Some(&'L') => {
+        'E' if matches!(form, Decoration::Decoration) && file_reader.peek() == Some(&'L') => {
             ("<!ELEMENT", "")
         }
         // [29], [52]
         'A' if matches!(form, Decoration::Decoration) => ("<!ATTLIST", ""),
         // [29], [70]
-        'E' if matches!(form, Decoration::Decoration) && partial.peek() == Some(&'N') => {
+        'E' if matches!(form, Decoration::Decoration) && file_reader.peek() == Some(&'N') => {
             ("<!ENTITY", "")
         }
         // [29], [82]
@@ -53,7 +51,7 @@ pub fn decoration(
         // [16]
         c if matches!(form, Decoration::Declaration) && Name::is_name_start_char(&c) => ("<?", "?"),
         c => Err(SvgParseError::new_curse( 
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedChar(
                 c,
                 match form {
@@ -67,18 +65,13 @@ pub fn decoration(
     };
     let end: String = text.1.into();
     let mut text: String = text.0.into();
-    let _ = partial.take(text.len() - 3).collect::<String>();
-    let mut cursor = cursor.advance_by(text.len() - 2);
+    let _ = file_reader.take(text.len() - 3).collect::<String>();
 
-    for char in partial.by_ref() {
+    for char in file_reader.by_ref() {
         // Naiively push the character, as we don't care about this content for SVGs
         text.push(char);
 
-        cursor = cursor.advance();
         match char {
-            '\n' => {
-                cursor = cursor.newline();
-            }
             '>' if end == text[text.len() - 2..] => break,
             _ => {}
         }
@@ -91,38 +84,38 @@ pub fn decoration(
         'x' => Element::XMLDeclaration(text),
         _ => Element::ProcessingInstructions(text),
     };
-    Ok((cursor, element))
+    Ok(element)
 }
 
 #[test]
 fn test_decoration() {
-    let mut comment = "-- Hello, world -->".chars().peekable();
+    let mut comment = "-- Hello, world -->";
     assert_eq!(
-        decoration(&mut comment, Cursor::default(), Decoration::Decoration),
-        Ok((Cursor::default().advance_by(19), Element::Comment("<!-- Hello, world -->".into())))
+        decoration(&mut FileReader::new(comment), Decoration::Decoration),
+        Ok(Element::Comment("<!-- Hello, world -->".into()))
     );
 
-    let mut cdata = "[CDATA[ Hello, world ]]>".chars().peekable();
+    let mut cdata = "[CDATA[ Hello, world ]]>";
     assert_eq!(
-        decoration(&mut cdata, Cursor::default(), Decoration::Decoration),
-        Ok((Cursor::default().advance_by(24), Element::CData("<![CDATA[ Hello, world ]]>".into())))
+        decoration(&mut FileReader::new(cdata), Decoration::Decoration),
+        Ok(Element::CData("<![CDATA[ Hello, world ]]>".into()))
     );
 
-    let mut doctype = "DOCTYPE Hello, world>".chars().peekable();
+    let mut doctype = "DOCTYPE Hello, world>";
     assert_eq!(
-        decoration(&mut doctype, Cursor::default(), Decoration::Decoration),
-        Ok((Cursor::default().advance_by(21), Element::DocType("<!DOCTYPE Hello, world>".into())))
+        decoration(&mut FileReader::new(doctype), Decoration::Decoration),
+        Ok(Element::DocType("<!DOCTYPE Hello, world>".into()))
     );
 
-    let mut xml_declaration = "xml Hello, world ?>".chars().peekable();
+    let mut xml_declaration = "xml Hello, world ?>";
     assert_eq!(
-        decoration(&mut xml_declaration, Cursor::default(), Decoration::Declaration),
-        Ok((Cursor::default().advance_by(19), Element::XMLDeclaration("<?xml Hello, world ?>".into())))
+        decoration(&mut FileReader::new(xml_declaration), Decoration::Declaration),
+        Ok(Element::XMLDeclaration("<?xml Hello, world ?>".into()))
     );
 
-    let mut processing_instructions = "ELEMENT Hello, world>".chars().peekable();
+    let mut processing_instructions = "ELEMENT Hello, world>";
     assert_eq!(
-        decoration(&mut processing_instructions, Cursor::default(), Decoration::Decoration),
-        Ok((Cursor::default().advance_by(21), Element::ProcessingInstructions("<!ELEMENT Hello, world>".into())))
+        decoration(&mut FileReader::new(processing_instructions), Decoration::Decoration),
+        Ok(Element::ProcessingInstructions("<!ELEMENT Hello, world>".into()))
     );
 }

@@ -4,6 +4,7 @@ use crate::{
     characters::char,
     cursor::Cursor,
     diagnostics::SvgParseError,
+    file_reader::FileReader,
     markup::{attributes, Attribute},
     syntactic_constructs::{whitespace, Name},
     Element, Node, Span, SvgParseErrorMessage,
@@ -71,69 +72,59 @@ impl Display for TagType {
 ///
 /// This function will return an error if the tag is malformed
 pub fn tag_type(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<(Cursor, Element), Box<SvgParseError>> {
-    let cursor_start = cursor;
-    if let Some('/') = partial.peek() {
+) -> Result<Element, Box<SvgParseError>> {
+    let cursor_start = file_reader.get_cursor();
+    if let Some('/') = file_reader.peek() {
         // [42]
-        partial.next();
-        let cursor = cursor.advance();
-        let (cursor, tag_name) = Name::new(partial, cursor)?;
+        file_reader.next();
+        let tag_name = Name::new(file_reader)?;
         let length = tag_name.len() + 2;
-        let cursor = whitespace(partial, cursor, false)?;
-        let cursor = char(partial, cursor, Some('>'))?;
-        return Ok((
-            cursor,
-            Element::EndTag(ETag {
-                start_tag: Rc::new(RefCell::new(STag::default())),
-                tag_name,
-                span: cursor_start.as_span(length),
-            }),
-        ));
+        whitespace(file_reader, false)?;
+        char(file_reader, Some('>'))?;
+        return Ok(Element::EndTag(ETag {
+            start_tag: Rc::new(RefCell::new(STag::default())),
+            tag_name,
+            span: cursor_start.as_span(length),
+        }));
     };
 
-    let (cursor, tag_name) = Name::new(partial, cursor)?;
-    let cursor = match partial.peek() {
-        Some('>') => cursor,
-        Some('/') => cursor,
-        _ => whitespace(partial, cursor, true)?,
+    let tag_name = Name::new(file_reader)?;
+    match file_reader.peek() {
+        Some('>') => {}
+        Some('/') => {}
+        _ => whitespace(file_reader, true)?,
     };
-    let (cursor, attributes) = attributes(partial, cursor)?;
+    let attributes = attributes(file_reader)?;
 
-    let cursor = cursor.advance();
-    match partial.next() {
+    match file_reader.next() {
         Some('/') => {
             // [44]
-            let cursor = char(partial, cursor, Some('>'))?;
+            char(file_reader, Some('>'))?;
             let length = tag_name.len() + 1;
-            Ok((
-                cursor,
-                Element::EmptyTag(EmptyElemTag {
-                    parent,
-                    tag_name,
-                    attributes,
-                    span: cursor_start.as_span(length),
-                }),
-            ))
+            Ok(Element::EmptyTag(EmptyElemTag {
+                parent,
+                tag_name,
+                attributes,
+                span: cursor_start.as_span(length),
+            }))
         }
-        Some('>') => Ok((
+        Some('>') => Ok(
             // [40]
-            cursor,
             Element::StartTag(STag {
                 parent,
                 tag_name: tag_name.clone(),
                 attributes,
                 span: cursor_start.as_span(tag_name.len() + 1),
             }),
-        )),
+        ),
         Some(c) => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedChar(c, "> or />".into()),
         ))?,
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     }
@@ -141,24 +132,24 @@ pub fn tag_type(
 
 #[test]
 fn test_tag_type() {
-    let mut open_tag = "svg attr=\"hi\">!</svg>".chars().peekable();
+    let mut open_tag = FileReader::new("svg attr=\"hi\">!</svg>");
     assert!(matches!(
-        tag_type(&mut open_tag, Cursor::default(), None),
-        Ok((.., Element::StartTag(_)))
+        tag_type(&mut open_tag, None),
+        Ok(Element::StartTag(_))
     ));
     assert_eq!(open_tag.next(), Some('!'));
 
-    let mut empty_tag = "svg attr=\"hi\" />!".chars().peekable();
+    let mut empty_tag = FileReader::new("svg attr=\"hi\" />!");
     assert!(matches!(
-        tag_type(&mut empty_tag, Cursor::default(), None),
-        Ok((.., Element::EmptyTag(_)))
+        tag_type(&mut empty_tag, None),
+        Ok(Element::EmptyTag(_))
     ));
     assert_eq!(open_tag.next(), Some('!'));
 
-    let mut end_tag = "/svg>!".chars().peekable();
+    let mut end_tag = FileReader::new("/svg>!");
     assert!(matches!(
-        tag_type(&mut end_tag, Cursor::default(), None),
-        Ok((.., Element::EndTag(_)))
+        tag_type(&mut end_tag, None),
+        Ok(Element::EndTag(_))
     ));
     assert_eq!(end_tag.next(), Some('!'));
 }

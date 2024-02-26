@@ -1,6 +1,7 @@
 // [4.1 Character and Entity References](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references)
 
 use crate::characters::{char, is_char};
+use crate::file_reader::FileReader;
 use crate::syntactic_constructs::Name;
 use crate::{cursor::Cursor, diagnostics::SvgParseError, SvgParseErrorMessage};
 use std::iter::Peekable;
@@ -20,14 +21,10 @@ impl Reference {
     }
 }
 
-pub fn reference(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
-) -> Result<(Cursor, Reference), Box<SvgParseError>> {
+pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParseError>> {
     let mut text: String = "".into();
-    let cursor = cursor.advance();
-    let cursor_start = cursor;
-    let is_pe_ref = match partial.next() {
+    let cursor_start = file_reader.get_cursor();
+    let is_pe_ref = match file_reader.next() {
         Some('&') => {
             // [67]
             text.push('&');
@@ -39,46 +36,41 @@ pub fn reference(
             true
         }
         Some(c) => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedChar(c, "& or %".into()),
         ))?,
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     };
 
-    match partial.peek() {
+    match file_reader.peek() {
         Some('#') if !is_pe_ref => {
             // [66]
             text.push('#')
         }
         Some(&c) => {
-            let cursor = char(partial, cursor, Some(c))?;
-            let (cursor, ref_name) = Name::new(partial, cursor)?;
+            char(file_reader, Some(c))?;
+            let ref_name = Name::new(file_reader)?;
             text.push_str(ref_name.as_str());
-            let cursor = char(partial, cursor, Some(';'))?;
+            char(file_reader, Some(';'))?;
             text.push(';');
-            return Ok((
-                cursor,
-                match is_pe_ref {
-                    // [69]
-                    true => Reference::ParameterEntity(text),
-                    // [68]
-                    false => Reference::Entity(text),
-                },
-            ));
+            return Ok(match is_pe_ref {
+                // [69]
+                true => Reference::ParameterEntity(text),
+                // [68]
+                false => Reference::Entity(text),
+            });
         }
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     };
-    let cursor = cursor.advance();
-    partial.next();
+    file_reader.next();
 
-    let cursor = cursor.advance();
-    let is_hex = match partial.next() {
+    let is_hex = match file_reader.next() {
         Some('x') => {
             text.push('x');
             true
@@ -88,18 +80,17 @@ pub fn reference(
             false
         }
         Some(c) => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedChar(c, "x or number".into()),
         ))?,
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     };
 
     loop {
-        let cursor = cursor.advance();
-        match partial.next() {
+        match file_reader.next() {
             Some(';') => {
                 text.push(';');
                 break;
@@ -109,11 +100,11 @@ pub fn reference(
                 text.push(c)
             }
             Some(c) => Err(SvgParseError::new_curse(
-                cursor,
+                file_reader.get_cursor(),
                 SvgParseErrorMessage::UnexpectedChar(c, "number or hex".into()),
             ))?,
             None => Err(SvgParseError::new_curse(
-                cursor,
+                file_reader.get_cursor(),
                 SvgParseErrorMessage::UnexpectedEndOfFile,
             ))?,
         };
@@ -132,5 +123,5 @@ pub fn reference(
             SvgParseErrorMessage::IllegalCharRef(text.clone()),
         ))?;
     };
-    Ok((cursor, Reference::Char(text)))
+    Ok(Reference::Char(text))
 }

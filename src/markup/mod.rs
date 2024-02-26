@@ -8,6 +8,7 @@ use crate::{
     cursor::Cursor,
     diagnostics::SvgParseError,
     document::Node,
+    file_reader::FileReader,
     references::{reference, Reference},
     SvgParseErrorMessage,
 };
@@ -39,39 +40,38 @@ pub enum Markup {
 ///
 /// This function will return an error if the partial has ended
 pub fn markup(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<(Cursor, Markup), Box<SvgParseError>> {
-    match partial.peek() {
+) -> Result<Markup, Box<SvgParseError>> {
+    match file_reader.peek() {
         Some('<') => {
             // start-tag, end-tag, empty-element-tag, comment, cdata, doctype, processing-data,
             // xml-declaration, text-declaration
-            element(partial, cursor, parent).map(|(c, e)| (c, Markup::Element(e)))
+            element(file_reader, parent).map(|e| Markup::Element(e))
         }
         Some(&c) if c == '&' || c == '%' => {
             // reference
-            reference(partial, cursor).map(|(c, r)| (c, Markup::Reference(r)))
+            reference(file_reader).map(|r| Markup::Reference(r))
         }
-        Some(_) => char_data(partial, cursor).map(|(c, s)| (c, Markup::CharData(s))),
-        None => Ok((cursor, Markup::Element(Element::EndOfFile))),
+        Some(_) => char_data(file_reader).map(|s| Markup::CharData(s)),
+        None => Ok(Markup::Element(Element::EndOfFile)),
     }
 }
 
 #[test]
 fn test_markup() {
-    let mut tag = "<svg attr=\"hi\">".chars().peekable();
+    let mut tag = "<svg attr=\"hi\">";
     assert!(matches!(
-        markup(&mut tag, Cursor::default(), None),
-        Ok((.., Markup::Element(Element::StartTag(_))))
+        markup(&mut FileReader::new(tag), None),
+        Ok(Markup::Element(Element::StartTag(_)))
     ));
 
-    let mut element = "<!-- Hello, world -->".chars().peekable();
-    dbg!(markup(&mut element, Cursor::default(), None));
+    let mut element = "<!-- Hello, world -->";
+    dbg!(markup(&mut FileReader::new(element), None));
 
-    let mut markup_example = "&amp;".chars().peekable();
-    dbg!(markup(&mut markup_example, Cursor::default(), None));
+    let mut markup_example = "&amp;";
+    dbg!(markup(&mut FileReader::new(markup_example), None));
 
-    let mut char_data = "Hello, world".chars().peekable();
-    dbg!(markup(&mut char_data, Cursor::default(), None));
+    let mut char_data = "Hello, world";
+    dbg!(markup(&mut FileReader::new(char_data), None));
 }

@@ -5,6 +5,7 @@ use std::iter::Peekable;
 use crate::{
     cursor::{Cursor, Span},
     diagnostics::SvgParseError,
+    file_reader::FileReader,
     references::reference,
     SvgParseErrorMessage,
 };
@@ -26,31 +27,27 @@ pub enum Literal {
 }
 
 pub fn literal(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     expected: Literal,
-) -> Result<(Cursor, LiteralValue), Box<SvgParseError>> {
+) -> Result<LiteralValue, Box<SvgParseError>> {
     let mut text: String = "".into();
-    let cursor_start = cursor;
-    let mut cursor = cursor;
+    let cursor_start = file_reader.get_cursor();
 
-    cursor.mut_advance();
-    let quote_style = match partial.next() {
+    let quote_style = match file_reader.next() {
         Some('\'') => '\'',
         Some('"') => '"',
         Some(c) => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedChar(c, "An opening `'` or `\"`".into()),
         ))?,
         None => Err(SvgParseError::new_curse(
-            cursor,
+            file_reader.get_cursor(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         ))?,
     };
     text.push(quote_style);
 
-    while let Some(char) = partial.next() {
-        cursor.mut_advance();
+    while let Some(char) = file_reader.next() {
         text.push(char);
         if char == quote_style {
             break;
@@ -59,12 +56,11 @@ pub fn literal(
         match expected {
             Literal::EntityValue if char == '&' || char == '%' => {
                 // [9]
-                let (c, ref_item) = reference(partial, cursor)?;
-                cursor = c;
+                let ref_item = reference(file_reader)?;
                 text.push_str(&ref_item.unwrap());
             }
             Literal::EntityValue => Err(SvgParseError::new_curse(
-                cursor,
+                file_reader.get_cursor(),
                 SvgParseErrorMessage::UnexpectedChar(
                     char,
                     "Start of reference (ie. `%__;` or `&__;`)".into(),
@@ -72,8 +68,7 @@ pub fn literal(
             ))?,
             Literal::AttValue if char == '&' => {
                 // [10]
-                let (c, ref_item) = reference(partial, cursor)?;
-                cursor = c;
+                let ref_item = reference(file_reader)?;
                 text.push_str(&ref_item.unwrap());
             }
             Literal::AttValue => {}
@@ -84,7 +79,7 @@ pub fn literal(
                 // [12]
             }
             Literal::PubidLiteral => Err(SvgParseError::new_curse(
-                cursor,
+                file_reader.get_cursor(),
                 SvgParseErrorMessage::UnexpectedChar(
                     char,
                     "valid public identifier literal character".into(),
@@ -93,7 +88,7 @@ pub fn literal(
         }
     }
 
-    Ok((cursor, LiteralValue::new(cursor_start, text)))
+    Ok(LiteralValue::new(cursor_start, text))
 }
 
 fn is_pubid_char(char: &char) -> bool {

@@ -2,6 +2,7 @@ mod characters;
 mod cursor;
 mod diagnostics;
 mod document;
+mod file_reader;
 mod markup;
 mod references;
 mod syntactic_constructs;

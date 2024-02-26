@@ -1,7 +1,8 @@
 // [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
 
-use crate::{cursor::Cursor, diagnostics::SvgParseError, SvgParseErrorMessage};
-use std::iter::Peekable;
+use crate::{
+    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, SvgParseErrorMessage,
+};
 
 static NAME_EXPECTED: &str = "valid starting name character";
 
@@ -9,37 +10,32 @@ static NAME_EXPECTED: &str = "valid starting name character";
 pub struct Name(String);
 
 impl Name {
-    pub fn new(
-        partial: &mut Peekable<impl Iterator<Item = char>>,
-        cursor: Cursor,
-    ) -> Result<(Cursor, Self), Box<SvgParseError>> {
+    pub fn new(file_reader: &mut FileReader) -> Result<Self, Box<SvgParseError>> {
         // [5]
-        let mut cursor = cursor;
         let mut text = "".to_string();
 
-        while let Some(next_char) = partial.peek() {
-            if text.is_empty() && !Self::is_name_start_char(next_char) {
+        while let Some(&next_char) = file_reader.peek() {
+            if text.is_empty() && !Self::is_name_start_char(&next_char) {
                 Err(SvgParseError::new_curse(
-                    cursor.advance(),
-                    SvgParseErrorMessage::UnexpectedChar(*next_char, NAME_EXPECTED.into()),
+                    file_reader.get_cursor(),
+                    SvgParseErrorMessage::UnexpectedChar(next_char, NAME_EXPECTED.into()),
                 ))?
             }
-            if !Self::is_name_char(next_char) {
+            if !Self::is_name_char(&next_char) {
                 break;
             }
 
-            cursor.mut_advance();
-            text.push(partial.next().unwrap());
+            text.push(file_reader.next().unwrap());
         }
 
         if text.is_empty() {
             Err(SvgParseError::new_curse(
-                cursor.advance(),
+                file_reader.get_cursor().advance(),
                 SvgParseErrorMessage::ExpectedWord,
             ))?
         }
 
-        Ok((cursor, Self(text)))
+        Ok(Self(text))
     }
 
     pub fn is_name_char(char: &char) -> bool {
@@ -122,25 +118,22 @@ impl Into<String> for Name {
 
 #[test]
 fn test_name() {
-    let mut word = "Hello, world!".chars().peekable();
-    assert_eq!(
-        Name::new(&mut word, Cursor::default()),
-        Ok((Cursor::default().advance_by(5), "Hello".into())),
-    );
+    let mut word = FileReader::new("Hello, world!");
+    assert_eq!(Name::new(&mut word), Ok("Hello".into()),);
     assert_eq!(word.next(), Some(','));
 
-    let mut no_word = "".chars().peekable();
+    let mut no_word = FileReader::new("");
     assert_eq!(
-        Name::new(&mut no_word, Cursor::default()),
+        Name::new(&mut no_word),
         Err(Box::new(SvgParseError::new_curse(
             Cursor::default(),
             SvgParseErrorMessage::UnexpectedEndOfFile,
         )))
     );
 
-    let mut leading_whitespace = " Hello, world!".chars().peekable();
+    let mut leading_whitespace = FileReader::new(" Hello, world!");
     assert_eq!(
-        Name::new(&mut leading_whitespace, Cursor::default()),
+        Name::new(&mut leading_whitespace),
         Err(Box::new(SvgParseError::new_curse(
             Cursor::default().newline(),
             SvgParseErrorMessage::UnexpectedChar(' ', NAME_EXPECTED.into())
@@ -148,10 +141,10 @@ fn test_name() {
     );
     assert_eq!(leading_whitespace.next(), Some(' '));
 
-    let mut includes_permitted_name_chars = ":_-.Aa ".chars().peekable();
+    let mut includes_permitted_name_chars = FileReader::new(":_-.Aa ");
     assert_eq!(
-        Name::new(&mut includes_permitted_name_chars, Cursor::default()),
-        Ok((Cursor::default().advance_by(6), ":_-.Aa".into()))
+        Name::new(&mut includes_permitted_name_chars),
+        Ok(":_-.Aa".into())
     );
     assert_eq!(includes_permitted_name_chars.next(), Some(' '));
 }

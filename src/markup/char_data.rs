@@ -1,24 +1,19 @@
 // [2.4 Character Data](https://www.w3.org/TR/2006/REC-xml11-20060816/#syntax)
 
-use crate::{cursor::Cursor, diagnostics::SvgParseError};
-use std::iter::Peekable;
+use crate::{diagnostics::SvgParseError, file_reader::FileReader};
 
-pub fn char_data(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
-) -> Result<(Cursor, String), Box<SvgParseError>> {
+pub fn char_data(file_reader: &mut FileReader) -> Result<String, Box<SvgParseError>> {
     // [14]
     let mut text: String = "".into();
-    while let Some(&char) = partial.peek() {
+    while let Some(&char) = file_reader.peek() {
         match char {
             '&' => break,
             '<' => break,
             _ => {}
         }
         text.push(char);
-        cursor.advance();
-        partial.next();
+        file_reader.next();
     }
 
-    Ok((cursor, text))
+    Ok(text)
 }

@@ -1,7 +1,7 @@
 // [2.1 Well-Formed XML Documents](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-well-formed)
 use crate::{
-    content, cursor::Cursor, diagnostics::SvgParseError, markup, ETag, Element, EmptyElemTag,
-    Markup, NodeContent, STag, SvgParseErrorMessage, TagType,
+    content, cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, markup, ETag,
+    Element, EmptyElemTag, Markup, NodeContent, STag, SvgParseErrorMessage, TagType,
 };
 use std::{cell::RefCell, iter::Peekable, rc::Rc};
 
@@ -13,19 +13,13 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn new(
-        partial: &mut Peekable<impl Iterator<Item = char>>,
-        cursor: Cursor,
-    ) -> Result<(Cursor, Self), Box<SvgParseError>> {
+    pub fn new(file_reader: &mut FileReader) -> Result<Self, Box<SvgParseError>> {
         // [Document](https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-document)
         // [1]
-        let mut cursor = cursor;
         let mut prolog = Vec::new();
         let root_start = Rc::new(RefCell::new(STag::default()));
         loop {
-            let (c, item) = markup(partial, cursor, None)?;
-            cursor = c;
-            match item {
+            match markup(file_reader, None)? {
                 Markup::Element(e) => match e {
                     Element::StartTag(e) => {
                         root_start.replace(e);
@@ -43,23 +37,18 @@ impl Document {
                 m => prolog.push(m),
             };
         }
-        let (mut cursor, element) = node(partial, cursor, root_start)?;
+        let element = node(file_reader, root_start)?;
 
         let mut misc = Vec::new();
         loop {
-            let (c, item) = markup(partial, cursor, None)?;
-            cursor = c;
-            match item {
+            match markup(file_reader, None)? {
                 Markup::Element(e) => match e {
                     Element::EndOfFile => {
-                        return Ok((
-                            cursor,
-                            Document {
-                                prolog,
-                                element,
-                                misc,
-                            },
-                        ))
+                        return Ok(Document {
+                            prolog,
+                            element,
+                            misc,
+                        })
                     }
                     Element::StartTag(STag { span, .. }) => Err(SvgParseError::new_span(
                         span,
@@ -78,8 +67,8 @@ impl Document {
     }
 
     pub fn parse(svg: &str) -> Result<Self, Box<SvgParseError>> {
-        let mut chars = svg.chars().peekable();
-        Ok(Self::new(&mut chars, Cursor::default())?.1)
+        let mut file_reader = FileReader::new(svg);
+        Self::new(&mut file_reader)
     }
 }
 
@@ -90,16 +79,15 @@ pub enum Node {
 }
 
 pub fn node(
-    partial: &mut Peekable<impl Iterator<Item = char>>,
-    cursor: Cursor,
+    file_reader: &mut FileReader,
     start_tag: Rc<RefCell<STag>>,
-) -> Result<(Cursor, Rc<RefCell<Node>>), Box<SvgParseError>> {
+) -> Result<Rc<RefCell<Node>>, Box<SvgParseError>> {
     let node = Rc::new(RefCell::new(Node::ContentNode((
         Rc::clone(&start_tag),
         Vec::new(),
         ETag::default(),
     ))));
-    let (cursor, content, end_tag) = content(partial, cursor, Rc::clone(&node))?;
+    let (content, end_tag) = content(file_reader, Rc::clone(&node))?;
     match &mut *node.borrow_mut() {
         Node::ContentNode((_, ref mut c, ref mut e)) => {
             *c = content;
@@ -108,7 +96,7 @@ pub fn node(
         }
         _ => unreachable!(),
     }
-    Ok((cursor, node))
+    Ok(node)
 }
 
 #[test]
