@@ -18,12 +18,12 @@ pub use self::{
     char_data::char_data,
     decoration::{decoration, Decoration},
     element::{
-        attributes, content, element, Attribute, ETag, Element, EmptyElemTag, NodeContent, STag,
-        TagType,
+        attributes, content, element, Attribute, Attributes, ETag, Element, EmptyElemTag,
+        NodeContent, STag, TagType,
     },
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub enum Markup {
     Element(Element),
     Reference(Reference),

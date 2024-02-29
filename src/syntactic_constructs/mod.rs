@@ -7,5 +7,5 @@ mod whitespace;
 pub use self::{
     literals::{literal, Literal, LiteralValue},
     names::Name,
-    whitespace::whitespace,
+    whitespace::{is_whitespace, whitespace},
 };

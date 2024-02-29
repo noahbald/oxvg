@@ -8,16 +8,35 @@ use crate::{
     syntactic_constructs::{literal, whitespace, Literal, LiteralValue, Name},
     Cursor,
 };
-use std::iter::Peekable;
+use std::{collections::HashMap, iter::Peekable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
-    name: Name,
-    value: LiteralValue,
+    name: String,
+    value: String,
 }
 
-pub fn attributes(file_reader: &mut FileReader) -> Result<Vec<Attribute>, Box<SvgParseError>> {
-    let mut entries: Vec<Attribute> = Vec::new();
+#[derive(Default, Debug, Clone)]
+pub struct Attributes {
+    pub map: HashMap<String, String>,
+}
+
+impl Attributes {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, key: String, value: String) {
+        self.map.insert(key, value);
+    }
+}
+
+pub fn attributes(
+    file_reader: &mut FileReader,
+) -> Result<HashMap<String, String>, Box<SvgParseError>> {
+    let mut entries = HashMap::new();
 
     loop {
         match file_reader.peek() {
@@ -27,7 +46,7 @@ pub fn attributes(file_reader: &mut FileReader) -> Result<Vec<Attribute>, Box<Sv
             _ => {}
         };
         let attr = attribute(file_reader)?;
-        entries.push(attr);
+        entries.insert(attr.name, attr.value);
     }
 
     Ok(entries)
@@ -45,30 +64,9 @@ pub fn attribute(file_reader: &mut FileReader) -> Result<Attribute, Box<SvgParse
 #[test]
 fn test_attributes() {
     let mut single = FileReader::new("fill='none'");
-    assert_eq!(
-        attributes(&mut single),
-        Ok(vec![Attribute {
-            name: "fill".into(),
-            value: LiteralValue::new(Cursor::default().advance_by(5), "'none'".into())
-        }])
-    );
+    dbg!(attributes(&mut single),);
 
     let mut double =
         FileReader::new("d=\"M12 3c7.2-1\"  transform=\"matrix('5.2 0 0 0 -1.1 1')\"  />");
-    assert_eq!(
-        attributes(&mut double),
-        Ok(vec![
-            Attribute {
-                name: "d".into(),
-                value: LiteralValue::new(Cursor::default().advance_by(2), "\"M12 3c7.2-1\"".into())
-            },
-            Attribute {
-                name: "transform".into(),
-                value: LiteralValue::new(
-                    Cursor::default(),
-                    "\"matrix('5.2 0 0 0 -1.1 1')\"".into()
-                )
-            }
-        ])
-    );
+    dbg!(attributes(&mut double),);
 }

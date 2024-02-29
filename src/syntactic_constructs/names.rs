@@ -10,7 +10,7 @@ static NAME_EXPECTED: &str = "valid starting name character";
 pub struct Name(String);
 
 impl Name {
-    pub fn new(file_reader: &mut FileReader) -> Result<Self, Box<SvgParseError>> {
+    pub fn new(file_reader: &mut FileReader) -> Result<String, Box<SvgParseError>> {
         // [5]
         let mut text = "".to_string();
 
@@ -35,7 +35,7 @@ impl Name {
             ))?
         }
 
-        Ok(Self(text))
+        Ok(text)
     }
 
     pub fn is_name_char(char: &char) -> bool {

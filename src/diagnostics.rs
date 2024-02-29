@@ -84,6 +84,18 @@ impl SvgParseError {
 
 #[derive(Debug, Error, Diagnostic, PartialEq, Clone)]
 pub enum SvgParseErrorMessage {
+    #[error("Found non-whitespace before first tag")]
+    TextBeforeFirstTag,
+    #[error("Found text data outside of root tag")]
+    TextOutsideRoot,
+    #[error("Unencoded `<` found")]
+    UnencodedLt,
+    #[error("Inappropriately located doctype declaration")]
+    InappropriateDoctype,
+    #[error("Malformed comment")]
+    MalformedComment,
+    #[error("Duplicate attribute `{0}`")]
+    DuplicateAttribute(String),
     #[error("The file ended before the expected closing svg tag")]
     UnexpectedEndOfFile,
     #[error("Expected the file to end after the closing svg tag")]
@@ -105,4 +117,8 @@ pub enum SvgParseErrorMessage {
     UnmatchedTag(String, String),
     #[error("{0} is not a legal character")]
     IllegalCharRef(String),
+    #[error("{0}")]
+    Generic(String),
+    #[error("Something went wrong with oxvg, please raise a defect: {0}")]
+    Internal(String),
 }

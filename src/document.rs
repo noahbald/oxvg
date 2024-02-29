@@ -14,6 +14,16 @@ pub struct Document {
 
 impl Document {
     pub fn new(file_reader: &mut FileReader) -> Result<Self, Box<SvgParseError>> {
+        loop {
+            let collected_state = file_reader.collect_state();
+            match collected_state {
+                Some(state) => println!("{:?}: {}", state.state_collected, state.contents),
+                None => Err(SvgParseError::new_curse(
+                    file_reader.get_cursor(),
+                    SvgParseErrorMessage::Generic("This is fine".into()),
+                ))?,
+            }
+        }
         // [Document](https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-document)
         // [1]
         let mut prolog = Vec::new();
@@ -72,7 +82,7 @@ impl Document {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub enum Node {
     EmptyNode(EmptyElemTag),
     ContentNode((Rc<RefCell<STag>>, Vec<NodeContent>, ETag)),

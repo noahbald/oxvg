@@ -14,8 +14,8 @@ use crate::{
 pub struct LiteralValue(Span, String);
 
 impl LiteralValue {
-    pub fn new(cursor: Cursor, value: String) -> Self {
-        Self(cursor.as_span(value.len()), value)
+    pub fn new(cursor: Cursor, value: String) -> String {
+        value
     }
 }
 
@@ -29,7 +29,7 @@ pub enum Literal {
 pub fn literal(
     file_reader: &mut FileReader,
     expected: Literal,
-) -> Result<LiteralValue, Box<SvgParseError>> {
+) -> Result<String, Box<SvgParseError>> {
     let mut text: String = "".into();
     let cursor_start = file_reader.get_cursor();
 

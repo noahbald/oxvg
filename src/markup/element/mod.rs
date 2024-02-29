@@ -12,14 +12,14 @@ use crate::{
 use std::{cell::RefCell, iter::Peekable, rc::Rc};
 
 pub use self::{
-    attribute::{attributes, Attribute},
+    attribute::{attributes, Attribute, Attributes},
     content::{content, NodeContent},
     tag::{tag_type, ETag, EmptyElemTag, STag, TagType},
 };
 
 // [3.0 Logical Structures](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-logical-struct)
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub enum Element {
     StartTag(STag),
     EndTag(ETag),

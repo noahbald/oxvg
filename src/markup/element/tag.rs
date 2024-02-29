@@ -10,25 +10,29 @@ use crate::{
     Element, Node, Span, SvgParseErrorMessage,
 };
 use core::fmt;
-use std::fmt::Display;
-use std::{cell::RefCell, iter::Peekable, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, iter::Peekable, rc::Rc};
+use std::{fmt::Display, iter::Map};
+
+use super::attribute::Attributes;
 
 // [44]
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub struct EmptyElemTag {
-    parent: Option<Rc<RefCell<Node>>>,
-    pub tag_name: Name,
-    attributes: Vec<Attribute>,
+    pub parent: Option<Rc<RefCell<Node>>>,
+    pub tag_name: String,
+    pub attributes: HashMap<String, String>,
     pub span: Span,
+    pub ns: Option<HashMap<String, String>>,
 }
 
 // [40]
-#[derive(PartialEq, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct STag {
-    parent: Option<Rc<RefCell<Node>>>,
-    pub tag_name: Name,
-    attributes: Vec<Attribute>,
+    pub parent: Option<Rc<RefCell<Node>>>,
+    pub tag_name: String,
+    pub attributes: HashMap<String, String>,
     pub span: Span,
+    pub ns: Option<HashMap<String, String>>,
 }
 
 impl STag {
@@ -37,22 +41,24 @@ impl STag {
             parent: None,
             span: cursor.as_span((&name).len()),
             tag_name: name.into(),
-            attributes: vec![],
+            attributes: HashMap::new(),
+            ns: None,
         }
     }
 }
 
 // [42]
-#[derive(PartialEq, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct ETag {
     pub start_tag: Rc<RefCell<STag>>,
-    pub tag_name: Name,
+    pub tag_name: String,
     pub span: Span,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TagType {
     SelfClosing,
+    Closing,
     Any,
 }
 
@@ -60,6 +66,7 @@ impl Display for TagType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let output = match self {
             TagType::SelfClosing => "<self-closing/>",
+            TagType::Closing => "</closing>",
             TagType::Any => "<opening>, </closing>, or <self-closing />",
         };
         write!(f, "{:?}", output)
@@ -108,6 +115,7 @@ pub fn tag_type(
                 tag_name,
                 attributes,
                 span: cursor_start.as_span(length),
+                ns: None,
             }))
         }
         Some('>') => Ok(
@@ -117,6 +125,7 @@ pub fn tag_type(
                 tag_name: tag_name.clone(),
                 attributes,
                 span: cursor_start.as_span(tag_name.len() + 1),
+                ns: None,
             }),
         ),
         Some(c) => Err(SvgParseError::new_curse(
