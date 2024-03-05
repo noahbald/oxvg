@@ -8,7 +8,7 @@ use std::iter::Peekable;
 pub fn is_whitespace(char: &char) -> bool {
     // [3]
     if char == &'\r' {
-        println!("Warning, carraige returns should be stripped from document");
+        // println!("Warning, carraige returns should be stripped from document");
     }
     char == &' ' || char == &'\t' || char == &'\r' || char == &'\n'
 }

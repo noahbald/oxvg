@@ -5,6 +5,7 @@ mod document;
 mod file_reader;
 mod markup;
 mod references;
+mod state;
 mod syntactic_constructs;
 use crate::characters::char;
 use crate::cursor::{Cursor, Span};
