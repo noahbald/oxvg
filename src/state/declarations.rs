@@ -1,4 +1,7 @@
-use crate::diagnostics::{SvgParseError, SvgParseErrorMessage};
+use crate::{
+    diagnostics::SVGError,
+    file_reader::{Child, SAXState},
+};
 
 use super::{text::Text, FileReaderState, State};
 
@@ -48,12 +51,11 @@ impl FileReaderState for SGMLDeclaration {
                 return Box::new(Comment);
             }
             d if d.to_uppercase() == "DOCTYPE" => {
-                if !file_reader.doctype || file_reader.saw_root {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::InappropriateDoctype,
-                    ));
+                if !file_reader.doctype.is_empty() || file_reader.saw_root {
+                    file_reader.error_state("Doctype should only be declared before root");
                 }
+                file_reader.doctype = String::default();
+                file_reader.doctype = String::default();
                 file_reader.sgml_declaration = String::default();
                 return Box::new(Doctype);
             }
@@ -61,6 +63,9 @@ impl FileReaderState for SGMLDeclaration {
         }
         match char {
             '>' => {
+                file_reader.add_child(Child::SGMLDeclaration {
+                    value: file_reader.sgml_declaration.clone(),
+                });
                 file_reader.sgml_declaration = String::default();
                 Box::new(Text)
             }
@@ -151,16 +156,15 @@ impl FileReaderState for CDataEnding {
 }
 
 impl FileReaderState for CDataEnded {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
+    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState>
     where
         Self: std::marker::Sized,
     {
         match char {
             '>' => {
+                file_reader.add_child(Child::CData {
+                    value: file_reader.cdata.clone(),
+                });
                 file_reader.cdata = String::default();
                 Box::new(Text)
             }
@@ -214,10 +218,7 @@ impl FileReaderState for CommentEnding {
         Self: std::marker::Sized,
     {
         match char {
-            '-' => {
-                file_reader.comment = String::default();
-                Box::new(CommentEnded)
-            }
+            '-' => Box::new(CommentEnded),
             c => {
                 file_reader.comment.push('-');
                 file_reader.comment.push(*c);
@@ -241,12 +242,22 @@ impl FileReaderState for CommentEnded {
         Self: std::marker::Sized,
     {
         match char {
-            '>' => Box::new(Text),
+            '>' => {
+                file_reader.add_child(Child::Comment {
+                    value: file_reader.comment.clone(),
+                });
+                file_reader.comment = String::default();
+                Box::new(Text)
+            }
             c => {
                 if file_reader.get_options().strict {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::MalformedComment,
+                    file_reader.add_error(SVGError::new(
+                        "`--` in comments should be avoided".into(),
+                        (
+                            file_reader.get_position().end - 2,
+                            file_reader.get_position().end,
+                        )
+                            .into(),
                     ))
                 }
                 file_reader.comment.push_str("--");
@@ -272,15 +283,27 @@ impl FileReaderState for Doctype {
     {
         match char {
             '>' => {
-                file_reader.doctype = true;
+                if !file_reader.tag.is_root() {
+                    file_reader.error_token("Doctype is only allowed in the root")
+                }
+                file_reader.add_child(Child::Doctype {
+                    data: file_reader.doctype.clone(),
+                });
                 Box::new(Text)
             }
-            '[' => Box::new(DoctypeDTD),
+            '[' => {
+                file_reader.doctype.push(*char);
+                Box::new(DoctypeDTD)
+            }
             '"' | '\'' => {
+                file_reader.doctype.push(*char);
                 file_reader.quote = Some(*char);
                 Box::new(DoctypeQuoted)
             }
-            _ => self,
+            _ => {
+                file_reader.doctype.push(*char);
+                self
+            }
         }
     }
 
@@ -298,6 +321,7 @@ impl FileReaderState for DoctypeDTD {
     where
         Self: std::marker::Sized,
     {
+        file_reader.doctype.push(*char);
         match char {
             ']' => Box::new(Doctype),
             '"' | '\'' => {
@@ -322,6 +346,7 @@ impl FileReaderState for DoctypeQuoted {
     where
         Self: std::marker::Sized,
     {
+        file_reader.doctype.push(*char);
         match char {
             c if Some(*c) == file_reader.quote => {
                 file_reader.quote = None;
@@ -345,6 +370,7 @@ impl FileReaderState for DoctypeDTDQuoted {
     where
         Self: std::marker::Sized,
     {
+        file_reader.doctype.push(*char);
         match char {
             c if Some(*c) == file_reader.quote => {
                 file_reader.quote = None;

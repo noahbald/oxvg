@@ -3,7 +3,7 @@
 use crate::characters::{char, is_char};
 use crate::file_reader::FileReader;
 use crate::syntactic_constructs::Name;
-use crate::{cursor::Cursor, diagnostics::SvgParseError, SvgParseErrorMessage};
+use crate::{cursor::Cursor, diagnostics::SVGError, SVGErrorLabel};
 use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
@@ -21,7 +21,7 @@ impl Reference {
     }
 }
 
-pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParseError>> {
+pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SVGError>> {
     let mut text: String = "".into();
     let cursor_start = file_reader.get_cursor();
     let is_pe_ref = match file_reader.next() {
@@ -35,13 +35,13 @@ pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParse
             text.push('%');
             true
         }
-        Some(c) => Err(SvgParseError::new_curse(
+        Some(c) => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(c, "& or %".into()),
+            SVGErrorLabel::UnexpectedChar(c, "& or %".into()),
         ))?,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
 
@@ -63,9 +63,9 @@ pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParse
                 false => Reference::Entity(text),
             });
         }
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
     file_reader.next();
@@ -79,13 +79,13 @@ pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParse
             text.push(c);
             false
         }
-        Some(c) => Err(SvgParseError::new_curse(
+        Some(c) => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(c, "x or number".into()),
+            SVGErrorLabel::UnexpectedChar(c, "x or number".into()),
         ))?,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
 
@@ -99,28 +99,28 @@ pub fn reference(file_reader: &mut FileReader) -> Result<Reference, Box<SvgParse
             Some(c) if is_hex && ('a'..='f').contains(&c) || ('A'..='F').contains(&c) => {
                 text.push(c)
             }
-            Some(c) => Err(SvgParseError::new_curse(
+            Some(c) => Err(SVGError::new_curse(
                 file_reader.get_cursor(),
-                SvgParseErrorMessage::UnexpectedChar(c, "number or hex".into()),
+                SVGErrorLabel::UnexpectedChar(c, "number or hex".into()),
             ))?,
-            None => Err(SvgParseError::new_curse(
+            None => Err(SVGError::new_curse(
                 file_reader.get_cursor(),
-                SvgParseErrorMessage::UnexpectedEndOfFile,
+                SVGErrorLabel::UnexpectedEndOfFile,
             ))?,
         };
     }
 
     let char = match u8::from_str_radix(&text[1..text.len() - 1], 16) {
         Ok(u) => char::from(u),
-        Err(_) => Err(SvgParseError::new_span(
+        Err(_) => Err(SVGError::new_span(
             cursor_start.as_span(text.len()),
-            SvgParseErrorMessage::IllegalCharRef(text.clone()),
+            SVGErrorLabel::IllegalCharRef(text.clone()),
         ))?,
     };
     if !is_char(&char) {
-        Err(SvgParseError::new_span(
+        Err(SVGError::new_span(
             cursor_start.as_span(text.len()),
-            SvgParseErrorMessage::IllegalCharRef(text.clone()),
+            SVGErrorLabel::IllegalCharRef(text.clone()),
         ))?;
     };
     Ok(Reference::Char(text))
@@ -211,7 +211,7 @@ pub const ENTITIES: &[(&str, char)] = &[
     ("ordf", 'ª'),
     ("laquo", '«'),
     ("not", '¬'),
-    ("shy", '­'),
+    ("shy", '\u{AD}'),
     ("macr", '¯'),
     ("deg", '°'),
     ("plusmn", '±'),

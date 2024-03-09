@@ -1,8 +1,8 @@
 // [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-starttags)
 
 use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, document::node, file_reader::FileReader,
-    markup::markup, ETag, Element, Markup, Node, STag, SvgParseErrorMessage,
+    cursor::Cursor, diagnostics::SVGError, document::node, file_reader::FileReader, markup::markup,
+    ETag, Element, Markup, Node, STag, SVGErrorLabel,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -16,7 +16,7 @@ pub enum NodeContent {
 pub fn content(
     file_reader: &mut FileReader,
     parent: Rc<RefCell<Node>>,
-) -> Result<(Vec<NodeContent>, ETag), Box<SvgParseError>> {
+) -> Result<(Vec<NodeContent>, ETag), Box<SVGError>> {
     // [43]
     let mut content = Vec::new();
     let tag_name = match &*parent.borrow() {
@@ -41,13 +41,13 @@ pub fn content(
                 Element::EndTag(t) if t.tag_name == tag_name => {
                     return Ok((content, t));
                 }
-                Element::EndTag(t) => Err(SvgParseError::new_span(
+                Element::EndTag(t) => Err(SVGError::new_span(
                     t.span,
-                    SvgParseErrorMessage::UnmatchedTag(t.tag_name.into(), tag_name.clone().into()),
+                    SVGErrorLabel::UnmatchedTag(t.tag_name.into(), tag_name.clone().into()),
                 ))?,
-                Element::EndOfFile => Err(SvgParseError::new_curse(
+                Element::EndOfFile => Err(SVGError::new_curse(
                     file_reader.get_cursor(),
-                    SvgParseErrorMessage::ExpectedEndOfFile,
+                    SVGErrorLabel::ExpectedEndOfFile,
                 ))?,
                 e => content.push(NodeContent::Element(e)),
             },

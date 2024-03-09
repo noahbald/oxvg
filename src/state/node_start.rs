@@ -1,6 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
-    diagnostics::{SvgParseError, SvgParseErrorMessage},
-    file_reader::SAXState,
+    file_reader::{Element, Parent, SAXState},
     syntactic_constructs::{is_whitespace, Name},
 };
 
@@ -24,6 +25,8 @@ impl FileReaderState for NodeStart {
             }
             char if is_whitespace(char) => self,
             char if Name::is_name_start_char(char) => {
+                let new_element = Rc::new(RefCell::new(Element::default()));
+                file_reader.tag = Parent::Element(new_element);
                 file_reader.tag_name = String::from(*char);
                 Box::new(OpenTag)
             }
@@ -37,10 +40,7 @@ impl FileReaderState for NodeStart {
             }
             c => {
                 if file_reader.get_options().strict {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::UnencodedLt,
-                    ))
+                    file_reader.error_char("Unencoded `<` should be avoided")
                 }
                 file_reader.text_node.push('<');
                 file_reader.text_node.push(*c);

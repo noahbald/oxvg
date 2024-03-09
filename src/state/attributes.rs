@@ -1,6 +1,7 @@
+use std::{borrow::BorrowMut, cell::RefCell};
+
 use crate::{
-    diagnostics::{SvgParseError, SvgParseErrorMessage},
-    file_reader::SAXState,
+    file_reader::{Element, Parent, SAXState},
     syntactic_constructs::{is_whitespace, Name},
 };
 
@@ -43,14 +44,8 @@ impl FileReaderState for Attribute {
                 file_reader.attribute_value = String::default();
                 Box::new(AttributeName)
             }
-            c => {
-                file_reader.add_error(SvgParseError::new_curse(
-                    file_reader.get_position().end,
-                    SvgParseErrorMessage::UnexpectedChar(
-                        *c,
-                        "Valid attribute starting character".into(),
-                    ),
-                ));
+            _ => {
+                file_reader.error_char("Not a valid starting character");
                 self
             }
         }
@@ -63,15 +58,11 @@ impl FileReaderState for Attribute {
 
 impl Attribute {
     pub fn handle_end(file_reader: &mut SAXState) -> Box<dyn FileReaderState> {
-        let cursor = file_reader.get_position().end;
         if file_reader
             .attribute_map
             .contains_key(&file_reader.attribute_name)
         {
-            file_reader.add_error(SvgParseError::new_curse(
-                file_reader.get_position().end,
-                SvgParseErrorMessage::DuplicateAttribute(file_reader.attribute_name.clone()),
-            ));
+            file_reader.error_token("Found duplicate attribute");
             file_reader.attribute_name = String::default();
             file_reader.attribute_value = String::default();
             return Box::new(Attribute);
@@ -91,14 +82,15 @@ impl Attribute {
         file_reader.attribute_name = String::new();
         file_reader.attribute_value = String::new();
 
-        if let Some(a) = &file_reader.tag {
-            let tag = &mut *a.borrow_mut();
-            tag.attributes = file_reader.attribute_map.clone();
-        } else {
-            file_reader.add_error(SvgParseError::new_curse(
-                cursor,
-                SvgParseErrorMessage::Internal("Attempted to add attribute to nothing".into()),
-            ));
+        if file_reader.tag.is_root() {
+            file_reader.error_internal("Attempted to add attribute to nothing");
+        }
+        match &mut file_reader.tag {
+            Parent::Element(a) => {
+                let a: &RefCell<Element> = a.borrow_mut();
+                a.borrow_mut().attributes = file_reader.attribute_map.clone()
+            }
+            Parent::Root(_) => {}
         };
         Box::new(Attribute)
     }
@@ -117,10 +109,7 @@ impl FileReaderState for AttributeValue {
             }
             c => {
                 if file_reader.get_options().strict {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::UnexpectedChar(*c, "opening quote".into()),
-                    ))
+                    file_reader.error_char("Expected opening quote")
                 }
                 file_reader.attribute_value = c.to_string();
                 Box::new(AttributeValueUnquoted)
@@ -196,20 +185,14 @@ impl FileReaderState for AttributeValueClosed {
             '/' => Box::new(OpenTagSlash),
             c if Name::is_name_start_char(c) => {
                 if file_reader.get_options().strict {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::Generic("No whitespace between attributes".into()),
-                    ));
+                    file_reader.error_char("Expected whitespace between attributes");
                 }
                 file_reader.attribute_name = (*c).into();
                 file_reader.attribute_value = String::new();
                 Box::new(AttributeName)
             }
-            c => {
-                file_reader.add_error(SvgParseError::new_curse(
-                    file_reader.get_position().end,
-                    SvgParseErrorMessage::UnexpectedChar(*c, "attribute name".into()),
-                ));
+            _ => {
+                file_reader.error_char("Expected valid starting character for attribute");
                 self
             }
         }
@@ -233,11 +216,8 @@ impl FileReaderState for AttributeName {
                 file_reader.attribute_name.push(*c);
                 self
             }
-            c => {
-                file_reader.add_error(SvgParseError::new_curse(
-                    file_reader.get_position().end,
-                    SvgParseErrorMessage::UnexpectedChar(*c, "Valid attribute name".into()),
-                ));
+            _ => {
+                file_reader.error_char("Expected valid name character");
                 self
             }
         }
@@ -257,10 +237,7 @@ impl AttributeName {
             '=' => Some(Box::new(AttributeValue)),
             '>' => {
                 if file_reader.get_options().strict {
-                    file_reader.add_error(SvgParseError::new_curse(
-                        file_reader.get_position().end,
-                        SvgParseErrorMessage::UnexpectedChar(*char, "attribute value".into()),
-                    ))
+                    file_reader.error_char("Expected attribute to have value")
                 }
                 file_reader.attribute_value = file_reader.attribute_name.clone();
                 Attribute::handle_end(file_reader);
@@ -285,11 +262,8 @@ impl FileReaderState for AttributeNameSawWhite {
                 file_reader.attribute_name = c.to_string();
                 Box::new(AttributeName)
             }
-            c => {
-                file_reader.add_error(SvgParseError::new_curse(
-                    file_reader.get_position().end,
-                    SvgParseErrorMessage::UnexpectedChar(*c, "valid attribute name".into()),
-                ));
+            _ => {
+                file_reader.error_char("Expected valid attribute name character");
                 Box::new(Attribute)
             }
         }

@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, markup::Element, syntactic_constructs::Name, SvgParseErrorMessage
+    cursor::Cursor, diagnostics::SVGError, file_reader::FileReader, markup::Element, syntactic_constructs::Name, SVGErrorLabel
 };
 
 pub enum Decoration {
@@ -12,14 +12,14 @@ pub enum Decoration {
 pub fn decoration(
     file_reader: &mut FileReader,
     form: Decoration,
-) -> Result<Element, Box<SvgParseError>> {
+) -> Result<Element, Box<SVGError>> {
     // NOTE: We are not processing the body of any decorations/declarations here
     println!("Warning: decorations and declarations are ignored (ie. `<!` and `<?`)");
     let start = match file_reader.next() {
         Some(c) => c,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
     let text = match start {
@@ -50,9 +50,9 @@ pub fn decoration(
         // FIXME: This match will fail for any 'x' prefix, eg <?Xylophone ?>
         // [16]
         c if matches!(form, Decoration::Declaration) && Name::is_name_start_char(&c) => ("<?", "?"),
-        c => Err(SvgParseError::new_curse( 
+        c => Err(SVGError::new_curse( 
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(
+            SVGErrorLabel::UnexpectedChar(
                 c,
                 match form {
                     Decoration::Decoration => {

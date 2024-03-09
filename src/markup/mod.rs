@@ -6,11 +6,11 @@ mod element;
 
 use crate::{
     cursor::Cursor,
-    diagnostics::SvgParseError,
+    diagnostics::SVGError,
     document::Node,
     file_reader::FileReader,
     references::{reference, Reference},
-    SvgParseErrorMessage,
+    SVGErrorLabel,
 };
 use std::{cell::RefCell, iter::Peekable, rc::Rc};
 
@@ -42,7 +42,7 @@ pub enum Markup {
 pub fn markup(
     file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<Markup, Box<SvgParseError>> {
+) -> Result<Markup, Box<SVGError>> {
     match file_reader.peek() {
         Some('<') => {
             // start-tag, end-tag, empty-element-tag, comment, cdata, doctype, processing-data,

@@ -3,11 +3,11 @@
 use crate::{
     characters::char,
     cursor::Cursor,
-    diagnostics::SvgParseError,
+    diagnostics::SVGError,
     file_reader::FileReader,
     markup::{attributes, Attribute},
     syntactic_constructs::{whitespace, Name},
-    Element, Node, Span, SvgParseErrorMessage,
+    Element, Node, SVGErrorLabel, Span,
 };
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, iter::Peekable, rc::Rc};
@@ -81,7 +81,7 @@ impl Display for TagType {
 pub fn tag_type(
     file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<Element, Box<SvgParseError>> {
+) -> Result<Element, Box<SVGError>> {
     let cursor_start = file_reader.get_cursor();
     if let Some('/') = file_reader.peek() {
         // [42]
@@ -128,13 +128,13 @@ pub fn tag_type(
                 ns: None,
             }),
         ),
-        Some(c) => Err(SvgParseError::new_curse(
+        Some(c) => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(c, "> or />".into()),
+            SVGErrorLabel::UnexpectedChar(c, "> or />".into()),
         ))?,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     }
 }

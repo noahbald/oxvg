@@ -1,7 +1,4 @@
-use crate::{
-    diagnostics::{SvgParseError, SvgParseErrorMessage},
-    file_reader::SAXState,
-};
+use crate::file_reader::SAXState;
 
 use super::{node_start::NodeStart, text::Text, FileReaderState, State};
 
@@ -34,10 +31,7 @@ impl FileReaderState for BeginWhitespace {
             return Box::new(NodeStart);
         }
         if file_reader.get_options().strict {
-            file_reader.add_error(SvgParseError::new_curse(
-                file_reader.get_position().end,
-                SvgParseErrorMessage::TextBeforeFirstTag,
-            ));
+            file_reader.error_char("Expected opening of tag or declaration with `<`");
             file_reader.text_node = String::from(*char);
             return Box::new(Text);
         }
@@ -50,11 +44,10 @@ impl FileReaderState for BeginWhitespace {
 }
 
 impl FileReaderState for Ended {
-    fn next(
-        self: Box<Self>,
-        _file_reader: &mut SAXState,
-        _char: &char,
-    ) -> Box<dyn FileReaderState> {
+    fn next(self: Box<Self>, file_reader: &mut SAXState, _char: &char) -> Box<dyn FileReaderState> {
+        if file_reader.root_tag.is_none() {
+            file_reader.error_char("Couldn't find root element in document")
+        }
         self
     }
 

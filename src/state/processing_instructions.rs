@@ -1,4 +1,4 @@
-use crate::syntactic_constructs::is_whitespace;
+use crate::{file_reader::Child, syntactic_constructs::is_whitespace};
 
 use super::{text::Text, FileReaderState, State};
 
@@ -68,8 +68,11 @@ impl FileReaderState for ProcessingInstructionEnding {
     {
         match char {
             '>' => {
-                file_reader.processing_instruction_body = String::default();
-                file_reader.processing_instruction_name = String::default();
+                let child = Child::Instruction {
+                    name: std::mem::take(&mut file_reader.processing_instruction_name),
+                    value: std::mem::take(&mut file_reader.processing_instruction_body),
+                };
+                file_reader.add_child(child);
                 Box::new(Text)
             }
             c => {

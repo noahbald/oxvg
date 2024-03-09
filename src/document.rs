@@ -1,35 +1,25 @@
+use std::{cell::RefCell, rc::Rc};
+
 // [2.1 Well-Formed XML Documents](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-well-formed)
 use crate::{
-    content, diagnostics::SvgParseError, file_reader::FileReader, ETag, EmptyElemTag, Markup,
-    NodeContent, STag, SvgParseErrorMessage,
+    content,
+    diagnostics::SVGError,
+    file_reader::{Element, FileReader, Root},
+    ETag, EmptyElemTag, NodeContent, STag,
 };
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 pub struct Document {
-    pub prolog: Vec<Markup>,
-    pub element: Rc<RefCell<Node>>,
-    pub misc: Vec<Markup>,
+    pub root: Root,
+    pub root_element: Option<Rc<RefCell<Element>>>,
+    pub errors: Vec<SVGError>,
 }
 
 impl Document {
-    pub fn new(file_reader: &mut FileReader) -> Result<Self, Box<SvgParseError>> {
-        loop {
-            let collected_state = file_reader.collect_state();
-            println!("state: {collected_state}");
-            if file_reader.ended() {
-                break;
-            }
-        }
-        Err(SvgParseError::new_curse(
-            file_reader.get_cursor(),
-            SvgParseErrorMessage::Generic("This is fine".into()),
-        ))?
-    }
-
-    pub fn parse(svg: &str) -> Result<Self, Box<SvgParseError>> {
+    pub fn parse(svg: &str) -> Self {
         let mut file_reader = FileReader::new(svg);
-        Self::new(&mut file_reader)
+        file_reader.collect_root();
+        file_reader.into()
     }
 }
 
@@ -42,7 +32,7 @@ pub enum Node {
 pub fn node(
     file_reader: &mut FileReader,
     start_tag: Rc<RefCell<STag>>,
-) -> Result<Rc<RefCell<Node>>, Box<SvgParseError>> {
+) -> Result<Rc<RefCell<Node>>, Box<SVGError>> {
     let node = Rc::new(RefCell::new(Node::ContentNode((
         Rc::clone(&start_tag),
         Vec::new(),

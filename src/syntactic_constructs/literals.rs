@@ -1,13 +1,11 @@
 // [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
 
-use std::iter::Peekable;
-
 use crate::{
     cursor::{Cursor, Span},
-    diagnostics::SvgParseError,
+    diagnostics::SVGError,
     file_reader::FileReader,
     references::reference,
-    SvgParseErrorMessage,
+    SVGErrorLabel,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,23 +24,20 @@ pub enum Literal {
     PubidLiteral,
 }
 
-pub fn literal(
-    file_reader: &mut FileReader,
-    expected: Literal,
-) -> Result<String, Box<SvgParseError>> {
+pub fn literal(file_reader: &mut FileReader, expected: Literal) -> Result<String, Box<SVGError>> {
     let mut text: String = "".into();
     let cursor_start = file_reader.get_cursor();
 
     let quote_style = match file_reader.next() {
         Some('\'') => '\'',
         Some('"') => '"',
-        Some(c) => Err(SvgParseError::new_curse(
+        Some(c) => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(c, "An opening `'` or `\"`".into()),
+            SVGErrorLabel::UnexpectedChar(c, "An opening `'` or `\"`".into()),
         ))?,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
     text.push(quote_style);
@@ -59,9 +54,9 @@ pub fn literal(
                 let ref_item = reference(file_reader)?;
                 text.push_str(&ref_item.unwrap());
             }
-            Literal::EntityValue => Err(SvgParseError::new_curse(
+            Literal::EntityValue => Err(SVGError::new_curse(
                 file_reader.get_cursor(),
-                SvgParseErrorMessage::UnexpectedChar(
+                SVGErrorLabel::UnexpectedChar(
                     char,
                     "Start of reference (ie. `%__;` or `&__;`)".into(),
                 ),
@@ -78,9 +73,9 @@ pub fn literal(
             Literal::PubidLiteral if is_pubid_char(&char) => {
                 // [12]
             }
-            Literal::PubidLiteral => Err(SvgParseError::new_curse(
+            Literal::PubidLiteral => Err(SVGError::new_curse(
                 file_reader.get_cursor(),
-                SvgParseErrorMessage::UnexpectedChar(
+                SVGErrorLabel::UnexpectedChar(
                     char,
                     "valid public identifier literal character".into(),
                 ),

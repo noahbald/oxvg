@@ -3,7 +3,7 @@
 use crate::{
     char,
     cursor::Span,
-    diagnostics::SvgParseError,
+    diagnostics::SVGError,
     file_reader::FileReader,
     syntactic_constructs::{literal, whitespace, Literal, LiteralValue, Name},
     Cursor,
@@ -33,9 +33,7 @@ impl Attributes {
     }
 }
 
-pub fn attributes(
-    file_reader: &mut FileReader,
-) -> Result<HashMap<String, String>, Box<SvgParseError>> {
+pub fn attributes(file_reader: &mut FileReader) -> Result<HashMap<String, String>, Box<SVGError>> {
     let mut entries = HashMap::new();
 
     loop {
@@ -52,7 +50,7 @@ pub fn attributes(
     Ok(entries)
 }
 
-pub fn attribute(file_reader: &mut FileReader) -> Result<Attribute, Box<SvgParseError>> {
+pub fn attribute(file_reader: &mut FileReader) -> Result<Attribute, Box<SVGError>> {
     // [41]
     let name = Name::new(file_reader)?;
     char(file_reader, Some('='))?;

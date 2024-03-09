@@ -9,8 +9,8 @@ mod state;
 mod syntactic_constructs;
 use crate::characters::char;
 use crate::cursor::{Cursor, Span};
-use crate::markup::{content, markup, ETag, Element, EmptyElemTag, NodeContent, STag, TagType};
-use diagnostics::{SvgParseErrorMessage, SvgParseErrorProvider};
+use crate::markup::{content, ETag, Element, EmptyElemTag, NodeContent, STag};
+use diagnostics::{SVGErrorLabel, SVGErrors};
 use document::{Document, Node};
 use markup::Markup;
 use miette::{NamedSource, Result};
@@ -25,22 +25,8 @@ fn main() -> Result<()> {
     });
     let file = fs::read_to_string(&config.path).expect("Unable to read file");
     let result = Document::parse(&file);
-    match result {
-        Ok(svg) => match &*svg.element.borrow() {
-            Node::ContentNode(n) if n.2.tag_name.to_lowercase() == "svg" => Ok(()),
-            Node::ContentNode((s_tag, ..)) => Err(SvgParseErrorProvider::new_error(
-                s_tag.borrow().span.as_source_span(&file),
-                NamedSource::new(config.path, file),
-                SvgParseErrorMessage::NoRootElement,
-            ))?,
-            Node::EmptyNode(EmptyElemTag { span, .. }) => Err(SvgParseErrorProvider::new_error(
-                span.as_source_span(&file),
-                NamedSource::new(config.path, file),
-                SvgParseErrorMessage::NoRootElement,
-            ))?,
-        },
-        Err(error) => error.as_provider(config.path, &file),
-    }
+    dbg!(&result.errors);
+    SVGErrors::from_errors(NamedSource::new(config.path, file), result.errors).emit()
 }
 
 struct Config {

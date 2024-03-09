@@ -1,4 +1,4 @@
-use miette::{Diagnostic, NamedSource, Result, SourceSpan};
+use miette::{Diagnostic, NamedSource, Report, Result, SourceSpan};
 use thiserror::Error;
 
 use crate::{
@@ -8,82 +8,84 @@ use crate::{
 
 #[derive(Debug, Error, Diagnostic)]
 #[error("Error parsing SVG!")]
-pub struct SvgParseErrorProvider {
+#[diagnostic()]
+pub struct SVGErrors {
     #[source_code]
     src: NamedSource<String>,
-    #[label]
-    span: Option<SourceSpan>,
     #[related]
-    error: Vec<SvgParseErrorMessage>,
+    errors: Vec<SVGError>,
 }
 
-impl SvgParseErrorProvider {
-    pub fn new_error(
-        span: SourceSpan,
-        src: NamedSource<String>,
-        error: SvgParseErrorMessage,
-    ) -> Self {
-        SvgParseErrorProvider {
-            span: Some(span),
+impl SVGErrors {
+    pub fn from_error(src: NamedSource<String>, error: SVGError) -> Self {
+        SVGErrors {
             src,
-            error: vec![error],
+            errors: vec![error],
         }
     }
 
-    pub fn add_error(&mut self, span: SourceSpan, error: SvgParseErrorMessage) {
-        if self.span.is_none() {
-            self.span = Some(span);
+    pub fn from_errors(src: NamedSource<String>, errors: Vec<SVGError>) -> Self {
+        Self { src, errors }
+    }
+
+    pub fn emit(self) -> Result<()> {
+        if self.errors.is_empty() {
+            return Ok(());
         }
-        self.error.push(error);
+        if self.errors.len() == 1 {
+            match self.errors.first() {
+                Some(e) => e.clone().emit(self.src),
+                None => Ok(()),
+            }
+        } else {
+            Err(self.into())
+        }
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SvgParseError {
-    span: Option<Span>,
-    cursor: Option<Cursor>,
-    message: SvgParseErrorMessage,
+#[derive(Debug, PartialEq, Clone, Diagnostic, Error)]
+#[error("{label}")]
+#[diagnostic()]
+pub struct SVGError {
+    label: String,
+    #[label]
+    span: SourceSpan,
+    #[help]
+    advice: Option<String>,
 }
 
-impl SvgParseError {
-    pub fn new_span(span: Span, message: SvgParseErrorMessage) -> Self {
-        Self {
-            span: Some(span),
-            cursor: None,
-            message,
-        }
-    }
-
-    pub fn new_curse(cursor: Cursor, message: SvgParseErrorMessage) -> Self {
-        Self {
-            span: None,
-            cursor: Some(cursor),
-            message,
-        }
-    }
-
-    pub fn source_span(&self, file: &str) -> SourceSpan {
-        match &self.span {
-            Some(span) => span.as_source_span(file),
-            None => self
-                .cursor
-                .map(|cursor| (cursor.as_source_offset(file), 0).into())
-                .unwrap(),
-        }
-    }
-
-    pub fn as_provider(&self, path: String, file: &str) -> Result<()> {
-        let span: SourceSpan = self.source_span(file);
-        Err(SvgParseErrorProvider::new_error(
+impl SVGError {
+    pub fn new(label: String, span: SourceSpan) -> Self {
+        SVGError {
+            label,
             span,
-            NamedSource::new(path, file.to_string()),
-            self.message.clone(),
-        ))?
+            advice: None,
+        }
+    }
+
+    pub fn with_advice(self, advice: &str) -> Self {
+        Self {
+            advice: Some(advice.into()),
+            ..self
+        }
+    }
+
+    pub fn emit(self, src: NamedSource<String>) -> Result<()> {
+        let report: Report = self.into();
+        Err(report.with_source_code(src))
+    }
+
+    pub fn new_curse(_cursor: Cursor, _label: SVGErrorLabel) -> Self {
+        todo!("Delete me")
+    }
+
+    pub fn new_span(_span: Span, _label: SVGErrorLabel) -> Self {
+        todo!("Delete me")
     }
 }
 
 #[derive(Debug, Error, Diagnostic, PartialEq, Clone)]
-pub enum SvgParseErrorMessage {
+pub enum SVGErrorLabel {
     #[error("Found non-whitespace before first tag")]
     TextBeforeFirstTag,
     #[error("Found text data outside of root tag")]

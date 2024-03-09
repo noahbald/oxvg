@@ -1,8 +1,6 @@
 // [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
 
-use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, SvgParseErrorMessage,
-};
+use crate::{cursor::Cursor, diagnostics::SVGError, file_reader::FileReader, SVGErrorLabel};
 use std::iter::Peekable;
 
 pub fn is_whitespace(char: &char) -> bool {
@@ -13,7 +11,7 @@ pub fn is_whitespace(char: &char) -> bool {
     char == &' ' || char == &'\t' || char == &'\r' || char == &'\n'
 }
 
-pub fn whitespace(partial: &mut FileReader, required: bool) -> Result<(), Box<SvgParseError>> {
+pub fn whitespace(partial: &mut FileReader, required: bool) -> Result<(), Box<SVGError>> {
     // [3]
     let mut has_advanced = false;
     while let Some(&x) = partial.peek() {
@@ -26,9 +24,9 @@ pub fn whitespace(partial: &mut FileReader, required: bool) -> Result<(), Box<Sv
     }
 
     if required && !has_advanced {
-        Err(SvgParseError::new_curse(
+        Err(SVGError::new_curse(
             partial.get_cursor(),
-            SvgParseErrorMessage::ExpectedWhitespace,
+            SVGErrorLabel::ExpectedWhitespace,
         ))?;
     }
 
@@ -47,9 +45,9 @@ fn test_whitespace() {
     let mut file_empty = FileReader::new("");
     assert_eq!(
         whitespace(&mut file_empty, true),
-        Err(Box::new(SvgParseError::new_curse(
+        Err(Box::new(SVGError::new_curse(
             Cursor::default(),
-            SvgParseErrorMessage::ExpectedWhitespace
+            SVGErrorLabel::ExpectedWhitespace
         ))),
         "expect required whitespace in empty string to fail"
     );

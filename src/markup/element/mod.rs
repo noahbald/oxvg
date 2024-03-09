@@ -4,7 +4,7 @@ mod tag;
 
 use crate::{
     cursor::Cursor,
-    diagnostics::SvgParseError,
+    diagnostics::SVGError,
     file_reader::FileReader,
     markup::{decoration, Decoration},
     Node,
@@ -35,7 +35,7 @@ pub enum Element {
 pub fn element(
     file_reader: &mut FileReader,
     parent: Option<Rc<RefCell<Node>>>,
-) -> Result<Element, Box<SvgParseError>> {
+) -> Result<Element, Box<SVGError>> {
     file_reader.next();
     match file_reader.peek() {
         // [15], [19], [28]

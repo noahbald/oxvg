@@ -1,7 +1,6 @@
 use std::char::from_u32;
 
 use crate::{
-    diagnostics::{SvgParseError, SvgParseErrorMessage},
     file_reader::SAXState,
     references::{ENTITIES, XML_ENTITIES},
     syntactic_constructs::Name,
@@ -102,13 +101,8 @@ fn parse_entity(file_reader: &mut SAXState) -> (String, bool) {
         if let Some(char) = char {
             return (char.into(), false);
         }
-    } else {
-        println!("Warning! Invalid entity {}: {:?}", &file_reader.entity, num);
     }
-    file_reader.add_error(SvgParseError::new_curse(
-        file_reader.get_position().end,
-        SvgParseErrorMessage::Generic("Invalid character entity".into()),
-    ));
+    file_reader.error_state("Invalid character entity");
     (format!("&{};", file_reader.entity), true)
 }
 

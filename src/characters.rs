@@ -1,8 +1,6 @@
 // [2.2 Characters](https://www.w3.org/TR/2006/REC-xml11-20060816/#charsets)
 
-use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, SvgParseErrorMessage,
-};
+use crate::{cursor::Cursor, diagnostics::SVGError, file_reader::FileReader, SVGErrorLabel};
 use std::iter::Peekable;
 
 pub fn is_char(char: &char) -> bool {
@@ -27,22 +25,19 @@ pub fn is_restricted_char(char: &char) -> bool {
         || (0x86..=0x9F).contains(&utf16)
 }
 
-pub fn char(
-    file_reader: &mut FileReader,
-    expected: Option<char>,
-) -> Result<(), Box<SvgParseError>> {
+pub fn char(file_reader: &mut FileReader, expected: Option<char>) -> Result<(), Box<SVGError>> {
     let char = match file_reader.next() {
         Some(x) => x,
-        None => Err(SvgParseError::new_curse(
+        None => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         ))?,
     };
 
     match expected {
-        Some(x) if x != char => Err(SvgParseError::new_curse(
+        Some(x) if x != char => Err(SVGError::new_curse(
             file_reader.get_cursor(),
-            SvgParseErrorMessage::UnexpectedChar(x, char.into()),
+            SVGErrorLabel::UnexpectedChar(x, char.into()),
         ))?,
         _ => {}
     };

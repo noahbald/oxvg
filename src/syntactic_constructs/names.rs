@@ -1,8 +1,6 @@
 // [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
 
-use crate::{
-    cursor::Cursor, diagnostics::SvgParseError, file_reader::FileReader, SvgParseErrorMessage,
-};
+use crate::{cursor::Cursor, diagnostics::SVGError, file_reader::FileReader, SVGErrorLabel};
 
 static NAME_EXPECTED: &str = "valid starting name character";
 
@@ -10,15 +8,15 @@ static NAME_EXPECTED: &str = "valid starting name character";
 pub struct Name(String);
 
 impl Name {
-    pub fn new(file_reader: &mut FileReader) -> Result<String, Box<SvgParseError>> {
+    pub fn new(file_reader: &mut FileReader) -> Result<String, Box<SVGError>> {
         // [5]
         let mut text = "".to_string();
 
         while let Some(&next_char) = file_reader.peek() {
             if text.is_empty() && !Self::is_name_start_char(&next_char) {
-                Err(SvgParseError::new_curse(
+                Err(SVGError::new_curse(
                     file_reader.get_cursor(),
-                    SvgParseErrorMessage::UnexpectedChar(next_char, NAME_EXPECTED.into()),
+                    SVGErrorLabel::UnexpectedChar(next_char, NAME_EXPECTED.into()),
                 ))?
             }
             if !Self::is_name_char(&next_char) {
@@ -29,9 +27,9 @@ impl Name {
         }
 
         if text.is_empty() {
-            Err(SvgParseError::new_curse(
+            Err(SVGError::new_curse(
                 file_reader.get_cursor().advance(),
-                SvgParseErrorMessage::ExpectedWord,
+                SVGErrorLabel::ExpectedWord,
             ))?
         }
 
@@ -125,18 +123,18 @@ fn test_name() {
     let mut no_word = FileReader::new("");
     assert_eq!(
         Name::new(&mut no_word),
-        Err(Box::new(SvgParseError::new_curse(
+        Err(Box::new(SVGError::new_curse(
             Cursor::default(),
-            SvgParseErrorMessage::UnexpectedEndOfFile,
+            SVGErrorLabel::UnexpectedEndOfFile,
         )))
     );
 
     let mut leading_whitespace = FileReader::new(" Hello, world!");
     assert_eq!(
         Name::new(&mut leading_whitespace),
-        Err(Box::new(SvgParseError::new_curse(
+        Err(Box::new(SVGError::new_curse(
             Cursor::default().newline(),
-            SvgParseErrorMessage::UnexpectedChar(' ', NAME_EXPECTED.into())
+            SVGErrorLabel::UnexpectedChar(' ', NAME_EXPECTED.into())
         )))
     );
     assert_eq!(leading_whitespace.next(), Some(' '));
