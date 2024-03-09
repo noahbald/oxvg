@@ -1,10 +1,10 @@
-[package]
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+[workspace.package]
 name = "oxvg"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-miette = { version = "7.0.0", features = ["fancy"] }
-thiserror = "1.0.56"
+authors = ["Noah <noahwbaldwin@gmail.com>"]
