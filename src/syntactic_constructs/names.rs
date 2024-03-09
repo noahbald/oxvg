@@ -1,41 +1,9 @@
 // [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
 
-use crate::{cursor::Cursor, diagnostics::SVGError, file_reader::FileReader, SVGErrorLabel};
-
-static NAME_EXPECTED: &str = "valid starting name character";
-
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct Name(String);
+pub struct Name;
 
 impl Name {
-    pub fn new(file_reader: &mut FileReader) -> Result<String, Box<SVGError>> {
-        // [5]
-        let mut text = "".to_string();
-
-        while let Some(&next_char) = file_reader.peek() {
-            if text.is_empty() && !Self::is_name_start_char(&next_char) {
-                Err(SVGError::new_curse(
-                    file_reader.get_cursor(),
-                    SVGErrorLabel::UnexpectedChar(next_char, NAME_EXPECTED.into()),
-                ))?
-            }
-            if !Self::is_name_char(&next_char) {
-                break;
-            }
-
-            text.push(file_reader.next().unwrap());
-        }
-
-        if text.is_empty() {
-            Err(SVGError::new_curse(
-                file_reader.get_cursor().advance(),
-                SVGErrorLabel::ExpectedWord,
-            ))?
-        }
-
-        Ok(text)
-    }
-
     pub fn is_name_char(char: &char) -> bool {
         // [4a]
         if match char {
@@ -82,67 +50,4 @@ impl Name {
             || (0xFDF0..=0xFFFD).contains(&utf16)
             || (0x10000..=0xEFFFF).contains(&utf16)
     }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn to_lowercase(&self) -> String {
-        self.0.to_lowercase()
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl From<&str> for Name {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<String> for Name {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl Into<String> for Name {
-    fn into(self) -> String {
-        self.0
-    }
-}
-
-#[test]
-fn test_name() {
-    let mut word = FileReader::new("Hello, world!");
-    assert_eq!(Name::new(&mut word), Ok("Hello".into()),);
-    assert_eq!(word.next(), Some(','));
-
-    let mut no_word = FileReader::new("");
-    assert_eq!(
-        Name::new(&mut no_word),
-        Err(Box::new(SVGError::new_curse(
-            Cursor::default(),
-            SVGErrorLabel::UnexpectedEndOfFile,
-        )))
-    );
-
-    let mut leading_whitespace = FileReader::new(" Hello, world!");
-    assert_eq!(
-        Name::new(&mut leading_whitespace),
-        Err(Box::new(SVGError::new_curse(
-            Cursor::default().newline(),
-            SVGErrorLabel::UnexpectedChar(' ', NAME_EXPECTED.into())
-        )))
-    );
-    assert_eq!(leading_whitespace.next(), Some(' '));
-
-    let mut includes_permitted_name_chars = FileReader::new(":_-.Aa ");
-    assert_eq!(
-        Name::new(&mut includes_permitted_name_chars),
-        Ok(":_-.Aa".into())
-    );
-    assert_eq!(includes_permitted_name_chars.next(), Some(' '));
 }

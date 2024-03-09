@@ -1,4 +1,7 @@
-use crate::{file_reader::Child, syntactic_constructs::is_whitespace};
+use crate::{
+    file_reader::{Child, SAXState},
+    syntactic_constructs::is_whitespace,
+};
 
 use super::{text::Text, FileReaderState, State};
 
@@ -10,19 +13,12 @@ pub struct ProcessingInstructionBody;
 pub struct ProcessingInstructionEnding;
 
 impl FileReaderState for ProcessingInstruction {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '?' => Box::new(ProcessingInstructionEnding),
             c if is_whitespace(c) => Box::new(ProcessingInstructionBody),
             c => {
-                file_reader.processing_instruction_name.push(*c);
+                sax.processing_instruction_name.push(*c);
                 self
             }
         }
@@ -34,19 +30,12 @@ impl FileReaderState for ProcessingInstruction {
 }
 
 impl FileReaderState for ProcessingInstructionBody {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '?' => Box::new(ProcessingInstructionEnding),
-            c if file_reader.processing_instruction_body.is_empty() && is_whitespace(c) => self,
+            c if sax.processing_instruction_body.is_empty() && is_whitespace(c) => self,
             c => {
-                file_reader.processing_instruction_body.push(*c);
+                sax.processing_instruction_body.push(*c);
                 self
             }
         }
@@ -58,26 +47,19 @@ impl FileReaderState for ProcessingInstructionBody {
 }
 
 impl FileReaderState for ProcessingInstructionEnding {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '>' => {
                 let child = Child::Instruction {
-                    name: std::mem::take(&mut file_reader.processing_instruction_name),
-                    value: std::mem::take(&mut file_reader.processing_instruction_body),
+                    name: std::mem::take(&mut sax.processing_instruction_name),
+                    value: std::mem::take(&mut sax.processing_instruction_body),
                 };
-                file_reader.add_child(child);
+                sax.add_child(child);
                 Box::new(Text)
             }
             c => {
-                file_reader.processing_instruction_body.push('?');
-                file_reader.processing_instruction_body.push(*c);
+                sax.processing_instruction_body.push('?');
+                sax.processing_instruction_body.push(*c);
                 Box::new(ProcessingInstructionBody)
             }
         }

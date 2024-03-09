@@ -31,51 +31,43 @@ pub struct DoctypeDTD;
 pub struct DoctypeDTDQuoted;
 
 impl FileReaderState for SGMLDeclaration {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
-        match &file_reader.sgml_declaration {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        match &sax.sgml_declaration {
             d if d.to_uppercase() == "[CDATA[" => {
-                file_reader.sgml_declaration = String::default();
-                file_reader.cdata = String::default();
+                sax.sgml_declaration = String::default();
+                sax.cdata = String::default();
                 return Box::new(CData);
             }
             d if d == "-" && char == &'-' => {
-                file_reader.comment = String::default();
-                file_reader.sgml_declaration = String::default();
+                sax.comment = String::default();
+                sax.sgml_declaration = String::default();
                 return Box::new(Comment);
             }
             d if d.to_uppercase() == "DOCTYPE" => {
-                if !file_reader.doctype.is_empty() || file_reader.saw_root {
-                    file_reader.error_state("Doctype should only be declared before root");
+                if !sax.doctype.is_empty() || sax.saw_root {
+                    sax.error_state("Doctype should only be declared before root");
                 }
-                file_reader.doctype = String::default();
-                file_reader.doctype = String::default();
-                file_reader.sgml_declaration = String::default();
+                sax.doctype = String::default();
+                sax.doctype = String::default();
+                sax.sgml_declaration = String::default();
                 return Box::new(Doctype);
             }
             _ => {}
         }
         match char {
             '>' => {
-                file_reader.add_child(Child::SGMLDeclaration {
-                    value: file_reader.sgml_declaration.clone(),
-                });
-                file_reader.sgml_declaration = String::default();
+                let value = std::mem::take(&mut sax.sgml_declaration);
+                sax.add_child(Child::SGMLDeclaration { value });
+                sax.sgml_declaration = String::default();
                 Box::new(Text)
             }
             '"' | '\'' => {
-                file_reader.sgml_declaration.push(*char);
-                file_reader.quote = Some(*char);
+                sax.sgml_declaration.push(*char);
+                sax.quote = Some(*char);
                 Box::new(SGMLDeclarationQuoted)
             }
             c => {
-                file_reader.sgml_declaration.push(*c);
+                sax.sgml_declaration.push(*c);
                 self
             }
         }
@@ -87,19 +79,12 @@ impl FileReaderState for SGMLDeclaration {
 }
 
 impl FileReaderState for SGMLDeclarationQuoted {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
-        if Some(*char) == file_reader.quote {
-            file_reader.quote = None;
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        if Some(*char) == sax.quote {
+            sax.quote = None;
             return Box::new(SGMLDeclaration);
         }
-        file_reader.sgml_declaration.push(*char);
+        sax.sgml_declaration.push(*char);
         self
     }
 
@@ -109,18 +94,11 @@ impl FileReaderState for SGMLDeclarationQuoted {
 }
 
 impl FileReaderState for CData {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             ']' => Box::new(CDataEnding),
             c => {
-                file_reader.cdata.push(*c);
+                sax.cdata.push(*c);
                 self
             }
         }
@@ -132,19 +110,12 @@ impl FileReaderState for CData {
 }
 
 impl FileReaderState for CDataEnding {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             ']' => Box::new(CDataEnded),
             c => {
-                file_reader.cdata.push(']');
-                file_reader.cdata.push(*c);
+                sax.cdata.push(']');
+                sax.cdata.push(*c);
                 Box::new(CData)
             }
         }
@@ -156,25 +127,24 @@ impl FileReaderState for CDataEnding {
 }
 
 impl FileReaderState for CDataEnded {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState>
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState>
     where
         Self: std::marker::Sized,
     {
         match char {
             '>' => {
-                file_reader.add_child(Child::CData {
-                    value: file_reader.cdata.clone(),
-                });
-                file_reader.cdata = String::default();
+                let value = std::mem::take(&mut sax.cdata);
+                sax.add_child(Child::CData { value });
+                sax.cdata = String::default();
                 Box::new(Text)
             }
             ']' => {
-                file_reader.cdata.push(*char);
+                sax.cdata.push(*char);
                 self
             }
             c => {
-                file_reader.cdata.push_str("]]");
-                file_reader.cdata.push(*c);
+                sax.cdata.push_str("]]");
+                sax.cdata.push(*c);
                 Box::new(CData)
             }
         }
@@ -186,18 +156,11 @@ impl FileReaderState for CDataEnded {
 }
 
 impl FileReaderState for Comment {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '-' => Box::new(CommentEnding),
             c => {
-                file_reader.comment.push(*c);
+                sax.comment.push(*c);
                 self
             }
         }
@@ -209,19 +172,12 @@ impl FileReaderState for Comment {
 }
 
 impl FileReaderState for CommentEnding {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '-' => Box::new(CommentEnded),
             c => {
-                file_reader.comment.push('-');
-                file_reader.comment.push(*c);
+                sax.comment.push('-');
+                sax.comment.push(*c);
                 Box::new(Comment)
             }
         }
@@ -233,35 +189,22 @@ impl FileReaderState for CommentEnding {
 }
 
 impl FileReaderState for CommentEnded {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '>' => {
-                file_reader.add_child(Child::Comment {
-                    value: file_reader.comment.clone(),
-                });
-                file_reader.comment = String::default();
+                let value = std::mem::take(&mut sax.comment);
+                sax.add_child(Child::Comment { value });
                 Box::new(Text)
             }
             c => {
-                if file_reader.get_options().strict {
-                    file_reader.add_error(SVGError::new(
+                if sax.get_options().strict {
+                    sax.add_error(SVGError::new(
                         "`--` in comments should be avoided".into(),
-                        (
-                            file_reader.get_position().end - 2,
-                            file_reader.get_position().end,
-                        )
-                            .into(),
+                        (sax.get_position().end - 2, sax.get_position().end).into(),
                     ))
                 }
-                file_reader.comment.push_str("--");
-                file_reader.comment.push(*c);
+                sax.comment.push_str("--");
+                sax.comment.push(*c);
                 Box::new(Comment)
             }
         }
@@ -273,35 +216,27 @@ impl FileReaderState for CommentEnded {
 }
 
 impl FileReaderState for Doctype {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '>' => {
-                if !file_reader.tag.is_root() {
-                    file_reader.error_token("Doctype is only allowed in the root")
+                if !sax.tag.is_root() {
+                    sax.error_token("Doctype is only allowed in the root")
                 }
-                file_reader.add_child(Child::Doctype {
-                    data: file_reader.doctype.clone(),
-                });
+                let data = std::mem::take(&mut sax.doctype);
+                sax.add_child(Child::Doctype { data });
                 Box::new(Text)
             }
             '[' => {
-                file_reader.doctype.push(*char);
+                sax.doctype.push(*char);
                 Box::new(DoctypeDTD)
             }
             '"' | '\'' => {
-                file_reader.doctype.push(*char);
-                file_reader.quote = Some(*char);
+                sax.doctype.push(*char);
+                sax.quote = Some(*char);
                 Box::new(DoctypeQuoted)
             }
             _ => {
-                file_reader.doctype.push(*char);
+                sax.doctype.push(*char);
                 self
             }
         }
@@ -313,19 +248,12 @@ impl FileReaderState for Doctype {
 }
 
 impl FileReaderState for DoctypeDTD {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
-        file_reader.doctype.push(*char);
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        sax.doctype.push(*char);
         match char {
             ']' => Box::new(Doctype),
             '"' | '\'' => {
-                file_reader.quote = Some(*char);
+                sax.quote = Some(*char);
                 Box::new(DoctypeDTDQuoted)
             }
             _ => self,
@@ -338,18 +266,11 @@ impl FileReaderState for DoctypeDTD {
 }
 
 impl FileReaderState for DoctypeQuoted {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
-        file_reader.doctype.push(*char);
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        sax.doctype.push(*char);
         match char {
-            c if Some(*c) == file_reader.quote => {
-                file_reader.quote = None;
+            c if Some(*c) == sax.quote => {
+                sax.quote = None;
                 Box::new(Doctype)
             }
             _ => self,
@@ -362,18 +283,11 @@ impl FileReaderState for DoctypeQuoted {
 }
 
 impl FileReaderState for DoctypeDTDQuoted {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
-        file_reader.doctype.push(*char);
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        sax.doctype.push(*char);
         match char {
-            c if Some(*c) == file_reader.quote => {
-                file_reader.quote = None;
+            c if Some(*c) == sax.quote => {
+                sax.quote = None;
                 Box::new(DoctypeDTD)
             }
             _ => self,

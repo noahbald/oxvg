@@ -17,33 +17,33 @@ use super::{
 pub struct NodeStart;
 
 impl FileReaderState for NodeStart {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             &'!' => {
-                file_reader.sgml_declaration = String::new();
+                sax.sgml_declaration = String::new();
                 Box::new(SGMLDeclaration)
             }
             char if is_whitespace(char) => self,
             char if Name::is_name_start_char(char) => {
                 let new_element = Rc::new(RefCell::new(Element::default()));
-                file_reader.tag = Parent::Element(new_element);
-                file_reader.tag_name = String::from(*char);
+                sax.tag = Parent::Element(new_element);
+                sax.tag_name = String::from(*char);
                 Box::new(OpenTag)
             }
             &'/' => {
-                file_reader.tag_name = String::new();
+                sax.tag_name = String::new();
                 Box::new(CloseTag)
             }
             &'?' => {
-                file_reader.processing_instruction_body = String::new();
+                sax.processing_instruction_body = String::new();
                 Box::new(ProcessingInstruction)
             }
             c => {
-                if file_reader.get_options().strict {
-                    file_reader.error_char("Unencoded `<` should be avoided")
+                if sax.get_options().strict {
+                    sax.error_char("Unencoded `<` should be avoided")
                 }
-                file_reader.text_node.push('<');
-                file_reader.text_node.push(*c);
+                sax.text_node.push('<');
+                sax.text_node.push(*c);
                 Box::new(Text)
             }
         }

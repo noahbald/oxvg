@@ -3,10 +3,10 @@ use std::{
 };
 
 use crate::{
-    cursor::{Cursor, Span},
     diagnostics::SVGError,
     document::Document,
     state::{Begin, Ended, FileReaderState},
+    syntactic_constructs::{is_char, is_restricted_char},
 };
 
 /// A sax style parser for XML written for SVG.
@@ -18,18 +18,12 @@ use crate::{
 /// Copyright (c) Isaac Z. Schlueter and Contributors
 pub struct FileReader<'a> {
     peekable: Peekable<Chars<'a>>,
-    cursor: Cursor,
-    offset: usize,
-    options: SAXOptions,
     state: Box<dyn FileReaderState>,
     sax: SAXState,
-    current_state: SAXCollectedState,
 }
 
 #[derive(Default)]
 pub struct SAXMeta {
-    previous: Box<dyn FileReaderState>,
-    change_count: u32,
     pub start: usize,
     pub token_start: usize,
     pub end: usize,
@@ -133,23 +127,12 @@ impl SAXState {
     }
 }
 
-#[derive(Default)]
-pub struct SAXCollectedState {
-    pub contents: String,
-    pub span: Span,
-    next_char: Option<char>,
-}
-
 impl<'a> Default for FileReader<'a> {
     fn default() -> Self {
         Self {
             peekable: "".chars().peekable(),
-            cursor: Cursor::default(),
-            offset: 0,
-            options: SAXOptions::default(),
             state: Box::new(Begin),
             sax: SAXState::default(),
-            current_state: SAXCollectedState::default(),
         }
     }
 }
@@ -160,10 +143,6 @@ impl<'a> FileReader<'a> {
             peekable: file.chars().peekable(),
             ..FileReader::default()
         }
-    }
-
-    pub fn peek(&mut self) -> Option<&char> {
-        self.peekable.peek()
     }
 }
 
@@ -198,6 +177,16 @@ impl<'a> Iterator for FileReader<'a> {
         let char = self.peekable.next();
         if let Some(char) = char {
             self.next_state(&char);
+
+            if self.sax.saw_root && !self.sax.closed_root && is_restricted_char(&char) {
+                self.sax
+                    .error_char("Restricted characters are not allowed in the document");
+            }
+            if (!self.sax.saw_root || self.sax.closed_root) && !is_char(&char) {
+                self.sax.error_char(
+                    "Disallowed surrogate unicode character now allowed in the document",
+                );
+            }
         } else {
             self.state = Box::new(Ended);
             return char;
@@ -208,12 +197,12 @@ impl<'a> Iterator for FileReader<'a> {
     }
 }
 
-impl Into<Document> for FileReader<'_> {
-    fn into(self) -> Document {
+impl From<FileReader<'_>> for Document {
+    fn from(val: FileReader<'_>) -> Self {
         Document {
-            root: self.sax.root,
-            root_element: self.sax.root_tag,
-            errors: self.sax.errors,
+            root: val.sax.root,
+            root_element: val.sax.root_tag,
+            errors: val.sax.errors,
         }
     }
 }
@@ -234,23 +223,6 @@ impl<'a> FileReader<'a> {
     pub fn collect_root(&mut self) -> &Root {
         let _: String = self.collect();
         &self.sax.root
-    }
-
-    /// Collects the file until a new token is started
-    ///
-    /// This isn't strictly necessary unless you want to avoid multiple passes, since a fully collected
-    /// file can be use from `file_reader.root`
-    pub fn collect_state(&mut self) -> String {
-        let mut contents = String::new();
-        let previous_state = &self.state.clone();
-        while let Some(c) = self.next() {
-            contents.push(c);
-            if previous_state != &self.state {
-                break;
-            }
-        }
-        dbg!(previous_state.id(), &self.state.id());
-        contents
     }
 
     /// Transitions the state of `FileReader` based on the given char.
@@ -282,15 +254,6 @@ impl<'a> FileReader<'a> {
             self.sax.state_meta.token_start = self.sax.state_meta.end;
         }
         self.state = new_state;
-    }
-
-    pub fn ended(&self) -> bool {
-        let ended: Box<dyn FileReaderState> = Box::new(Ended);
-        self.state == ended
-    }
-
-    pub fn get_cursor(&self) -> Cursor {
-        todo!("Delete me")
     }
 }
 

@@ -13,26 +13,23 @@ pub struct Script;
 pub struct ScriptEnding;
 
 impl FileReaderState for Text {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        if !is_whitespace(char)
-            && file_reader.get_options().strict
-            && (!file_reader.saw_root || file_reader.closed_root)
-        {
-            file_reader.error_char("Text outside the root element should be avoided");
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+        if !is_whitespace(char) && sax.get_options().strict && (!sax.saw_root || sax.closed_root) {
+            sax.error_char("Text outside the root element should be avoided");
             return self;
         }
         match char {
             '&' => Box::new(TextEntity),
             '<' => {
-                file_reader.start_tag_position = file_reader.get_position().end;
+                sax.start_tag_position = sax.get_position().end;
                 let child = Child::Text {
-                    value: std::mem::take(&mut file_reader.text_node),
+                    value: std::mem::take(&mut sax.text_node),
                 };
-                file_reader.add_child(child);
+                sax.add_child(child);
                 Box::new(NodeStart)
             }
             _ => {
-                file_reader.text_node.push(*char);
+                sax.text_node.push(*char);
                 self
             }
         }
@@ -44,18 +41,11 @@ impl FileReaderState for Text {
 }
 
 impl FileReaderState for Script {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '<' => Box::new(ScriptEnding),
             _ => {
-                file_reader.script.push(*char);
+                sax.script.push(*char);
                 self
             }
         }
@@ -67,19 +57,12 @@ impl FileReaderState for Script {
 }
 
 impl FileReaderState for ScriptEnding {
-    fn next(
-        self: Box<Self>,
-        file_reader: &mut crate::file_reader::SAXState,
-        char: &char,
-    ) -> Box<dyn FileReaderState>
-    where
-        Self: std::marker::Sized,
-    {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         match char {
             '/' => Box::new(CloseTag),
             _ => {
-                file_reader.script.push('<');
-                file_reader.script.push(*char);
+                sax.script.push('<');
+                sax.script.push(*char);
                 Box::new(Script)
             }
         }

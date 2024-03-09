@@ -10,10 +10,10 @@ pub struct BeginWhitespace;
 pub struct Ended;
 
 impl FileReaderState for Begin {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         let next_state = Box::new(BeginWhitespace);
         if char != &'\u{FEFF}' {
-            next_state.next(file_reader, char)
+            next_state.next(sax, char)
         } else {
             next_state
         }
@@ -25,14 +25,14 @@ impl FileReaderState for Begin {
 }
 
 impl FileReaderState for BeginWhitespace {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
         if char == &'<' {
-            file_reader.start_tag_position = file_reader.get_position().end;
+            sax.start_tag_position = sax.get_position().end;
             return Box::new(NodeStart);
         }
-        if file_reader.get_options().strict {
-            file_reader.error_char("Expected opening of tag or declaration with `<`");
-            file_reader.text_node = String::from(*char);
+        if sax.get_options().strict {
+            sax.error_char("Expected opening of tag or declaration with `<`");
+            sax.text_node = String::from(*char);
             return Box::new(Text);
         }
         self
@@ -44,9 +44,9 @@ impl FileReaderState for BeginWhitespace {
 }
 
 impl FileReaderState for Ended {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, _char: &char) -> Box<dyn FileReaderState> {
-        if file_reader.root_tag.is_none() {
-            file_reader.error_char("Couldn't find root element in document")
+    fn next(self: Box<Self>, sax: &mut SAXState, _char: &char) -> Box<dyn FileReaderState> {
+        if sax.root_tag.is_none() {
+            sax.error_char("Couldn't find root element in document")
         }
         self
     }

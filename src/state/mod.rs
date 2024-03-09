@@ -29,7 +29,7 @@ use self::{
 };
 
 pub trait FileReaderState {
-    fn next(self: Box<Self>, file_reader: &mut SAXState, char: &char) -> Box<dyn FileReaderState>;
+    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState>;
 
     fn id(&self) -> State;
 
