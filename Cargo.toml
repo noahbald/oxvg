@@ -8,3 +8,10 @@ pedantic = { level = "warn", priority = -1 }
 [workspace.package]
 name = "oxvg"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
+
+[workspace.dependencies]
+oxvg_optimiser = { path = "crates/oxvg_optimiser" }
+oxvg_parser = { path = "crates/oxvg_parser" }
+
+serde = "1.0.197"
+serde_json = "1.0.114"
