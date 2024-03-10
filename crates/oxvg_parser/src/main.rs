@@ -28,10 +28,10 @@ impl Config {
     pub fn make(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
         args.next();
 
-        let path = match args.next() {
-            Some(arg) => arg,
-            None => return Err("No path given"),
-        };
-        Ok(Config { path })
+        if let Some(path) = args.next() {
+            Ok(Config { path })
+        } else {
+            Err("No path given")
+        }
     }
 }

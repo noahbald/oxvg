@@ -14,7 +14,7 @@ use self::{
         Attribute, AttributeName, AttributeNameSawWhite, AttributeValue, AttributeValueClosed,
         AttributeValueQuoted, AttributeValueUnquoted,
     },
-    begin::BeginWhitespace,
+    begin::LeadingWhitespace,
     declarations::{
         CData, CDataEnded, CDataEnding, Comment, CommentEnded, CommentEnding, Doctype, DoctypeDTD,
         DoctypeDTDQuoted, DoctypeQuoted, SGMLDeclaration, SGMLDeclarationQuoted,
@@ -28,110 +28,102 @@ use self::{
     text::{Script, ScriptEnding, Text},
 };
 
-pub trait FileReaderState {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState>;
+pub trait State {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State>;
 
-    fn id(&self) -> State;
+    fn id(&self) -> ID;
 
-    fn token_id(&self) -> StateToken {
+    fn token_id(&self) -> Token {
         match self.id() {
-            State::Begin => StateToken::Begin,
-            State::BeginWhitespace => StateToken::Begin,
-            State::Text => StateToken::Text,
-            State::TextEntity => StateToken::TextEntity,
-            State::NodeStart => StateToken::NodeStart,
-            State::SGMLDeclaration => StateToken::SGMLDeclaration,
-            State::SGMLDeclarationQuoted => StateToken::SGMLDeclaration,
-            State::Doctype => StateToken::SGMLDeclaration,
-            State::DoctypeQuoted => StateToken::SGMLDeclaration,
-            State::DoctypeDTD => StateToken::SGMLDeclaration,
-            State::DoctypeDTDQuoted => StateToken::SGMLDeclaration,
-            State::Comment => StateToken::SGMLDeclaration,
-            State::CommentEnding => StateToken::SGMLDeclaration,
-            State::CommentEnded => StateToken::SGMLDeclaration,
-            State::CData => StateToken::CData,
-            State::CDataEnding => StateToken::CData,
-            State::CDataEnded => StateToken::CData,
-            State::ProcessingInstruction => StateToken::ProcessingInstruction,
-            State::ProcessingInstructionBody => StateToken::ProcessingInstruction,
-            State::ProcessingInstructionEnding => StateToken::ProcessingInstruction,
-            State::OpenTag => StateToken::OpenTag,
-            State::OpenTagSlash => StateToken::OpenTag,
-            State::Attribute => StateToken::Attribute,
-            State::AttributeName => StateToken::Attribute,
-            State::AttributeNameSawWhite => StateToken::Attribute,
-            State::AttributeValue => StateToken::Attribute,
-            State::AttributeValueQuoted => StateToken::AttributeValue,
-            State::AttributeValueClosed => StateToken::AttributeValue,
-            State::AttributeValueUnquoted => StateToken::AttributeValue,
-            State::AttributeValueEntityQuoted => StateToken::AttributeValue,
-            State::AttributeValueEntityUnquoted => StateToken::AttributeValue,
-            State::CloseTag => StateToken::CloseTag,
-            State::CloseTagSawWhite => StateToken::CloseTag,
-            State::Script => StateToken::Script,
-            State::ScriptEnding => StateToken::Script,
-            State::Ended => StateToken::Begin,
+            ID::Begin | ID::BeginWhitespace | ID::Ended => Token::Begin,
+            ID::Text => Token::Text,
+            ID::TextEntity => Token::TextEntity,
+            ID::NodeStart => Token::NodeStart,
+            ID::SGMLDeclaration
+            | ID::SGMLDeclarationQuoted
+            | ID::Doctype
+            | ID::DoctypeQuoted
+            | ID::DoctypeDTD
+            | ID::DoctypeDTDQuoted
+            | ID::Comment
+            | ID::CommentEnding
+            | ID::CommentEnded => Token::SGMLDeclaration,
+            ID::CData | ID::CDataEnding | ID::CDataEnded => Token::CData,
+            ID::ProcessingInstruction
+            | ID::ProcessingInstructionBody
+            | ID::ProcessingInstructionEnding => Token::ProcessingInstruction,
+            ID::OpenTag | ID::OpenTagSlash => Token::OpenTag,
+            ID::Attribute | ID::AttributeName | ID::AttributeNameSawWhite | ID::AttributeValue => {
+                Token::Attribute
+            }
+            ID::AttributeValueQuoted
+            | ID::AttributeValueClosed
+            | ID::AttributeValueUnquoted
+            | ID::AttributeValueEntityQuoted
+            | ID::AttributeValueEntityUnquoted => Token::AttributeValue,
+            ID::CloseTag | ID::CloseTagSawWhite => Token::CloseTag,
+            ID::Script | ID::ScriptEnding => Token::Script,
         }
     }
 }
 
-impl Default for Box<dyn FileReaderState> {
+impl Default for Box<dyn State> {
     fn default() -> Self {
         Box::new(Begin)
     }
 }
 
-impl PartialEq for Box<dyn FileReaderState> {
+impl PartialEq for Box<dyn State> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
     }
 }
 
-impl Clone for Box<dyn FileReaderState> {
+impl Clone for Box<dyn State> {
     fn clone(&self) -> Self {
         match self.id() {
-            State::Begin => Box::new(Begin),
-            State::BeginWhitespace => Box::new(BeginWhitespace),
-            State::Text => Box::new(Text),
-            State::TextEntity => Box::new(TextEntity),
-            State::NodeStart => Box::new(NodeStart),
-            State::SGMLDeclaration => Box::new(SGMLDeclaration),
-            State::SGMLDeclarationQuoted => Box::new(SGMLDeclarationQuoted),
-            State::Doctype => Box::new(Doctype),
-            State::DoctypeQuoted => Box::new(DoctypeQuoted),
-            State::DoctypeDTD => Box::new(DoctypeDTD),
-            State::DoctypeDTDQuoted => Box::new(DoctypeDTDQuoted),
-            State::Comment => Box::new(Comment),
-            State::CommentEnding => Box::new(CommentEnding),
-            State::CommentEnded => Box::new(CommentEnded),
-            State::CData => Box::new(CData),
-            State::CDataEnding => Box::new(CDataEnding),
-            State::CDataEnded => Box::new(CDataEnded),
-            State::ProcessingInstruction => Box::new(ProcessingInstruction),
-            State::ProcessingInstructionBody => Box::new(ProcessingInstructionBody),
-            State::ProcessingInstructionEnding => Box::new(ProcessingInstructionEnding),
-            State::OpenTag => Box::new(OpenTag),
-            State::OpenTagSlash => Box::new(OpenTagSlash),
-            State::Attribute => Box::new(Attribute),
-            State::AttributeName => Box::new(AttributeName),
-            State::AttributeNameSawWhite => Box::new(AttributeNameSawWhite),
-            State::AttributeValue => Box::new(AttributeValue),
-            State::AttributeValueQuoted => Box::new(AttributeValueQuoted),
-            State::AttributeValueClosed => Box::new(AttributeValueClosed),
-            State::AttributeValueUnquoted => Box::new(AttributeValueUnquoted),
-            State::AttributeValueEntityQuoted => Box::new(AttributeValueEntityQuoted),
-            State::AttributeValueEntityUnquoted => Box::new(AttributeValueEntityUnquoted),
-            State::CloseTag => Box::new(CloseTag),
-            State::CloseTagSawWhite => Box::new(CloseTagSawWhite),
-            State::Script => Box::new(Script),
-            State::ScriptEnding => Box::new(ScriptEnding),
-            State::Ended => Box::new(Ended),
+            ID::Begin => Box::new(Begin),
+            ID::BeginWhitespace => Box::new(LeadingWhitespace),
+            ID::Text => Box::new(Text),
+            ID::TextEntity => Box::new(TextEntity),
+            ID::NodeStart => Box::new(NodeStart),
+            ID::SGMLDeclaration => Box::new(SGMLDeclaration),
+            ID::SGMLDeclarationQuoted => Box::new(SGMLDeclarationQuoted),
+            ID::Doctype => Box::new(Doctype),
+            ID::DoctypeQuoted => Box::new(DoctypeQuoted),
+            ID::DoctypeDTD => Box::new(DoctypeDTD),
+            ID::DoctypeDTDQuoted => Box::new(DoctypeDTDQuoted),
+            ID::Comment => Box::new(Comment),
+            ID::CommentEnding => Box::new(CommentEnding),
+            ID::CommentEnded => Box::new(CommentEnded),
+            ID::CData => Box::new(CData),
+            ID::CDataEnding => Box::new(CDataEnding),
+            ID::CDataEnded => Box::new(CDataEnded),
+            ID::ProcessingInstruction => Box::new(ProcessingInstruction),
+            ID::ProcessingInstructionBody => Box::new(ProcessingInstructionBody),
+            ID::ProcessingInstructionEnding => Box::new(ProcessingInstructionEnding),
+            ID::OpenTag => Box::new(OpenTag),
+            ID::OpenTagSlash => Box::new(OpenTagSlash),
+            ID::Attribute => Box::new(Attribute),
+            ID::AttributeName => Box::new(AttributeName),
+            ID::AttributeNameSawWhite => Box::new(AttributeNameSawWhite),
+            ID::AttributeValue => Box::new(AttributeValue),
+            ID::AttributeValueQuoted => Box::new(AttributeValueQuoted),
+            ID::AttributeValueClosed => Box::new(AttributeValueClosed),
+            ID::AttributeValueUnquoted => Box::new(AttributeValueUnquoted),
+            ID::AttributeValueEntityQuoted => Box::new(AttributeValueEntityQuoted),
+            ID::AttributeValueEntityUnquoted => Box::new(AttributeValueEntityUnquoted),
+            ID::CloseTag => Box::new(CloseTag),
+            ID::CloseTagSawWhite => Box::new(CloseTagSawWhite),
+            ID::Script => Box::new(Script),
+            ID::ScriptEnding => Box::new(ScriptEnding),
+            ID::Ended => Box::new(Ended),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub enum State {
+pub enum ID {
     /// Leading byte order mark or whitespace
     #[default]
     Begin,
@@ -208,7 +200,7 @@ pub enum State {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum StateToken {
+pub enum Token {
     /// Leading byte order mark or whitespace
     Begin,
     /// General stuff

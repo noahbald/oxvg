@@ -2,13 +2,13 @@
 
 use crate::{
     file_reader::SAXState,
-    syntactic_constructs::{is_whitespace, Name},
+    syntactic_constructs::{names, whitespace},
 };
 
 use super::{
     entities::{AttributeValueEntityQuoted, AttributeValueEntityUnquoted},
     tags::{CloseTag, OpenTag, OpenTagSlash},
-    FileReaderState, State,
+    State, ID,
 };
 
 /// <foo b
@@ -26,14 +26,14 @@ pub struct AttributeValueUnquoted;
 /// <foo bar="baz"
 pub struct AttributeValueClosed;
 
-impl FileReaderState for Attribute {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for Attribute {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if is_whitespace(c) => self,
+            c if whitespace::is(c) => self,
             '>' => CloseTag::handle_end(sax),
             '/' => Box::new(OpenTagSlash),
-            c if Name::is_name_start_char(c) => {
-                sax.attribute_name = String::from(*c);
+            c if names::is_start(c) => {
+                sax.attribute_name = String::from(c);
                 sax.attribute_value = String::default();
                 Box::new(AttributeName)
             }
@@ -44,13 +44,13 @@ impl FileReaderState for Attribute {
         }
     }
 
-    fn id(&self) -> State {
-        State::Attribute
+    fn id(&self) -> ID {
+        ID::Attribute
     }
 }
 
 impl Attribute {
-    pub fn handle_end(sax: &mut SAXState) -> Box<dyn FileReaderState> {
+    pub fn handle_end(sax: &mut SAXState) -> Box<dyn State> {
         if sax.attribute_map.contains_key(&sax.attribute_name) {
             sax.error_token("Found duplicate attribute");
             sax.attribute_name = String::default();
@@ -74,17 +74,17 @@ impl Attribute {
     }
 }
 
-impl FileReaderState for AttributeValue {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeValue {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if is_whitespace(c) => self,
+            c if whitespace::is(c) => self,
             '"' | '\'' => {
-                sax.quote = Some(*char);
+                sax.quote = Some(char);
                 Box::new(AttributeValueQuoted)
             }
             c => {
                 if sax.get_options().strict {
-                    sax.error_char("Expected opening quote")
+                    sax.error_char("Expected opening quote");
                 }
                 sax.attribute_value = c.to_string();
                 Box::new(AttributeValueUnquoted)
@@ -92,38 +92,38 @@ impl FileReaderState for AttributeValue {
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeValue
+    fn id(&self) -> ID {
+        ID::AttributeValue
     }
 }
 
-impl FileReaderState for AttributeValueUnquoted {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeValueUnquoted {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '&' => Box::new(AttributeValueEntityUnquoted),
             '>' => {
                 Attribute::handle_end(sax);
                 OpenTag::handle_end(sax, false)
             }
-            c if is_whitespace(c) => Attribute::handle_end(sax),
+            c if whitespace::is(c) => Attribute::handle_end(sax),
             c => {
-                sax.attribute_value.push(*c);
+                sax.attribute_value.push(c);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeValueUnquoted
+    fn id(&self) -> ID {
+        ID::AttributeValueUnquoted
     }
 }
 
-impl FileReaderState for AttributeValueQuoted {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeValueQuoted {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '&' => Box::new(AttributeValueEntityQuoted),
-            c if Some(*c) != sax.quote => {
-                sax.attribute_value.push(*c);
+            c if Some(c) != sax.quote => {
+                sax.attribute_value.push(c);
                 self
             }
             _ => {
@@ -134,22 +134,22 @@ impl FileReaderState for AttributeValueQuoted {
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeValueQuoted
+    fn id(&self) -> ID {
+        ID::AttributeValueQuoted
     }
 }
 
-impl FileReaderState for AttributeValueClosed {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeValueClosed {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if is_whitespace(c) => Box::new(Attribute),
+            c if whitespace::is(c) => Box::new(Attribute),
             '>' => OpenTag::handle_end(sax, false),
             '/' => Box::new(OpenTagSlash),
-            c if Name::is_name_start_char(c) => {
+            c if names::is_start(c) => {
                 if sax.get_options().strict {
                     sax.error_char("Expected whitespace between attributes");
                 }
-                sax.attribute_name = (*c).into();
+                sax.attribute_name = (c).into();
                 sax.attribute_value = String::new();
                 Box::new(AttributeName)
             }
@@ -160,19 +160,19 @@ impl FileReaderState for AttributeValueClosed {
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeValueClosed
+    fn id(&self) -> ID {
+        ID::AttributeValueClosed
     }
 }
 
-impl FileReaderState for AttributeName {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeName {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         if let Some(new_state) = Self::despite_whitespace(sax, char) {
             return new_state;
         }
         match char {
-            c if Name::is_name_char(c) => {
-                sax.attribute_name.push(*c);
+            c if names::is(c) => {
+                sax.attribute_name.push(c);
                 self
             }
             _ => {
@@ -182,36 +182,36 @@ impl FileReaderState for AttributeName {
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeName
+    fn id(&self) -> ID {
+        ID::AttributeName
     }
 }
 
 impl AttributeName {
-    fn despite_whitespace(sax: &mut SAXState, char: &char) -> Option<Box<dyn FileReaderState>> {
+    fn despite_whitespace(sax: &mut SAXState, char: char) -> Option<Box<dyn State>> {
         match char {
             '=' => Some(Box::new(AttributeValue)),
             '>' => {
                 if sax.get_options().strict {
-                    sax.error_char("Expected attribute to have value")
+                    sax.error_char("Expected attribute to have value");
                 }
                 sax.attribute_value = sax.attribute_name.clone();
                 Attribute::handle_end(sax);
                 Some(OpenTag::handle_end(sax, false))
             }
-            c if is_whitespace(c) => Some(Box::new(AttributeNameSawWhite)),
+            c if whitespace::is(c) => Some(Box::new(AttributeNameSawWhite)),
             _ => None,
         }
     }
 }
 
-impl FileReaderState for AttributeNameSawWhite {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for AttributeNameSawWhite {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         if let Some(next_state) = AttributeName::despite_whitespace(sax, char) {
             return next_state;
         }
         match char {
-            c if Name::is_name_start_char(c) => {
+            c if names::is_start(c) => {
                 sax.attribute_name = c.to_string();
                 Box::new(AttributeName)
             }
@@ -222,7 +222,7 @@ impl FileReaderState for AttributeNameSawWhite {
         }
     }
 
-    fn id(&self) -> State {
-        State::AttributeNameSawWhite
+    fn id(&self) -> ID {
+        ID::AttributeNameSawWhite
     }
 }

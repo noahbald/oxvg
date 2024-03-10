@@ -3,7 +3,7 @@ use crate::{
     file_reader::{Child, SAXState},
 };
 
-use super::{text::Text, FileReaderState, State};
+use super::{text::Text, State, ID};
 
 /// <!BLARG
 pub struct SGMLDeclaration;
@@ -30,15 +30,15 @@ pub struct DoctypeDTD;
 /// <!DOCTYPE "foo" [ "bar
 pub struct DoctypeDTDQuoted;
 
-impl FileReaderState for SGMLDeclaration {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for SGMLDeclaration {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match &sax.sgml_declaration {
             d if d.to_uppercase() == "[CDATA[" => {
                 sax.sgml_declaration = String::default();
                 sax.cdata = String::default();
                 return Box::new(CData);
             }
-            d if d == "-" && char == &'-' => {
+            d if d == "-" && char == '-' => {
                 sax.comment = String::default();
                 sax.sgml_declaration = String::default();
                 return Box::new(Comment);
@@ -62,72 +62,72 @@ impl FileReaderState for SGMLDeclaration {
                 Box::new(Text)
             }
             '"' | '\'' => {
-                sax.sgml_declaration.push(*char);
-                sax.quote = Some(*char);
+                sax.sgml_declaration.push(char);
+                sax.quote = Some(char);
                 Box::new(SGMLDeclarationQuoted)
             }
             c => {
-                sax.sgml_declaration.push(*c);
+                sax.sgml_declaration.push(c);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::SGMLDeclaration
+    fn id(&self) -> ID {
+        ID::SGMLDeclaration
     }
 }
 
-impl FileReaderState for SGMLDeclarationQuoted {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        if Some(*char) == sax.quote {
+impl State for SGMLDeclarationQuoted {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        if Some(char) == sax.quote {
             sax.quote = None;
             return Box::new(SGMLDeclaration);
         }
-        sax.sgml_declaration.push(*char);
+        sax.sgml_declaration.push(char);
         self
     }
 
-    fn id(&self) -> State {
-        State::SGMLDeclarationQuoted
+    fn id(&self) -> ID {
+        ID::SGMLDeclarationQuoted
     }
 }
 
-impl FileReaderState for CData {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CData {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             ']' => Box::new(CDataEnding),
             c => {
-                sax.cdata.push(*c);
+                sax.cdata.push(c);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::CData
+    fn id(&self) -> ID {
+        ID::CData
     }
 }
 
-impl FileReaderState for CDataEnding {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CDataEnding {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             ']' => Box::new(CDataEnded),
             c => {
                 sax.cdata.push(']');
-                sax.cdata.push(*c);
+                sax.cdata.push(c);
                 Box::new(CData)
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::CDataEnding
+    fn id(&self) -> ID {
+        ID::CDataEnding
     }
 }
 
-impl FileReaderState for CDataEnded {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState>
+impl State for CDataEnded {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State>
     where
         Self: std::marker::Sized,
     {
@@ -139,57 +139,57 @@ impl FileReaderState for CDataEnded {
                 Box::new(Text)
             }
             ']' => {
-                sax.cdata.push(*char);
+                sax.cdata.push(char);
                 self
             }
             c => {
                 sax.cdata.push_str("]]");
-                sax.cdata.push(*c);
+                sax.cdata.push(c);
                 Box::new(CData)
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::CDataEnded
+    fn id(&self) -> ID {
+        ID::CDataEnded
     }
 }
 
-impl FileReaderState for Comment {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for Comment {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '-' => Box::new(CommentEnding),
             c => {
-                sax.comment.push(*c);
+                sax.comment.push(c);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::Comment
+    fn id(&self) -> ID {
+        ID::Comment
     }
 }
 
-impl FileReaderState for CommentEnding {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CommentEnding {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '-' => Box::new(CommentEnded),
             c => {
                 sax.comment.push('-');
-                sax.comment.push(*c);
+                sax.comment.push(c);
                 Box::new(Comment)
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::CommentEnding
+    fn id(&self) -> ID {
+        ID::CommentEnding
     }
 }
 
-impl FileReaderState for CommentEnded {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CommentEnded {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '>' => {
                 let value = std::mem::take(&mut sax.comment);
@@ -201,75 +201,75 @@ impl FileReaderState for CommentEnded {
                     sax.add_error(SVGError::new(
                         "`--` in comments should be avoided".into(),
                         (sax.get_position().end - 2, sax.get_position().end).into(),
-                    ))
+                    ));
                 }
                 sax.comment.push_str("--");
-                sax.comment.push(*c);
+                sax.comment.push(c);
                 Box::new(Comment)
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::CommentEnded
+    fn id(&self) -> ID {
+        ID::CommentEnded
     }
 }
 
-impl FileReaderState for Doctype {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for Doctype {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             '>' => {
                 if !sax.tag.is_root() {
-                    sax.error_token("Doctype is only allowed in the root")
+                    sax.error_token("Doctype is only allowed in the root");
                 }
                 let data = std::mem::take(&mut sax.doctype);
                 sax.add_child(Child::Doctype { data });
                 Box::new(Text)
             }
             '[' => {
-                sax.doctype.push(*char);
+                sax.doctype.push(char);
                 Box::new(DoctypeDTD)
             }
             '"' | '\'' => {
-                sax.doctype.push(*char);
-                sax.quote = Some(*char);
+                sax.doctype.push(char);
+                sax.quote = Some(char);
                 Box::new(DoctypeQuoted)
             }
             _ => {
-                sax.doctype.push(*char);
+                sax.doctype.push(char);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::Doctype
+    fn id(&self) -> ID {
+        ID::Doctype
     }
 }
 
-impl FileReaderState for DoctypeDTD {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        sax.doctype.push(*char);
+impl State for DoctypeDTD {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        sax.doctype.push(char);
         match char {
             ']' => Box::new(Doctype),
             '"' | '\'' => {
-                sax.quote = Some(*char);
+                sax.quote = Some(char);
                 Box::new(DoctypeDTDQuoted)
             }
             _ => self,
         }
     }
 
-    fn id(&self) -> State {
-        State::DoctypeDTD
+    fn id(&self) -> ID {
+        ID::DoctypeDTD
     }
 }
 
-impl FileReaderState for DoctypeQuoted {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        sax.doctype.push(*char);
+impl State for DoctypeQuoted {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        sax.doctype.push(char);
         match char {
-            c if Some(*c) == sax.quote => {
+            c if Some(c) == sax.quote => {
                 sax.quote = None;
                 Box::new(Doctype)
             }
@@ -277,16 +277,16 @@ impl FileReaderState for DoctypeQuoted {
         }
     }
 
-    fn id(&self) -> State {
-        State::DoctypeQuoted
+    fn id(&self) -> ID {
+        ID::DoctypeQuoted
     }
 }
 
-impl FileReaderState for DoctypeDTDQuoted {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        sax.doctype.push(*char);
+impl State for DoctypeDTDQuoted {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        sax.doctype.push(char);
         match char {
-            c if Some(*c) == sax.quote => {
+            c if Some(c) == sax.quote => {
                 sax.quote = None;
                 Box::new(DoctypeDTD)
             }
@@ -294,7 +294,7 @@ impl FileReaderState for DoctypeDTDQuoted {
         }
     }
 
-    fn id(&self) -> State {
-        State::DoctypeDTDQuoted
+    fn id(&self) -> ID {
+        ID::DoctypeDTDQuoted
     }
 }

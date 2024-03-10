@@ -2,13 +2,13 @@ use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     file_reader::{Child, Element, Parent, SAXState},
-    syntactic_constructs::{is_whitespace, Name},
+    syntactic_constructs::{names, whitespace},
 };
 
 use super::{
     attributes::Attribute,
     text::{Script, Text},
-    FileReaderState, State,
+    State, ID,
 };
 
 /// <foo
@@ -20,17 +20,17 @@ pub struct CloseTag;
 /// <foo \s
 pub struct CloseTagSawWhite;
 
-impl FileReaderState for OpenTag {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for OpenTag {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if Name::is_name_char(c) => {
-                sax.tag_name.push(*c);
+            c if names::is(c) => {
+                sax.tag_name.push(c);
                 self
             }
             '>' => Self::handle_end(sax, false),
             '/' => Box::new(OpenTagSlash),
             c => {
-                if !is_whitespace(c) {
+                if !whitespace::is(c) {
                     sax.error_char("Expected a valid tag name character");
                 }
                 Box::new(Attribute)
@@ -38,19 +38,19 @@ impl FileReaderState for OpenTag {
         }
     }
 
-    fn id(&self) -> State {
-        State::OpenTag
+    fn id(&self) -> ID {
+        ID::OpenTag
     }
 }
 
 impl OpenTag {
-    pub fn handle_end(sax: &mut SAXState, is_self_closing: bool) -> Box<dyn FileReaderState> {
+    pub fn handle_end(sax: &mut SAXState, is_self_closing: bool) -> Box<dyn State> {
         sax.saw_root = true;
-        let state: Box<dyn FileReaderState> =
-            match !is_self_closing && sax.tag_name.to_lowercase() == "script" {
-                true => Box::new(Script),
-                false => Box::new(Text),
-            };
+        let state: Box<dyn State> = if !is_self_closing && sax.tag_name.to_lowercase() == "script" {
+            Box::new(Script)
+        } else {
+            Box::new(Text)
+        };
         if let Parent::Element(e) = &mut sax.tag {
             let element: &RefCell<Element> = e.borrow_mut();
             element.borrow_mut().name = std::mem::take(&mut sax.tag_name);
@@ -68,48 +68,45 @@ impl OpenTag {
     }
 }
 
-impl FileReaderState for OpenTagSlash {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        match char {
-            '>' => {
-                OpenTag::handle_end(sax, true);
-                CloseTag::handle_end(sax)
-            }
-            _ => {
-                sax.error_char("Expected a `>` to end self-closing tag");
-                Box::new(Attribute)
-            }
+impl State for OpenTagSlash {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        if char == '>' {
+            OpenTag::handle_end(sax, true);
+            CloseTag::handle_end(sax)
+        } else {
+            sax.error_char("Expected a `>` to end self-closing tag");
+            Box::new(Attribute)
         }
     }
 
-    fn id(&self) -> State {
-        State::OpenTagSlash
+    fn id(&self) -> ID {
+        ID::OpenTagSlash
     }
 }
 
-impl FileReaderState for CloseTag {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CloseTag {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if sax.tag_name.is_empty() && is_whitespace(c) => self,
-            c if sax.tag_name.is_empty() && !Name::is_name_start_char(c) => {
+            c if sax.tag_name.is_empty() && whitespace::is(c) => self,
+            c if sax.tag_name.is_empty() && !names::is_start(c) => {
                 if !sax.script.is_empty() {
-                    sax.script.push_str(&format!("</{}", c));
+                    sax.script.push_str(&format!("</{c}"));
                     return Box::new(Script);
                 }
                 sax.error_char("Expected a valid starting tag name character");
                 self
             }
-            c if Name::is_name_char(c) => {
-                sax.tag_name.push(*c);
+            c if names::is(c) => {
+                sax.tag_name.push(c);
                 self
             }
             '>' => Self::handle_end(sax),
             c if !sax.script.is_empty() => {
-                sax.script.push_str(&format!("</{}", c));
+                sax.script.push_str(&format!("</{c}"));
                 sax.tag_name = String::new();
                 Box::new(Script)
             }
-            c if is_whitespace(c) => Box::new(CloseTagSawWhite),
+            c if whitespace::is(c) => Box::new(CloseTagSawWhite),
             _ => {
                 sax.error_char("Expected a valid tag name character");
                 self
@@ -117,13 +114,13 @@ impl FileReaderState for CloseTag {
         }
     }
 
-    fn id(&self) -> State {
-        State::CloseTag
+    fn id(&self) -> ID {
+        ID::CloseTag
     }
 }
 
 impl CloseTag {
-    pub fn handle_end(sax: &mut SAXState) -> Box<dyn FileReaderState> {
+    pub fn handle_end(sax: &mut SAXState) -> Box<dyn State> {
         if sax.tag_name.is_empty() {
             if sax.get_options().strict {
                 sax.error_tag("start of tag name");
@@ -194,10 +191,10 @@ impl CloseTag {
     }
 }
 
-impl FileReaderState for CloseTagSawWhite {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
+impl State for CloseTagSawWhite {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if is_whitespace(c) => self,
+            c if whitespace::is(c) => self,
             '>' => CloseTag::handle_end(sax),
             _ => {
                 sax.error_char("Expected `>` to end closing tag");
@@ -206,7 +203,7 @@ impl FileReaderState for CloseTagSawWhite {
         }
     }
 
-    fn id(&self) -> State {
-        State::CloseTagSawWhite
+    fn id(&self) -> ID {
+        ID::CloseTagSawWhite
     }
 }

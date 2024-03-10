@@ -1,9 +1,9 @@
 use crate::{
     file_reader::{Child, SAXState},
-    syntactic_constructs::is_whitespace,
+    syntactic_constructs::whitespace,
 };
 
-use super::{entities::TextEntity, node_start::NodeStart, tags::CloseTag, FileReaderState, State};
+use super::{entities::TextEntity, node_start::NodeStart, tags::CloseTag, State, ID};
 
 /// General content
 pub struct Text;
@@ -12,9 +12,9 @@ pub struct Script;
 /// <script>/* ... */<
 pub struct ScriptEnding;
 
-impl FileReaderState for Text {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        if !is_whitespace(char) && sax.get_options().strict && (!sax.saw_root || sax.closed_root) {
+impl State for Text {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        if !whitespace::is(char) && sax.get_options().strict && (!sax.saw_root || sax.closed_root) {
             sax.error_char("Text outside the root element should be avoided");
             return self;
         }
@@ -28,47 +28,45 @@ impl FileReaderState for Text {
                 sax.add_child(child);
                 Box::new(NodeStart)
             }
-            _ => {
-                sax.text_node.push(*char);
+            c => {
+                sax.text_node.push(c);
                 self
             }
         }
     }
 
-    fn id(&self) -> State {
-        State::Text
+    fn id(&self) -> ID {
+        ID::Text
     }
 }
 
-impl FileReaderState for Script {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        match char {
-            '<' => Box::new(ScriptEnding),
-            _ => {
-                sax.script.push(*char);
-                self
-            }
+impl State for Script {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        if char == '<' {
+            Box::new(ScriptEnding)
+        } else {
+            sax.script.push(char);
+            self
         }
     }
 
-    fn id(&self) -> State {
-        State::Script
+    fn id(&self) -> ID {
+        ID::Script
     }
 }
 
-impl FileReaderState for ScriptEnding {
-    fn next(self: Box<Self>, sax: &mut SAXState, char: &char) -> Box<dyn FileReaderState> {
-        match char {
-            '/' => Box::new(CloseTag),
-            _ => {
-                sax.script.push('<');
-                sax.script.push(*char);
-                Box::new(Script)
-            }
+impl State for ScriptEnding {
+    fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
+        if char == '/' {
+            Box::new(CloseTag)
+        } else {
+            sax.script.push('<');
+            sax.script.push(char);
+            Box::new(Script)
         }
     }
 
-    fn id(&self) -> State {
-        State::ScriptEnding
+    fn id(&self) -> ID {
+        ID::ScriptEnding
     }
 }

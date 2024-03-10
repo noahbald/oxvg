@@ -5,8 +5,8 @@ use std::{
 use crate::{
     diagnostics::SVGError,
     document::Document,
-    state::{Begin, Ended, FileReaderState},
-    syntactic_constructs::{is_char, is_restricted_char},
+    state::{Begin, Ended, State},
+    syntactic_constructs::character,
 };
 
 /// A sax style parser for XML written for SVG.
@@ -18,7 +18,7 @@ use crate::{
 /// Copyright (c) Isaac Z. Schlueter and Contributors
 pub struct FileReader<'a> {
     peekable: Peekable<Chars<'a>>,
-    state: Box<dyn FileReaderState>,
+    state: Box<dyn State>,
     sax: SAXState,
 }
 
@@ -80,28 +80,28 @@ impl SAXState {
         self.errors.push(SVGError::new(
             label.into(),
             (self.state_meta.end..self.state_meta.end).into(),
-        ))
+        ));
     }
 
     pub fn error_state(&mut self, label: &str) {
         self.errors.push(SVGError::new(
             label.into(),
             (self.state_meta.start..self.state_meta.end).into(),
-        ))
+        ));
     }
 
     pub fn error_token(&mut self, label: &str) {
         self.errors.push(SVGError::new(
             label.into(),
             (self.state_meta.token_start..self.state_meta.end).into(),
-        ))
+        ));
     }
 
     pub fn error_tag(&mut self, label: &str) {
         self.errors.push(SVGError::new(
             label.into(),
             (self.start_tag_position..self.state_meta.end).into(),
-        ))
+        ));
     }
 
     pub fn error_internal(&mut self, label: &str) {
@@ -111,7 +111,7 @@ impl SAXState {
                 (self.state_meta.start..self.state_meta.end).into(),
             )
             .with_advice("This is likely a bug with OXVG. Please consider raising a report."),
-        )
+        );
     }
 
     pub fn add_error(&mut self, error: SVGError) {
@@ -176,13 +176,13 @@ impl<'a> Iterator for FileReader<'a> {
     fn next(&mut self) -> Option<char> {
         let char = self.peekable.next();
         if let Some(char) = char {
-            self.next_state(&char);
+            self.next_state(char);
 
-            if self.sax.saw_root && !self.sax.closed_root && is_restricted_char(&char) {
+            if self.sax.saw_root && !self.sax.closed_root && character::is_restricted(char) {
                 self.sax
                     .error_char("Restricted characters are not allowed in the document");
             }
-            if (!self.sax.saw_root || self.sax.closed_root) && !is_char(&char) {
+            if (!self.sax.saw_root || self.sax.closed_root) && !character::is(char) {
                 self.sax.error_char(
                     "Disallowed surrogate unicode character now allowed in the document",
                 );
@@ -245,7 +245,7 @@ impl<'a> FileReader<'a> {
     /// // Depending on the character, other parts of the sax state may change
     /// assert_eq!(Cursor::default(), file_reader.sax.start_tag_position);
     /// ```
-    fn next_state(&mut self, char: &char) {
+    fn next_state(&mut self, char: char) {
         let new_state = self.state.clone().next(&mut self.sax, char);
         if self.state.id() != new_state.id() {
             self.sax.state_meta.start = self.sax.state_meta.end;
@@ -298,7 +298,7 @@ impl Parent {
             Self::Root(r) => r.children.push(Rc::clone(child)),
             Self::Element(e) => {
                 let e: &RefCell<Element> = e.borrow_mut();
-                e.borrow_mut().children.push(Rc::clone(child))
+                e.borrow_mut().children.push(Rc::clone(child));
             }
         }
     }
