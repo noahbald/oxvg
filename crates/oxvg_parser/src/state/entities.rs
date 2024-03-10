@@ -2,7 +2,7 @@ use std::char::from_u32;
 
 use crate::{
     file_reader::SAXState,
-    syntactic_constructs::{names, references},
+    syntactic_constructs::{name, reference},
 };
 
 use super::{
@@ -46,11 +46,11 @@ fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<
             sax.entity = String::new();
             return_state
         }
-        c if sax.entity.is_empty() && (names::is_start(c) || c == '#') => {
+        c if sax.entity.is_empty() && (name::is_start(c) || c == '#') => {
             sax.entity.push(c);
             return_current_state
         }
-        c if !sax.entity.is_empty() && (names::is(c) || c == '#') => {
+        c if !sax.entity.is_empty() && (name::is(c) || c == '#') => {
             sax.entity.push(c);
             return_current_state
         }
@@ -65,11 +65,11 @@ fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<
 fn parse_entity(sax: &mut SAXState) -> (String, bool) {
     // Lazily build the entity map
     if sax.entity_map.is_empty() {
-        for &(key, value) in references::XML_ENTITIES {
+        for &(key, value) in reference::XML_ENTITIES {
             sax.entity_map.insert(key.into(), value);
         }
         if !sax.get_options().strict {
-            for &(key, value) in references::ENTITIES {
+            for &(key, value) in reference::ENTITIES {
                 sax.entity_map.insert(key.into(), value);
             }
         }

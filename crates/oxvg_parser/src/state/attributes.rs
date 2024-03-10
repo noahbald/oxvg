@@ -2,7 +2,7 @@
 
 use crate::{
     file_reader::SAXState,
-    syntactic_constructs::{names, whitespace},
+    syntactic_constructs::{name, whitespace},
 };
 
 use super::{
@@ -32,7 +32,7 @@ impl State for Attribute {
             c if whitespace::is(c) => self,
             '>' => CloseTag::handle_end(sax),
             '/' => Box::new(OpenTagSlash),
-            c if names::is_start(c) => {
+            c if name::is_start(c) => {
                 sax.attribute_name = String::from(c);
                 sax.attribute_value = String::default();
                 Box::new(AttributeName)
@@ -145,7 +145,7 @@ impl State for AttributeValueClosed {
             c if whitespace::is(c) => Box::new(Attribute),
             '>' => OpenTag::handle_end(sax, false),
             '/' => Box::new(OpenTagSlash),
-            c if names::is_start(c) => {
+            c if name::is_start(c) => {
                 if sax.get_options().strict {
                     sax.error_char("Expected whitespace between attributes");
                 }
@@ -171,7 +171,7 @@ impl State for AttributeName {
             return new_state;
         }
         match char {
-            c if names::is(c) => {
+            c if name::is(c) => {
                 sax.attribute_name.push(c);
                 self
             }
@@ -211,7 +211,7 @@ impl State for AttributeNameSawWhite {
             return next_state;
         }
         match char {
-            c if names::is_start(c) => {
+            c if name::is_start(c) => {
                 sax.attribute_name = c.to_string();
                 Box::new(AttributeName)
             }

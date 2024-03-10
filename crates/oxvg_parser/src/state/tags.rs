@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     file_reader::{Child, Element, Parent, SAXState},
-    syntactic_constructs::{names, whitespace},
+    syntactic_constructs::{name, whitespace},
 };
 
 use super::{
@@ -23,7 +23,7 @@ pub struct CloseTagSawWhite;
 impl State for OpenTag {
     fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
-            c if names::is(c) => {
+            c if name::is(c) => {
                 sax.tag_name.push(c);
                 self
             }
@@ -88,7 +88,7 @@ impl State for CloseTag {
     fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State> {
         match char {
             c if sax.tag_name.is_empty() && whitespace::is(c) => self,
-            c if sax.tag_name.is_empty() && !names::is_start(c) => {
+            c if sax.tag_name.is_empty() && !name::is_start(c) => {
                 if !sax.script.is_empty() {
                     sax.script.push_str(&format!("</{c}"));
                     return Box::new(Script);
@@ -96,7 +96,7 @@ impl State for CloseTag {
                 sax.error_char("Expected a valid starting tag name character");
                 self
             }
-            c if names::is(c) => {
+            c if name::is(c) => {
                 sax.tag_name.push(c);
                 self
             }

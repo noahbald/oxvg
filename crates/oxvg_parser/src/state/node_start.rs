@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     file_reader::{Element, Parent, SAXState},
-    syntactic_constructs::{names, whitespace},
+    syntactic_constructs::{name, whitespace},
 };
 
 use super::{
@@ -24,7 +24,7 @@ impl State for NodeStart {
                 Box::new(SGMLDeclaration)
             }
             char if whitespace::is(char) => self,
-            char if names::is_start(char) => {
+            char if name::is_start(char) => {
                 let new_element = Rc::new(RefCell::new(Element::default()));
                 sax.tag = Parent::Element(new_element);
                 sax.tag_name = String::from(char);
