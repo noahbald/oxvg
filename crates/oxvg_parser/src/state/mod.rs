@@ -28,11 +28,27 @@ use self::{
     text::{Script, ScriptEnding, Text},
 };
 
+/// Represents the transitioned-to state for a processed character
 pub trait State {
+    /// Transitions from the current state to the next state based on the given character
+    ///
+    /// # Examples
+    /// ```
+    /// let sax = &mut SAXState::default();
+    /// let start: Box<dyn State> = Box::new(Begin);
+    /// let next: Box<dyn State> = start.next(sax, 'a');
+    ///
+    /// assert_eq!(next, Box::new(Text));
+    ///
+    /// // Calling `next` may also mutate `sax` providing context for transitioned-to state
+    /// assert_eq!(sax.text_node, String::from('a'));
+    /// ```
     fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State>;
 
+    /// Returns an enumerable ID of the current state
     fn id(&self) -> ID;
 
+    /// Returns an enumerable ID of the token the state is a part of
     fn token_id(&self) -> Token {
         match self.id() {
             ID::Begin | ID::BeginWhitespace | ID::Ended => Token::Begin,

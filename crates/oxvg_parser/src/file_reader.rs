@@ -23,6 +23,7 @@ pub struct FileReader<'a> {
 }
 
 #[derive(Default)]
+/// Information related to the progress of the sax parser
 pub struct SAXMeta {
     pub start: usize,
     pub token_start: usize,
@@ -31,8 +32,11 @@ pub struct SAXMeta {
 }
 
 #[derive(Default)]
+/// User defined options for sax parsing
 pub struct SAXOptions {
+    /// Enables whether extra error checking as to whether the xml document is well-formed
     pub strict: bool,
+    /// Enables whether xml namespaces will be processed
     pub xmlns: bool,
 }
 

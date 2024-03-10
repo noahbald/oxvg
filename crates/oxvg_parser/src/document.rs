@@ -8,12 +8,22 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Document {
+    /// The root of the document, containing all of it's parsed contents
     pub root: Root,
+    /// The first tag of the root
     pub root_element: Option<Rc<RefCell<Element>>>,
+    /// A list of any errors encountered while parsing the document
     pub errors: Vec<SVGError>,
 }
 
 impl Document {
+    /// Parses the given string, returning a `Document` with the generated tree of elements
+    ///
+    /// # Example
+    /// ```
+    /// let document = Document::parse("<svg attr=\"hi\">\n</svg>");
+    /// assert!(document.root_element.is_some());
+    /// ```
     pub fn parse(svg: &str) -> Self {
         let mut file_reader = FileReader::new(svg);
         file_reader.collect_root();

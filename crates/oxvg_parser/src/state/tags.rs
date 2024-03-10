@@ -44,6 +44,20 @@ impl State for OpenTag {
 }
 
 impl OpenTag {
+    /// This function takes the collected data for the opening tag and adds it to the list of
+    /// opening tags, `sax.tags`.
+    ///
+    /// # Side effects
+    ///
+    /// Calling always applies the following to the given `SAXState`
+    /// * Sets `saw_root` to true
+    ///
+    /// Calling may apply the following to the given `SAXState`
+    /// * Sets `sax.tag.name` to `sax.tag_name`
+    /// * Sets `sax.tag.attributes` to `sax.attribute_map`
+    /// * Resets `sax.tag_name` and `sax.attribute_map`
+    /// * Pushes `sax.tag` to `sax.tags`
+    /// * Sets `sax.tag` as `sax.root_tag`
     pub fn handle_end(sax: &mut SAXState, is_self_closing: bool) -> Box<dyn State> {
         sax.saw_root = true;
         let state: Box<dyn State> = if !is_self_closing && sax.tag_name.to_lowercase() == "script" {
@@ -120,6 +134,27 @@ impl State for CloseTag {
 }
 
 impl CloseTag {
+    /// This function takes the collected data for the closing tag and adds it as a child to it's
+    /// parent.
+    ///
+    /// # Side effects
+    ///
+    /// ## For invalid tag names
+    /// * Push to `sax.errors`
+    /// * Set `sax.text_node`
+    ///
+    /// ## For children of `<script>`
+    /// * Push the tag to `sax.script`
+    /// * Reset `sax.tag_name`
+    ///
+    /// ## For valid tags
+    /// Calling always applies the following to the given `SAXState`
+    /// * Removes items from `sax.tags` until the matching opening tag is found
+    /// * Pushes the tag to it's parent's `children`
+    /// * Resets `tag_name`, `attribute_name`, and `attribute_map` of `sax`
+    ///
+    /// Calling may apply the following to the given `SAXState`
+    /// * Set `sax.root_closed` to `true`
     pub fn handle_end(sax: &mut SAXState) -> Box<dyn State> {
         if sax.tag_name.is_empty() {
             if sax.get_options().strict {

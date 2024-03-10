@@ -1,10 +1,12 @@
-// [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
-
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Name;
 
+/// Returns whether the character is a valid character for a name.
+/// Names are used for tag names, attribute names, etc.
+///
+/// As per [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
+/// ^[4a](https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-NameChar)
 pub fn is(char: char) -> bool {
-    // [4a]
     if match char {
         c if is_start(c) => true,
         '-' | '.' => true,
@@ -20,8 +22,12 @@ pub fn is(char: char) -> bool {
     utf16 == 0xB7 || (0x0300..0x036F).contains(&utf16) || (0x203F..0x2040).contains(&utf16)
 }
 
+/// Returns whether the character is a valid character for the start of a name.
+/// Names are used for tag names, attribute names, etc.
+///
+/// As per [2.3 Common Syntactic Constructs](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-common-syn)
+/// ^[4](https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-NameStartChar)
 pub fn is_start(char: char) -> bool {
-    // [4]
     if match char {
         '_' | ':' => true,
         c if c.is_uppercase() => true,

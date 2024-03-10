@@ -50,6 +50,16 @@ impl State for Attribute {
 }
 
 impl Attribute {
+    /// This function takes the collected data for the attribute and applies it to the current tag.
+    ///
+    /// # Side effects
+    ///
+    /// Calling always applies the following to the given `SAXState`
+    /// * Resets `attribute_name` and `attribute_value`
+    ///
+    /// Calling may apply the following to the given `SAXState`
+    /// * Insert `attribute_value` with the key `attribute_name` to `attribute_map`
+    /// * Add to the error list
     pub fn handle_end(sax: &mut SAXState) -> Box<dyn State> {
         if sax.attribute_map.contains_key(&sax.attribute_name) {
             sax.error_token("Found duplicate attribute");
@@ -188,6 +198,10 @@ impl State for AttributeName {
 }
 
 impl AttributeName {
+    /// Handles the common transitions for `AttributeName` and `AttributeNameSawWhite`.
+    ///
+    /// Returns `None` if the given character needs to be processed as per the requirements of
+    /// `AttributeName` or `AttributeNameSawWhite`
     fn despite_whitespace(sax: &mut SAXState, char: char) -> Option<Box<dyn State>> {
         match char {
             '=' => Some(Box::new(AttributeValue)),

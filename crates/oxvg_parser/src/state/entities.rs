@@ -28,6 +28,7 @@ enum Entity {
     AttributeValueQuoted(Box<AttributeValueEntityQuoted>),
 }
 
+/// Handles the common transitions for all the entity types.
 fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<dyn State> {
     let (return_current_state, return_state): (Box<dyn State>, Box<dyn State>) =
         match &current_state {
@@ -37,12 +38,11 @@ fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<
         };
     match char {
         ';' => {
-            let (entity, is_tag) = parse_entity(sax);
-            if is_tag {
-                todo!("Handling tag entity not implemented");
-            } else {
+            if let Ok(entity) = parse_entity(sax) {
                 apply_entity(sax, current_state, &entity);
-            }
+            } else if sax.get_options().strict {
+                todo!("Handling tag entity not implemented");
+            };
             sax.entity = String::new();
             return_state
         }
@@ -62,7 +62,24 @@ fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<
     }
 }
 
-fn parse_entity(sax: &mut SAXState) -> (String, bool) {
+/// Will parse `sax.entity` into it's representative string.
+///
+/// If the parse fails, the string contained in `Err` is the original entity
+///
+/// # Example
+/// ```
+/// let sax = &mut SAXState::default();
+///
+/// sax.entity = "&amp;"
+/// assert_eq!(parse_entity(sax), Ok(String::from("&")));
+///
+/// sax.entity = "&#38"
+/// assert_eq!(parse_entity(sax), Ok(String::from("&")));
+///
+/// sax.entity = "&fake_entity;"
+/// assert_eq!(parse_entity(sax), Err(String::from("&fake_entity;")));
+/// ```
+fn parse_entity(sax: &mut SAXState) -> Result<String, String> {
     // Lazily build the entity map
     if sax.entity_map.is_empty() {
         for &(key, value) in reference::XML_ENTITIES {
@@ -76,11 +93,11 @@ fn parse_entity(sax: &mut SAXState) -> (String, bool) {
     }
 
     if let Some(value) = sax.entity_map.get(&sax.entity) {
-        return ((*value).into(), false);
+        return Ok((*value).into());
     }
     sax.entity = sax.entity.to_lowercase();
     if let Some(value) = sax.entity_map.get(&sax.entity) {
-        return ((*value).into(), false);
+        return Ok((*value).into());
     }
     let num = match &sax.entity {
         e if e.starts_with("#x") => u32::from_str_radix(&e[2..e.len()], 16).map_err(Some),
@@ -90,11 +107,11 @@ fn parse_entity(sax: &mut SAXState) -> (String, bool) {
     if let Ok(num) = num {
         let char = from_u32(num);
         if let Some(char) = char {
-            return (char.into(), false);
+            return Ok(char.into());
         }
     }
     sax.error_state("Invalid character entity");
-    (format!("&{};", sax.entity), true)
+    Err(format!("&{};", sax.entity))
 }
 
 fn apply_entity(sax: &mut SAXState, state: &Entity, parsed_entity: &str) {
