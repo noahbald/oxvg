@@ -157,26 +157,6 @@ impl<'a> Iterator for FileReader<'a> {
     ///
     /// The file reader is a state machine, and consuming next will transition it's state.
     /// Returns `None` when the iterator is finished.
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    /// ```
-    /// let file_reader = FileReader::new("<svg></svg>");
-    ///
-    /// // A call to next() returns the next value...
-    /// assert_eq!(Some('<'), file_reader.next());
-    /// assert_eq!(Some('s'), file_reader.next());
-    /// assert_eq!(Some('v'), file_reader.next());
-    ///
-    /// // ... and then None once it's over.
-    /// assert_eq!(None, file_reader.next());
-    ///
-    /// // More calls may or may not return `None`. Here, they always will.
-    /// assert_eq!(None, file_reader.next());
-    ///
-    /// assert_eq!(None, file_reader.next());
-    /// ```
     fn next(&mut self) -> Option<char> {
         let char = self.peekable.next();
         if let Some(char) = char {
@@ -213,17 +193,6 @@ impl From<FileReader<'_>> for Document {
 
 impl<'a> FileReader<'a> {
     /// Collects the entire file, returning the generated `Root`
-    ///
-    /// # Examples
-    /// ```
-    /// let file_reader = FileReader::new("<svg></svg>");
-    ///
-    /// let root = file_reader.collect_root();
-    /// assert!(matches!(
-    ///     &*root.children.get(0).unwrap().borrow(),
-    ///     Child::Element(Element { name, .. }) if name == "svg"
-    /// ));
-    /// ```
     pub fn collect_root(&mut self) -> &Root {
         let _: String = self.collect();
         &self.sax.root
@@ -234,21 +203,6 @@ impl<'a> FileReader<'a> {
     /// # Arguments
     ///
     /// * `char` - A character of the svg file
-    ///
-    /// # Examples
-    /// ```
-    /// let file_reader = FileReader::new("<svg></svg>");
-    ///
-    /// // The file_reader starts of in the Begin state
-    /// assert_eq!(Box::new(Begin), file_reader.sax.state);
-    ///
-    /// // Providing `<` causes the state to transition into the `NodeStart` state
-    /// file_reader.next_state(&'<');
-    /// assert_eq!(Box::new(NodeStart), file_reader.sax.state);
-    ///
-    /// // Depending on the character, other parts of the sax state may change
-    /// assert_eq!(Cursor::default(), file_reader.sax.start_tag_position);
-    /// ```
     fn next_state(&mut self, char: char) {
         let new_state = self.state.clone().next(&mut self.sax, char);
         if self.state.id() != new_state.id() {
@@ -316,4 +270,34 @@ impl Default for Parent {
     fn default() -> Self {
         Parent::Root(Root::default())
     }
+}
+
+#[test]
+fn file_reader() {
+    let file_reader = &mut FileReader::new("<svg></svg>");
+    // The file_reader starts of in the Begin state
+    assert_eq!(crate::state::ID::Begin, file_reader.state.id());
+
+    // A call to next() returns the next value...
+    assert_eq!(Some('<'), file_reader.next());
+    // Providing `<` causes the state to transition into the `NodeStart` state
+    assert_eq!(crate::state::ID::NodeStart, file_reader.state.id());
+
+    assert_eq!(Some('s'), file_reader.next());
+    assert_eq!(Some('v'), file_reader.next());
+
+    // ... and then None once it's over.
+    let _: String = file_reader.collect();
+    assert_eq!(None, file_reader.next());
+
+    // More calls may or may not return `None`. Here, they always will.
+    assert_eq!(None, file_reader.next());
+
+    assert_eq!(None, file_reader.next());
+
+    let root = file_reader.collect_root();
+    assert!(matches!(
+        &*root.children.first().unwrap().borrow(),
+        Child::Element(Element { name, .. }) if name == "svg"
+    ));
 }

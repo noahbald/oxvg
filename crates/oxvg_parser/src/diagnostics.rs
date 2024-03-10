@@ -18,6 +18,9 @@ impl SVGErrors {
     }
 
     /// Returns a miette `Result` with an error, if any errors are present
+    ///
+    /// # Errors
+    /// If there are any contained errors
     pub fn emit(self) -> Result<()> {
         if self.errors.is_empty() {
             return Ok(());

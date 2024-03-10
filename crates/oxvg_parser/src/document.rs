@@ -21,6 +21,8 @@ impl Document {
     ///
     /// # Example
     /// ```
+    /// use oxvg_parser::Document;
+    ///
     /// let document = Document::parse("<svg attr=\"hi\">\n</svg>");
     /// assert!(document.root_element.is_some());
     /// ```

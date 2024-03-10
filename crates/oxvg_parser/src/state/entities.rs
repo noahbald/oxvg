@@ -65,20 +65,6 @@ fn handle_entity(sax: &mut SAXState, char: char, current_state: &Entity) -> Box<
 /// Will parse `sax.entity` into it's representative string.
 ///
 /// If the parse fails, the string contained in `Err` is the original entity
-///
-/// # Example
-/// ```
-/// let sax = &mut SAXState::default();
-///
-/// sax.entity = "&amp;"
-/// assert_eq!(parse_entity(sax), Ok(String::from("&")));
-///
-/// sax.entity = "&#38"
-/// assert_eq!(parse_entity(sax), Ok(String::from("&")));
-///
-/// sax.entity = "&fake_entity;"
-/// assert_eq!(parse_entity(sax), Err(String::from("&fake_entity;")));
-/// ```
 fn parse_entity(sax: &mut SAXState) -> Result<String, String> {
     // Lazily build the entity map
     if sax.entity_map.is_empty() {
@@ -151,4 +137,18 @@ impl State for AttributeValueEntityQuoted {
     fn id(&self) -> ID {
         ID::AttributeValueEntityQuoted
     }
+}
+
+#[test]
+fn test_parse_entity() {
+    let sax = &mut SAXState::default();
+
+    sax.entity = "amp".into();
+    assert_eq!(parse_entity(sax), Ok(String::from("&")));
+
+    sax.entity = "#38".into();
+    assert_eq!(parse_entity(sax), Ok(String::from("&")));
+
+    sax.entity = "fake_entity".into();
+    assert_eq!(parse_entity(sax), Err(String::from("&fake_entity;")));
 }

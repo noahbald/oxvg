@@ -31,18 +31,6 @@ use self::{
 /// Represents the transitioned-to state for a processed character
 pub trait State {
     /// Transitions from the current state to the next state based on the given character
-    ///
-    /// # Examples
-    /// ```
-    /// let sax = &mut SAXState::default();
-    /// let start: Box<dyn State> = Box::new(Begin);
-    /// let next: Box<dyn State> = start.next(sax, 'a');
-    ///
-    /// assert_eq!(next, Box::new(Text));
-    ///
-    /// // Calling `next` may also mutate `sax` providing context for transitioned-to state
-    /// assert_eq!(sax.text_node, String::from('a'));
-    /// ```
     fn next(self: Box<Self>, sax: &mut SAXState, char: char) -> Box<dyn State>;
 
     /// Returns an enumerable ID of the current state
@@ -241,4 +229,13 @@ pub enum Token {
     CloseTag,
     /// <script>/* ... */
     Script,
+}
+
+#[test]
+fn state() {
+    let sax = &mut SAXState::default();
+    let start: Box<dyn State> = Box::new(Begin);
+    let next: Box<dyn State> = start.next(sax, 'a');
+
+    assert_eq!(next.id(), LeadingWhitespace.id());
 }

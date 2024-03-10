@@ -4,6 +4,8 @@ members = ["crates/*"]
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+# Too noisy and not really an issue
+must_use_candidate = "allow"
 
 [workspace.package]
 name = "oxvg"
