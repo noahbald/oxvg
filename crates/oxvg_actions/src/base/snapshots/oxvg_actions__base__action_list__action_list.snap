@@ -1,0 +1,6 @@
+---
+source: crates/oxvg_actions/src/base/action_list.rs
+expression: action_list()
+---
+About : Oxvg version, authors, license
+ActionList : Print a list of actions and exit
