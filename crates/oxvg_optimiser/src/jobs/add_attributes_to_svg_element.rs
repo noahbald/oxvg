@@ -1,4 +1,4 @@
-use oxvg_parser::Child;
+use oxvg_parser::{Child, Parent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -18,6 +18,9 @@ impl Job for AddAttributesToSVGElement {
         let Child::Element(element) = node else {
             return;
         };
+        if matches!(element.parent, Parent::Element(_)) {
+            return;
+        }
         if element.name != "svg" {
             return;
         }
