@@ -65,7 +65,7 @@ pub struct SAXState {
     pub quote: Option<char>,
     pub entity: String,
     pub entity_map: HashMap<String, char>,
-    pub root: Root,
+    pub root: Rc<RefCell<Root>>,
     pub root_tag: Option<Rc<RefCell<Element>>>,
     options: SAXOptions,
     errors: Vec<SVGError>,
@@ -126,7 +126,10 @@ impl SAXState {
         if self.saw_root && !self.closed_root {
             self.tag.push_child(child);
         } else {
-            self.root.children.push(Rc::new(RefCell::new(child)));
+            let root: &RefCell<Root> = self.root.borrow_mut();
+            root.borrow_mut()
+                .children
+                .push(Rc::new(RefCell::new(child)));
         }
     }
 }
@@ -193,9 +196,9 @@ impl From<FileReader<'_>> for Document {
 
 impl<'a> FileReader<'a> {
     /// Collects the entire file, returning the generated `Root`
-    pub fn collect_root(&mut self) -> &Root {
+    pub fn collect_root(&mut self) -> Rc<RefCell<Root>> {
         let _: String = self.collect();
-        &self.sax.root
+        self.sax.root.clone()
     }
 
     /// Transitions the state of `FileReader` based on the given char.
@@ -225,6 +228,7 @@ pub struct Element {
     pub name: String,
     pub attributes: HashMap<String, String>,
     pub children: Vec<Rc<RefCell<Child>>>,
+    pub parent: Parent,
     pub is_self_closing: bool,
 }
 
@@ -241,7 +245,7 @@ pub enum Child {
 
 #[derive(Debug)]
 pub enum Parent {
-    Root(Root),
+    Root(Rc<RefCell<Root>>),
     Element(Rc<RefCell<Element>>),
 }
 
@@ -253,7 +257,10 @@ impl Parent {
 
     pub fn push_rc(&mut self, child: &Rc<RefCell<Child>>) {
         match self {
-            Self::Root(r) => r.children.push(Rc::clone(child)),
+            Self::Root(r) => {
+                let r: &RefCell<Root> = r.borrow_mut();
+                r.borrow_mut().children.push(Rc::clone(child));
+            }
             Self::Element(e) => {
                 let e: &RefCell<Element> = e.borrow_mut();
                 e.borrow_mut().children.push(Rc::clone(child));
@@ -268,7 +275,7 @@ impl Parent {
 
 impl Default for Parent {
     fn default() -> Self {
-        Parent::Root(Root::default())
+        Parent::Root(Rc::new(RefCell::new(Root::default())))
     }
 }
 
@@ -297,7 +304,7 @@ fn file_reader() {
 
     let root = file_reader.collect_root();
     assert!(matches!(
-        &*root.children.first().unwrap().borrow(),
+        &*root.borrow().children.first().unwrap().borrow(),
         Child::Element(Element { name, .. }) if name == "svg"
     ));
 }

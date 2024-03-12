@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Document {
     /// The root of the document, containing all of it's parsed contents
-    pub root: Root,
+    pub root: Rc<RefCell<Root>>,
     /// The first tag of the root
     pub root_element: Option<Rc<RefCell<Element>>>,
     /// A list of any errors encountered while parsing the document

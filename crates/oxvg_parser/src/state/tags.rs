@@ -1,7 +1,7 @@
 use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    file_reader::{Child, Element, Parent, SAXState},
+    file_reader::{Child, Element, Parent, Root, SAXState},
     syntactic_constructs::{name, whitespace},
 };
 
@@ -69,6 +69,10 @@ impl OpenTag {
             let element: &RefCell<Element> = e.borrow_mut();
             element.borrow_mut().name = std::mem::take(&mut sax.tag_name);
             element.borrow_mut().attributes = std::mem::take(&mut sax.attribute_map);
+            element.borrow_mut().parent = match sax.tags.last() {
+                Some(e) => Parent::Element(e.clone()),
+                None => Parent::Root(sax.root.clone()),
+            };
             sax.tags.push(e.clone());
             if sax.root_tag.is_none() {
                 sax.root_tag = Some(e.clone());
@@ -207,15 +211,16 @@ impl CloseTag {
                 sax.closed_root = true;
             }
             if let Some(o) = opening_tag {
-                match sax.tags.last() {
-                    Some(t) => Parent::Element(t.clone()).push_child(Child::Element(o.take())),
-                    None => sax
-                        .root
+                if let Some(t) = sax.tags.last() {
+                    Parent::Element(t.clone()).push_child(Child::Element(o.take()));
+                } else {
+                    let root: &RefCell<Root> = &mut *sax.root.borrow_mut();
+                    root.borrow_mut()
                         .children
-                        .push(Rc::new(RefCell::new(Child::Element(o.take())))),
-                };
+                        .push(Rc::new(RefCell::new(Child::Element(o.take()))));
+                }
             } else {
-                unreachable!("The opening tag was accidentally lost");
+                unreachable!("The opening tag was accidentally lost")
             }
         }
 

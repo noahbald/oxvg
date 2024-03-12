@@ -35,7 +35,8 @@ impl Job for AddAttributesToSVGElement {
 #[test]
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
     let document = oxvg_parser::Document::parse("<svg></svg>");
-    let Some(element) = document.root.children.first() else {
+    let root = &*document.root.borrow();
+    let Some(element) = root.children.first() else {
         return Err("Failed to parse");
     };
     let child = &mut *element.borrow_mut();
