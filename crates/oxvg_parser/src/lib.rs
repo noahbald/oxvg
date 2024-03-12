@@ -5,7 +5,7 @@ mod state;
 mod syntactic_constructs;
 
 pub use crate::{
-    diagnostics::SVGErrors,
+    diagnostics::{SVGError, SVGErrors},
     document::Document,
-    file_reader::{Child, Parent},
+    file_reader::{Child, Element, Parent},
 };

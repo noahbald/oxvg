@@ -227,6 +227,7 @@ pub struct Root {
 pub struct Element {
     pub name: String,
     pub attributes: HashMap<String, String>,
+    pub attributes_order: Vec<String>,
     pub children: Vec<Rc<RefCell<Child>>>,
     pub parent: Parent,
     pub is_self_closing: bool,

@@ -1,7 +1,7 @@
 //! [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-starttags)
 
 use crate::{
-    file_reader::SAXState,
+    file_reader::{Parent, SAXState},
     syntactic_constructs::{name, whitespace},
 };
 
@@ -72,6 +72,11 @@ impl Attribute {
             todo!();
         }
 
+        if let Parent::Element(e) = &sax.tag {
+            e.borrow_mut()
+                .attributes_order
+                .push(sax.attribute_name.clone());
+        }
         sax.attribute_map.insert(
             std::mem::take(&mut sax.attribute_name),
             std::mem::take(&mut sax.attribute_value),
@@ -226,7 +231,9 @@ impl State for AttributeNameSawWhite {
         }
         match char {
             c if name::is_start(c) => {
-                sax.attribute_name = c.to_string();
+                sax.attribute_value = sax.attribute_name.clone();
+                Attribute::handle_end(sax);
+                sax.attribute_name.push(c);
                 Box::new(AttributeName)
             }
             _ => {

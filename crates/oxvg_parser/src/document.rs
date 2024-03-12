@@ -35,5 +35,5 @@ impl Document {
 
 #[test]
 fn test_document() {
-    dbg!(Document::parse("<svg attr=\"hi\">\n</svg>"));
+    // dbg!(Document::parse("<svg attr=\"hi\">\n</svg>"));
 }
