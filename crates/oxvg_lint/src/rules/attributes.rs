@@ -1,5 +1,6 @@
 use super::Rule;
-use oxvg_parser::{Child, Element, SVGError};
+use oxvg_ast::{Child, Element};
+use oxvg_diagnostics::SVGError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -72,7 +73,7 @@ enum Pattern {
 
 #[test]
 fn attributes() -> Result<(), &'static str> {
-    let document = oxvg_parser::Document::parse("<svg z a></svg>");
+    let document = oxvg_parser::FileReader::parse("<svg z a></svg>");
     let root = &*document.root.borrow();
     let Some(element) = root.children.first() else {
         return Err("Failed to parse");

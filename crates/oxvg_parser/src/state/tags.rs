@@ -1,7 +1,8 @@
+use oxvg_ast::{Child, Element, Parent, Root};
 use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    file_reader::{Child, Element, Parent, Root, SAXState},
+    file_reader::SAXState,
     syntactic_constructs::{name, whitespace},
 };
 

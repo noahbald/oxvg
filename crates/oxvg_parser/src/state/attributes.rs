@@ -1,7 +1,9 @@
 //! [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/2006/REC-xml11-20060816/#sec-starttags)
 
+use oxvg_ast::Parent;
+
 use crate::{
-    file_reader::{Parent, SAXState},
+    file_reader::SAXState,
     syntactic_constructs::{name, whitespace},
 };
 

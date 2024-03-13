@@ -1,7 +1,6 @@
-use crate::{
-    file_reader::{Child, SAXState},
-    syntactic_constructs::whitespace,
-};
+use oxvg_ast::Child;
+
+use crate::{file_reader::SAXState, syntactic_constructs::whitespace};
 
 use super::{text::Text, State, ID};
 

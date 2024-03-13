@@ -16,6 +16,8 @@ authors = ["Noah <noahwbaldwin@gmail.com>"]
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_parser = { path = "crates/oxvg_parser" }
 oxvg_actions = { path = "crates/oxvg_actions" }
+oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
+oxvg_ast = { path = "crates/oxvg_ast" }
 
 serde = "1.0.197"
 serde_json = "1.0.114"

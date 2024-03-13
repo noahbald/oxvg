@@ -1,4 +1,4 @@
-use oxvg_parser::{Child, Parent};
+use oxvg_ast::{Child, Parent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -37,7 +37,7 @@ impl Job for AddAttributesToSVGElement {
 
 #[test]
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
-    let document = oxvg_parser::Document::parse("<svg></svg>");
+    let document = oxvg_parser::FileReader::parse("<svg></svg>");
     let root = &*document.root.borrow();
     let Some(element) = root.children.first() else {
         return Err("Failed to parse");

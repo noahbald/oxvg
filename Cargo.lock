@@ -248,10 +248,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxvg_ast"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "oxvg_diagnostics",
+ "thiserror",
+]
+
+[[package]]
+name = "oxvg_diagnostics"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "thiserror",
+]
+
+[[package]]
 name = "oxvg_lint"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "oxvg_ast",
+ "oxvg_diagnostics",
  "oxvg_parser",
  "regex",
  "serde",
@@ -264,6 +283,7 @@ name = "oxvg_optimiser"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "oxvg_ast",
  "oxvg_parser",
  "serde",
  "serde_json",
@@ -275,6 +295,8 @@ name = "oxvg_parser"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "oxvg_ast",
+ "oxvg_diagnostics",
  "thiserror",
 ]
 

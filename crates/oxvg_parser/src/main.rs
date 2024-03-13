@@ -1,11 +1,10 @@
-mod diagnostics;
-mod document;
 mod file_reader;
 mod state;
 mod syntactic_constructs;
-use diagnostics::SVGErrors;
-use document::Document;
+
+use file_reader::FileReader;
 use miette::{NamedSource, Result};
+use oxvg_diagnostics::SVGErrors;
 use std::env;
 use std::fs;
 use std::process;
@@ -16,7 +15,7 @@ fn main() -> Result<()> {
         process::exit(1);
     });
     let file = fs::read_to_string(&config.path).expect("Unable to read file");
-    let result = Document::parse(&file);
+    let result = FileReader::parse(&file);
     SVGErrors::from_errors(NamedSource::new(config.path, file), result.errors).emit()
 }
 

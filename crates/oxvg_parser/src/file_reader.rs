@@ -1,10 +1,10 @@
+use oxvg_ast::{Child, Document, Element, Parent, Root};
+use oxvg_diagnostics::SVGError;
 use std::{
     borrow::BorrowMut, cell::RefCell, collections::HashMap, iter::Peekable, rc::Rc, str::Chars,
 };
 
 use crate::{
-    diagnostics::SVGError,
-    document::Document,
     state::{Begin, Ended, State},
     syntactic_constructs::character,
 };
@@ -145,6 +145,21 @@ impl<'a> Default for FileReader<'a> {
 }
 
 impl<'a> FileReader<'a> {
+    /// Parses the given string, returning a `Document` with the generated tree of elements
+    ///
+    /// # Example
+    /// ```
+    /// use oxvg_parser::FileReader;
+    ///
+    /// let document = FileReader::parse("<svg attr=\"hi\">\n</svg>");
+    /// assert!(document.root_element.is_some());
+    /// ```
+    pub fn parse(svg: &str) -> Document {
+        let mut file_reader = FileReader::new(svg);
+        file_reader.collect_root();
+        file_reader.into()
+    }
+
     pub fn new(file: &'a str) -> Self {
         FileReader {
             peekable: file.chars().peekable(),
@@ -215,68 +230,6 @@ impl<'a> FileReader<'a> {
             self.sax.state_meta.token_start = self.sax.state_meta.end;
         }
         self.state = new_state;
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct Root {
-    pub children: Vec<Rc<RefCell<Child>>>,
-}
-
-#[derive(Default, Debug)]
-pub struct Element {
-    pub name: String,
-    pub attributes: HashMap<String, String>,
-    pub attributes_order: Vec<String>,
-    pub children: Vec<Rc<RefCell<Child>>>,
-    pub parent: Parent,
-    pub is_self_closing: bool,
-}
-
-#[derive(Debug)]
-pub enum Child {
-    SGMLDeclaration { value: String },
-    Doctype { data: String },
-    Instruction { name: String, value: String },
-    Comment { value: String },
-    CData { value: String },
-    Text { value: String },
-    Element(Element),
-}
-
-#[derive(Debug)]
-pub enum Parent {
-    Root(Rc<RefCell<Root>>),
-    Element(Rc<RefCell<Element>>),
-}
-
-impl Parent {
-    pub fn push_child(&mut self, child: Child) {
-        let child = Rc::new(RefCell::new(child));
-        self.push_rc(&child);
-    }
-
-    pub fn push_rc(&mut self, child: &Rc<RefCell<Child>>) {
-        match self {
-            Self::Root(r) => {
-                let r: &RefCell<Root> = r.borrow_mut();
-                r.borrow_mut().children.push(Rc::clone(child));
-            }
-            Self::Element(e) => {
-                let e: &RefCell<Element> = e.borrow_mut();
-                e.borrow_mut().children.push(Rc::clone(child));
-            }
-        }
-    }
-
-    pub fn is_root(&self) -> bool {
-        matches!(self, Self::Root(_))
-    }
-}
-
-impl Default for Parent {
-    fn default() -> Self {
-        Parent::Root(Rc::new(RefCell::new(Root::default())))
     }
 }
 

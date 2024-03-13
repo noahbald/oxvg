@@ -66,6 +66,9 @@ impl SVGError {
     }
 
     /// Returns a miette `Result` with an error
+    ///
+    /// # Errors
+    /// always returns error
     pub fn emit(self, src: NamedSource<String>) -> Result<()> {
         let report: Report = self.into();
         Err(report.with_source_code(src))

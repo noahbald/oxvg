@@ -1,7 +1,8 @@
+use oxvg_ast::{Element, Parent};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    file_reader::{Element, Parent, SAXState},
+    file_reader::SAXState,
     syntactic_constructs::{name, whitespace},
 };
 

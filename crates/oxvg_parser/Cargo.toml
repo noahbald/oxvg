@@ -15,5 +15,8 @@ test = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+oxvg_diagnostics = { workspace = true }
+oxvg_ast = { workspace = true }
+
 miette = { version = "7.0.0", features = ["fancy"] }
 thiserror = "1.0.56"

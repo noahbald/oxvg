@@ -1,7 +1,7 @@
-use crate::{
-    diagnostics::SVGError,
-    file_reader::{Child, SAXState},
-};
+use oxvg_ast::Child;
+use oxvg_diagnostics::SVGError;
+
+use crate::file_reader::SAXState;
 
 use super::{text::Text, State, ID};
 
