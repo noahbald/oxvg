@@ -10,8 +10,6 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_parser = { workspace = true }
-
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 insta = { workspace = true }
@@ -21,3 +19,6 @@ regex = "1.10.3"
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
 rand = "0.8.5"
+
+[dev-dependencies]
+oxvg_parser = { workspace = true }

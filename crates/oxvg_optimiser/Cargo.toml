@@ -11,9 +11,11 @@ workspace = true
 
 [dependencies]
 oxvg_ast = { workspace = true }
-oxvg_parser = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 thiserror = "1.0.56"
+
+[dev-dependencies]
+oxvg_parser = { workspace = true }
