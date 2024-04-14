@@ -12,3 +12,4 @@ workspace = true
 [dependencies]
 miette = { version = "7.0.0", features = ["fancy"] }
 thiserror = "1.0.56"
+quick-xml = { workspace = true }

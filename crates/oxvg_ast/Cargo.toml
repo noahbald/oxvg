@@ -12,5 +12,8 @@ workspace = true
 [dependencies]
 oxvg_diagnostics = { workspace = true }
 
+serde = { workspace = true, features = ["derive"] }
 miette = { version = "7.0.0", features = ["fancy"] }
 thiserror = "1.0.56"
+quick-xml = "0.31"
+derivative = "2.2"

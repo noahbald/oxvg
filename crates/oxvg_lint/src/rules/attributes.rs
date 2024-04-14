@@ -17,9 +17,10 @@ impl Rule for Rules {
         let Child::Element(element) = element else {
             return vec![];
         };
+        let element = &*element.borrow();
 
         let mut errors: Vec<SVGError> = Vec::new();
-        if let Some(e) = self.order(&element) {
+        if let Some(e) = self.order(element) {
             errors.push(e);
         }
 
@@ -29,14 +30,21 @@ impl Rule for Rules {
 
 impl Rules {
     pub fn order(&self, element: &Element) -> Option<SVGError> {
-        let attributes = &element.attributes_order;
+        let attributes: Vec<String> = element
+            .attributes
+            .order
+            .iter()
+            .map(|key| String::from_utf8_lossy(key.into()).into())
+            .collect();
 
-        let order = if let Some(Order::Custom(order)) = self.order.clone() {
-            order
-        } else {
-            let mut order = attributes.clone();
-            order.sort_unstable();
-            order
+        let order: Vec<String> = match &self.order {
+            Some(Order::Custom(order)) => order.clone(),
+            Some(Order::Alphabetical) | None => element
+                .attributes
+                .into_b_tree()
+                .keys()
+                .map(|key| String::from_utf8_lossy(key.into()).into())
+                .collect(),
         };
 
         let mut positions: HashMap<&str, usize> = HashMap::new();
@@ -46,11 +54,17 @@ impl Rules {
 
         dbg!(&attributes);
         for pair in attributes.windows(2) {
-            if positions.get(&*pair[0]) <= positions.get(&*pair[1]) {
+            if positions.get(pair[0].as_str()) <= positions.get(pair[1].as_str()) {
                 continue;
             }
 
-            return Some(SVGError::new(format!("Wrong ordering of attributes, found \"{attributes:?}\", expected \"{order:?}\""), (0..0).into()));
+            let found = &pair[1];
+            return Some(SVGError::new(
+                &format!(
+                    "Wrong ordering of attributes, found \"{found}\", expected \"{order:#?}\""
+                ),
+                Some(element.span().into()),
+            ));
         }
         None
     }
@@ -72,8 +86,8 @@ enum Pattern {
 }
 
 #[test]
-fn attributes() -> Result<(), &'static str> {
-    let document = oxvg_parser::FileReader::parse("<svg z a></svg>");
+fn attributes_order() -> Result<(), &'static str> {
+    let document = oxvg_parser::FileReader::parse(r#"<svg z="" a=""></svg>"#);
     let root = &*document.root.borrow();
     let Some(element) = root.children.first() else {
         return Err("Failed to parse");
@@ -81,6 +95,7 @@ fn attributes() -> Result<(), &'static str> {
     let Child::Element(element) = &*element.borrow() else {
         return Err("Unexpected child type");
     };
+    let element = &*element.borrow();
 
     // Expect some error, as "z" before "a"
     let rule = Rules {

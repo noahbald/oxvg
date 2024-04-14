@@ -1,148 +1,13 @@
 use oxvg_ast::{Child, Document, Element, Parent, Root};
 use oxvg_diagnostics::SVGError;
-use std::{
-    borrow::BorrowMut, cell::RefCell, collections::HashMap, iter::Peekable, rc::Rc, str::Chars,
-};
-
-use crate::{
-    state::{Begin, Ended, State},
-    syntactic_constructs::character,
-};
+use quick_xml::{events::Event, Reader};
+use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
 /// A sax style parser for XML written for SVG.
 /// This parser works as a state machine, changing from state-to-state as it arrives at different
 /// parts of the syntax.
 /// `FileReader` is designed so that when a state is left,
-///
-/// Some content is derived from [svg/sax](github.com/svg/sax)
-/// Copyright (c) Isaac Z. Schlueter and Contributors
-pub struct FileReader<'a> {
-    peekable: Peekable<Chars<'a>>,
-    state: Box<dyn State>,
-    sax: SAXState,
-}
-
-#[derive(Default)]
-/// Information related to the progress of the sax parser
-pub struct SAXMeta {
-    pub start: usize,
-    pub token_start: usize,
-    pub end: usize,
-    pub size: usize,
-}
-
-#[derive(Default)]
-/// User defined options for sax parsing
-pub struct SAXOptions {
-    /// Enables whether extra error checking as to whether the xml document is well-formed
-    pub strict: bool,
-    /// Enables whether xml namespaces will be processed
-    pub xmlns: bool,
-}
-
-#[derive(Default)]
-pub struct SAXState {
-    state_meta: SAXMeta,
-    pub start_tag_position: usize,
-    pub tags: Vec<Rc<RefCell<Element>>>,
-    pub tag: Parent,
-    pub attribute_map: HashMap<String, String>,
-    pub attribute_name: String,
-    pub attribute_value: String,
-    pub ordered_attribute_names: Vec<String>,
-    pub text_node: String,
-    pub saw_root: bool,
-    pub closed_root: bool,
-    pub script: String,
-    pub sgml_declaration: String,
-    pub tag_name: String,
-    pub processing_instruction_name: String,
-    pub processing_instruction_body: String,
-    pub cdata: String,
-    pub comment: String,
-    pub doctype: String,
-    pub doctype_data: String,
-    pub quote: Option<char>,
-    pub entity: String,
-    pub entity_map: HashMap<String, char>,
-    pub root: Rc<RefCell<Root>>,
-    pub root_tag: Option<Rc<RefCell<Element>>>,
-    options: SAXOptions,
-    errors: Vec<SVGError>,
-}
-
-impl SAXState {
-    pub fn get_options(&self) -> &SAXOptions {
-        &self.options
-    }
-
-    pub fn get_position(&self) -> &SAXMeta {
-        &self.state_meta
-    }
-
-    pub fn error_char(&mut self, label: &str) {
-        self.errors.push(SVGError::new(
-            label.into(),
-            (self.state_meta.end..self.state_meta.end).into(),
-        ));
-    }
-
-    pub fn error_state(&mut self, label: &str) {
-        self.errors.push(SVGError::new(
-            label.into(),
-            (self.state_meta.start..self.state_meta.end).into(),
-        ));
-    }
-
-    pub fn error_token(&mut self, label: &str) {
-        self.errors.push(SVGError::new(
-            label.into(),
-            (self.state_meta.token_start..self.state_meta.end).into(),
-        ));
-    }
-
-    pub fn error_tag(&mut self, label: &str) {
-        self.errors.push(SVGError::new(
-            label.into(),
-            (self.start_tag_position..self.state_meta.end).into(),
-        ));
-    }
-
-    pub fn error_internal(&mut self, label: &str) {
-        self.errors.push(
-            SVGError::new(
-                label.into(),
-                (self.state_meta.start..self.state_meta.end).into(),
-            )
-            .with_advice("This is likely a bug with OXVG. Please consider raising a report."),
-        );
-    }
-
-    pub fn add_error(&mut self, error: SVGError) {
-        self.errors.push(error);
-    }
-
-    pub fn add_child(&mut self, child: Child) {
-        if self.saw_root && !self.closed_root {
-            self.tag.push_child(child);
-        } else {
-            let root: &RefCell<Root> = self.root.borrow_mut();
-            root.borrow_mut()
-                .children
-                .push(Rc::new(RefCell::new(child)));
-        }
-    }
-}
-
-impl<'a> Default for FileReader<'a> {
-    fn default() -> Self {
-        Self {
-            peekable: "".chars().peekable(),
-            state: Box::new(Begin),
-            sax: SAXState::default(),
-        }
-    }
-}
+pub struct FileReader<'a>(Reader<&'a [u8]>);
 
 impl<'a> FileReader<'a> {
     /// Parses the given string, returning a `Document` with the generated tree of elements
@@ -156,109 +21,112 @@ impl<'a> FileReader<'a> {
     /// ```
     pub fn parse(svg: &str) -> Document {
         let mut file_reader = FileReader::new(svg);
-        file_reader.collect_root();
-        file_reader.into()
+        file_reader.read()
     }
 
     pub fn new(file: &'a str) -> Self {
-        FileReader {
-            peekable: file.chars().peekable(),
-            ..FileReader::default()
-        }
+        let reader = Reader::from_str(file);
+        FileReader(reader)
     }
-}
 
-impl<'a> Iterator for FileReader<'a> {
-    type Item = char;
-
-    /// Advances the file reader and returns the next value.
-    ///
-    /// The file reader is a state machine, and consuming next will transition it's state.
-    /// Returns `None` when the iterator is finished.
-    fn next(&mut self) -> Option<char> {
-        let char = self.peekable.next();
-        if let Some(char) = char {
-            self.next_state(char);
-
-            if self.sax.saw_root && !self.sax.closed_root && character::is_restricted(char) {
-                self.sax
-                    .error_char("Restricted characters are not allowed in the document");
-            }
-            if (!self.sax.saw_root || self.sax.closed_root) && !character::is(char) {
-                self.sax.error_char(
-                    "Disallowed surrogate unicode character now allowed in the document",
-                );
-            }
-        } else {
-            self.state = Box::new(Ended);
-            return char;
-        }
-
-        self.sax.state_meta.end += 1;
-        char
+    pub fn strict(&mut self) {
+        self.0.check_comments(true);
     }
-}
 
-impl From<FileReader<'_>> for Document {
-    fn from(val: FileReader<'_>) -> Self {
+    fn read(&mut self) -> Document {
+        let reader = &mut self.0;
+        let root = Rc::new(RefCell::new(Root::default()));
+        let mut unclosed_elements: Vec<Rc<RefCell<Element>>> = Vec::new();
+        let mut root_element = None;
+        let mut errors = Vec::new();
+
+        loop {
+            use Event::{CData, Comment, Decl, DocType, Empty, End, Eof, Start, Text, PI};
+            let mut parent = match unclosed_elements.last() {
+                Some(element) => Parent::Element(element.clone()),
+                None => Parent::Root(root.clone()),
+            };
+
+            match reader.read_event() {
+                Err(error) => errors.push((error, reader.buffer_position()).into()),
+                Ok(Eof) => {
+                    if !unclosed_elements.is_empty() {
+                        errors.push(SVGError::new("File ended with unclosed elements", None));
+                    }
+                    break;
+                }
+                Ok(Start(tag)) => {
+                    let _attributes: Vec<_> = tag.attributes().collect();
+                    let element = match Element::new(&tag, &parent, false, reader.buffer_position())
+                    {
+                        Ok(element) => element,
+                        Err(error) => {
+                            errors.push((error, reader.buffer_position()).into());
+                            continue;
+                        }
+                    };
+                    unclosed_elements.push(element.clone());
+                    parent.push_child(Child::Element(element.clone()));
+                    if root_element.is_none() {
+                        root_element = Some(element.clone());
+                    }
+                }
+                Ok(Empty(tag)) => {
+                    let element = match Element::new(&tag, &parent, true, reader.buffer_position())
+                    {
+                        Ok(element) => element,
+                        Err(error) => {
+                            errors.push((error, reader.buffer_position()).into());
+                            continue;
+                        }
+                    };
+                    parent.push_child(Child::Element(element.clone()));
+                    if root_element.is_none() {
+                        root_element = Some(element.clone());
+                    }
+                }
+                Ok(End(tag)) => {
+                    let name = tag.name();
+                    let Some((i, mut element)) = unclosed_elements
+                        .iter()
+                        .enumerate()
+                        .rev()
+                        .find(|(_, element)| element.borrow().name() == name)
+                    else {
+                        errors.push(SVGError::new(
+                            "No matching opening tag found for element",
+                            Some(reader.buffer_position().into()),
+                        ));
+                        continue;
+                    };
+                    let element: &RefCell<Element> = element.borrow_mut();
+
+                    if i < unclosed_elements.len() - 1 {
+                        let name = tag.name().0;
+                        let name = String::from_utf8_lossy(name);
+                        errors.push(SVGError::new(
+                            &format!("Found unclosed element in tag {name}"),
+                            Some(reader.buffer_position().into()),
+                        ));
+                    }
+
+                    element.borrow_mut().end(tag, reader.buffer_position());
+                    unclosed_elements.truncate(i);
+                }
+                Ok(Text(text)) => parent.push_child(Child::Text(text.into_owned())),
+                Ok(CData(c_data)) => parent.push_child(Child::CData(c_data.into_owned())),
+                Ok(Comment(comment)) => parent.push_child(Child::Comment(comment.into_owned())),
+                Ok(Decl(decl)) => parent.push_child(Child::XMLDeclaration(decl.into_owned())),
+                Ok(PI(processing_instruction)) => {
+                    parent.push_child(Child::Instruction(processing_instruction.into_owned()));
+                }
+                Ok(DocType(doc_type)) => parent.push_child(Child::Doctype(doc_type.into_owned())),
+            }
+        }
         Document {
-            root: val.sax.root,
-            root_element: val.sax.root_tag,
-            errors: val.sax.errors,
+            root,
+            root_element,
+            errors,
         }
     }
-}
-
-impl<'a> FileReader<'a> {
-    /// Collects the entire file, returning the generated `Root`
-    pub fn collect_root(&mut self) -> Rc<RefCell<Root>> {
-        let _: String = self.collect();
-        self.sax.root.clone()
-    }
-
-    /// Transitions the state of `FileReader` based on the given char.
-    ///
-    /// # Arguments
-    ///
-    /// * `char` - A character of the svg file
-    fn next_state(&mut self, char: char) {
-        let new_state = self.state.clone().next(&mut self.sax, char);
-        if self.state.id() != new_state.id() {
-            self.sax.state_meta.start = self.sax.state_meta.end;
-        }
-        if self.state.token_id() != new_state.token_id() {
-            self.sax.state_meta.token_start = self.sax.state_meta.end;
-        }
-        self.state = new_state;
-    }
-}
-
-#[test]
-fn file_reader() {
-    let file_reader = &mut FileReader::new("<svg></svg>");
-    // The file_reader starts of in the Begin state
-    assert_eq!(crate::state::ID::Begin, file_reader.state.id());
-
-    // A call to next() returns the next value...
-    assert_eq!(Some('<'), file_reader.next());
-    // Providing `<` causes the state to transition into the `NodeStart` state
-    assert_eq!(crate::state::ID::NodeStart, file_reader.state.id());
-
-    assert_eq!(Some('s'), file_reader.next());
-    assert_eq!(Some('v'), file_reader.next());
-
-    // ... and then None once it's over.
-    let _: String = file_reader.collect();
-    assert_eq!(None, file_reader.next());
-
-    // More calls may or may not return `None`. Here, they always will.
-    assert_eq!(None, file_reader.next());
-
-    assert_eq!(None, file_reader.next());
-
-    let root = file_reader.collect_root();
-    assert!(matches!(
-        &*root.borrow().children.first().unwrap().borrow(),
-        Child::Element(Element { name, .. }) if name == "svg"
-    ));
 }

@@ -1,12 +1,11 @@
-use oxvg_ast::{Child, Parent};
+use oxvg_ast::{Attributes, Child, Parent};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::Job;
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct AddAttributesToSVGElement {
-    attributes: HashMap<String, String>,
+    attributes: Attributes,
 }
 
 impl Job for AddAttributesToSVGElement {
@@ -18,10 +17,11 @@ impl Job for AddAttributesToSVGElement {
         let Child::Element(element) = node else {
             return;
         };
+        let mut element = element.borrow_mut();
         if matches!(element.parent, Parent::Element(_)) {
             return;
         }
-        if element.name != "svg" {
+        if element.name().as_ref() != b"svg" {
             return;
         }
 
@@ -39,32 +39,42 @@ impl Job for AddAttributesToSVGElement {
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
     let document = oxvg_parser::FileReader::parse("<svg></svg>");
     let root = &*document.root.borrow();
-    let Some(element) = root.children.first() else {
+    let Some(source_element) = root.children.first() else {
         return Err("Failed to parse");
     };
-    let child = &mut *element.borrow_mut();
-
     let job = &mut AddAttributesToSVGElement::default();
-    job.attributes.insert("foo".into(), "bar".into());
 
-    job.run(child);
-    let Child::Element(element) = child else {
-        return Err("Unexpected child type");
-    };
-    assert_eq!(
-        element.attributes, job.attributes,
-        "Should add new attribute"
-    );
+    {
+        let child = &mut *source_element.borrow_mut();
 
-    job.attributes.insert("foo".into(), "baz".into());
-    job.run(child);
-    let Child::Element(element) = child else {
-        return Err("Unexpected child type");
-    };
-    assert_ne!(
-        element.attributes, job.attributes,
-        "Should not overwrite existing attribute"
-    );
+        job.attributes
+            .insert(String::from("foo").into(), "bar".into());
+
+        job.run(child);
+        let Child::Element(element) = child else {
+            return Err("Unexpected child type");
+        };
+        let element = &*element.borrow();
+        assert_eq!(
+            element.attributes, job.attributes,
+            "Should add new attribute"
+        );
+    }
+
+    {
+        let child = &mut *source_element.borrow_mut();
+        job.attributes
+            .insert(String::from("foo").into(), "baz".into());
+        job.run(child);
+        let Child::Element(element) = child else {
+            return Err("Unexpected child type");
+        };
+        let element = &*element.borrow();
+        assert_ne!(
+            element.attributes, job.attributes,
+            "Should not overwrite existing attribute"
+        );
+    }
 
     Ok(())
 }

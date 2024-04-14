@@ -13,12 +13,13 @@ name = "oxvg"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 
 [workspace.dependencies]
+oxvg_actions = { path = "crates/oxvg_actions" }
+oxvg_ast = { path = "crates/oxvg_ast" }
+oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_parser = { path = "crates/oxvg_parser" }
-oxvg_actions = { path = "crates/oxvg_actions" }
-oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
-oxvg_ast = { path = "crates/oxvg_ast" }
 
+insta = "1.36.1"
 serde = "1.0.197"
 serde_json = "1.0.114"
-insta = "1.36.1"
+quick-xml = "0.31.0"
