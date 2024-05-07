@@ -1,6 +1,6 @@
 use super::Rule;
-use oxvg_ast::{Child, Element};
 use oxvg_diagnostics::SVGError;
+use rcdom::Node;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -13,38 +13,37 @@ struct Rules {
 }
 
 impl Rule for Rules {
-    fn execute(&self, element: Child) -> Vec<SVGError> {
-        let Child::Element(element) = element else {
-            return vec![];
-        };
-        let element = &*element.borrow();
-
-        let mut errors: Vec<SVGError> = Vec::new();
+    fn execute(&self, element: &Node) -> Vec<SVGError> {
         if let Some(e) = self.order(element) {
-            errors.push(e);
+            vec![e]
+        } else {
+            vec![]
         }
-
-        errors
     }
 }
 
 impl Rules {
-    pub fn order(&self, element: &Element) -> Option<SVGError> {
-        let attributes: Vec<String> = element
-            .attributes
-            .order
-            .iter()
-            .map(|key| String::from_utf8_lossy(key.into()).into())
-            .collect();
+    pub fn order(&self, node: &Node) -> Option<SVGError> {
+        use rcdom::NodeData::Element;
 
+        let Element { attrs, .. } = &node.data else {
+            return None;
+        };
+        let attrs = &*attrs.borrow();
+        let attrs: Vec<String> = attrs
+            .iter()
+            .map(|markup5ever::Attribute { name, .. }| match &name.prefix {
+                Some(prefix) => format!("{prefix}:{}", name.local),
+                None => name.local.to_string(),
+            })
+            .collect();
         let order: Vec<String> = match &self.order {
             Some(Order::Custom(order)) => order.clone(),
-            Some(Order::Alphabetical) | None => element
-                .attributes
-                .into_b_tree()
-                .keys()
-                .map(|key| String::from_utf8_lossy(key.into()).into())
-                .collect(),
+            Some(Order::Alphabetical) | None => {
+                let mut order = attrs.clone();
+                order.sort();
+                order
+            }
         };
 
         let mut positions: HashMap<&str, usize> = HashMap::new();
@@ -52,8 +51,7 @@ impl Rules {
             positions.insert(attribute, i);
         });
 
-        dbg!(&attributes);
-        for pair in attributes.windows(2) {
+        for pair in attrs.windows(2) {
             if positions.get(pair[0].as_str()) <= positions.get(pair[1].as_str()) {
                 continue;
             }
@@ -63,7 +61,7 @@ impl Rules {
                 &format!(
                     "Wrong ordering of attributes, found \"{found}\", expected \"{order:#?}\""
                 ),
-                Some(element.span().into()),
+                None,
             ));
         }
         None
@@ -86,23 +84,20 @@ enum Pattern {
 }
 
 #[test]
-fn attributes_order() -> Result<(), &'static str> {
-    let document = oxvg_parser::FileReader::parse(r#"<svg z="" a=""></svg>"#);
-    let root = &*document.root.borrow();
-    let Some(element) = root.children.first() else {
-        return Err("Failed to parse");
+fn attributes_order() {
+    use xml5ever::{
+        driver::{parse_document, XmlParseOpts},
+        tendril::TendrilSink,
     };
-    let Child::Element(element) = &*element.borrow() else {
-        return Err("Unexpected child type");
-    };
-    let element = &*element.borrow();
 
-    // Expect some error, as "z" before "a"
+    let dom: rcdom::RcDom = parse_document(rcdom::RcDom::default(), XmlParseOpts::default())
+        .one(r#"<svg z="" a=""></svg>"#);
+    let root = &*dom.document.children.borrow()[0];
+
+    // Expect some error, as "z" is before "a"
     let rule = Rules {
         order: Some(Order::Alphabetical),
         ..Rules::default()
     };
-    assert!(rule.order(element).is_some());
-
-    Ok(())
+    assert!(rule.order(root).is_some());
 }

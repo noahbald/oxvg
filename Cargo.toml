@@ -9,7 +9,6 @@ must_use_candidate = "allow"
 return_self_not_must_use = "allow"
 
 [workspace.package]
-name = "oxvg"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 
 [workspace.dependencies]
@@ -19,7 +18,12 @@ oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_parser = { path = "crates/oxvg_parser" }
 
+html5ever = "0.27"
 insta = "1.36.1"
+markup5ever = "0.12"
+rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 serde = "1.0.197"
 serde_json = "1.0.114"
+string_cache = "0.8"
 quick-xml = "0.31.0"
+xml5ever = "0.18.0"

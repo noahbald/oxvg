@@ -1,5 +1,8 @@
+#[macro_use]
+extern crate markup5ever;
+
 mod document;
-mod node;
+pub mod node;
 
 pub use crate::document::Document;
-pub use crate::node::{Attributes, Child, Element, Parent, QName, Root};
+pub use crate::node::Attributes;

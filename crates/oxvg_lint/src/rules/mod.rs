@@ -1,8 +1,8 @@
 pub mod attributes;
 
-use oxvg_ast::Child;
 use oxvg_diagnostics::SVGError;
+use rcdom::Node;
 
 pub trait Rule {
-    fn execute(&self, element: Child) -> Vec<SVGError>;
+    fn execute(&self, element: &Node) -> Vec<SVGError>;
 }

@@ -1,11 +1,13 @@
-use oxvg_ast::{Attributes, Child, Parent};
-use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+
+use oxvg_ast::Attributes;
+use serde::Deserialize;
 
 use crate::Job;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Deserialize, Default)]
 pub struct AddAttributesToSVGElement {
-    attributes: Attributes,
+    pub attributes: Attributes,
 }
 
 impl Job for AddAttributesToSVGElement {
@@ -13,67 +15,70 @@ impl Job for AddAttributesToSVGElement {
         serde_json::from_value(value).unwrap_or_default()
     }
 
-    fn run(&self, node: &mut Child) {
-        let Child::Element(element) = node else {
+    fn run(&self, node: &rcdom::Node) {
+        use rcdom::NodeData::Element;
+
+        let Element { attrs, .. } = &node.data else {
             return;
         };
-        let mut element = element.borrow_mut();
-        if matches!(element.parent, Parent::Element(_)) {
-            return;
-        }
-        if element.name().as_ref() != b"svg" {
-            return;
-        }
+        let attrs = &mut *attrs.borrow_mut();
+        let keys: HashSet<_> = attrs.iter().map(|attr| attr.name.clone()).collect();
 
-        for (key, value) in &self.attributes {
-            if element.attributes.contains_key(key) {
+        for attr in &Into::<Vec<markup5ever::Attribute>>::into(&self.attributes) {
+            let key = &attr.name;
+            if keys.contains(key) {
                 continue;
             }
-
-            element.attributes.insert(key.clone(), value.clone());
+            attrs.push(attr.clone());
         }
     }
 }
 
 #[test]
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
-    let document = oxvg_parser::FileReader::parse("<svg></svg>");
-    let root = &*document.root.borrow();
-    let Some(source_element) = root.children.first() else {
-        return Err("Failed to parse");
-    };
+    use html5ever::{tendril::TendrilSink, ParseOpts};
+    use oxvg_ast::node::{QualName, Tendril};
+    use rcdom::NodeData::Element;
+
+    let dom: rcdom::RcDom =
+        html5ever::parse_document(rcdom::RcDom::default(), ParseOpts::default()).one("<svg></svg>");
+    let root = &*dom.document.children.borrow()[0];
     let job = &mut AddAttributesToSVGElement::default();
 
-    {
-        let child = &mut *source_element.borrow_mut();
-
-        job.attributes
-            .insert(String::from("foo").into(), "bar".into());
-
-        job.run(child);
-        let Child::Element(element) = child else {
-            return Err("Unexpected child type");
-        };
-        let element = &*element.borrow();
-        assert_eq!(
-            element.attributes, job.attributes,
-            "Should add new attribute"
-        );
+    job.attributes.insert(
+        QualName(markup5ever::QualName::new(None, ns!(svg), "foo".into())),
+        Tendril("bar".into()),
+    );
+    job.run(root);
+    match &root.data {
+        Element { attrs, .. } => {
+            assert_eq!(
+                attrs.borrow().last(),
+                Some(&markup5ever::Attribute {
+                    name: markup5ever::QualName::new(None, ns!(svg), "foo".into()),
+                    value: "bar".into()
+                })
+            );
+        }
+        _ => Err("Attribute not added")?,
     }
 
-    {
-        let child = &mut *source_element.borrow_mut();
-        job.attributes
-            .insert(String::from("foo").into(), "baz".into());
-        job.run(child);
-        let Child::Element(element) = child else {
-            return Err("Unexpected child type");
-        };
-        let element = &*element.borrow();
-        assert_ne!(
-            element.attributes, job.attributes,
-            "Should not overwrite existing attribute"
-        );
+    job.attributes.insert(
+        QualName(markup5ever::QualName::new(None, ns!(svg), "foo".into())),
+        Tendril("baz".into()),
+    );
+    job.run(root);
+    match &root.data {
+        Element { attrs, .. } => {
+            assert_eq!(
+                attrs.borrow().last(),
+                Some(&markup5ever::Attribute {
+                    name: markup5ever::QualName::new(None, ns!(svg), "foo".into()),
+                    value: "bar".into()
+                })
+            );
+        }
+        _ => Err("Attribute not added")?,
     }
 
     Ok(())

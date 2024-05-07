@@ -18,6 +18,9 @@ test = false
 oxvg_ast = { workspace = true }
 oxvg_diagnostics = { workspace = true }
 
+anyhow = "1.0"
+html5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
+rcdom = { workspace = true }
 thiserror = "1.0.56"
 quick-xml = { workspace = true }

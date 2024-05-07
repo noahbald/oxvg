@@ -14,8 +14,13 @@ oxvg_ast = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
+rcdom = { workspace = true }
 thiserror = "1.0.56"
 
 [dev-dependencies]
 oxvg_parser = { workspace = true }
+oxvg_ast = { workspace = true }
+
+html5ever = { workspace = true }

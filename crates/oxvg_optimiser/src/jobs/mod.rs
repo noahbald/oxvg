@@ -7,7 +7,7 @@ pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
 pub trait Job: Sized + Default {
     fn from_configuration(value: serde_json::Value) -> Self;
 
-    fn run(&self, node: &mut oxvg_ast::Child);
+    fn run(&self, node: &rcdom::Node);
 }
 
 pub enum Jobs {
@@ -15,7 +15,7 @@ pub enum Jobs {
 }
 
 impl Jobs {
-    pub fn run(&self, node: &mut oxvg_ast::Child) {
+    pub fn run(&self, node: &rcdom::Node) {
         match self {
             Self::AddAttributesToSVGElement(job) => job,
         }
