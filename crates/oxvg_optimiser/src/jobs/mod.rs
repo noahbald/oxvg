@@ -1,8 +1,10 @@
 mod add_attributes_to_svg_element;
+mod add_classes_to_svg;
 
 use crate::configuration::Configuration;
 
 pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
+pub use self::add_classes_to_svg::AddClassesToSVG;
 
 pub trait Job: Sized + Default {
     fn from_configuration(value: serde_json::Value) -> Self;

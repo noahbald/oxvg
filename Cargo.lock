@@ -415,6 +415,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "xml5ever",
 ]
 
 [[package]]
