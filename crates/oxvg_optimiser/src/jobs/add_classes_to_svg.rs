@@ -17,7 +17,7 @@ impl Job for AddClassesToSVG {
     fn run(&self, node: &rcdom::Node) {
         use rcdom::NodeData::Element;
 
-        if is_root(node) {
+        if !is_root(node) {
             return;
         }
 
@@ -56,11 +56,11 @@ fn is_root(node: &rcdom::Node) -> bool {
     use rcdom::NodeData::Element;
 
     let parent_cell = node.parent.replace(None);
-    let mut result = false;
+    let mut result = true;
     if let Some(parent) = &parent_cell {
         if let Some(parent) = parent.upgrade() {
             if let Element { .. } = parent.data {
-                result = true;
+                result = false;
             }
         };
         node.parent.replace(parent_cell);
@@ -84,9 +84,7 @@ fn add_classes_to_svg() -> Result<(), &'static str> {
         class_name: None,
     };
 
-    dbg!(root);
     job.run(root);
-    dbg!(root);
     let attrs = match &root.data {
         Element { attrs, .. } => attrs,
         _ => Err("Unexpected document structure")?,
