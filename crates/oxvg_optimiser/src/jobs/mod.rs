@@ -1,17 +1,25 @@
 mod add_attributes_to_svg_element;
 mod add_classes_to_svg;
 mod cleanup_attributes;
+mod cleanup_enable_background;
+
+use std::rc::Rc;
 
 use crate::configuration::Configuration;
 
 pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
 pub use self::add_classes_to_svg::AddClassesToSVG;
 pub use self::cleanup_attributes::CleanupAttributes;
+pub use self::cleanup_enable_background::CleanupEnableBackground;
 
 pub trait Job: Sized + Default {
     fn from_configuration(value: serde_json::Value) -> Self;
 
-    fn run(&self, node: &rcdom::Node);
+    fn prepare(&mut self, _document: &rcdom::RcDom) -> Option<()> {
+        None
+    }
+
+    fn run(&self, _node: &Rc<rcdom::Node>) {}
 }
 
 pub enum Jobs {
@@ -19,7 +27,7 @@ pub enum Jobs {
 }
 
 impl Jobs {
-    pub fn run(&self, node: &rcdom::Node) {
+    pub fn run(&self, node: &Rc<rcdom::Node>) {
         match self {
             Self::AddAttributesToSVGElement(job) => job,
         }

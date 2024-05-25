@@ -17,7 +17,13 @@ oxvg_ast = { path = "crates/oxvg_ast" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_parser = { path = "crates/oxvg_parser" }
+oxvg_selectors = { path = "crates/oxvg_selectors" }
+oxvg_utils = { path = "crates/oxvg_utils" }
 
+# NOTE: Out of date version used for compatibility with selectors
+# https://github.com/servo/stylo/blob/main/Cargo.toml#L35
+cssparser = "0.31.0"
+derivative = "2.2"
 html5ever = "0.27"
 insta = "1.36.1"
 markup5ever = "0.12"

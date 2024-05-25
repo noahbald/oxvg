@@ -1,4 +1,7 @@
+use std::rc::Rc;
+
 use markup5ever::{Attribute, QualName};
+use oxvg_utils::rcdom::is_root;
 use serde::Deserialize;
 
 use crate::Job;
@@ -14,7 +17,7 @@ impl Job for AddClassesToSVG {
         serde_json::from_value(value).unwrap_or_default()
     }
 
-    fn run(&self, node: &rcdom::Node) {
+    fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 
         if !is_root(node) {
@@ -52,22 +55,6 @@ impl Job for AddClassesToSVG {
     }
 }
 
-fn is_root(node: &rcdom::Node) -> bool {
-    use rcdom::NodeData::Element;
-
-    let parent_cell = node.parent.replace(None);
-    let mut result = true;
-    if let Some(parent) = &parent_cell {
-        if let Some(parent) = parent.upgrade() {
-            if let Element { .. } = parent.data {
-                result = false;
-            }
-        };
-        node.parent.replace(parent_cell);
-    };
-    result
-}
-
 #[test]
 fn add_classes_to_svg() -> Result<(), &'static str> {
     use rcdom::NodeData::Element;
@@ -78,7 +65,7 @@ fn add_classes_to_svg() -> Result<(), &'static str> {
 
     let dom: rcdom::RcDom =
         parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one("<svg></svg>");
-    let root = &*dom.document.children.borrow()[0];
+    let root = &dom.document.children.borrow()[0];
     let job = AddClassesToSVG {
         class_names: Some(vec![String::from("foo"), String::from("bar")]),
         class_name: None,

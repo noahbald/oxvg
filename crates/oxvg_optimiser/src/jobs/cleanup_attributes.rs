@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use serde::Deserialize;
 
 use crate::Job;
@@ -14,7 +16,7 @@ impl Job for CleanupAttributes {
         serde_json::from_value(value).unwrap_or_default()
     }
 
-    fn run(&self, node: &rcdom::Node) {
+    fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 
         let Element { attrs, .. } = &node.data else {
@@ -53,7 +55,7 @@ fn cleanup_attributes() -> Result<(), &'static str> {
         r#"<svg class="  foo  bar 
         baz"></svg>"#,
     );
-    let root = &*dom.document.children.borrow()[0];
+    let root = &dom.document.children.borrow()[0];
     let job = CleanupAttributes {
         newlines: Some(true),
         trim: Some(true),

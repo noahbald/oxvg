@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use oxvg_ast::Attributes;
 use serde::Deserialize;
@@ -15,7 +15,7 @@ impl Job for AddAttributesToSVGElement {
         serde_json::from_value(value).unwrap_or_default()
     }
 
-    fn run(&self, node: &rcdom::Node) {
+    fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 
         let Element { attrs, .. } = &node.data else {
@@ -37,18 +37,15 @@ impl Job for AddAttributesToSVGElement {
 #[test]
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
     use html5ever::{tendril::TendrilSink, ParseOpts};
-    use oxvg_ast::node::{QualName, Tendril};
     use rcdom::NodeData::Element;
 
     let dom: rcdom::RcDom =
         html5ever::parse_document(rcdom::RcDom::default(), ParseOpts::default()).one("<svg></svg>");
-    let root = &*dom.document.children.borrow()[0];
+    let root = &dom.document.children.borrow()[0];
     let job = &mut AddAttributesToSVGElement::default();
 
-    job.attributes.insert(
-        QualName(markup5ever::QualName::new(None, ns!(svg), "foo".into())),
-        Tendril("bar".into()),
-    );
+    job.attributes
+        .insert(markup5ever::LocalName::from("foo"), "bar".into());
     job.run(root);
     match &root.data {
         Element { attrs, .. } => {
@@ -63,10 +60,8 @@ fn add_attributes_to_svg_element() -> Result<(), &'static str> {
         _ => Err("Attribute not added")?,
     }
 
-    job.attributes.insert(
-        QualName(markup5ever::QualName::new(None, ns!(svg), "foo".into())),
-        Tendril("baz".into()),
-    );
+    job.attributes
+        .insert(markup5ever::LocalName::from("foo"), "baz".into());
     job.run(root);
     match &root.data {
         Element { attrs, .. } => {

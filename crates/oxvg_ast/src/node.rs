@@ -1,10 +1,11 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
+use markup5ever::LocalName;
 use serde::{de::Visitor, Deserialize};
 use tendril::StrTendril;
 
 #[derive(Default)]
-pub struct Attributes(Vec<QualName>, BTreeMap<QualName, Tendril>);
+pub struct Attributes(Vec<LocalName>, BTreeMap<LocalName, StrTendril>);
 
 struct AttributesVisitor(PhantomData<fn() -> Attributes>);
 
@@ -13,32 +14,34 @@ pub struct QualName(pub markup5ever::QualName);
 
 struct QualNameVisitor(PhantomData<fn() -> QualName>);
 
-pub struct Tendril(pub tendril::StrTendril);
-
-pub struct TendrilVisitor(PhantomData<fn() -> Tendril>);
+pub struct TendrilVisitor(PhantomData<fn() -> StrTendril>);
 
 impl Attributes {
-    pub fn contains_key(&self, key: &QualName) -> bool {
+    pub fn contains_key(&self, key: &LocalName) -> bool {
         self.1.contains_key(key)
     }
 
-    pub fn insert(&mut self, key: QualName, value: Tendril) -> Option<Tendril> {
+    pub fn insert(&mut self, key: LocalName, value: StrTendril) -> Option<StrTendril> {
         self.0.push(key.clone());
         self.1.insert(key, value)
     }
 
-    pub fn into_b_tree(&self) -> &BTreeMap<QualName, Tendril> {
+    pub fn get(&self, key: &LocalName) -> Option<&StrTendril> {
+        self.1.get(key)
+    }
+
+    pub fn into_b_tree(&self) -> &BTreeMap<LocalName, StrTendril> {
         &self.1
     }
 
-    pub fn iter(&self) -> std::collections::btree_map::Iter<'_, QualName, Tendril> {
+    pub fn iter(&self) -> std::collections::btree_map::Iter<'_, LocalName, StrTendril> {
         self.1.iter()
     }
 }
 
 impl<'a> IntoIterator for &'a Attributes {
-    type Item = (&'a QualName, &'a Tendril);
-    type IntoIter = std::collections::btree_map::Iter<'a, QualName, Tendril>;
+    type Item = (&'a LocalName, &'a StrTendril);
+    type IntoIter = std::collections::btree_map::Iter<'a, LocalName, StrTendril>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.1.iter()
@@ -58,10 +61,8 @@ impl<'a> From<&'a Vec<markup5ever::Attribute>> for Attributes {
     fn from(value: &'a Vec<markup5ever::Attribute>) -> Self {
         let mut output = Self::default();
         for attr in value {
-            output.0.push(QualName(attr.name.clone()));
-            output
-                .1
-                .insert(QualName(attr.name.clone()), Tendril(attr.value.clone()));
+            output.0.push(attr.name.local.clone());
+            output.1.insert(attr.name.local.clone(), attr.value.clone());
         }
         output
     }
@@ -72,8 +73,8 @@ impl From<&Attributes> for Vec<markup5ever::Attribute> {
         let mut output: Vec<markup5ever::Attribute> = Vec::new();
         for attr in val {
             output.push(markup5ever::Attribute {
-                name: attr.0 .0.clone(),
-                value: attr.1 .0.clone(),
+                name: markup5ever::QualName::new(None, ns!(svg), attr.0.clone()),
+                value: attr.1.clone(),
             });
         }
         output
@@ -99,7 +100,8 @@ impl<'de> Visitor<'de> for AttributesVisitor {
     {
         let mut attributes = Attributes::default();
 
-        while let Some((key, value)) = map.next_entry()? {
+        while let Some((key, value)) = map.next_entry::<LocalName, String>()? {
+            let value = value.into();
             attributes.insert(key, value);
         }
 
@@ -161,41 +163,5 @@ impl<'de> Visitor<'de> for QualNameVisitor {
             ns: ns!(svg),
             local,
         }))
-    }
-}
-
-impl<'de> Deserialize<'de> for Tendril {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(TendrilVisitor::new())
-    }
-}
-
-impl From<StrTendril> for Tendril {
-    fn from(value: StrTendril) -> Self {
-        Self(value)
-    }
-}
-
-impl TendrilVisitor {
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'de> Visitor<'de> for TendrilVisitor {
-    type Value = Tendril;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a string")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Tendril(v.into()))
     }
 }

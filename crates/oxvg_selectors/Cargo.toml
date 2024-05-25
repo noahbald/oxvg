@@ -1,5 +1,5 @@
 [package]
-name = "oxvg_ast"
+name = "oxvg_selectors"
 version = "0.1.0"
 edition = "2021"
 authors.workspace = true
@@ -10,13 +10,16 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_diagnostics = { workspace = true }
-
+cssparser = { workspace = true }
 derivative = { workspace = true }
 markup5ever = { workspace = true }
-miette = { version = "7.0.0", features = ["fancy"] }
-quick-xml = "0.31"
-serde = { workspace = true, features = ["derive"] }
+rcdom = { workspace = true }
+selectors = "0.25.0"
 string_cache = { workspace = true }
-tendril = "0.4"
-thiserror = "1.0.56"
+
+[dev-dependencies]
+oxvg_parser = { workspace = true }
+oxvg_ast = { workspace = true }
+
+html5ever = { workspace = true }
+xml5ever = { workspace = true }

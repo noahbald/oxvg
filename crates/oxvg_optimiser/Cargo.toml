@@ -11,6 +11,8 @@ workspace = true
 
 [dependencies]
 oxvg_ast = { workspace = true }
+oxvg_selectors = { workspace = true }
+oxvg_utils = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -24,4 +26,4 @@ oxvg_parser = { workspace = true }
 oxvg_ast = { workspace = true }
 
 html5ever = { workspace = true }
-xml5ever = { worksplace = true }
+xml5ever = { workspace = true }
