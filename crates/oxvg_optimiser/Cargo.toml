@@ -23,7 +23,6 @@ thiserror = "1.0.56"
 urlencoding = "2.1"
 
 [dev-dependencies]
-oxvg_parser = { workspace = true }
 oxvg_ast = { workspace = true }
 
 html5ever = { workspace = true }

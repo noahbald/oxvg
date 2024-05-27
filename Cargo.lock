@@ -713,12 +713,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
 
 [[package]]
+name = "oxvg"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "config",
+ "html5ever",
+ "markup5ever_rcdom",
+ "miette",
+ "oxvg_ast",
+ "oxvg_diagnostics",
+ "oxvg_optimiser",
+ "quick-xml",
+ "serde",
+ "thiserror",
+ "xml5ever",
+]
+
+[[package]]
 name = "oxvg_actions"
 version = "0.1.0"
 dependencies = [
  "insta",
  "miette",
- "oxvg_parser",
  "rand",
  "regex",
  "serde",
@@ -762,7 +780,6 @@ dependencies = [
  "miette",
  "oxvg_ast",
  "oxvg_diagnostics",
- "oxvg_parser",
  "regex",
  "serde",
  "serde_json",
@@ -780,32 +797,12 @@ dependencies = [
  "markup5ever_rcdom",
  "miette",
  "oxvg_ast",
- "oxvg_parser",
  "oxvg_selectors",
  "oxvg_utils",
  "serde",
  "serde_json",
  "thiserror",
  "urlencoding",
- "xml5ever",
-]
-
-[[package]]
-name = "oxvg_parser"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "config",
- "html5ever",
- "markup5ever_rcdom",
- "miette",
- "oxvg_ast",
- "oxvg_diagnostics",
- "oxvg_optimiser",
- "quick-xml",
- "serde",
- "thiserror",
  "xml5ever",
 ]
 
@@ -819,7 +816,6 @@ dependencies = [
  "markup5ever",
  "markup5ever_rcdom",
  "oxvg_ast",
- "oxvg_parser",
  "selectors",
  "string_cache",
  "xml5ever",

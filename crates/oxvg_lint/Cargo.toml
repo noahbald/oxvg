@@ -22,7 +22,5 @@ serde_json = { workspace = true }
 thiserror = "1.0.56"
 
 [dev-dependencies]
-oxvg_parser = { workspace = true }
-
 html5ever = { workspace = true }
 xml5ever = { workspace = true }

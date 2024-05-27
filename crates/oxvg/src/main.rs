@@ -1,6 +1,6 @@
 use clap::Parser;
 use config::File;
-use oxvg_parser::{
+use oxvg::{
     args::{Args, Command, RunCommand},
     config::Config,
 };

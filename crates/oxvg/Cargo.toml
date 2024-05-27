@@ -1,5 +1,5 @@
 [package]
-name = "oxvg_parser"
+name = "oxvg"
 version = "0.1.0"
 edition = "2021"
 authors.workspace = true
@@ -8,7 +8,7 @@ authors.workspace = true
 workspace = true
 
 [[bin]]
-name = "oxvg_parser"
+name = "oxvg"
 path = "src/main.rs"
 test = false
 

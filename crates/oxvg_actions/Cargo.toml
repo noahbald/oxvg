@@ -19,6 +19,3 @@ regex = "1.10.3"
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
 rand = "0.8.5"
-
-[dev-dependencies]
-oxvg_parser = { workspace = true }
