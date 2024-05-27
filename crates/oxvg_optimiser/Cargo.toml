@@ -20,10 +20,12 @@ markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
 thiserror = "1.0.56"
+urlencoding = "2.1"
 
 [dev-dependencies]
 oxvg_parser = { workspace = true }
 oxvg_ast = { workspace = true }
 
 html5ever = { workspace = true }
+insta = { workspace = true }
 xml5ever = { workspace = true }

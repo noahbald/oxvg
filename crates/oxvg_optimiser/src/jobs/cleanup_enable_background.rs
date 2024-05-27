@@ -5,9 +5,9 @@ use oxvg_ast::Attributes;
 use oxvg_selectors::Element;
 use serde::Deserialize;
 
-use crate::Job;
+use crate::{Job, PrepareOutcome};
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Clone)]
 pub struct CleanupEnableBackground {
     #[serde(skip_deserializing)]
     contains_filter: bool,
@@ -19,14 +19,12 @@ struct EnableBackgroundDimensions<'a> {
 }
 
 impl Job for CleanupEnableBackground {
-    fn from_configuration(value: serde_json::Value) -> Self {
-        serde_json::from_value(value).unwrap_or_default()
-    }
-
-    fn prepare(&mut self, document: &rcdom::RcDom) -> Option<()> {
-        let root = &Element::from_document_root(document)?;
+    fn prepare(&mut self, document: &rcdom::RcDom) -> PrepareOutcome {
+        let Some(root) = &Element::from_document_root(document) else {
+            return PrepareOutcome::None;
+        };
         self.prepare_contains_filter(root);
-        None
+        PrepareOutcome::None
     }
 
     /// Cleans up `enable-background`, unless document uses `<filter>` elements.

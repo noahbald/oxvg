@@ -6,17 +6,13 @@ use serde::Deserialize;
 
 use crate::Job;
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Clone)]
 pub struct AddClassesToSVG {
     pub class_names: Option<Vec<String>>,
     pub class_name: Option<String>,
 }
 
 impl Job for AddClassesToSVG {
-    fn from_configuration(value: serde_json::Value) -> Self {
-        serde_json::from_value(value).unwrap_or_default()
-    }
-
     fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 

@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::Job;
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Clone)]
 pub struct CleanupAttributes {
     newlines: Option<bool>,
     trim: Option<bool>,
@@ -12,10 +12,6 @@ pub struct CleanupAttributes {
 }
 
 impl Job for CleanupAttributes {
-    fn from_configuration(value: serde_json::Value) -> Self {
-        serde_json::from_value(value).unwrap_or_default()
-    }
-
     fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 

@@ -4,7 +4,7 @@ use markup5ever::LocalName;
 use serde::{de::Visitor, Deserialize};
 use tendril::StrTendril;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Attributes(Vec<LocalName>, BTreeMap<LocalName, StrTendril>);
 
 struct AttributesVisitor(PhantomData<fn() -> Attributes>);
@@ -91,7 +91,7 @@ impl<'de> Visitor<'de> for AttributesVisitor {
     type Value = Attributes;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("A map of attributes")
+        formatter.write_str("a map of attributes")
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
