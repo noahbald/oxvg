@@ -12,7 +12,6 @@ return_self_not_must_use = "allow"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 
 [workspace.dependencies]
-oxvg_actions = { path = "crates/oxvg_actions" }
 oxvg_ast = { path = "crates/oxvg_ast" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }

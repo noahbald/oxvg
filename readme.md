@@ -1,19 +1,10 @@
 # Oxidised Vector Graphics
 
-This project is an effort to improve the SVG tooling with a unified parser, transformer, optimiser, and linter.
+This project is an effort to improve the SVG tooling with browser-grade parsing, transforming, optimising, and linting.
 
 ## Features
 
 The following is a high-level overview of planned features
-
-- [ ] SVG parser
-
-  - [ ] Full XML 1.1 Compatibility
-  - [ ] Full SVG 1.2 Compatibility
-  - [ ] Full SVG 2.0 Compatibility
-  - [ ] Testing
-  - [ ] Human readable & understandable error-reporting
-  - [ ] O(n) time complexity
 
 - [ ] SVG Transformer/Optimiser
 
@@ -21,6 +12,7 @@ The following is a high-level overview of planned features
   - [ ] Implement all InkScape actions
   - [ ] Implement new optimisations
     - [ ] Non-destructively delete useless nodes
+    - [ ] Crop partially visible paths
 
 - [ ] SVG linter
 
@@ -34,11 +26,21 @@ And maybe in the future???
 - TUI frontend
 - Light-weight alternate format to SVG
 
+## Building
+
+This project is currently in very early development and doesn't have any distributions yet.
+You can run the project for yourself by doing the following
+
+```sh
+git clone git@github.com:noahbald/oxvg.git
+cargo build --package oxvg
+./target/debug/oxvg.exe --help
+```
+
 ## Goals
 
 For me, this is a learning excercise, for others this may end up being a tool. These goals may be challenged as the project grows, but to me our goal is to
 
-- Accurately implement the specifications for XML and SVG
 - Write code that is easily understood by beginners to Rust
 - Focus on optimisation and quality
 

@@ -17,10 +17,15 @@ test = false
 [dependencies]
 oxvg_ast = { workspace = true }
 oxvg_diagnostics = { workspace = true }
+oxvg_optimiser = { workspace = true }
 
 anyhow = "1.0"
+clap = { version = "4.5.4", features = ["derive"] }
+config = { version = "0.14.0", features = ["json", "json5"] }
 html5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
-rcdom = { workspace = true }
-thiserror = "1.0.56"
 quick-xml = { workspace = true }
+rcdom = { workspace = true }
+serde = { workspace = true }
+thiserror = "1.0.56"
+xml5ever = { workspace = true }
