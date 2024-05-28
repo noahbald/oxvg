@@ -1,0 +1,55 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "&dom.document"
+---
+Node {
+    data: Document,
+    children: RefCell {
+        value: [
+            Node {
+                data: Element {
+                    name: QualName {
+                        prefix: None,
+                        ns: Atom('' type=static),
+                        local: Atom('svg' type=static),
+                    },
+                    attrs: RefCell {
+                        value: [
+                            Attribute {
+                                name: QualName {
+                                    prefix: None,
+                                    ns: Atom('' type=static),
+                                    local: Atom('width' type=static),
+                                },
+                                value: Tendril<UTF8>(inline: ".5"),
+                            },
+                            Attribute {
+                                name: QualName {
+                                    prefix: None,
+                                    ns: Atom('' type=static),
+                                    local: Atom('height' type=static),
+                                },
+                                value: Tendril<UTF8>(inline: "10"),
+                            },
+                            Attribute {
+                                name: QualName {
+                                    prefix: None,
+                                    ns: Atom('' type=static),
+                                    local: Atom('enable-background' type=static),
+                                },
+                                value: Tendril<UTF8>(shared: "new 0 0 .5 10"),
+                            },
+                        ],
+                    },
+                    template_contents: RefCell {
+                        value: None,
+                    },
+                    mathml_annotation_xml_integration_point: false,
+                },
+                children: RefCell {
+                    value: [],
+                },
+            },
+        ],
+    },
+}

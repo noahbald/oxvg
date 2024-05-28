@@ -25,6 +25,5 @@ urlencoding = "2.1"
 [dev-dependencies]
 oxvg_ast = { workspace = true }
 
-html5ever = { workspace = true }
 insta = { workspace = true }
 xml5ever = { workspace = true }

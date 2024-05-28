@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use markup5ever::LocalName;
+use markup5ever::{tendril::StrTendril, LocalName};
 use serde::{de::Visitor, Deserialize};
-use tendril::StrTendril;
 
 #[derive(Default, Clone)]
 pub struct Attributes(Vec<LocalName>, BTreeMap<LocalName, StrTendril>);

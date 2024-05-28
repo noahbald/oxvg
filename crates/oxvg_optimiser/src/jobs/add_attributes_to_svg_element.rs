@@ -32,11 +32,14 @@ impl Job for AddAttributesToSVGElement {
 
 #[test]
 fn add_attributes_to_svg_element() -> Result<(), &'static str> {
-    use html5ever::{tendril::TendrilSink, ParseOpts};
     use rcdom::NodeData::Element;
+    use xml5ever::{
+        driver::{parse_document, XmlParseOpts},
+        tendril::TendrilSink,
+    };
 
     let dom: rcdom::RcDom =
-        html5ever::parse_document(rcdom::RcDom::default(), ParseOpts::default()).one("<svg></svg>");
+        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one("<svg></svg>");
     let root = &dom.document.children.borrow()[0];
     let job = &mut AddAttributesToSVGElement::default();
 

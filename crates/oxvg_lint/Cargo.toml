@@ -10,17 +10,11 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_ast = { workspace = true }
 oxvg_diagnostics = { workspace = true }
 
 markup5ever = { workspace = true }
-miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
-regex = "1.10.3"
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-thiserror = "1.0.56"
 
 [dev-dependencies]
-html5ever = { workspace = true }
 xml5ever = { workspace = true }

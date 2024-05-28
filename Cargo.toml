@@ -23,12 +23,10 @@ oxvg_utils = { path = "crates/oxvg_utils" }
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.31.0"
 derivative = "2.2"
-html5ever = "0.27"
 insta = "1.36.1"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 serde = "1.0.197"
 serde_json = "1.0.114"
-string_cache = "0.8"
 quick-xml = "0.31.0"
 xml5ever = "0.18.0"
