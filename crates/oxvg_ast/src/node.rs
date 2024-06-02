@@ -99,8 +99,8 @@ impl<'de> Visitor<'de> for AttributesVisitor {
     {
         let mut attributes = Attributes::default();
 
-        while let Some((key, value)) = map.next_entry::<LocalName, String>()? {
-            let value = value.into();
+        while let Some((key, value)) = map.next_entry::<LocalName, Option<String>>()? {
+            let value = value.unwrap_or_else(String::new).into();
             attributes.insert(key, value);
         }
 

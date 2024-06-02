@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
 use markup5ever::local_name;
-use oxvg_ast::Attributes;
 use oxvg_selectors::Element;
+use regex::Regex;
 use serde::Deserialize;
 
 use crate::{Job, PrepareOutcome};
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
     #[serde(skip_deserializing)]
     contains_filter: bool,
@@ -37,42 +38,38 @@ impl Job for CleanupEnableBackground {
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     /// node's width and height
     fn run(&self, node: &Rc<rcdom::Node>) {
-        use rcdom::NodeData::Element as ElementData;
+        let element = oxvg_selectors::Element::new(node.clone());
 
-        if self.contains_filter {
-            return;
-        };
-
-        let ElementData { attrs, name, .. } = &node.data else {
-            return;
-        };
-        let attrs = &mut *attrs.borrow_mut();
-        let Some((enable_background_position, enable_background)) = attrs
-            .iter()
-            .enumerate()
-            .find(|(_, attr)| attr.name.local == local_name!("enable-background"))
-        else {
-            return;
-        };
-
-        if name.local != local_name!("svg")
-            && name.local != local_name!("mask")
-            && name.local != local_name!("pattern")
-        {
-            attrs.remove(enable_background_position);
-            return;
+        if let Some(mut style) = element.get_attr(&local_name!("style")) {
+            style.value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
+                .unwrap()
+                .replace_all(style.value.as_ref(), "")
+                .to_string()
+                .into();
         }
 
+        if !self.contains_filter {
+            element.remove_attr(&local_name!("enable-background"));
+            return;
+        };
+
+        let Some(enable_background) = element.get_attr(&local_name!("enable-background")) else {
+            return;
+        };
+        let Some(name) = element.get_name() else {
+            return;
+        };
+
         let enabled_background_dimensions =
-            Self::get_enabled_background_dimensions(enable_background);
+            Self::get_enabled_background_dimensions(&enable_background);
         let matches_dimensions =
-            Self::enabled_background_matches(attrs, enabled_background_dimensions);
-        if matches_dimensions && name.local != local_name!("svg") {
-            if let Some(attr) = attrs.get_mut(enable_background_position) {
-                attr.value = "new".into();
-            }
-        } else if name.local == local_name!("svg") {
-            attrs.remove(enable_background_position);
+            Self::enabled_background_matches(&element, enabled_background_dimensions);
+        if matches_dimensions && name == local_name!("svg") {
+            element.remove_attr(&local_name!("enable-background"));
+        } else if matches_dimensions
+            && (name == local_name!("mask") || name == local_name!("pattern"))
+        {
+            element.set_attr(&local_name!("enable-background"), "new".into());
         }
     }
 }
@@ -85,8 +82,7 @@ impl CleanupEnableBackground {
     fn get_enabled_background_dimensions(
         attr: &markup5ever::Attribute,
     ) -> Option<EnableBackgroundDimensions> {
-        let markup5ever::Attribute { value, .. } = attr;
-        let parameters: Vec<_> = value.split_whitespace().collect();
+        let parameters: Vec<_> = attr.value.split_whitespace().collect();
         // Only allow `new <x> <y> <width> <height>`
         if parameters.len() != 5 {
             return None;
@@ -99,7 +95,7 @@ impl CleanupEnableBackground {
     }
 
     fn enabled_background_matches(
-        attrs: &Vec<markup5ever::Attribute>,
+        element: &Element,
         dimensions: Option<EnableBackgroundDimensions>,
     ) -> bool {
         use markup5ever::tendril::Tendril;
@@ -107,34 +103,90 @@ impl CleanupEnableBackground {
         let Some(dimensions) = dimensions else {
             return false;
         };
-        let attrs: Attributes = attrs.into();
-        let Some(width) = attrs.get(&local_name!("width")) else {
+        let Some(width) = element.get_attr(&local_name!("width")) else {
             return false;
         };
-        let Some(height) = attrs.get(&local_name!("height")) else {
+        let Some(height) = element.get_attr(&local_name!("height")) else {
             return false;
         };
-        &Tendril::from(dimensions.width) == width && &Tendril::from(dimensions.height) == height
+        Tendril::from(dimensions.width) == width.value
+            && Tendril::from(dimensions.height) == height.value
     }
 }
 
 #[test]
-fn cleanup_enable_background() {
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        tendril::TendrilSink,
-    };
+fn cleanup_enable_background() -> anyhow::Result<()> {
+    use crate::test_config;
 
-    let dom: rcdom::RcDom = parse_document(rcdom::RcDom::default(), XmlParseOpts::default())
-        .one(r#"<svg width=".5" height="10" enable-background="new 0 0 .5 10"></svg>"#);
-    let root = &dom.document.children.borrow()[0];
-    let mut job = CleanupEnableBackground::default();
+    insta::assert_snapshot!(test_config(
+        // Remove svg's enable-background on matching size
+        r#"{ "cleanupEnableBackground": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height=".5" enable-background="new 0 0 100.5 .5">
+    <defs>
+        <filter id="ShiftBGAndBlur">
+            <feOffset dx="0" dy="75"/>
+        </filter>
+    </defs>
+    test
+</svg>"#
+        )
+    )?);
 
-    job.prepare(&dom);
-    job.run(root);
+    insta::assert_snapshot!(test_config(
+        // Keep svg's enable-background on mis-matching size
+        r#"{ "cleanupEnableBackground": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" enable-background="new 0 0 100 50">
+    <defs>
+        <filter id="ShiftBGAndBlur">
+            <feOffset dx="0" dy="75"/>
+        </filter>
+    </defs>
+    test
+</svg>"#
+        )
+    )?);
 
-    assert_eq!(
-        Element::new(root.clone()).get_attr(&local_name!("enable-background")),
-        None
-    );
+    insta::assert_snapshot!(test_config(
+        // Replace matching mask or pattern's enable-background with "new"
+        r#"{ "cleanupEnableBackground": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="ShiftBGAndBlur">
+            <feOffset dx="0" dy="75"/>
+        </filter>
+    </defs>
+    <mask width="100" height="50" enable-background="new 0 0 100 50">
+        test
+    </mask>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        // Remove enable-background when no filter is present
+        r#"{ "cleanupEnableBackground": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <mask width="100" height="50" enable-background="new 0 0 100 50">
+        test
+    </mask>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        // TODO: Should apply to inline styles as well, removing the style attribute if it all
+        // declarations are removed.
+        r#"{ "cleanupEnableBackground": {} }"#,
+        Some(
+            r##"<svg height="100" width="100" style="enable-background:new 0 0 100 100">
+  <circle cx="50" cy="50" r="40" stroke="#000" stroke-width="3" fill="red"/>
+</svg>"##
+        )
+    )?);
+
+    Ok(())
 }

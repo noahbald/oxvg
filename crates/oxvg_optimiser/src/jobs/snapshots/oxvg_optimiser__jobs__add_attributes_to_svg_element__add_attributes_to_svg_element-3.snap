@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/add_attributes_to_svg_element.rs
+expression: "test_config(r#\"{ \"addAttributesToSvgElement\": {\n            \"attributes\": { \"focusable\": \"false\", \"data-image\": \"icon\" }\n        } }\"#,\n        None)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" data-image="icon" focusable="false">
+    test
+</svg>

@@ -6,6 +6,7 @@ mod cleanup_ids;
 
 use std::rc::Rc;
 
+use oxvg_selectors::Element;
 use serde::Deserialize;
 
 pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
@@ -30,6 +31,7 @@ pub trait Job {
 }
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Jobs {
     add_attributes_to_svg_element: Option<AddAttributesToSVGElement>,
     add_classes_to_svg: Option<AddClassesToSVG>,
@@ -41,26 +43,13 @@ pub struct Jobs {
 impl Jobs {
     pub fn run(self, root: &rcdom::RcDom) {
         let mut jobs: Vec<_> = self.into_iter().flatten().collect();
-        jobs.retain_mut(|job| job.prepare(root).can_skip());
+        jobs.retain_mut(|job| !job.prepare(root).can_skip());
 
-        root.document
-            .children
-            .borrow()
-            .iter()
-            .for_each(|child| Jobs::crawl(&jobs, child));
+        Element::new(root.document.clone())
+            .depth_first()
+            .for_each(|child| jobs.iter().for_each(|job| job.run(&child.node)));
 
         jobs.iter_mut().for_each(|job| job.breakdown(root));
-    }
-
-    fn crawl(jobs: &Vec<Box<dyn Job>>, child: &Rc<rcdom::Node>) {
-        for job in jobs {
-            job.run(child);
-        }
-        child
-            .children
-            .borrow()
-            .iter()
-            .for_each(|child| Jobs::crawl(jobs, child));
     }
 }
 
@@ -91,20 +80,83 @@ impl PrepareOutcome {
     }
 }
 
-#[test]
-fn test_jobs() -> Result<(), serde_json::Error> {
+#[cfg(test)]
+pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
+    use rcdom::SerializableHandle;
     use xml5ever::{
         driver::{parse_document, XmlParseOpts},
+        serialize::{serialize, SerializeOpts},
         tendril::TendrilSink,
     };
 
     let dom: rcdom::RcDom =
-        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one("<svg></svg>");
-    let jobs: Jobs = serde_json::from_str(
-        r#"{ "add_attributes_to_svg_element": {
+        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one(svg.unwrap_or(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    test
+</svg>"#,
+        ));
+    let jobs: Jobs = serde_json::from_str(config_json)?;
+    jobs.run(&dom);
+    let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
+    serialize(
+        &mut sink,
+        &std::convert::Into::<SerializableHandle>::into(dom.document),
+        SerializeOpts::default(),
+    )?;
+
+    let sink: Vec<_> = sink.into_inner()?;
+    Ok(String::from_utf8_lossy(&sink).to_string())
+}
+
+#[test]
+fn test_jobs() -> anyhow::Result<()> {
+    test_config(
+        r#"{ "addAttributesToSvgElement": {
             "attributes": { "foo": "bar" }
         } }"#,
+        None,
+    )
+    .map(|_| ())
+}
+
+#[test]
+fn test_weird() -> anyhow::Result<()> {
+    use rcdom::SerializableHandle;
+    use xml5ever::{
+        driver::{parse_document, XmlParseOpts},
+        serialize::{serialize, SerializeOpts},
+        tendril::TendrilSink,
+    };
+
+    let src = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/1999/xlink">
+    <defs>
+        <g id="mid-line"/>
+        <g id="line-plus">
+            <use x:href="#mid-line"/>
+            <use x:href="#plus"/>
+        </g>
+        <g id="plus"/>
+        <g id="line-circle">
+            <use x:href="#mid-line"/>
+        </g>
+    </defs>
+    <path d="M0 0" id="a"/>
+    <use x:href="#a" x="50" y="50"/>
+    <use x:href="#line-plus"/>
+    <use x:href="#line-circle"/>
+</svg>"##;
+    println!("src:\n{src}");
+
+    let dom: rcdom::RcDom =
+        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one(src);
+    let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
+    serialize(
+        &mut sink,
+        &std::convert::Into::<SerializableHandle>::into(dom.document),
+        SerializeOpts::default(),
     )?;
-    jobs.run(&dom);
+
+    let sink: Vec<_> = sink.into_inner()?;
+    println!("\noutput:\n{}", String::from_utf8_lossy(&sink));
     Ok(())
 }

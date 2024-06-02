@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::Job;
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanupAttributes {
     newlines: Option<bool>,
     trim: Option<bool>,
@@ -40,34 +41,37 @@ impl Job for CleanupAttributes {
 }
 
 #[test]
-fn cleanup_attributes() -> Result<(), &'static str> {
-    use rcdom::NodeData::Element;
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        tendril::TendrilSink,
-    };
+fn cleanup_attributes() -> anyhow::Result<()> {
+    use crate::test_config;
 
-    let dom: rcdom::RcDom = parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one(
-        r#"<svg class="  foo  bar 
-        baz"></svg>"#,
-    );
-    let root = &dom.document.children.borrow()[0];
-    let job = CleanupAttributes {
-        newlines: Some(true),
-        trim: Some(true),
-        spaces: Some(true),
-    };
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupAttributes": {
+            "newlines": true,
+            "trim": true,
+            spaces: true
+        } }"#,
+        Some(
+            r#"<svg xmlns="  http://www.w3.org/2000/svg
+  " attr="a      b" attr2="a
+b">
+    test
+</svg>"#
+        )
+    )?);
 
-    job.run(root);
-    let attrs = match &root.data {
-        Element { attrs, .. } => attrs,
-        _ => Err("Unexpected document structure")?,
-    };
-    let attrs = &*attrs.borrow();
-    assert_eq!(
-        attrs.first().map(|attr| &attr.value),
-        Some(&"foo bar baz".into())
-    );
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupAttributes": {
+            "newlines": true,
+            "trim": true,
+            spaces: true
+        } }"#,
+        Some(
+            r#"<svg xmlns="  http://www.w3.org/2000/svg
+  " attr="a      b">
+    test &amp; &lt;&amp; &gt; &apos; &quot; &amp;
+</svg>"#
+        )
+    )?);
 
     Ok(())
 }

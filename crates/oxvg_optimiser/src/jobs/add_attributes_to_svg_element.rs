@@ -1,11 +1,13 @@
 use std::{collections::HashSet, rc::Rc};
 
+use markup5ever::local_name;
 use oxvg_ast::Attributes;
 use serde::Deserialize;
 
 use crate::Job;
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct AddAttributesToSVGElement {
     pub attributes: Attributes,
 }
@@ -14,7 +16,12 @@ impl Job for AddAttributesToSVGElement {
     fn run(&self, node: &Rc<rcdom::Node>) {
         use rcdom::NodeData::Element;
 
-        let Element { attrs, .. } = &node.data else {
+        let Element { attrs, name, .. } = &node.data else {
+            return;
+        };
+
+        let is_root = oxvg_selectors::Element::new(node.clone()).is_root();
+        if name.local != local_name!("svg") || !is_root {
             return;
         };
         let attrs = &mut *attrs.borrow_mut();
@@ -31,49 +38,45 @@ impl Job for AddAttributesToSVGElement {
 }
 
 #[test]
-fn add_attributes_to_svg_element() -> Result<(), &'static str> {
-    use rcdom::NodeData::Element;
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        tendril::TendrilSink,
-    };
+fn add_attributes_to_svg_element() -> anyhow::Result<()> {
+    use crate::test_config;
 
-    let dom: rcdom::RcDom =
-        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one("<svg></svg>");
-    let root = &dom.document.children.borrow()[0];
-    let job = &mut AddAttributesToSVGElement::default();
+    insta::assert_snapshot!(test_config(
+        // Add multiple attributes without value
+        r#"{ "addAttributesToSvgElement": {
+            "attributes": { "data-icon": null, "className={classes}": null }
+        } }"#,
+        None,
+    )?);
 
-    job.attributes
-        .insert(markup5ever::LocalName::from("foo"), "bar".into());
-    job.run(root);
-    match &root.data {
-        Element { attrs, .. } => {
-            assert_eq!(
-                attrs.borrow().last(),
-                Some(&markup5ever::Attribute {
-                    name: markup5ever::QualName::new(None, ns!(svg), "foo".into()),
-                    value: "bar".into()
-                })
-            );
-        }
-        _ => Err("Attribute not added")?,
-    }
+    insta::assert_snapshot!(test_config(
+        // Add single attribute without value
+        r#"{ "addAttributesToSvgElement": {
+            "attributes": { "data-icon": null }
+        } }"#,
+        None,
+    )?);
 
-    job.attributes
-        .insert(markup5ever::LocalName::from("foo"), "baz".into());
-    job.run(root);
-    match &root.data {
-        Element { attrs, .. } => {
-            assert_eq!(
-                attrs.borrow().last(),
-                Some(&markup5ever::Attribute {
-                    name: markup5ever::QualName::new(None, ns!(svg), "foo".into()),
-                    value: "bar".into()
-                })
-            );
-        }
-        _ => Err("Attribute not added")?,
-    }
+    insta::assert_snapshot!(test_config(
+        // Add multiple attributes with values
+        r#"{ "addAttributesToSvgElement": {
+            "attributes": { "focusable": "false", "data-image": "icon" }
+        } }"#,
+        None,
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        // Ignore nested <svg> elements
+        r#"{ "addAttributesToSvgElement": {
+            "attributes": { "data-icon": null }
+        } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    test
+    <svg />
+</svg>"#
+        ),
+    )?);
 
     Ok(())
 }

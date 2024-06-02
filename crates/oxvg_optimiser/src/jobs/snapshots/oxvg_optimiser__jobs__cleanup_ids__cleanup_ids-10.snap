@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupEnableBackground\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <defs>\n        <circle cx=\"100\" cy=\"100\" r=\"50\" id=\"circle\"/>\n        <ellipse cx=\"50\" cy=\"50\" rx=\"50\" ry=\"10\" id=\"ellipse\"/>\n        <rect x=\"100\" y=\"50\" width=\"50\" height=\"10\" id=\"rect\"/>\n    </defs>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <circle cx="100" cy="100" r="50" id="circle"></circle>
+        <ellipse cx="50" cy="50" rx="50" ry="10" id="ellipse"></ellipse>
+        <rect x="100" y="50" width="50" height="10" id="rect"></rect>
+    </defs>
+</svg>

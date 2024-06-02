@@ -1,8 +1,4 @@
-use std::{
-    borrow::BorrowMut,
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{borrow::BorrowMut, cell::Cell, rc::Rc};
 
 use cssparser::ToCss;
 use derivative::Derivative;
@@ -24,7 +20,8 @@ pub struct Element {
 }
 
 pub struct Select {
-    inner: RefCell<Vec<RcNode>>,
+    inner: Box<dyn Iterator<Item = Element>>,
+    scope: Option<Element>,
     selector: Selector,
     nth_index_cache: NthIndexCache,
 }
@@ -124,11 +121,57 @@ impl Element {
         ));
     }
 
+    pub fn get_name(&self) -> Option<LocalName> {
+        let NodeData::Element { ref name, .. } = self.node.as_ref().data else {
+            return None;
+        };
+        Some(name.local.clone())
+    }
+
     pub fn get_attr(&self, attr: &markup5ever::LocalName) -> Option<Attribute> {
         let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
             return None;
         };
         Attributes(&attrs.borrow()).get_attr(attr)
+    }
+
+    pub fn set_attr(&self, attr: &markup5ever::LocalName, value: xml5ever::tendril::StrTendril) {
+        let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
+            return;
+        };
+        let mut attrs = attrs.borrow_mut();
+        let new_attr = Attribute {
+            name: xml5ever::QualName {
+                prefix: None,
+                ns: "".into(),
+                local: attr.clone(),
+            },
+            value,
+        };
+        if let Some(index) = attrs.iter().position(|a| &a.name.local == attr) {
+            let _ = std::mem::replace(&mut attrs[index], new_attr);
+        } else {
+            attrs.push(new_attr);
+        };
+    }
+
+    pub fn remove_attr(&self, attr: &markup5ever::LocalName) {
+        let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
+            return;
+        };
+
+        let mut attrs = attrs.borrow_mut();
+        let Some(index) = attrs.iter().position(|a| &a.name.local == attr) else {
+            return;
+        };
+        attrs.remove(index);
+    }
+
+    pub fn get_parent(&self) -> Option<Self> {
+        let parent = self.node.parent.take()?;
+        let parent_element = parent.upgrade().map(Self::from);
+        self.node.parent.set(Some(parent));
+        parent_element
     }
 
     pub fn get_attr_as_number<F: std::str::FromStr>(
@@ -144,11 +187,38 @@ impl Element {
         &'a self,
         selector: &'a str,
     ) -> Result<Select, cssparser::ParseError<'_, SelectorParseErrorKind<'_>>> {
+        let inner = self.depth_first();
         Ok(Select {
-            inner: self.node.children.clone(),
+            inner,
+            scope: Some(self.clone()),
             selector: selector.try_into()?,
             nth_index_cache: NthIndexCache::default(),
         })
+    }
+
+    pub fn depth_first(&self) -> Box<dyn Iterator<Item = Self>> {
+        let children = &self.node.as_ref().children.borrow();
+        let mut iter: Box<dyn Iterator<Item = Self>> = Box::new(std::iter::once(self.clone()));
+        if children.len() == 0 {
+            return iter;
+        }
+
+        let children: &Vec<_> = children.as_ref();
+        for child in children {
+            iter = Box::new(iter.chain(Element::new(child.clone()).depth_first()));
+        }
+        iter
+    }
+
+    pub fn is_root(&self) -> bool {
+        let Some(parent) = self.node.parent.take() else {
+            return false;
+        };
+        let Some(mut parent_node) = parent.upgrade() else {
+            return false;
+        };
+        self.node.parent.set(Some(parent));
+        matches!(parent_node.borrow_mut().data, NodeData::Document)
     }
 }
 
@@ -159,10 +229,7 @@ impl selectors::Element for Element {
     }
 
     fn parent_element(&self) -> Option<Self> {
-        let parent = self.node.parent.take()?;
-        let parent_element = parent.upgrade().map(Self::from);
-        self.node.parent.set(Some(parent));
-        parent_element
+        self.get_parent()
     }
 
     fn parent_node_is_shadow_root(&self) -> bool {
@@ -356,14 +423,7 @@ impl selectors::Element for Element {
     }
 
     fn is_root(&self) -> bool {
-        let Some(parent) = self.node.parent.take() else {
-            return false;
-        };
-        let Some(mut parent_node) = parent.upgrade() else {
-            return false;
-        };
-        self.node.parent.set(Some(parent));
-        matches!(parent_node.borrow_mut().data, NodeData::Document)
+        self.is_root()
     }
 }
 
@@ -504,22 +564,14 @@ impl Iterator for Select {
     fn next(&mut self) -> Option<Self::Item> {
         use selectors::Element as _;
 
-        for node in self.inner.borrow().clone() {
-            if !is_element(&node) {
-                continue;
-            }
-            let element = Element::new(node);
-            if element.parent_element().is_some()
+        self.inner.find(|element| {
+            element.parent_element().is_some()
                 && self.selector.matches_with_scope_and_cache(
-                    &element,
-                    None,
+                    element,
+                    self.scope.clone(),
                     &mut self.nth_index_cache,
                 )
-            {
-                return Some(element);
-            }
-        }
-        None
+        })
     }
 }
 
@@ -530,6 +582,9 @@ impl Selector {
         scope: Option<Element>,
         nth_index_cache: &mut NthIndexCache,
     ) -> bool {
+        if !matches!(element.node.data, NodeData::Element { .. }) {
+            return false;
+        };
         let context = &mut matching::MatchingContext::new(
             matching::MatchingMode::Normal,
             None,

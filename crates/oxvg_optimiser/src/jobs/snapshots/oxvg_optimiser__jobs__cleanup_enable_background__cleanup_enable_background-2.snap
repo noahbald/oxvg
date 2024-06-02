@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_enable_background.rs
+expression: "test_config(r#\"{ \"cleanupEnableBackground\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"50\" height=\"50\" enable-background=\"new 0 0 100 50\">\n    <defs>\n        <filter id=\"ShiftBGAndBlur\">\n            <feOffset dx=\"0\" dy=\"75\"/>\n        </filter>\n    </defs>\n    test\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" enable-background="new 0 0 100 50">
+    <defs>
+        <filter id="ShiftBGAndBlur">
+            <feOffset dx="0" dy="75"></feOffset>
+        </filter>
+    </defs>
+    test
+</svg>

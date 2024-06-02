@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::Job;
 
 #[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct AddClassesToSVG {
     pub class_names: Option<Vec<String>>,
     pub class_name: Option<String>,
@@ -52,34 +53,31 @@ impl Job for AddClassesToSVG {
 }
 
 #[test]
-fn add_classes_to_svg() -> Result<(), &'static str> {
-    use rcdom::NodeData::Element;
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        tendril::TendrilSink,
-    };
+fn add_classes_to_svg() -> anyhow::Result<()> {
+    use crate::test_config;
 
-    let dom: rcdom::RcDom =
-        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one("<svg></svg>");
-    let root = &dom.document.children.borrow()[0];
-    let job = AddClassesToSVG {
-        class_names: Some(vec![String::from("foo"), String::from("bar")]),
-        class_name: None,
-    };
+    insta::assert_snapshot!(test_config(
+        // Should add classes when passed as a classNames Array
+        r#"{ "addClassesToSvg": {
+            "classNames": ["mySvg", "size-big"],
+        } }"#,
+        None
+    )?);
 
-    job.run(root);
-    let attrs = match &root.data {
-        Element { attrs, .. } => attrs,
-        _ => Err("Unexpected document structure")?,
-    };
-    let attrs = &*attrs.borrow();
-    let Some(class) = attrs
-        .iter()
-        .find(|attr| attr.name.local.to_string() == "class")
-    else {
-        unreachable!("Class attribute missing");
-    };
-    assert_eq!(class.value, "foo bar".into());
+    insta::assert_snapshot!(test_config(
+        // Should add class when passed as a className String
+        r#"{ "addClassesToSvg": {
+            "className": "mySvg",
+        } }"#,
+        None
+    )?);
 
+    insta::assert_snapshot!(test_config(
+        // Should avoid adding existing classes
+        r#"{ "addClassesToSvg": {
+            "classNames": "mySvg size-big",
+        } }"#,
+        Some(r#"<svg xmlns="http://www.w3.org/2000/svg" class="mySvg">"#)
+    )?);
     Ok(())
 }

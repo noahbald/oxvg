@@ -15,8 +15,7 @@ derivative = { workspace = true }
 markup5ever = { workspace = true }
 rcdom = { workspace = true }
 selectors = "0.25.0"
+xml5ever = { workspace = true }
 
 [dev-dependencies]
 oxvg_ast = { workspace = true }
-
-xml5ever = { workspace = true }
