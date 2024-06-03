@@ -1,0 +1,21 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:x=\"http://www.w3.org/1999/xlink\">\n    <defs>\n        <g id=\"mid-line\"/>\n        <g id=\"line-plus\">\n            <use href=\"#mid-line\"/>\n            <use href=\"#plus\"/>\n        </g>\n        <g id=\"plus\"/>\n        <g id=\"line-circle\">\n            <use href=\"#mid-line\"/>\n        </g>\n    </defs>\n    <path d=\"M0 0\" id=\"a\"/>\n    <use href=\"#a\" x=\"50\" y=\"50\"/>\n    <use href=\"#line-plus\"/>\n    <use href=\"#line-circle\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <g id="a"></g>
+        <g id="d">
+            <use href="#a"></use>
+            <use href="#b"></use>
+        </g>
+        <g id="b"></g>
+        <g id="e">
+            <use href="#a"></use>
+        </g>
+    </defs>
+    <path d="M0 0" id="c"></path>
+    <use href="#c" x="50" y="50"></use>
+    <use href="#d"></use>
+    <use href="#e"></use>
+</svg>

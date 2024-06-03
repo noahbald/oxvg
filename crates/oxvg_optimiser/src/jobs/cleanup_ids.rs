@@ -16,6 +16,12 @@ enum ReplaceCounter<'a> {
     Tentril(&'a StrTendril, usize),
 }
 
+#[derive(Clone, Debug)]
+struct GeneratedId {
+    pub current: String,
+    prevent_collision: Vec<String>,
+}
+
 #[derive(Debug, Deserialize, Default, Clone)]
 pub struct CleanupIds {
     remove: Option<bool>,
@@ -30,7 +36,7 @@ pub struct CleanupIds {
     #[serde(skip_deserializing)]
     id_renames: RefCell<HashMap<String, String>>,
     #[serde(skip_deserializing)]
-    generated_id: RefCell<String>,
+    generated_id: RefCell<GeneratedId>,
 }
 
 impl Job for CleanupIds {
@@ -54,7 +60,6 @@ impl Job for CleanupIds {
         if self.ignore_document {
             return;
         }
-
         let ElementData { attrs, .. } = &node.data else {
             return;
         };
@@ -63,40 +68,33 @@ impl Job for CleanupIds {
         for id in &self.replaceable_ids {
             let mut used_ids = self.id_renames.borrow_mut();
             let mut generated_id = self.generated_id.borrow_mut();
-            let minified_id = used_ids.get(id).unwrap_or(&generated_id).clone();
+            let minified_id = used_ids.get(id).unwrap_or(&generated_id.current).clone();
             for attr in attrs.iter_mut() {
-                let mut replacer = ReplaceCounter::from(&attr.value);
-                if attr.value.contains('#') {
-                    replacer = replacer
-                        .replace(
-                            &format!("#{}", urlencoding::encode(id)),
-                            &format!("#{minified_id}"),
-                        )
-                        .replace(&format!("#{id}"), &format!("#{minified_id}"));
-                } else {
-                    replacer = replacer.replace(&format!("{id}."), &format!("{minified_id}."));
+                let replacements = replace_id_in_attr(attr, id, &minified_id);
+                if replacements.count() == &0 {
+                    continue;
                 }
-                if replacer.count() > &0 {
-                    let is_new = used_ids.insert(id.clone(), minified_id.clone()).is_none();
-                    if is_new {
-                        *generated_id = generate_id(&minified_id, Some(&self.replaceable_ids));
-                    }
-                    if self.minify.unwrap_or(true) {
-                        attr.value = replacer.into();
-                    }
+                dbg!(&id, &minified_id);
+                let is_new = used_ids.insert(id.clone(), minified_id.clone()).is_none();
+                if is_new {
+                    generated_id.next();
+                }
+                if self.minify.unwrap_or(MINIFY_DEFAULT) {
+                    attr.value = replacements.into();
                 }
             }
         }
     }
 
     fn breakdown(&mut self, document: &rcdom::RcDom) {
-        if !self.remove.unwrap_or(true) {
+        if !self.remove.unwrap_or(REMOVE_DEFAULT) {
             return;
         }
 
         let Some(root) = &Element::from_document_root(document) else {
             return;
         };
+        dbg!(&self.id_renames);
         for element in root.select("[id]").unwrap() {
             let Some(id) = element.get_attr(&local_name!("id")) else {
                 continue;
@@ -131,6 +129,7 @@ impl CleanupIds {
     /// - Adds non-preserved ids to `self.replaceable_ids`
     /// - Removes any duplicate replaceable ids
     fn prepare_id_rename(&mut self, root: &Element) {
+        let mut preserved_ids = Vec::new();
         for element in root.select("[id]").unwrap() {
             let Some(attr) = element.get_attr(&local_name!("id")) else {
                 continue;
@@ -147,44 +146,34 @@ impl CleanupIds {
                 .as_ref()
                 .is_some_and(|preserve| preserve.contains(&attr.value.clone().into()));
             if is_preserved_prefix || is_preserve {
+                preserved_ids.push(attr.value.to_string());
                 continue;
             }
             self.replaceable_ids.insert(attr.value.to_string());
         }
-        // NOTE: '`' is prior to 'a' in UTF
-        *self.generated_id.borrow_mut() = generate_id("`", Some(&self.replaceable_ids));
+        self.generated_id
+            .borrow_mut()
+            .set_prevent_collision(preserved_ids);
     }
 }
 
-fn generate_id(current_id: &str, prevent_collision: Option<&HashSet<String>>) -> String {
-    let mut increment_next = true;
-    let mut new_id: String = current_id
-        .chars()
-        .rev()
-        .map(|char| {
-            let mut char = char as u8;
-            if increment_next {
-                char += 1;
-                increment_next = false;
-            }
-            if char > b'Z' && char < b'a' {
-                increment_next = true;
-                return 'a';
-            } else if char > b'z' {
-                return 'A';
-            }
-            char::from(char)
-        })
-        .rev()
-        .collect();
-    if increment_next {
-        new_id.insert(0, 'a');
-    }
-    if prevent_collision.is_some_and(|list| list.contains(&new_id)) {
-        generate_id(new_id.as_str(), prevent_collision)
+fn replace_id_in_attr<'a>(
+    attr: &'a mut markup5ever::Attribute,
+    id: &str,
+    new_id: &str,
+) -> ReplaceCounter<'a> {
+    let mut replacer = ReplaceCounter::from(&attr.value);
+    if attr.value.contains('#') {
+        replacer = replacer
+            .replace(
+                &format!("#{}", urlencoding::encode(id)),
+                &format!("#{new_id}"),
+            )
+            .replace(&format!("#{id}"), &format!("#{new_id}"));
     } else {
-        new_id
+        replacer = replacer.replace(&format!("{id}."), &format!("{new_id}."));
     }
+    replacer
 }
 
 impl<'a> ReplaceCounter<'a> {
@@ -229,6 +218,64 @@ impl From<ReplaceCounter<'_>> for StrTendril {
     }
 }
 
+impl GeneratedId {
+    fn set_prevent_collision(&mut self, ids: Vec<String>) {
+        self.prevent_collision = ids;
+        if self.prevent_collision.contains(&self.current) {
+            self.next();
+        }
+    }
+}
+
+impl Iterator for GeneratedId {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut increment_next = true;
+        let mut new_id: String = self
+            .current
+            .chars()
+            .rev()
+            .map(|char| {
+                let mut char = char as u8;
+                if increment_next {
+                    char += 1;
+                    increment_next = false;
+                }
+                if char > b'Z' && char < b'a' {
+                    increment_next = true;
+                    return 'a';
+                } else if char > b'z' {
+                    return 'A';
+                }
+                char::from(char)
+            })
+            .rev()
+            .collect();
+        if increment_next {
+            new_id.insert(0, 'a');
+        }
+        self.current.clone_from(&new_id);
+        if self.prevent_collision.contains(&new_id) {
+            self.next()
+        } else {
+            Some(new_id)
+        }
+    }
+}
+
+impl Default for GeneratedId {
+    fn default() -> Self {
+        Self {
+            current: String::from("a"),
+            prevent_collision: vec![],
+        }
+    }
+}
+
+static REMOVE_DEFAULT: bool = true;
+static MINIFY_DEFAULT: bool = true;
+
 #[test]
 #[allow(clippy::too_many_lines)]
 fn cleanup_ids() -> anyhow::Result<()> {
@@ -255,13 +302,13 @@ fn cleanup_ids() -> anyhow::Result<()> {
     <g id="g001">
         <circle id="circle001" fill="url(#gradient001)" cx="60" cy="60" r="50"/>
         <rect fill="url('#gradient001')" x="0" y="0" width="500" height="100"/>
-        <tref xlink:href="#referencedText"/>
+        <tref href="#referencedText"/>
     </g>
     <g>
-        <tref xlink:href="#referencedText"/>
+        <tref href="#referencedText"/>
     </g>
-    <animateMotion xlink:href="#crochet" dur="0.5s" begin="block.mouseover" fill="freeze" path="m 0,0 0,-21"/>
-    <use xlink:href="#two"/>
+    <animateMotion href="#crochet" dur="0.5s" begin="block.mouseover" fill="freeze" path="m 0,0 0,-21"/>
+    <use href="#two"/>
 </svg>"##
         )
     )?);
@@ -300,18 +347,18 @@ fn cleanup_ids() -> anyhow::Result<()> {
     <defs>
         <g id="mid-line"/>
         <g id="line-plus">
-            <use x:href="#mid-line"/>
-            <use x:href="#plus"/>
+            <use href="#mid-line"/>
+            <use href="#plus"/>
         </g>
         <g id="plus"/>
         <g id="line-circle">
-            <use x:href="#mid-line"/>
+            <use href="#mid-line"/>
         </g>
     </defs>
     <path d="M0 0" id="a"/>
-    <use x:href="#a" x="50" y="50"/>
-    <use x:href="#line-plus"/>
-    <use x:href="#line-circle"/>
+    <use href="#a" x="50" y="50"/>
+    <use href="#line-plus"/>
+    <use href="#line-circle"/>
 </svg>"##
         )
     )?);
@@ -396,7 +443,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
         <rect id="rect" fill="blue" x="10" y="10" width="100" height="100"/>
     </defs>
     <g id="figure" class="hidden">
-        <use xlink:href="#circle"/>
+        <use href="#circle"/>
         <use href="#rect"/>
     </g>
 </svg>"##
@@ -461,7 +508,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
         <circle id="a" fill="red" cx="60" cy="60" r="50"/>
         <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
     </defs>
-    <use xlink:href="#a"/>
+    <use href="#a"/>
     <use href="#rect"/>
 </svg>"##
         )
@@ -478,8 +525,8 @@ fn cleanup_ids() -> anyhow::Result<()> {
         <circle id="a" fill="red" cx="60" cy="60" r="50"/>
         <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
     </defs>
-    <use xlink:href="#a"/>
-    <use xlink:href="#rect"/>
+    <use href="#a"/>
+    <use href="#rect"/>
 </svg>"##
         )
     )?);
@@ -660,9 +707,7 @@ fn cleanup_ids_check_rename() -> anyhow::Result<()> {
 
     insta::assert_snapshot!(test_config(
         // Minifies ids should sequences from "a..z", "A..Z", "aa..az", and so on
-        r#"{ "cleanupIds": {
-            "minify": true
-        } }"#,
+        r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs>
@@ -826,61 +871,61 @@ fn cleanup_ids_check_rename() -> anyhow::Result<()> {
             referenced text
         </text>
     </defs>
-    <tref xlink:href="#__proto__"/>
-    <tref xlink:href="#__proto__"/>
-    <tref xlink:href="#__proto__"/>
-    <tref xlink:href="#test02"/>
-    <tref xlink:href="#test03"/>
-    <tref xlink:href="#test04"/>
-    <tref xlink:href="#test05"/>
-    <tref xlink:href="#test06"/>
-    <tref xlink:href="#test07"/>
-    <tref xlink:href="#test08"/>
-    <tref xlink:href="#test09"/>
-    <tref xlink:href="#test10"/>
-    <tref xlink:href="#test11"/>
-    <tref xlink:href="#test12"/>
-    <tref xlink:href="#test13"/>
-    <tref xlink:href="#test14"/>
-    <tref xlink:href="#test15"/>
-    <tref xlink:href="#test16"/>
-    <tref xlink:href="#test17"/>
-    <tref xlink:href="#test18"/>
-    <tref xlink:href="#test19"/>
-    <tref xlink:href="#test20"/>
-    <tref xlink:href="#test21"/>
-    <tref xlink:href="#test22"/>
-    <tref xlink:href="#test23"/>
-    <tref xlink:href="#test24"/>
-    <tref xlink:href="#test25"/>
-    <tref xlink:href="#test26"/>
-    <tref xlink:href="#test27"/>
-    <tref xlink:href="#test28"/>
-    <tref xlink:href="#test29"/>
-    <tref xlink:href="#test30"/>
-    <tref xlink:href="#test31"/>
-    <tref xlink:href="#test32"/>
-    <tref xlink:href="#test33"/>
-    <tref xlink:href="#test34"/>
-    <tref xlink:href="#test35"/>
-    <tref xlink:href="#test36"/>
-    <tref xlink:href="#test37"/>
-    <tref xlink:href="#test38"/>
-    <tref xlink:href="#test39"/>
-    <tref xlink:href="#test40"/>
-    <tref xlink:href="#test41"/>
-    <tref xlink:href="#test42"/>
-    <tref xlink:href="#test43"/>
-    <tref xlink:href="#test44"/>
-    <tref xlink:href="#test45"/>
-    <tref xlink:href="#test46"/>
-    <tref xlink:href="#test47"/>
-    <tref xlink:href="#test48"/>
-    <tref xlink:href="#test49"/>
-    <tref xlink:href="#test50"/>
-    <tref xlink:href="#test51"/>
-    <tref xlink:href="#test52"/>
-    <tref xlink:href="#test53"/>
+    <tref href="#__proto__"/>
+    <tref href="#__proto__"/>
+    <tref href="#__proto__"/>
+    <tref href="#test02"/>
+    <tref href="#test03"/>
+    <tref href="#test04"/>
+    <tref href="#test05"/>
+    <tref href="#test06"/>
+    <tref href="#test07"/>
+    <tref href="#test08"/>
+    <tref href="#test09"/>
+    <tref href="#test10"/>
+    <tref href="#test11"/>
+    <tref href="#test12"/>
+    <tref href="#test13"/>
+    <tref href="#test14"/>
+    <tref href="#test15"/>
+    <tref href="#test16"/>
+    <tref href="#test17"/>
+    <tref href="#test18"/>
+    <tref href="#test19"/>
+    <tref href="#test20"/>
+    <tref href="#test21"/>
+    <tref href="#test22"/>
+    <tref href="#test23"/>
+    <tref href="#test24"/>
+    <tref href="#test25"/>
+    <tref href="#test26"/>
+    <tref href="#test27"/>
+    <tref href="#test28"/>
+    <tref href="#test29"/>
+    <tref href="#test30"/>
+    <tref href="#test31"/>
+    <tref href="#test32"/>
+    <tref href="#test33"/>
+    <tref href="#test34"/>
+    <tref href="#test35"/>
+    <tref href="#test36"/>
+    <tref href="#test37"/>
+    <tref href="#test38"/>
+    <tref href="#test39"/>
+    <tref href="#test40"/>
+    <tref href="#test41"/>
+    <tref href="#test42"/>
+    <tref href="#test43"/>
+    <tref href="#test44"/>
+    <tref href="#test45"/>
+    <tref href="#test46"/>
+    <tref href="#test47"/>
+    <tref href="#test48"/>
+    <tref href="#test49"/>
+    <tref href="#test50"/>
+    <tref href="#test51"/>
+    <tref href="#test52"/>
+    <tref href="#test53"/>
 </svg>"##
         )
     )?);
