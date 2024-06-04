@@ -14,8 +14,10 @@ oxvg_ast = { workspace = true }
 oxvg_selectors = { workspace = true }
 oxvg_utils = { workspace = true }
 
+anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+lazy_static = { workspace = true }
 markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
@@ -26,6 +28,5 @@ urlencoding = "2.1"
 [dev-dependencies]
 oxvg_ast = { workspace = true }
 
-anyhow = { workspace = true }
 insta = { workspace = true }
 xml5ever = { workspace = true }

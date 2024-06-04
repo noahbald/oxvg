@@ -770,6 +770,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "insta",
+ "lazy_static",
  "markup5ever",
  "markup5ever_rcdom",
  "miette",

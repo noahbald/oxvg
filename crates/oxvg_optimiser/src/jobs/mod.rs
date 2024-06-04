@@ -3,6 +3,7 @@ mod add_classes_to_svg;
 mod cleanup_attributes;
 mod cleanup_enable_background;
 mod cleanup_ids;
+mod cleanup_list_of_values;
 
 use std::rc::Rc;
 
@@ -14,6 +15,7 @@ pub use self::add_classes_to_svg::AddClassesToSVG;
 pub use self::cleanup_attributes::CleanupAttributes;
 pub use self::cleanup_enable_background::CleanupEnableBackground;
 pub use self::cleanup_ids::CleanupIds;
+pub use self::cleanup_list_of_values::CleanupListOfValues;
 
 pub enum PrepareOutcome {
     None,
@@ -38,6 +40,7 @@ pub struct Jobs {
     cleanup_attributes: Option<CleanupAttributes>,
     cleanup_enable_background: Option<CleanupEnableBackground>,
     cleanup_ids: Option<CleanupIds>,
+    cleanup_list_of_values: Option<CleanupListOfValues>,
 }
 
 impl Jobs {
@@ -69,6 +72,8 @@ impl IntoIterator for Jobs {
             jobs.cleanup_enable_background
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.cleanup_ids.map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.cleanup_list_of_values
+                .map(|job| Box::new(job) as Box<dyn Job>),
         ];
         jobs.into_iter()
     }
