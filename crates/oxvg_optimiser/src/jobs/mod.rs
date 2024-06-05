@@ -4,6 +4,7 @@ mod cleanup_attributes;
 mod cleanup_enable_background;
 mod cleanup_ids;
 mod cleanup_list_of_values;
+mod cleanup_numeric_values;
 
 use std::rc::Rc;
 
@@ -16,6 +17,7 @@ pub use self::cleanup_attributes::CleanupAttributes;
 pub use self::cleanup_enable_background::CleanupEnableBackground;
 pub use self::cleanup_ids::CleanupIds;
 pub use self::cleanup_list_of_values::CleanupListOfValues;
+use self::cleanup_numeric_values::CleanupNumericValues;
 
 pub enum PrepareOutcome {
     None,
@@ -41,6 +43,7 @@ pub struct Jobs {
     cleanup_enable_background: Option<CleanupEnableBackground>,
     cleanup_ids: Option<CleanupIds>,
     cleanup_list_of_values: Option<CleanupListOfValues>,
+    cleanup_numeric_values: Option<CleanupNumericValues>,
 }
 
 impl Jobs {
@@ -73,6 +76,8 @@ impl IntoIterator for Jobs {
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.cleanup_ids.map(|job| Box::new(job) as Box<dyn Job>),
             jobs.cleanup_list_of_values
+                .map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.cleanup_numeric_values
                 .map(|job| Box::new(job) as Box<dyn Job>),
         ];
         jobs.into_iter()

@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_numeric_values.rs
+expression: "test_config(r#\"{ \"cleanupNumericValues\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"20.000001 -19.99999 17.123456 70.708090\" width=\"50.12356%\" height=\"20px\" x=\".2655\" y=\"-.2346\">\n    <rect width=\"1in\" height=\"12pt\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20.000001 -19.99999 17.123456 70.708090" width="50.124%" height="20" x=".266" y="-.235">
+    <rect width="96" height="16"></rect>
+</svg>
