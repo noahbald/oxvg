@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve children of `<switch>` -->\n    <switch>\n        <g id=\"a\">\n            <g class=\"i\"/>\n        </g>\n        <g id=\"b\" class=\"n\">\n            <g class=\"i\"/>\n        </g>\n        <g>\n            <g/>\n        </g>\n    </switch>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve children of `<switch>` -->
+    <switch>
+        <g id="a">
+            <g class="i"></g>
+        </g>
+        <g id="b" class="n">
+            <g class="i"></g>
+        </g>
+        <g>
+            <g></g>
+        </g>
+    </switch>
+</svg>

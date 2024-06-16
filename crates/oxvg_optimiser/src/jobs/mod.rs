@@ -5,10 +5,12 @@ mod cleanup_enable_background;
 mod cleanup_ids;
 mod cleanup_list_of_values;
 mod cleanup_numeric_values;
+mod collapse_groups;
 
 use std::rc::Rc;
 
 use oxvg_selectors::Element;
+use rcdom::NodeData;
 use serde::Deserialize;
 
 pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
@@ -17,7 +19,8 @@ pub use self::cleanup_attributes::CleanupAttributes;
 pub use self::cleanup_enable_background::CleanupEnableBackground;
 pub use self::cleanup_ids::CleanupIds;
 pub use self::cleanup_list_of_values::CleanupListOfValues;
-use self::cleanup_numeric_values::CleanupNumericValues;
+pub use self::cleanup_numeric_values::CleanupNumericValues;
+pub use self::collapse_groups::CollapseGroups;
 
 pub enum PrepareOutcome {
     None,
@@ -44,16 +47,45 @@ pub struct Jobs {
     cleanup_ids: Option<CleanupIds>,
     cleanup_list_of_values: Option<CleanupListOfValues>,
     cleanup_numeric_values: Option<CleanupNumericValues>,
+    collapse_groups: Option<CollapseGroups>,
 }
 
 impl Jobs {
     pub fn run(self, root: &rcdom::RcDom) {
         let mut jobs: Vec<_> = self.into_iter().flatten().collect();
         jobs.retain_mut(|job| !job.prepare(root).can_skip());
+        #[cfg(test)]
+        let mut i = 0;
 
+        #[cfg(test)]
+        println!("~~ --- starting job");
         Element::new(root.document.clone())
             .depth_first()
-            .for_each(|child| jobs.iter().for_each(|job| job.run(&child.node)));
+            .filter(|child| matches!(child.node.data, NodeData::Element { .. }))
+            .for_each(|child| {
+                #[cfg(test)]
+                {
+                    let (name, attrs) = match &child.node.data {
+                        NodeData::Element { name, attrs, .. } => (
+                            name.local.to_string(),
+                            attrs.borrow().iter().fold(String::new(), |acc, attr| {
+                                format!(r#"{acc} {}="{}""#, attr.name.local, attr.value)
+                            }),
+                        ),
+                        _ => (String::default(), String::default()),
+                    };
+                    println!("--- element {i} <{name}{attrs}>",);
+                }
+                jobs.iter().for_each(|job| job.run(&child.node));
+                #[cfg(test)]
+                {
+                    println!("{}", node_to_string(child.node.clone()).unwrap_or_default());
+                    println!("---");
+                    i += 1;
+                }
+            });
+        #[cfg(test)]
+        println!("~~ --- job ending\n\n");
 
         jobs.iter_mut().for_each(|job| job.breakdown(root));
     }
@@ -79,6 +111,8 @@ impl IntoIterator for Jobs {
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.cleanup_numeric_values
                 .map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.collapse_groups
+                .map(|job| Box::new(job) as Box<dyn Job>),
         ];
         jobs.into_iter()
     }
@@ -92,10 +126,8 @@ impl PrepareOutcome {
 
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
-    use rcdom::SerializableHandle;
     use xml5ever::{
         driver::{parse_document, XmlParseOpts},
-        serialize::{serialize, SerializeOpts},
         tendril::TendrilSink,
     };
 
@@ -107,10 +139,18 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
         ));
     let jobs: Jobs = serde_json::from_str(config_json)?;
     jobs.run(&dom);
+    node_to_string(dom.document)
+}
+
+#[cfg(test)]
+pub(crate) fn node_to_string(node: Rc<rcdom::Node>) -> anyhow::Result<String> {
+    use rcdom::SerializableHandle;
+    use xml5ever::serialize::{serialize, SerializeOpts};
+
     let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
     serialize(
         &mut sink,
-        &std::convert::Into::<SerializableHandle>::into(dom.document),
+        &std::convert::Into::<SerializableHandle>::into(node),
         SerializeOpts::default(),
     )?;
 
@@ -127,46 +167,4 @@ fn test_jobs() -> anyhow::Result<()> {
         None,
     )
     .map(|_| ())
-}
-
-#[test]
-fn test_weird() -> anyhow::Result<()> {
-    use rcdom::SerializableHandle;
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        serialize::{serialize, SerializeOpts},
-        tendril::TendrilSink,
-    };
-
-    let src = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/1999/xlink">
-    <defs>
-        <g id="mid-line"/>
-        <g id="line-plus">
-            <use x:href="#mid-line"/>
-            <use x:href="#plus"/>
-        </g>
-        <g id="plus"/>
-        <g id="line-circle">
-            <use x:href="#mid-line"/>
-        </g>
-    </defs>
-    <path d="M0 0" id="a"/>
-    <use x:href="#a" x="50" y="50"/>
-    <use x:href="#line-plus"/>
-    <use x:href="#line-circle"/>
-</svg>"##;
-    println!("src:\n{src}");
-
-    let dom: rcdom::RcDom =
-        parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).one(src);
-    let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
-    serialize(
-        &mut sink,
-        &std::convert::Into::<SerializableHandle>::into(dom.document),
-        SerializeOpts::default(),
-    )?;
-
-    let sink: Vec<_> = sink.into_inner()?;
-    println!("\noutput:\n{}", String::from_utf8_lossy(&sink));
-    Ok(())
 }

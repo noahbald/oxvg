@@ -1,0 +1,17 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve groups with `clip-path` and `mask` -->\n    <clipPath id=\"a\">\n       <path d=\"...\"/>\n    </clipPath>\n    <path d=\"...\"/>\n    <g clip-path=\"url(#a)\">\n        <path d=\"...\" transform=\"scale(.2)\"/>\n    </g>\n    <g mask=\"url(#a)\">\n        <path d=\"...\" transform=\"scale(.2)\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve groups with `clip-path` and `mask` -->
+    <clipPath id="a">
+       <path d="..."></path>
+    </clipPath>
+    <path d="..."></path>
+    <g clip-path="url(#a)">
+        <path d="..." transform="scale(.2)"></path>
+    </g>
+    <g mask="url(#a)">
+        <path d="..." transform="scale(.2)"></path>
+    </g>
+</svg>

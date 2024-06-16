@@ -18,6 +18,7 @@ anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 lazy_static = { workspace = true }
+lightningcss = { workspace = true }
 markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }

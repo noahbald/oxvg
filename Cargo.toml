@@ -26,6 +26,7 @@ cssparser = "0.31.0"
 derivative = "2.2"
 insta = "1.36.1"
 lazy_static = "1.4"
+lightningcss = "1.0.0-alpha.57"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 regex = "1.10"

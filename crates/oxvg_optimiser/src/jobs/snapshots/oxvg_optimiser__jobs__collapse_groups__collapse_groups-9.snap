@@ -1,0 +1,17 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve groups with classes -->\n    <style>\n        .n{display:none}\n        .i{display:inline}\n    </style>\n    <g id=\"a\">\n        <g class=\"i\"/>\n    </g>\n    <g id=\"b\" class=\"n\">\n        <g class=\"i\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve groups with classes -->
+    <style>
+        .n{display:none}
+        .i{display:inline}
+    </style>
+    
+    <g class="i" id="a"></g>
+        
+    <g class="n">
+        <g class="i" id="b"></g>
+    </g>
+</svg>

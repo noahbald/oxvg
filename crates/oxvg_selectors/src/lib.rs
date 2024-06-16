@@ -1,4 +1,13 @@
-use std::{borrow::BorrowMut, cell::Cell, rc::Rc};
+#[macro_use]
+extern crate lazy_static;
+
+pub mod collections;
+
+use std::{
+    borrow::BorrowMut,
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use cssparser::ToCss;
 use derivative::Derivative;
@@ -19,8 +28,15 @@ pub struct Element {
     selector_flags: Cell<Option<ElementSelectorFlags>>,
 }
 
+pub struct ElementData {
+    pub name: xml5ever::QualName,
+    pub attrs: RefCell<Vec<Attribute>>,
+    pub template_contents: RefCell<Option<rcdom::Handle>>,
+    pub mathml_annotation_xml_integration_point: bool,
+}
+
 pub struct Select {
-    inner: Box<dyn Iterator<Item = Element>>,
+    inner: ElementIterator,
     scope: Option<Element>,
     selector: Selector,
     nth_index_cache: NthIndexCache,
@@ -41,6 +57,11 @@ pub struct AttributeValue(String);
 #[derive(Debug, Clone)]
 pub struct SelectorImpl;
 
+pub struct ElementIterator {
+    current: Element,
+    index_cache: Vec<usize>,
+}
+
 #[derive(Eq, PartialEq, Clone)]
 pub enum PseudoClass {
     AnyLink,
@@ -49,6 +70,10 @@ pub enum PseudoClass {
 
 #[derive(Eq, PartialEq, Clone)]
 pub enum PseudoElement {}
+
+pub enum ElementError {
+    RemoveWithoutParent,
+}
 
 type RcNode = Rc<rcdom::Node>;
 
@@ -62,9 +87,47 @@ fn eq_elements(other: &RcNode) -> Box<dyn Fn(&RcNode) -> bool + '_> {
 
 impl Element {
     pub fn new(node: RcNode) -> Self {
+        // TODO: Assert is NodeData::Element
         Self {
             node,
             selector_flags: Cell::new(None),
+        }
+    }
+
+    /// Returns equivalent `NodeData::Element` as `ElementData`
+    ///
+    /// # Note
+    /// Not suitable for using `Rc::replace` on members, as they are clones
+    /// Consider using `Self.attrs()` instead
+    ///
+    /// # Panics
+    /// If self is not an element
+    pub fn data(&self) -> ElementData {
+        let NodeData::Element {
+            name,
+            attrs,
+            template_contents,
+            mathml_annotation_xml_integration_point,
+        } = &self.node.data
+        else {
+            panic!("Element is not an element")
+        };
+        ElementData {
+            name: name.clone(),
+            attrs: attrs.clone(),
+            template_contents: template_contents.clone(),
+            mathml_annotation_xml_integration_point: *mathml_annotation_xml_integration_point,
+        }
+    }
+
+    /// Returns the orginal `RefCell` of the element's attr
+    ///
+    /// # Panics
+    /// If self is not an element
+    pub fn attrs(&self) -> &RefCell<Vec<Attribute>> {
+        match &self.node.data {
+            NodeData::Element { attrs, .. } => attrs,
+            _ => panic!("Element is not an element"),
         }
     }
 
@@ -72,6 +135,14 @@ impl Element {
         Some(Self::new(
             document.document.children.borrow().first()?.to_owned(),
         ))
+    }
+
+    pub fn children(&self) -> impl Iterator<Item = Self> {
+        let children = self.node.children.borrow().clone();
+        children
+            .into_iter()
+            .filter(|child| matches!(child.data, NodeData::Element { .. }))
+            .map(Self::new)
     }
 
     // FIXME: Collecting for these 'siblings' functions seems redundant
@@ -91,6 +162,16 @@ impl Element {
                 .filter(is_element)
                 .collect(),
         )
+    }
+
+    pub fn position(&self) -> Option<usize> {
+        self.get_parent()?
+            .node
+            .children
+            .borrow()
+            .clone()
+            .into_iter()
+            .position(|s| Rc::ptr_eq(&self.node, &s))
     }
 
     fn preceding_siblings(&self) -> Option<Vec<RcNode>> {
@@ -196,18 +277,11 @@ impl Element {
         })
     }
 
-    pub fn depth_first(&self) -> Box<dyn Iterator<Item = Self>> {
-        let children = &self.node.as_ref().children.borrow();
-        let mut iter: Box<dyn Iterator<Item = Self>> = Box::new(std::iter::once(self.clone()));
-        if children.len() == 0 {
-            return iter;
+    pub fn depth_first(&self) -> ElementIterator {
+        ElementIterator {
+            current: self.clone(),
+            index_cache: Vec::default(),
         }
-
-        let children: &Vec<_> = children.as_ref();
-        for child in children {
-            iter = Box::new(iter.chain(Element::new(child.clone()).depth_first()));
-        }
-        iter
     }
 
     pub fn is_root(&self) -> bool {
@@ -219,6 +293,45 @@ impl Element {
         };
         self.node.parent.set(Some(parent));
         matches!(parent_node.borrow_mut().data, NodeData::Document)
+    }
+
+    /// Replaces the current element with it's children
+    pub fn flatten(&self) {
+        let Some((parent, index)) = self.remove() else {
+            return;
+        };
+        let children = self.node.children.borrow().to_owned();
+        children
+            .iter()
+            .for_each(|child| Element::new(child.clone()).move_insert(&parent, Some(index)));
+    }
+
+    /// Removes self from it's parent's list of children, returning the parent and index
+    ///
+    /// # Panics
+    /// If the element is not a child of it's parent
+    pub fn remove(&self) -> Option<(Element, usize)> {
+        let parent = self.get_parent()?;
+        let index = self
+            .position()
+            .expect("Element is not a child of it's parent");
+        let mut siblings = parent.node.children.borrow_mut();
+        siblings.remove(index);
+        Some((parent.clone(), index))
+    }
+
+    pub fn move_to(&self, target: &Self) {
+        self.move_insert(target, None);
+    }
+
+    pub fn move_insert(&self, target: &Self, index: Option<usize>) {
+        self.remove();
+        let mut children = target.node.children.borrow_mut();
+        match index {
+            Some(index) => children.insert(index, self.node.clone()),
+            None => children.push(self.node.clone()),
+        };
+        self.node.parent.replace(Some(Rc::downgrade(&target.node)));
     }
 }
 
@@ -623,5 +736,63 @@ impl<'a> Attributes<'a> {
             .iter()
             .find(|&self_attr| &self_attr.name.local == attr)
             .map(std::borrow::ToOwned::to_owned)
+    }
+}
+
+impl ElementIterator {
+    fn get_first_child(&mut self) -> Option<<Self as Iterator>::Item> {
+        let children = &*self.current.node.children.borrow();
+        let first_child = Element::new(
+            children
+                .iter()
+                .find(|child| matches!(child.data, NodeData::Element { .. }))?
+                .clone(),
+        );
+        self.index_cache.push(0);
+        Some(first_child)
+    }
+
+    fn get_next_sibling(&mut self) -> Option<<Self as Iterator>::Item> {
+        let mut self_index = self.index_cache.pop()?;
+        let parent = self.current.get_parent()?;
+        let siblings = &*parent.node.children.borrow();
+        if siblings
+            .get(self_index)
+            .is_some_and(|other| Rc::ptr_eq(&self.current.node, other))
+        {
+            self_index = self
+                .get_self_index_uncached(siblings)
+                .expect("We lost track of where we are in the DOM!");
+        }
+        let next_sibling_index = self_index + 1;
+        if let Some(node) = siblings.get(next_sibling_index) {
+            let next_sibling = Element::new(node.clone());
+            self.index_cache.push(next_sibling_index);
+            self.current = next_sibling.clone();
+            Some(next_sibling.clone())
+        } else {
+            self.current = parent.clone();
+            self.get_next_sibling()
+        }
+    }
+
+    fn get_self_index_uncached(&mut self, siblings: &[Rc<rcdom::Node>]) -> Option<usize> {
+        siblings
+            .iter()
+            .position(|siblings| Rc::ptr_eq(siblings, &self.current.node))
+    }
+}
+
+impl Iterator for ElementIterator {
+    type Item = Element;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.get_first_child();
+        if let Some(result) = result {
+            self.current = result.clone();
+            return Some(result);
+        }
+
+        self.get_next_sibling()
     }
 }
