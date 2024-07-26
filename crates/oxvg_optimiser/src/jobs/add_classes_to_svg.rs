@@ -59,7 +59,7 @@ fn add_classes_to_svg() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Should add classes when passed as a classNames Array
         r#"{ "addClassesToSvg": {
-            "classNames": ["mySvg", "size-big"],
+            "classNames": ["mySvg", "size-big"]
         } }"#,
         None
     )?);
@@ -67,7 +67,7 @@ fn add_classes_to_svg() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Should add class when passed as a className String
         r#"{ "addClassesToSvg": {
-            "className": "mySvg",
+            "className": "mySvg"
         } }"#,
         None
     )?);
@@ -75,7 +75,7 @@ fn add_classes_to_svg() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Should avoid adding existing classes
         r#"{ "addClassesToSvg": {
-            "classNames": "mySvg size-big",
+            "className": "mySvg size-big"
         } }"#,
         Some(r#"<svg xmlns="http://www.w3.org/2000/svg" class="mySvg">"#)
     )?);

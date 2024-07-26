@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_attributes.rs
+expression: "test_config(r#\"{ \"cleanupAttributes\": {\n            \"newlines\": true,\n            \"trim\": true,\n            \"spaces\": true\n        } }\"#,\n        Some(r#\"<svg xmlns=\"  http://www.w3.org/2000/svg\n  \" attr=\"a      b\">\n    test &amp; &lt;&amp; &gt; &apos; &quot; &amp;\n</svg>\"#))?"
+---
+<svg xmlns="  http://www.w3.org/2000/svg
+  " attr="a b">
+    test &amp; &lt;&amp; &gt; ' " &amp;
+</svg>

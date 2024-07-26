@@ -48,7 +48,7 @@ fn cleanup_attributes() -> anyhow::Result<()> {
         r#"{ "cleanupAttributes": {
             "newlines": true,
             "trim": true,
-            spaces: true
+            "spaces": true
         } }"#,
         Some(
             r#"<svg xmlns="  http://www.w3.org/2000/svg
@@ -63,7 +63,7 @@ b">
         r#"{ "cleanupAttributes": {
             "newlines": true,
             "trim": true,
-            spaces: true
+            "spaces": true
         } }"#,
         Some(
             r#"<svg xmlns="  http://www.w3.org/2000/svg

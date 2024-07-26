@@ -1,0 +1,21 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"remove\": false\n        } }\"#,\n        Some(r##\"<svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n    <g filter=\"url(#filter0_dust)\">\n        <path d=\"M2 8a7 7 0 1 1 14 0A7 7 0 0 1 2 8z\" fill=\"#fff\"/>\n    </g>\n    <path d=\"M4 8a5 5 0 1 1 10 0A5 5 0 0 1 4 8z\" fill=\"currentColor\"/>\n    <defs>\n        <filter id=\"filter0_dust\" x=\"0\" y=\"0\" width=\"18\" height=\"18\" filterUnits=\"userSpaceOnUse\" color-interpolation-filters=\"sRGB\">\n            <feFlood flood-opacity=\"0\" result=\"BackgroundImageFix\"/>\n            <feColorMatrix in=\"SourceAlpha\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0\"/>\n            <feOffset dy=\"1\"/>\n            <feGaussianBlur stdDeviation=\"1\"/>\n            <feColorMatrix values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0\"/>\n            <feBlend in2=\"BackgroundImageFix\" result=\"effect1_dropShadow\"/>\n            <feBlend in=\"SourceGraphic\" in2=\"effect1_dropShadow\" result=\"shape\"/>\n        </filter>\n    </defs>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <g filter="url(#a)">
+        <path d="M2 8a7 7 0 1 1 14 0A7 7 0 0 1 2 8z" fill="#fff"></path>
+    </g>
+    <path d="M4 8a5 5 0 1 1 10 0A5 5 0 0 1 4 8z" fill="currentColor"></path>
+    <defs>
+        <filter id="filter0_dust" x="0" y="0" width="18" height="18" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+            <feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"></feColorMatrix>
+            <feOffset dy="1"></feOffset>
+            <feGaussianBlur stdDeviation="1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0"></feColorMatrix>
+            <feBlend in2="BackgroundImageFix" result="effect1_dropShadow"></feBlend>
+            <feBlend in="SourceGraphic" in2="effect1_dropShadow" result="shape"></feBlend>
+        </filter>
+    </defs>
+</svg>

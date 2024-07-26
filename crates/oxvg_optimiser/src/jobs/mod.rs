@@ -62,6 +62,8 @@ impl Jobs {
         Element::new(root.document.clone())
             .depth_first()
             .filter(|child| matches!(child.node.data, NodeData::Element { .. }))
+            .collect::<Vec<_>>()
+            .into_iter()
             .for_each(|child| {
                 #[cfg(test)]
                 {

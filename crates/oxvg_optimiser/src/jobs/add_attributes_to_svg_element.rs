@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::BTreeSet, rc::Rc};
 
 use markup5ever::local_name;
 use oxvg_ast::Attributes;
@@ -25,7 +25,7 @@ impl Job for AddAttributesToSVGElement {
             return;
         };
         let attrs = &mut *attrs.borrow_mut();
-        let keys: HashSet<_> = attrs.iter().map(|attr| attr.name.clone()).collect();
+        let keys: BTreeSet<_> = attrs.iter().map(|attr| attr.name.clone()).collect();
 
         for attr in &Into::<Vec<markup5ever::Attribute>>::into(&self.attributes) {
             let key = &attr.name;
@@ -44,7 +44,7 @@ fn add_attributes_to_svg_element() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Add multiple attributes without value
         r#"{ "addAttributesToSvgElement": {
-            "attributes": { "data-icon": null, "className={classes}": null }
+            "attributes": { "data-icon": "", "className={classes}": "" }
         } }"#,
         None,
     )?);
@@ -52,7 +52,7 @@ fn add_attributes_to_svg_element() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Add single attribute without value
         r#"{ "addAttributesToSvgElement": {
-            "attributes": { "data-icon": null }
+            "attributes": { "data-icon": "" }
         } }"#,
         None,
     )?);
@@ -68,7 +68,7 @@ fn add_attributes_to_svg_element() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Ignore nested <svg> elements
         r#"{ "addAttributesToSvgElement": {
-            "attributes": { "data-icon": null }
+            "attributes": { "data-icon": "" }
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">

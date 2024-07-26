@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"preserve\": [\"a\"]\n        } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 230 120\">\n    <defs>\n        <circle id=\"a\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect id=\"rect\" fill=\"blue\" x=\"120\" y=\"10\" width=\"100\" height=\"100\"/>\n    </defs>\n    <use href=\"#a\"/>\n    <use href=\"#rect\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
+    <defs>
+        <circle id="a" fill="red" cx="60" cy="60" r="50"></circle>
+        <rect id="b" fill="blue" x="120" y="10" width="100" height="100"></rect>
+    </defs>
+    <use href="#a"></use>
+    <use href="#b"></use>
+</svg>

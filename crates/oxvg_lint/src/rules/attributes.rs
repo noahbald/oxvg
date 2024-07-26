@@ -2,14 +2,14 @@ use super::Rule;
 use oxvg_diagnostics::SVGError;
 use rcdom::Node;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, Default)]
 struct Rules {
     pub selector: String,
     pub whitelist: bool,
     pub order: Option<Order>,
-    pub attributes: HashMap<String, Pattern>,
+    pub attributes: BTreeMap<String, Pattern>,
 }
 
 impl Rule for Rules {
@@ -46,7 +46,7 @@ impl Rules {
             }
         };
 
-        let mut positions: HashMap<&str, usize> = HashMap::new();
+        let mut positions: BTreeMap<&str, usize> = BTreeMap::new();
         order.iter().enumerate().for_each(|(i, attribute)| {
             positions.insert(attribute, i);
         });

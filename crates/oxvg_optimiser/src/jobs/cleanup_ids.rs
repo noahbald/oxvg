@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -32,9 +32,9 @@ pub struct CleanupIds {
     #[serde(skip_deserializing)]
     ignore_document: bool,
     #[serde(skip_deserializing)]
-    replaceable_ids: HashSet<String>,
+    replaceable_ids: BTreeSet<String>,
     #[serde(skip_deserializing)]
-    id_renames: RefCell<HashMap<String, String>>,
+    id_renames: RefCell<BTreeMap<String, String>>,
     #[serde(skip_deserializing)]
     generated_id: RefCell<GeneratedId>,
 }
@@ -134,8 +134,10 @@ impl CleanupIds {
             let Some(attr) = element.get_attr(&local_name!("id")) else {
                 continue;
             };
+            dbg!("CleanupIds: prepare_id: found id", attr.value.to_string());
             if self.replaceable_ids.contains(&attr.value.to_string()) {
                 element.remove_attr(&local_name!("id"));
+                dbg!("CleanupIds: prepare_id: removed id", attr.value.to_string());
                 continue;
             }
             let is_preserved_prefix = self.preserve_prefixes.as_ref().is_some_and(|prefixes| {
@@ -467,7 +469,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // Prevent modification of preserved id prefixes
         r#"{ "cleanupIds": {
-        "preservePrefixes": ["xyz"],
+        "preservePrefixes": ["xyz"]
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">

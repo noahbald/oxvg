@@ -171,14 +171,14 @@ impl<'de> Visitor<'de> for QualNameVisitor {
         let (prefix, local) = match parts.next() {
             Some(local) => (
                 markup5ever::Prefix::try_static(prefix),
-                markup5ever::LocalName::try_static(local),
+                markup5ever::LocalName::try_static(local)
+                    .unwrap_or_else(|| markup5ever::LocalName::from(local)),
             ),
-            None => (None, markup5ever::LocalName::try_static(prefix)),
-        };
-        let Some(local) = local else {
-            Err(serde::de::Error::custom(
-                "could not create local name from attribute",
-            ))?
+            None => (
+                None,
+                markup5ever::LocalName::try_static(prefix)
+                    .unwrap_or_else(|| markup5ever::LocalName::from(prefix)),
+            ),
         };
         Ok(QualName(markup5ever::QualName {
             prefix,

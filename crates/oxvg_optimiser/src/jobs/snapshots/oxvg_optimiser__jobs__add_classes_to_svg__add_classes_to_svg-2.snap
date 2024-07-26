@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/add_classes_to_svg.rs
+expression: "test_config(r#\"{ \"addClassesToSvg\": {\n            \"className\": \"mySvg\"\n        } }\"#,\n        None)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" class="mySvg">
+    test
+</svg>

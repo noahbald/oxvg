@@ -742,44 +742,41 @@ impl<'a> Attributes<'a> {
 impl ElementIterator {
     fn get_first_child(&mut self) -> Option<<Self as Iterator>::Item> {
         let children = &*self.current.node.children.borrow();
-        let first_child = Element::new(
-            children
-                .iter()
-                .find(|child| matches!(child.data, NodeData::Element { .. }))?
-                .clone(),
-        );
-        self.index_cache.push(0);
-        Some(first_child)
+        let (index, first_child) = children
+            .iter()
+            .enumerate()
+            .find(|(_, child)| matches!(child.data, NodeData::Element { .. }))?;
+        self.index_cache.push(index);
+        Some(Element::new(first_child.clone()))
     }
 
     fn get_next_sibling(&mut self) -> Option<<Self as Iterator>::Item> {
-        let mut self_index = self.index_cache.pop()?;
+        let self_index = self.index_cache.pop()?;
         let parent = self.current.get_parent()?;
         let siblings = &*parent.node.children.borrow();
-        if siblings
-            .get(self_index)
-            .is_some_and(|other| Rc::ptr_eq(&self.current.node, other))
-        {
-            self_index = self
-                .get_self_index_uncached(siblings)
-                .expect("We lost track of where we are in the DOM!");
-        }
-        let next_sibling_index = self_index + 1;
-        if let Some(node) = siblings.get(next_sibling_index) {
-            let next_sibling = Element::new(node.clone());
-            self.index_cache.push(next_sibling_index);
+        assert!(
+            Rc::ptr_eq(
+                siblings
+                    .get(self_index)
+                    .expect("Parent children no longer fits node"),
+                &self.current.node
+            ),
+            "Parent children no longer holds node in place"
+        );
+        let next_node = siblings
+            .iter()
+            .enumerate()
+            .skip(self_index + 1)
+            .find(|child| matches!(child.1.data, NodeData::Element { .. }));
+        if let Some((next_index, next_node)) = next_node {
+            let next_sibling = Element::new(next_node.clone());
+            self.index_cache.push(next_index);
             self.current = next_sibling.clone();
             Some(next_sibling.clone())
         } else {
             self.current = parent.clone();
             self.get_next_sibling()
         }
-    }
-
-    fn get_self_index_uncached(&mut self, siblings: &[Rc<rcdom::Node>]) -> Option<usize> {
-        siblings
-            .iter()
-            .position(|siblings| Rc::ptr_eq(siblings, &self.current.node))
     }
 }
 
@@ -793,6 +790,8 @@ impl Iterator for ElementIterator {
             return Some(result);
         }
 
-        self.get_next_sibling()
+        let result = self.get_next_sibling()?;
+        self.current = result.clone();
+        Some(result)
     }
 }

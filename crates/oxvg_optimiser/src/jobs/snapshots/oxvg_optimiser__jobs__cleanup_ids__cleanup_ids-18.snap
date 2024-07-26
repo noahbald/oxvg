@@ -1,0 +1,24 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"remove\": false\n        } }\"#,\n        Some(r##\"<svg width=\"379px\" height=\"134px\" viewBox=\"0 0 379 134\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <circle id=\"6\" cx=\"110.5\" cy=\"5.5\" r=\"5.5\">\n        <animate begin=\"2.5s\" attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n    <circle id=\"5\" cx=\"89.5\" cy=\"5.5\" r=\"5.5\">\n        <animate begin=\"2s\" attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n    <circle id=\"4\" cx=\"68.5\" cy=\"5.5\" r=\"5.5\">\n        <animate begin=\"1.5s\" attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n    <circle id=\"3\" cx=\"47.5\" cy=\"5.5\" r=\"5.5\">\n        <animate begin=\"1s\" attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n    <circle id=\"2\" cx=\"26.5\" cy=\"5.5\" r=\"5.5\">\n        <animate begin=\"0.5s\" attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n    <circle id=\"1\" cx=\"5.5\" cy=\"5.5\" r=\"5.5\">\n        <animate attributeName=\"fill\" calcMode=\"discrete\" values=\"#6ebe28;#D8D8D8\" dur=\"5s\" keyTimes=\"0;0.15\" repeatCount=\"indefinite\"/>\n    </circle>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="379px" height="134px" viewBox="0 0 379 134" version="a.1">
+    <circle id="6" cx="110.5" cy="b.5" r="b.5">
+        <animate begin="c.5s" attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+    <circle id="5" cx="89.5" cy="b.5" r="b.5">
+        <animate begin="2s" attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+    <circle id="4" cx="68.5" cy="b.5" r="b.5">
+        <animate begin="a.5s" attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+    <circle id="3" cx="47.5" cy="b.5" r="b.5">
+        <animate begin="1s" attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+    <circle id="2" cx="2d.5" cy="b.5" r="b.5">
+        <animate begin="0.5s" attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+    <circle id="1" cx="b.5" cy="b.5" r="b.5">
+        <animate attributeName="fill" calcMode="discrete" values="#debe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"></animate>
+    </circle>
+</svg>

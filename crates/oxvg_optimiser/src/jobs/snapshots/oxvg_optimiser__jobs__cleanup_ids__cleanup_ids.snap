@@ -11,8 +11,8 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg 
         <text id="b">
             referenced text
         </text>
-        <path id="c" d="..."></path>
         <path id="d" d="..."></path>
+        <path id="c" d="..."></path>
         <path id="e" d="..."></path>
         <path d="..."></path>
     </defs>
@@ -24,6 +24,6 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg 
     <g>
         <tref href="#b"></tref>
     </g>
-    <animateMotion href="#c" dur="0.5s" begin="d.mouseover" fill="freeze" path="m 0,0 0,-21"></animateMotion>
+    <animateMotion href="#d" dur="0.5s" begin="c.mouseover" fill="freeze" path="m 0,0 0,-21"></animateMotion>
     <use href="#e"></use>
 </svg>

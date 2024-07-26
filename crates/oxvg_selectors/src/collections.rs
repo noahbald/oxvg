@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 pub trait Group<'a> {
     fn matches<T>(&self, value: T) -> bool
@@ -8,7 +8,7 @@ pub trait Group<'a> {
         self.set().contains(value.into())
     }
 
-    fn set(&self) -> &'a HashSet<&'static str>;
+    fn set(&self) -> &'a BTreeSet<&'static str>;
 }
 
 pub enum ElementGroup {
@@ -26,7 +26,7 @@ pub enum ElementGroup {
 }
 
 impl<'a> Group<'a> for ElementGroup {
-    fn set(&self) -> &'a HashSet<&'static str> {
+    fn set(&self) -> &'a BTreeSet<&'static str> {
         match self {
             Self::Animation => &ANIMATION,
             Self::Descriptive => &DESCRIPTIVE,
@@ -44,19 +44,19 @@ impl<'a> Group<'a> for ElementGroup {
 }
 
 lazy_static! {
-    static ref ANIMATION: HashSet<&'static str> = HashSet::from([
+    static ref ANIMATION: BTreeSet<&'static str> = BTreeSet::from([
         "animate",
         "animateColor",
         "animateMotion",
         "animateTransform",
         "set"
     ]);
-    static ref DESCRIPTIVE: HashSet<&'static str> = HashSet::from(["desc", "metadata", "title"]);
-    static ref SHAPE: HashSet<&'static str> =
-        HashSet::from(["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"]);
-    static ref STRUCTURAL: HashSet<&'static str> =
-        HashSet::from(["defs", "g", "svg", "symbol", "use"]);
-    static ref PAINT_SERVER: HashSet<&'static str> = HashSet::from([
+    static ref DESCRIPTIVE: BTreeSet<&'static str> = BTreeSet::from(["desc", "metadata", "title"]);
+    static ref SHAPE: BTreeSet<&'static str> =
+        BTreeSet::from(["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"]);
+    static ref STRUCTURAL: BTreeSet<&'static str> =
+        BTreeSet::from(["defs", "g", "svg", "symbol", "use"]);
+    static ref PAINT_SERVER: BTreeSet<&'static str> = BTreeSet::from([
         "hatch",
         "linearGradient",
         "meshGradient",
@@ -64,7 +64,7 @@ lazy_static! {
         "radialGradient",
         "solidColor"
     ]);
-    static ref NON_RENDERING: HashSet<&'static str> = HashSet::from([
+    static ref NON_RENDERING: BTreeSet<&'static str> = BTreeSet::from([
         "clipPath",
         "filter",
         "linearGradient",
@@ -75,7 +75,7 @@ lazy_static! {
         "solidColor",
         "symbol"
     ]);
-    static ref CONTAINER: HashSet<&'static str> = HashSet::from([
+    static ref CONTAINER: BTreeSet<&'static str> = BTreeSet::from([
         "a",
         "defs",
         "foreignObject",
@@ -88,7 +88,7 @@ lazy_static! {
         "switch",
         "symbol"
     ]);
-    static ref TEXT_CONTENT: HashSet<&'static str> = HashSet::from([
+    static ref TEXT_CONTENT: BTreeSet<&'static str> = BTreeSet::from([
         "a",
         "altGlyph",
         "altGlyphDef",
@@ -100,16 +100,16 @@ lazy_static! {
         "tref",
         "tspan"
     ]);
-    static ref TEXT_CONTENT_CHILD: HashSet<&'static str> =
-        HashSet::from(["alyGlyph", "textPath", "tref", "tspan"]);
-    static ref LIGHT_SOURCE: HashSet<&'static str> = HashSet::from([
+    static ref TEXT_CONTENT_CHILD: BTreeSet<&'static str> =
+        BTreeSet::from(["alyGlyph", "textPath", "tref", "tspan"]);
+    static ref LIGHT_SOURCE: BTreeSet<&'static str> = BTreeSet::from([
         "feDiffuseLighting",
         "feDistantLight",
         "fePointLight",
         "feSpecularLighting",
         "feSpotLight"
     ]);
-    static ref FILTER_PRIMITIVE: HashSet<&'static str> = HashSet::from([
+    static ref FILTER_PRIMITIVE: BTreeSet<&'static str> = BTreeSet::from([
         "feBlend",
         "feColorMatrix",
         "feComponentTransfer",
@@ -133,7 +133,7 @@ lazy_static! {
         "feTile",
         "feTurbulence"
     ]);
-    pub static ref INHERITABLE_ATTRS: HashSet<&'static str> = HashSet::from([
+    pub static ref INHERITABLE_ATTRS: BTreeSet<&'static str> = BTreeSet::from([
         "clip-rule",
         "color-interpolation-filters",
         "color-interpolation",
