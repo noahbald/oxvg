@@ -1,8 +1,9 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"force\": true,\n            \"preserve\": [\"circle\", \"rect\"]\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 120 120\">\n    <style>\n        svg .hidden { display: none; }\n        svg .hidden:target { display: inline; }\n    </style>\n    <circle id=\"circle\" class=\"hidden\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n    <rect id=\"rect\" class=\"hidden\" fill=\"blue\" x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"force\": true,\n            \"preserve\": [\"circle\", \"rect\"]\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 120 120\">\n    <!-- Prevent modification on preserved ids, even in forced mode -->\n    <style>\n        svg .hidden { display: none; }\n        svg .hidden:target { display: inline; }\n    </style>\n    <circle id=\"circle\" class=\"hidden\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n    <rect id=\"rect\" class=\"hidden\" fill=\"blue\" x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+    <!-- Prevent modification on preserved ids, even in forced mode -->
     <style>
         svg .hidden { display: none; }
         svg .hidden:target { display: inline; }

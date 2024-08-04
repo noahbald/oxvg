@@ -1,12 +1,19 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"preserve\": [\"a\"]\n        } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 230 120\">\n    <defs>\n        <circle id=\"a\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect id=\"rect\" fill=\"blue\" x=\"120\" y=\"10\" width=\"100\" height=\"100\"/>\n    </defs>\n    <use href=\"#a\"/>\n    <use href=\"#rect\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"force\": true,\n            \"preserve\": [\"pre1_\"]\n        } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 120 120\">\n    <!-- Prevent modification of preserved id prefixes, even in forced mode -->\n    <style>\n        svg .hidden { display: none; }\n        svg .hidden:target { display: inline; }\n    </style>\n    <defs>\n        <circle id=\"circle\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect id=\"rect\" fill=\"blue\" x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n    </defs>\n    <g id=\"pre1_figure\" class=\"hidden\">\n        <use xlink:href=\"#circle\"/>\n        <use href=\"#rect\"/>\n    </g>\n</svg>\"##))?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+    <!-- Prevent modification of preserved id prefixes, even in forced mode -->
+    <style>
+        svg .hidden { display: none; }
+        svg .hidden:target { display: inline; }
+    </style>
     <defs>
         <circle id="a" fill="red" cx="60" cy="60" r="50"></circle>
-        <rect id="b" fill="blue" x="120" y="10" width="100" height="100"></rect>
+        <rect id="b" fill="blue" x="10" y="10" width="100" height="100"></rect>
     </defs>
-    <use href="#a"></use>
-    <use href="#b"></use>
+    <g class="hidden">
+        <use xlink:href="#a"></use>
+        <use href="#b"></use>
+    </g>
 </svg>

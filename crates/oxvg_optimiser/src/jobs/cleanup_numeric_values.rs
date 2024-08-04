@@ -36,21 +36,30 @@ fn cleanup_numeric_values() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        // Should round values, maintaining non-numerical values
         r#"{ "cleanupNumericValues": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="20.000001 -19.99999 17.123456 70.708090" width="50.12356%" height="20px" x=".2655" y="-.2346">
+    <!-- Should round values, maintaining non-numerical values -->
     <rect width="1in" height="12pt"/>
 </svg>"#
         )
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Should round values, maintaining non-numerical values
         r#"{ "cleanupNumericValues": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0, 0, 20, 20">
+    <!-- Should round values, maintaining non-numerical values -->
     <rect width="20" height="20" fill="rgba(255,255,255,.85)" rx="20"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupNumericValues": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox=" 0 0      150 100 ">
+    <!-- Should remove unnecessary whitespace from `viewBox -->
 </svg>"#
         )
     )?);

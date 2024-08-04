@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_numeric_values.rs
+expression: "test_config(r#\"{ \"cleanupNumericValues\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\" 0 0      150 100 \">\n    <!-- Should remove unnecessary whitespace from `viewBox -->\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 100">
+    <!-- Should remove unnecessary whitespace from `viewBox -->
+</svg>

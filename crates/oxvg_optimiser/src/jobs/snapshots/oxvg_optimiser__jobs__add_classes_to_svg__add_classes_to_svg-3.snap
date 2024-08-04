@@ -1,5 +1,8 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/add_classes_to_svg.rs
-expression: "test_config(r#\"{ \"addClassesToSvg\": {\n            \"className\": \"mySvg size-big\"\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"mySvg\">\"#))?"
+expression: "test_config(r#\"{ \"addClassesToSvg\": {\n            \"className\": \"mySvg size-big\"\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"mySvg\">\n    <!-- Should avoid adding existing classes -->\n    test\n</svg>\"#))?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" class="mySvg mySvg size-big"></svg>
+<svg xmlns="http://www.w3.org/2000/svg" class="mySvg size-big">
+    <!-- Should avoid adding existing classes -->
+    test
+</svg>

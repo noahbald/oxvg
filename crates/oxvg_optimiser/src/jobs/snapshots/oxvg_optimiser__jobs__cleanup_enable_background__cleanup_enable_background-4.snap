@@ -1,8 +1,9 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_enable_background.rs
-expression: "test_config(r#\"{ \"cleanupEnableBackground\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <mask width=\"100\" height=\"50\" enable-background=\"new 0 0 100 50\">\n        test\n    </mask>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupEnableBackground\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Remove enable-background when no filter is present -->\n    <mask width=\"100\" height=\"50\" enable-background=\"new 0 0 100 50\">\n        test\n    </mask>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Remove enable-background when no filter is present -->
     <mask width="100" height="50">
         test
     </mask>

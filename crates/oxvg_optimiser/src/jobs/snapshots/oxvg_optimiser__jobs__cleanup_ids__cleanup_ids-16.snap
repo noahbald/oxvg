@@ -1,14 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 48 48\">\n    <defs>\n        <style></style>\n        <linearGradient id=\"file-name_svg__file-name_svg__original-id\" x1=\"12\" y1=\"-1\" x2=\"33\" y2=\"46\" gradientUnits=\"userSpaceOnUse\">\n            <stop offset=\"0\" stop-color=\"#6b5aed\" stop-opacity=\"0\" />\n            <stop offset=\"1\" stop-color=\"#6b5aed\" />\n        </linearGradient>\n    </defs>\n    <path d=\"M46 24a21.9 21.9\" fill=\"url(#file-name_svg__file-name_svg__original-id)\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"preservePrefixes\": [\"a\"]\n        } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 230 120\">\n    <!-- Don't collide minification with preserved prefixes -->\n    <defs>\n        <circle id=\"a\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect id=\"rect\" fill=\"blue\" x=\"120\" y=\"10\" width=\"100\" height=\"100\"/>\n    </defs>\n    <use href=\"#a\"/>\n    <use href=\"#rect\"/>\n</svg>\"##))?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
+    <!-- Don't collide minification with preserved prefixes -->
     <defs>
-        <style></style>
-        <linearGradient id="file-name_svg__file-name_svg__original-id" x1="12" y1="-1" x2="33" y2="46" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#6b5aed" stop-opacity="0"></stop>
-            <stop offset="1" stop-color="#6b5aed"></stop>
-        </linearGradient>
+        <circle id="a" fill="red" cx="60" cy="60" r="50"></circle>
+        <rect id="b" fill="blue" x="120" y="10" width="100" height="100"></rect>
     </defs>
-    <path d="M46 24a21.9 21.9" fill="url(#file-name_svg__file-name_svg__original-id)"></path>
+    <use href="#a"></use>
+    <use href="#b"></use>
 </svg>

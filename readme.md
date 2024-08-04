@@ -24,7 +24,16 @@ And maybe in the future???
 
 - Web frontend comparable to InkScape
 - TUI frontend
-- Light-weight alternate format to SVG
+
+### SVGO Parity
+
+Oxvg aims to be as close as possible to SVGO while providing a more consistent configuration system.
+
+#### Functional Differences
+
+- **Configuration Structure**: To improve the simplicity of oxvg as a Rust program, the configuration structure is somewhat different. A migration tool will eventually be made to make switching over easier.
+- **Doesn't support valueless attributes**: Attributes formatted alike `<svg attr />` is valid HTML but not XML. Because of oxvg's dependencies, invalid XML syntax is not supported and will be converted to `<svg attr="" />`.
+- **Numerical cleanup**: Unlike SVGO, we include `d` in the type of attributes that can be rounded
 
 ## Building
 
@@ -39,7 +48,7 @@ cargo build --package oxvg
 
 ## Goals
 
-For me, this is a learning excercise, for others this may end up being a tool. These goals may be challenged as the project grows, but to me our goal is to
+For me, this is a learning exercise, for others this may end up being a tool. These goals may be challenged as the project grows, but to me our goal is to
 
 - Write code that is easily understood by beginners to Rust
 - Focus on optimisation and quality

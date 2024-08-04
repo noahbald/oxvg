@@ -127,6 +127,22 @@ impl PrepareOutcome {
 }
 
 #[cfg(test)]
+pub(crate) fn test_config_default_svg_comment(
+    config_json: &str,
+    comment: &str,
+) -> anyhow::Result<String> {
+    test_config(
+        config_json,
+        Some(&format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- {comment} -->
+    test
+</svg>"#
+        )),
+    )
+}
+
+#[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
     use xml5ever::{
         driver::{parse_document, XmlParseOpts},

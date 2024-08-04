@@ -1,8 +1,9 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <script>\n        …\n    </script>\n    <circle id=\"circle001\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- Ignore when <script> is present -->\n    <script>\n        …\n    </script>\n    <circle id=\"circle001\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Ignore when <script> is present -->
     <script>
         …
     </script>

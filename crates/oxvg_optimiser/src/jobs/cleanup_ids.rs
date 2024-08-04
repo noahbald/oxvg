@@ -5,7 +5,8 @@ use std::{
 };
 
 use markup5ever::{local_name, tendril::StrTendril};
-use oxvg_selectors::Element;
+use oxvg_selectors::{collections::REFERENCES_PROPS, Element};
+use regex::CaptureMatches;
 use serde::Deserialize;
 
 use crate::{Job, PrepareOutcome};
@@ -19,10 +20,18 @@ enum ReplaceCounter<'a> {
 #[derive(Clone, Debug)]
 struct GeneratedId {
     pub current: String,
-    prevent_collision: Vec<String>,
+    prevent_collision: BTreeSet<String>,
 }
 
+/// To use as follows
+/// - `(Rc<Node>, QualName)` to select the matched attribute
+///     - `Rc<Node>` use as the node to be updated
+///     - `QualName` use as the attribute to be updated
+/// - `String` as the referenced id
+type RefRenames = RefCell<Vec<((Rc<rcdom::Node>, markup5ever::QualName), String)>>;
+
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanupIds {
     remove: Option<bool>,
     minify: Option<bool>,
@@ -36,6 +45,8 @@ pub struct CleanupIds {
     #[serde(skip_deserializing)]
     id_renames: RefCell<BTreeMap<String, String>>,
     #[serde(skip_deserializing)]
+    ref_renames: RefRenames,
+    #[serde(skip_deserializing)]
     generated_id: RefCell<GeneratedId>,
 }
 
@@ -47,6 +58,7 @@ impl Job for CleanupIds {
 
         self.prepare_ignore_document(root);
         if self.ignore_document {
+            dbg!("CleanupIds::prepare: skipping");
             return PrepareOutcome::Skip;
         }
 
@@ -65,43 +77,81 @@ impl Job for CleanupIds {
         };
 
         let attrs = &mut *attrs.borrow_mut();
-        for id in &self.replaceable_ids {
-            let mut used_ids = self.id_renames.borrow_mut();
-            let mut generated_id = self.generated_id.borrow_mut();
-            let minified_id = used_ids.get(id).unwrap_or(&generated_id.current).clone();
-            for attr in attrs.iter_mut() {
-                let replacements = replace_id_in_attr(attr, id, &minified_id);
-                if replacements.count() == &0 {
-                    continue;
-                }
-                dbg!(&id, &minified_id);
-                let is_new = used_ids.insert(id.clone(), minified_id.clone()).is_none();
-                if is_new {
-                    generated_id.next();
-                }
-                if self.minify.unwrap_or(MINIFY_DEFAULT) {
-                    attr.value = replacements.into();
-                }
-            }
+        let mut generated_id = self.generated_id.borrow_mut();
+        // Find references in attributes
+        let mut ref_renames = self.ref_renames.borrow_mut();
+        for attr in attrs.iter_mut() {
+            let Some(matches) = find_references(&attr.name.local, &attr.value) else {
+                continue;
+            };
+            matches
+                .filter_map(|item| item.get(1))
+                .map(|item| item.as_str())
+                .for_each(|item| {
+                    if self.replaceable_ids.contains(item) {
+                        dbg!("CleanupIds::run: found potential reference", item);
+                        ref_renames.push(((node.clone(), attr.name.clone()), item.to_string()));
+                    } else {
+                        dbg!("CleanupIds::run: found unmatched reference", item);
+                        generated_id.insert_prevent_collision(item.to_string());
+                    }
+                });
         }
     }
 
     fn breakdown(&mut self, document: &rcdom::RcDom) {
-        if !self.remove.unwrap_or(REMOVE_DEFAULT) {
-            return;
-        }
+        let remove = self.remove.unwrap_or(REMOVE_DEFAULT);
 
         let Some(root) = &Element::from_document_root(document) else {
             return;
         };
-        dbg!(&self.id_renames);
+        // Generate renames for references
+        let mut used_ids = BTreeMap::new();
+        let mut generated_id = self.generated_id.borrow_mut();
+        for ((node, name), reference) in self.ref_renames.borrow().iter() {
+            let element = Element::new(node.clone());
+            let Some(ref mut attr) = element.get_attr(&name.local) else {
+                continue;
+            };
+            let minified_id = used_ids
+                .get(reference)
+                .unwrap_or(&generated_id.current)
+                .clone();
+            let replacements = replace_id_in_attr(attr, reference, &minified_id);
+            if replacements.count() == &0 {
+                continue;
+            }
+            let is_new = used_ids
+                .insert(reference.clone(), minified_id.clone())
+                .is_none();
+            if is_new {
+                generated_id.next();
+            }
+            if self.minify.unwrap_or(MINIFY_DEFAULT) {
+                dbg!(
+                    "CleanupIds::breakdown: updating reference",
+                    &name.local,
+                    reference,
+                );
+                element.set_attr_qual(name, replacements.into());
+            }
+        }
+        dbg!(
+            "CleanupIds::breakdown: replacing",
+            &self.id_renames,
+            &used_ids,
+        );
         for element in root.select("[id]").unwrap() {
             let Some(id) = element.get_attr(&local_name!("id")) else {
                 continue;
             };
-            if let Some(rename) = self.id_renames.borrow().get(&id.value.to_string()) {
+            let id = id.value.to_string();
+            if let Some(rename) = used_ids
+                .get(&id)
+                .or_else(|| used_ids.get(&urlencoding::encode(&id).to_string()))
+            {
                 element.set_attr(&local_name!("id"), rename.to_string().into());
-            } else if self.replaceable_ids.contains(&id.value.to_string()) {
+            } else if remove && self.replaceable_ids.contains(&id) {
                 element.remove_attr(&local_name!("id"));
             };
         }
@@ -116,7 +166,11 @@ impl CleanupIds {
             return;
         }
 
-        let contains_unpredictable_refs = root.select("script, style").unwrap().next().is_some();
+        let mut unpredictable_refs = root.select("script, style").unwrap();
+        let is_ref_okay = |element: Element| element.node.children.borrow().is_empty();
+        let contains_unpredictable_refs = unpredictable_refs
+            .next()
+            .is_some_and(|element| !is_ref_okay(element) || !unpredictable_refs.all(is_ref_okay));
         let Some(parent) = root.get_parent() else {
             self.ignore_document = true;
             return;
@@ -130,28 +184,45 @@ impl CleanupIds {
     /// - Removes any duplicate replaceable ids
     fn prepare_id_rename(&mut self, root: &Element) {
         let mut preserved_ids = Vec::new();
+        dbg!(
+            "CleanupIds: prepare_id: preserve",
+            &self.preserve,
+            &self.preserve_prefixes
+        );
+        // Find ids
         for element in root.select("[id]").unwrap() {
             let Some(attr) = element.get_attr(&local_name!("id")) else {
                 continue;
             };
-            dbg!("CleanupIds: prepare_id: found id", attr.value.to_string());
-            if self.replaceable_ids.contains(&attr.value.to_string()) {
+            let value = attr.value.to_string();
+            dbg!("CleanupIds: prepare_id: found id", &value);
+            if self.replaceable_ids.contains(&value) || value.chars().all(char::is_numeric) {
                 element.remove_attr(&local_name!("id"));
-                dbg!("CleanupIds: prepare_id: removed id", attr.value.to_string());
+                dbg!("CleanupIds: prepare_id: removed redundant id", &value);
                 continue;
             }
-            let is_preserved_prefix = self.preserve_prefixes.as_ref().is_some_and(|prefixes| {
-                prefixes.iter().any(|prefix| attr.value.starts_with(prefix))
-            });
+            let is_preserved_prefix = self
+                .preserve_prefixes
+                .as_ref()
+                .is_some_and(|prefixes| prefixes.iter().any(|prefix| value.starts_with(prefix)));
             let is_preserve = self
                 .preserve
                 .as_ref()
-                .is_some_and(|preserve| preserve.contains(&attr.value.clone().into()));
+                .is_some_and(|preserve| preserve.contains(&value));
+            dbg!(
+                "CleanupIds: prepare_id: will preserve if true",
+                &is_preserved_prefix,
+                &is_preserve,
+            );
             if is_preserved_prefix || is_preserve {
-                preserved_ids.push(attr.value.to_string());
+                preserved_ids.push(value);
                 continue;
             }
-            self.replaceable_ids.insert(attr.value.to_string());
+            self.replaceable_ids.insert(value.clone());
+            let encoded_id = urlencoding::encode(&value);
+            if encoded_id != value {
+                self.replaceable_ids.insert(encoded_id.to_string());
+            }
         }
         self.generated_id
             .borrow_mut()
@@ -222,7 +293,14 @@ impl From<ReplaceCounter<'_>> for StrTendril {
 
 impl GeneratedId {
     fn set_prevent_collision(&mut self, ids: Vec<String>) {
-        self.prevent_collision = ids;
+        self.prevent_collision = ids.into_iter().collect();
+        if self.prevent_collision.contains(&self.current) {
+            self.next();
+        }
+    }
+
+    fn insert_prevent_collision(&mut self, id: String) {
+        self.prevent_collision.insert(id);
         if self.prevent_collision.contains(&self.current) {
             self.next();
         }
@@ -270,7 +348,7 @@ impl Default for GeneratedId {
     fn default() -> Self {
         Self {
             current: String::from("a"),
-            prevent_collision: vec![],
+            prevent_collision: BTreeSet::default(),
         }
     }
 }
@@ -278,16 +356,33 @@ impl Default for GeneratedId {
 static REMOVE_DEFAULT: bool = true;
 static MINIFY_DEFAULT: bool = true;
 
+fn find_references<'a>(name: &str, value: &'a str) -> Option<CaptureMatches<'static, 'a>> {
+    let matches = match name {
+        "href" => REFERENCES_HREF.captures_iter(value),
+        "begin" => REFERENCES_BEGIN.captures_iter(value),
+        name if REFERENCES_PROPS.contains(name) => REFERENCES_URL.captures_iter(value),
+        _ => return None,
+    };
+    Some(matches)
+}
+
+lazy_static! {
+    static ref REFERENCES_URL: regex::Regex =
+        regex::Regex::new(r#"(?:\W|^)url\(['"]?#(.+?)['"]?\)"#).unwrap();
+    static ref REFERENCES_HREF: regex::Regex = regex::Regex::new("^#(.+?)$").unwrap();
+    static ref REFERENCES_BEGIN: regex::Regex = regex::Regex::new(r"(\w+)\.[a-zA-Z]").unwrap();
+}
+
 #[test]
 #[allow(clippy::too_many_lines)]
 fn cleanup_ids() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        // Minify ids and references to ids
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Minify ids and references to ids -->
     <defs>
         <linearGradient id="gradient001">
             <stop offset="5%" stop-color="#F60"/>
@@ -316,10 +411,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Ignore when <style> is present
         r#"{ "cleanupIds": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Ignore when <style> is present -->
     <style>
         .cls-1 { fill: #fff; }
     </style>
@@ -329,10 +424,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Ignore when <script> is present
         r#"{ "cleanupIds": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Ignore when <script> is present -->
     <script>
         …
     </script>
@@ -342,10 +437,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Minify ids and references to ids
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/1999/xlink">
+    <!-- Minify ids and references to ids -->
     <defs>
         <g id="mid-line"/>
         <g id="line-plus">
@@ -366,12 +461,12 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Allow minification when force is given, regardless of `<style>`
         r#"{ "cleanupIds": {
             "force": true
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Allow minification when force is given, regardless of `<style>` -->
     <style>
         …
     </style>
@@ -381,12 +476,12 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Allow minification when force is given, regardless of `<script>`
         r#"{ "cleanupIds": {
             "force": true
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Allow minification when force is given, regardless of `<script>` -->
     <script>
         …
     </script>
@@ -396,12 +491,12 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent modifications on preserved ids
         r#"{ "cleanupIds": {
             "preserve": ["circle", "rect"]
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Prevent modifications on preserved ids -->
     <circle id="circle001" fill="red" cx="60" cy="60" r="50"/>
     <rect id="rect001" fill="blue" x="120" y="10" width="100" height="100"/>
     <view id="circle" viewBox="0 0 120 120"/>
@@ -411,13 +506,13 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent modification on preserved ids, even in forced mode
         r#"{ "cleanupIds": {
             "force": true,
             "preserve": ["circle", "rect"]
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+    <!-- Prevent modification on preserved ids, even in forced mode -->
     <style>
         svg .hidden { display: none; }
         svg .hidden:target { display: inline; }
@@ -429,13 +524,13 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent modification on preserved ids, even in forced mode
         r#"{ "cleanupIds": {
             "force": true,
             "preserve": ["figure"]
         } }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+    <!-- Prevent modification on preserved ids, even in forced mode -->
     <style>
         svg .hidden { display: none; }
         svg .hidden:target { display: inline; }
@@ -453,10 +548,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Ignore when svg's children are only <defs>
         r#"{ "cleanupIds": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Ignore when svg's children are only <defs> -->
     <defs>
         <circle cx="100" cy="100" r="50" id="circle"/>
         <ellipse cx="50" cy="50" rx="50" ry="10" id="ellipse"/>
@@ -467,12 +562,12 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent modification of preserved id prefixes
         r#"{ "cleanupIds": {
         "preservePrefixes": ["xyz"]
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Prevent modification of preserved id prefixes -->
     <circle id="garbage1" fill="red" cx="60" cy="60" r="50"/>
     <rect id="garbage2" fill="blue" x="120" y="10" width="100" height="100"/>
     <view id="xyzgarbage1" viewBox="0 0 120 120"/>
@@ -482,13 +577,13 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent modification of preserved id prefixes, even in forced mode
         r#"{ "cleanupIds": {
             "force": true,
-            "preservePrefixes": ["pre_1", "pre_2"]
+            "preservePrefixes": ["pre1_", "pre2_"]
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+    <!-- Prevent modification of preserved id prefixes, even in forced mode -->
     <style>
         svg .hidden { display: none; }
         svg .hidden:target { display: inline; }
@@ -500,12 +595,69 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Don't collide minification with preserved ids
+        r#"{ "cleanupIds": {
+            "force": true,
+            "preserve": ["pre1_"]
+        } }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+    <!-- Prevent modification of preserved id prefixes, even in forced mode -->
+    <style>
+        svg .hidden { display: none; }
+        svg .hidden:target { display: inline; }
+    </style>
+    <defs>
+        <circle id="circle" fill="red" cx="60" cy="60" r="50"/>
+        <rect id="rect" fill="blue" x="10" y="10" width="100" height="100"/>
+    </defs>
+    <g id="pre1_figure" class="hidden">
+        <use xlink:href="#circle"/>
+        <use href="#rect"/>
+    </g>
+</svg>"##
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupIds": {
+            "preserve": ["circle"],
+            "preservePrefixes": ["suffix", "rect"]
+        } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Preserve both preserved names and prefixes -->
+    <circle id="circle" fill="red" cx="60" cy="60" r="50"/>
+    <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
+    <view id="circle-suffix" viewBox="0 0 120 120"/>
+    <view id="rect-suffix" viewBox="110 0 120 120"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {
             "preserve": ["a"]
         } }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Don't collide minification with preserved ids -->
+    <defs>
+        <circle id="a" fill="red" cx="60" cy="60" r="50"/>
+        <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
+    </defs>
+    <use xlink:href="#a"/>
+    <use href="#rect"/>
+</svg>"##
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupIds": {
+            "preservePrefixes": ["a"]
+        } }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Don't collide minification with preserved prefixes -->
     <defs>
         <circle id="a" fill="red" cx="60" cy="60" r="50"/>
         <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
@@ -516,30 +668,16 @@ fn cleanup_ids() -> anyhow::Result<()> {
         )
     )?);
 
+    // WARN: This output is different to SVGO
+    // SVGO: <use href="#rect"/> --> <use href="#b" />
+    // OXVG: <use href="#rect"/> --> <use href="#a" />
     insta::assert_snapshot!(test_config(
-        // Don't collide minification with preserved id prefixes
         r#"{ "cleanupIds": {
             "preservePrefixes": ["a"]
         } }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
-    <defs>
-        <circle id="a" fill="red" cx="60" cy="60" r="50"/>
-        <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
-    </defs>
-    <use href="#a"/>
-    <use href="#rect"/>
-</svg>"##
-        )
-    )?);
-
-    insta::assert_snapshot!(test_config(
-        // Don't collide minification with preserved id prefixes
-        r#"{ "cleanupIds": {
-            "preservePrefixes": ["a"]
-        } }"#,
-        Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+    <!-- Don't collide minification with preserved prefixes -->
     <defs>
         <circle id="abc" fill="red" cx="60" cy="60" r="50"/>
         <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
@@ -551,10 +689,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Allow minification when <style> is empty
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48">
+    <!-- Allow minification when <style> is empty -->
     <defs>
         <style></style>
         <linearGradient id="file-name_svg__file-name_svg__original-id" x1="12" y1="-1" x2="33" y2="46" gradientUnits="userSpaceOnUse">
@@ -568,12 +706,12 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Prevent removal of ids
         r#"{ "cleanupIds": {
             "remove": false
         } }"#,
         Some(
             r##"<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Prevent removal of ids -->
     <g filter="url(#filter0_dust)">
         <path d="M2 8a7 7 0 1 1 14 0A7 7 0 0 1 2 8z" fill="#fff"/>
     </g>
@@ -594,12 +732,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Remove unreferenced ids
-        r#"{ "cleanupIds": {
-            "remove": false
-        } }"#,
+        r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Remove unreferenced ids -->
     <circle id="6" cx="110.5" cy="5.5" r="5.5">
         <animate begin="2.5s" attributeName="fill" calcMode="discrete" values="#6ebe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"/>
     </circle>
@@ -623,10 +759,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Unchanged ids are still referenced correctly
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" width="1950.1315" height="1740.1298">
+  <!-- Unchanged ids are still referenced correctly -->
   <linearGradient id="a">
     <stop stop-color="#f00" offset="0"/>
   </linearGradient>
@@ -642,11 +778,13 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // When a reference to a non-existant id would be created by minification, try the next
-        // possible generated id
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg">
+  <!--
+  When a reference to a non-existant id would be created by minification, try the next
+  possible generated id
+  -->
   <defs>
     <path id="uwu" d="M 2.046875 0 L 10.609375 0 C 12.40625 0 13.734375 -0.5 14.734375 -1.59375 C 15.671875 -2.578125 16.203125 -3.921875 16.203125 -5.40625 C 16.203125 -7.703125 15.15625 -9.078125 12.734375 -10.015625 C 14.484375 -10.8125 15.359375 -12.1875 15.359375 -14.140625 C 15.359375 -15.546875 14.84375 -16.75 13.859375 -17.625 C 12.84375 -18.53125 11.5625 -18.953125 9.75 -18.953125 L 2.046875 -18.953125 Z M 4.46875 -10.796875 L 4.46875 -16.828125 L 9.15625 -16.828125 C 10.5 -16.828125 11.265625 -16.640625 11.90625 -16.140625 C 12.578125 -15.625 12.953125 -14.84375 12.953125 -13.8125 C 12.953125 -12.765625 12.578125 -11.984375 11.90625 -11.46875 C 11.265625 -10.96875 10.5 -10.796875 9.15625 -10.796875 Z M 4.46875 -2.125 L 4.46875 -8.65625 L 10.375 -8.65625 C 12.5 -8.65625 13.78125 -7.4375 13.78125 -5.375 C 13.78125 -3.359375 12.5 -2.125 10.375 -2.125 Z M 4.46875 -2.125"/>
   </defs>
@@ -657,10 +795,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Rename within animation references, eg "<id>.<property>"
         r#"{ "cleanupIds": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Rename within animation references, eg "<id>.<property>" -->
   <circle cx="12" cy="12">
     <animate id="thing1" fill="freeze" attributeName="r" begin="0;thing2.end" dur="1.2s" values="0;11"/>
   </circle>
@@ -672,10 +810,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Handle non-ascii and URI encoding correctly
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
+  <!-- Handle non-ascii and URI encoding correctly -->
   <defs>
     <path id="人口" d="M1 1l2 2" stroke="black"/>
   </defs>
@@ -685,10 +823,10 @@ fn cleanup_ids() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Handle non-ascii and URI encoding correctly
         r#"{ "cleanupIds": {} }"#,
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Handle non-ascii and URI encoding correctly -->
     <defs>
         <linearGradient id="渐变_1" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop stop-color="#5a2100" />

@@ -33,6 +33,10 @@ pub trait CleanupValues {
         } = self.get_options();
 
         for value in self.get_mode().separate_value(attr) {
+            if value.is_empty() {
+                continue;
+            }
+
             let Some(captures) = NUMERIC_VALUES.captures(&value) else {
                 if value.contains("new") {
                     rounded_list.push("new".to_string());
@@ -93,6 +97,12 @@ impl<T: CleanupValues> Job for T {
 
             match self.round_values(attr) {
                 Ok(new_value) => {
+                    dbg!(
+                        "CleanupValues::run: rounding value",
+                        &attr.name.local,
+                        &attr.value,
+                        &new_value
+                    );
                     attr.value = new_value;
                 }
                 Err(error) => {
@@ -116,7 +126,7 @@ impl Mode {
                 || &local_name!("dy") == name
                 || &local_name!("x") == name
                 || &local_name!("y") == name
-                // NOTE: This differs from SVGO, which doesn't include `d`
+                // WARN: This differs from SVGO, which doesn't include `d`
                 || &local_name!("d") == name
             }
             Self::SingleValue => &local_name!("version") != name,
@@ -124,16 +134,14 @@ impl Mode {
     }
 
     pub fn separate_value<'a>(&'a self, attr: &'a Attribute) -> impl Iterator<Item = String> + 'a {
-        match self {
-            Self::List => {
-                return Box::new(
-                    SEPARATOR
-                        .split(&attr.value)
-                        .map(std::string::ToString::to_string),
-                ) as Box<dyn Iterator<Item = String>>
-            }
-            Self::SingleValue => Box::new(std::iter::once(attr.value.to_string()))
-                as Box<dyn Iterator<Item = String>>,
+        if (matches!(self, Self::List) || attr.name.local == local_name!("viewBox")) {
+            Box::new(
+                SEPARATOR
+                    .split(&attr.value)
+                    .map(std::string::ToString::to_string),
+            ) as Box<dyn Iterator<Item = String>>
+        } else {
+            Box::new(std::iter::once(attr.value.to_string())) as Box<dyn Iterator<Item = String>>
         }
     }
 }

@@ -119,10 +119,10 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        // Remove svg's enable-background on matching size
         r#"{ "cleanupEnableBackground": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height=".5" enable-background="new 0 0 100.5 .5">
+    <!-- Remove svg's enable-background on matching size -->
     <defs>
         <filter id="ShiftBGAndBlur">
             <feOffset dx="0" dy="75"/>
@@ -134,10 +134,10 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Keep svg's enable-background on mis-matching size
         r#"{ "cleanupEnableBackground": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" enable-background="new 0 0 100 50">
+    <!-- Keep svg's enable-background on mis-matching size -->
     <defs>
         <filter id="ShiftBGAndBlur">
             <feOffset dx="0" dy="75"/>
@@ -149,10 +149,10 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Replace matching mask or pattern's enable-background with "new"
         r#"{ "cleanupEnableBackground": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Replace matching mask or pattern's enable-background with "new" -->
     <defs>
         <filter id="ShiftBGAndBlur">
             <feOffset dx="0" dy="75"/>
@@ -166,10 +166,10 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        // Remove enable-background when no filter is present
         r#"{ "cleanupEnableBackground": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Remove enable-background when no filter is present -->
     <mask width="100" height="50" enable-background="new 0 0 100 50">
         test
     </mask>

@@ -217,23 +217,39 @@ impl Element {
     }
 
     pub fn set_attr(&self, attr: &markup5ever::LocalName, value: xml5ever::tendril::StrTendril) {
-        let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
-            return;
-        };
-        let mut attrs = attrs.borrow_mut();
-        let new_attr = Attribute {
-            name: xml5ever::QualName {
+        self.set_attr_qual(
+            &markup5ever::QualName {
                 prefix: None,
                 ns: "".into(),
                 local: attr.clone(),
             },
             value,
+        );
+    }
+
+    pub fn set_attr_qual(
+        &self,
+        name: &markup5ever::QualName,
+        value: markup5ever::tendril::StrTendril,
+    ) {
+        let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
+            return;
         };
-        if let Some(index) = attrs.iter().position(|a| &a.name.local == attr) {
+        let mut attrs = attrs.borrow_mut();
+        let new_attr = Attribute {
+            name: name.clone(),
+            value,
+        };
+        if let Some(index) = attrs.iter().position(|a| {
+            if &a.name == name {
+                return true;
+            };
+            name.prefix.is_none() && a.name.local == name.local
+        }) {
             let _ = std::mem::replace(&mut attrs[index], new_attr);
         } else {
             attrs.push(new_attr);
-        };
+        }
     }
 
     pub fn remove_attr(&self, attr: &markup5ever::LocalName) {

@@ -1,16 +1,22 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1950.1315\" height=\"1740.1298\">\n  <linearGradient id=\"a\">\n    <stop stop-color=\"#f00\" offset=\"0\"/>\n  </linearGradient>\n  <linearGradient id=\"linearGradient3520\" href=\"#a\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"translate(7991.4092,-7484.0182)\" x1=\"475.01208\" y1=\"29234.521\" x2=\"-1343.6307\" y2=\"29445.83\"/>\n  <filter id=\"c\" style=\"color-interpolation-filters:sRGB\" x=\"-0.2760295\" width=\"1.5520591\" y=\"-0.33142158\" height=\"1.6628431\">\n    <feGaussianBlur stdDeviation=\"331.22039\"/>\n  </filter>\n  <g transform=\"matrix(5.8862959,0,0,5.8862959,-228.3949,1414.6785)\">\n    <path d=\"m 6416.0915,21026.021 c 496.2734,-430.162 1156.7926,-524.889 1495.2326,-581.643 1461.5227,-245.087 1539.467,2033.775 96.1224,2234.099 -524.6707,72.82 -1265.3758,450.675 -1679.5812,-402.754 -315.0174,-535.208 -91.5956,-1058.609 88.2262,-1249.702 z\" style=\"opacity:1;fill:url(#linearGradient3520);fill-opacity:1;stroke:none;stroke-width:16.60000038;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#c)\" transform=\"matrix(0.07412091,0,0,0.07412091,-359.59058,-1695.4044)\"/>\n  </g>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"remove\": false\n        } }\"#,\n        Some(r##\"<svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Prevent removal of ids -->\n    <g filter=\"url(#filter0_dust)\">\n        <path d=\"M2 8a7 7 0 1 1 14 0A7 7 0 0 1 2 8z\" fill=\"#fff\"/>\n    </g>\n    <path d=\"M4 8a5 5 0 1 1 10 0A5 5 0 0 1 4 8z\" fill=\"currentColor\"/>\n    <defs>\n        <filter id=\"filter0_dust\" x=\"0\" y=\"0\" width=\"18\" height=\"18\" filterUnits=\"userSpaceOnUse\" color-interpolation-filters=\"sRGB\">\n            <feFlood flood-opacity=\"0\" result=\"BackgroundImageFix\"/>\n            <feColorMatrix in=\"SourceAlpha\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0\"/>\n            <feOffset dy=\"1\"/>\n            <feGaussianBlur stdDeviation=\"1\"/>\n            <feColorMatrix values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0\"/>\n            <feBlend in2=\"BackgroundImageFix\" result=\"effect1_dropShadow\"/>\n            <feBlend in=\"SourceGraphic\" in2=\"effect1_dropShadow\" result=\"shape\"/>\n        </filter>\n    </defs>\n</svg>\"##))?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" width="1950.1315" height="1740.1298">
-  <linearGradient id="a">
-    <stop stop-color="#f00" offset="0"></stop>
-  </linearGradient>
-  <linearGradient id="c" href="#a" gradientUnits="userSpaceOnUse" gradientTransform="translate(7991.4092,-7484.0182)" x1="475.01208" y1="29234.521" x2="-1343.6307" y2="29445.83"></linearGradient>
-  <filter id="b" style="color-interpolation-filters:sRGB" x="-0.2760295" width="1.5520591" y="-0.33142158" height="1.6628431">
-    <feGaussianBlur stdDeviation="331.22039"></feGaussianBlur>
-  </filter>
-  <g transform="matrix(5.8862959,0,0,5.8862959,-228.3949,1414.6785)">
-    <path d="m 6416.0915,21026.021 c 496.2734,-430.162 1156.7926,-524.889 1495.2326,-581.643 1461.5227,-245.087 1539.467,2033.775 96.1224,2234.099 -524.6707,72.82 -1265.3758,450.675 -1679.5812,-402.754 -315.0174,-535.208 -91.5956,-1058.609 88.2262,-1249.702 z" style="opacity:1;fill:url(#c);fill-opacity:1;stroke:none;stroke-width:16.60000038;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#b)" transform="matrix(0.07412091,0,0,0.07412091,-359.59058,-1695.4044)"></path>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <!-- Prevent removal of ids -->
+    <g filter="url(#a)">
+        <path d="M2 8a7 7 0 1 1 14 0A7 7 0 0 1 2 8z" fill="#fff"></path>
+    </g>
+    <path d="M4 8a5 5 0 1 1 10 0A5 5 0 0 1 4 8z" fill="currentColor"></path>
+    <defs>
+        <filter id="a" x="0" y="0" width="18" height="18" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+            <feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"></feColorMatrix>
+            <feOffset dy="1"></feOffset>
+            <feGaussianBlur stdDeviation="1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0"></feColorMatrix>
+            <feBlend in2="BackgroundImageFix" result="effect1_dropShadow"></feBlend>
+            <feBlend in="SourceGraphic" in2="effect1_dropShadow" result="shape"></feBlend>
+        </filter>
+    </defs>
 </svg>

@@ -1,7 +1,8 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_list_of_values.rs
-expression: "test_config(r#\"{ \"cleanupListOfValues\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 500.2132 500.213823642\" enable-background=\"new 0 0 500.224551535 500.213262\">\n    test\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupListOfValues\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 500.2132 500.213823642\" enable-background=\"new 0 0 500.224551535 500.213262\">\n    <!-- Should round values, maintaining non-numerical values -->\n    test\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500.213 500.214" enable-background="new 0 0 500.225 500.213">
+    <!-- Should round values, maintaining non-numerical values -->
     test
 </svg>

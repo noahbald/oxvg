@@ -1,10 +1,11 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {\n        \"preservePrefixes\": [\"xyz\"]\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 230 120\">\n    <circle id=\"garbage1\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n    <rect id=\"garbage2\" fill=\"blue\" x=\"120\" y=\"10\" width=\"100\" height=\"100\"/>\n    <view id=\"xyzgarbage1\" viewBox=\"0 0 120 120\"/>\n    <view id=\"xyzgarbage2\" viewBox=\"110 0 120 120\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n        \"preservePrefixes\": [\"xyz\"]\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 230 120\">\n    <!-- Prevent modification of preserved id prefixes -->\n    <circle id=\"garbage1\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n    <rect id=\"garbage2\" fill=\"blue\" x=\"120\" y=\"10\" width=\"100\" height=\"100\"/>\n    <view id=\"xyzgarbage1\" viewBox=\"0 0 120 120\"/>\n    <view id=\"xyzgarbage2\" viewBox=\"110 0 120 120\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
+    <!-- Prevent modification of preserved id prefixes -->
     <circle fill="red" cx="60" cy="60" r="50"></circle>
     <rect fill="blue" x="120" y="10" width="100" height="100"></rect>
-    <view viewBox="0 0 120 120"></view>
-    <view viewBox="110 0 120 120"></view>
+    <view id="xyzgarbage1" viewBox="0 0 120 120"></view>
+    <view id="xyzgarbage2" viewBox="110 0 120 120"></view>
 </svg>

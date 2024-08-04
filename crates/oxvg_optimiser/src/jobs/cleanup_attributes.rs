@@ -54,6 +54,7 @@ fn cleanup_attributes() -> anyhow::Result<()> {
             r#"<svg xmlns="  http://www.w3.org/2000/svg
   " attr="a      b" attr2="a
 b">
+    <!-- Should remove all unnecessary whitespace from attributes -->
     test
 </svg>"#
         )
@@ -68,6 +69,7 @@ b">
         Some(
             r#"<svg xmlns="  http://www.w3.org/2000/svg
   " attr="a      b">
+    <!-- Should remove all unnecessary whitespace from attributes -->
     test &amp; &lt;&amp; &gt; &apos; &quot; &amp;
 </svg>"#
         )

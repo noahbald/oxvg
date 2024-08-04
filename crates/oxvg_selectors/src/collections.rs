@@ -180,4 +180,16 @@ lazy_static! {
         "word-spacing",
         "writing-mode",
     ]);
+    pub static ref REFERENCES_PROPS: BTreeSet<&'static str> = BTreeSet::from([
+        "clip-path",
+        "color-profile",
+        "fill",
+        "filter",
+        "marker-end",
+        "marker-mid",
+        "marker-start",
+        "mask",
+        "stroke",
+        "style",
+    ]);
 }

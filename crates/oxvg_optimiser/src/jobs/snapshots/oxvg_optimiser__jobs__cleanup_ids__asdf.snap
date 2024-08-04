@@ -1,0 +1,222 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <defs>\n        <text id=\"__proto__\">\n            referenced text\n        </text>\n        <text id=\"test02\">\n            referenced text\n        </text>\n        <text id=\"test03\">\n            referenced text\n        </text>\n        <text id=\"test04\">\n            referenced text\n        </text>\n        <text id=\"test05\">\n            referenced text\n        </text>\n        <text id=\"test06\">\n            referenced text\n        </text>\n        <text id=\"test07\">\n            referenced text\n        </text>\n        <text id=\"test08\">\n            referenced text\n        </text>\n        <text id=\"test09\">\n            referenced text\n        </text>\n        <text id=\"test10\">\n            referenced text\n        </text>\n        <text id=\"test11\">\n            referenced text\n        </text>\n        <text id=\"test12\">\n            referenced text\n        </text>\n        <text id=\"test13\">\n            referenced text\n        </text>\n        <text id=\"test14\">\n            referenced text\n        </text>\n        <text id=\"test15\">\n            referenced text\n        </text>\n        <text id=\"test16\">\n            referenced text\n        </text>\n        <text id=\"test17\">\n            referenced text\n        </text>\n        <text id=\"test18\">\n            referenced text\n        </text>\n        <text id=\"test19\">\n            referenced text\n        </text>\n        <text id=\"test20\">\n            referenced text\n        </text>\n        <text id=\"test21\">\n            referenced text\n        </text>\n        <text id=\"test22\">\n            referenced text\n        </text>\n        <text id=\"test23\">\n            referenced text\n        </text>\n        <text id=\"test24\">\n            referenced text\n        </text>\n        <text id=\"test25\">\n            referenced text\n        </text>\n        <text id=\"test26\">\n            referenced text\n        </text>\n        <text id=\"test27\">\n            referenced text\n        </text>\n        <text id=\"test28\">\n            referenced text\n        </text>\n        <text id=\"test29\">\n            referenced text\n        </text>\n        <text id=\"test30\">\n            referenced text\n        </text>\n        <text id=\"test31\">\n            referenced text\n        </text>\n        <text id=\"test32\">\n            referenced text\n        </text>\n        <text id=\"test33\">\n            referenced text\n        </text>\n        <text id=\"test34\">\n            referenced text\n        </text>\n        <text id=\"test35\">\n            referenced text\n        </text>\n        <text id=\"test36\">\n            referenced text\n        </text>\n        <text id=\"test37\">\n            referenced text\n        </text>\n        <text id=\"test38\">\n            referenced text\n        </text>\n        <text id=\"test39\">\n            referenced text\n        </text>\n        <text id=\"test40\">\n            referenced text\n        </text>\n        <text id=\"test41\">\n            referenced text\n        </text>\n        <text id=\"test42\">\n            referenced text\n        </text>\n        <text id=\"test43\">\n            referenced text\n        </text>\n        <text id=\"test44\">\n            referenced text\n        </text>\n        <text id=\"test45\">\n            referenced text\n        </text>\n        <text id=\"test46\">\n            referenced text\n        </text>\n        <text id=\"test47\">\n            referenced text\n        </text>\n        <text id=\"test48\">\n            referenced text\n        </text>\n        <text id=\"test49\">\n            referenced text\n        </text>\n        <text id=\"test50\">\n            referenced text\n        </text>\n        <text id=\"test51\">\n            referenced text\n        </text>\n        <text id=\"test52\">\n            referenced text\n        </text>\n        <text id=\"test53\">\n            referenced text\n        </text>\n    </defs>\n    <tref href=\"#__proto__\"/>\n    <tref href=\"#__proto__\"/>\n    <tref href=\"#__proto__\"/>\n    <tref href=\"#test02\"/>\n    <tref href=\"#test03\"/>\n    <tref href=\"#test04\"/>\n    <tref href=\"#test05\"/>\n    <tref href=\"#test06\"/>\n    <tref href=\"#test07\"/>\n    <tref href=\"#test08\"/>\n    <tref href=\"#test09\"/>\n    <tref href=\"#test10\"/>\n    <tref href=\"#test11\"/>\n    <tref href=\"#test12\"/>\n    <tref href=\"#test13\"/>\n    <tref href=\"#test14\"/>\n    <tref href=\"#test15\"/>\n    <tref href=\"#test16\"/>\n    <tref href=\"#test17\"/>\n    <tref href=\"#test18\"/>\n    <tref href=\"#test19\"/>\n    <tref href=\"#test20\"/>\n    <tref href=\"#test21\"/>\n    <tref href=\"#test22\"/>\n    <tref href=\"#test23\"/>\n    <tref href=\"#test24\"/>\n    <tref href=\"#test25\"/>\n    <tref href=\"#test26\"/>\n    <tref href=\"#test27\"/>\n    <tref href=\"#test28\"/>\n    <tref href=\"#test29\"/>\n    <tref href=\"#test30\"/>\n    <tref href=\"#test31\"/>\n    <tref href=\"#test32\"/>\n    <tref href=\"#test33\"/>\n    <tref href=\"#test34\"/>\n    <tref href=\"#test35\"/>\n    <tref href=\"#test36\"/>\n    <tref href=\"#test37\"/>\n    <tref href=\"#test38\"/>\n    <tref href=\"#test39\"/>\n    <tref href=\"#test40\"/>\n    <tref href=\"#test41\"/>\n    <tref href=\"#test42\"/>\n    <tref href=\"#test43\"/>\n    <tref href=\"#test44\"/>\n    <tref href=\"#test45\"/>\n    <tref href=\"#test46\"/>\n    <tref href=\"#test47\"/>\n    <tref href=\"#test48\"/>\n    <tref href=\"#test49\"/>\n    <tref href=\"#test50\"/>\n    <tref href=\"#test51\"/>\n    <tref href=\"#test52\"/>\n    <tref href=\"#test53\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <text id="a">
+            referenced text
+        </text>
+        <text id="b">
+            referenced text
+        </text>
+        <text id="c">
+            referenced text
+        </text>
+        <text id="d">
+            referenced text
+        </text>
+        <text id="e">
+            referenced text
+        </text>
+        <text id="f">
+            referenced text
+        </text>
+        <text id="g">
+            referenced text
+        </text>
+        <text id="h">
+            referenced text
+        </text>
+        <text id="i">
+            referenced text
+        </text>
+        <text id="j">
+            referenced text
+        </text>
+        <text id="k">
+            referenced text
+        </text>
+        <text id="l">
+            referenced text
+        </text>
+        <text id="m">
+            referenced text
+        </text>
+        <text id="n">
+            referenced text
+        </text>
+        <text id="o">
+            referenced text
+        </text>
+        <text id="p">
+            referenced text
+        </text>
+        <text id="q">
+            referenced text
+        </text>
+        <text id="r">
+            referenced text
+        </text>
+        <text id="s">
+            referenced text
+        </text>
+        <text id="t">
+            referenced text
+        </text>
+        <text id="u">
+            referenced text
+        </text>
+        <text id="v">
+            referenced text
+        </text>
+        <text id="w">
+            referenced text
+        </text>
+        <text id="x">
+            referenced text
+        </text>
+        <text id="y">
+            referenced text
+        </text>
+        <text id="z">
+            referenced text
+        </text>
+        <text id="A">
+            referenced text
+        </text>
+        <text id="B">
+            referenced text
+        </text>
+        <text id="C">
+            referenced text
+        </text>
+        <text id="D">
+            referenced text
+        </text>
+        <text id="E">
+            referenced text
+        </text>
+        <text id="F">
+            referenced text
+        </text>
+        <text id="G">
+            referenced text
+        </text>
+        <text id="H">
+            referenced text
+        </text>
+        <text id="I">
+            referenced text
+        </text>
+        <text id="J">
+            referenced text
+        </text>
+        <text id="K">
+            referenced text
+        </text>
+        <text id="L">
+            referenced text
+        </text>
+        <text id="M">
+            referenced text
+        </text>
+        <text id="N">
+            referenced text
+        </text>
+        <text id="O">
+            referenced text
+        </text>
+        <text id="P">
+            referenced text
+        </text>
+        <text id="Q">
+            referenced text
+        </text>
+        <text id="R">
+            referenced text
+        </text>
+        <text id="S">
+            referenced text
+        </text>
+        <text id="T">
+            referenced text
+        </text>
+        <text id="U">
+            referenced text
+        </text>
+        <text id="V">
+            referenced text
+        </text>
+        <text id="W">
+            referenced text
+        </text>
+        <text id="X">
+            referenced text
+        </text>
+        <text id="Y">
+            referenced text
+        </text>
+        <text id="Z">
+            referenced text
+        </text>
+        <text id="aa">
+            referenced text
+        </text>
+    </defs>
+    <tref href="#a"></tref>
+    <tref href="#a"></tref>
+    <tref href="#a"></tref>
+    <tref href="#b"></tref>
+    <tref href="#c"></tref>
+    <tref href="#d"></tref>
+    <tref href="#e"></tref>
+    <tref href="#f"></tref>
+    <tref href="#g"></tref>
+    <tref href="#h"></tref>
+    <tref href="#i"></tref>
+    <tref href="#j"></tref>
+    <tref href="#k"></tref>
+    <tref href="#l"></tref>
+    <tref href="#m"></tref>
+    <tref href="#n"></tref>
+    <tref href="#o"></tref>
+    <tref href="#p"></tref>
+    <tref href="#q"></tref>
+    <tref href="#r"></tref>
+    <tref href="#s"></tref>
+    <tref href="#t"></tref>
+    <tref href="#u"></tref>
+    <tref href="#v"></tref>
+    <tref href="#w"></tref>
+    <tref href="#x"></tref>
+    <tref href="#y"></tref>
+    <tref href="#z"></tref>
+    <tref href="#A"></tref>
+    <tref href="#B"></tref>
+    <tref href="#C"></tref>
+    <tref href="#D"></tref>
+    <tref href="#E"></tref>
+    <tref href="#F"></tref>
+    <tref href="#G"></tref>
+    <tref href="#H"></tref>
+    <tref href="#I"></tref>
+    <tref href="#J"></tref>
+    <tref href="#K"></tref>
+    <tref href="#L"></tref>
+    <tref href="#M"></tref>
+    <tref href="#N"></tref>
+    <tref href="#O"></tref>
+    <tref href="#P"></tref>
+    <tref href="#Q"></tref>
+    <tref href="#R"></tref>
+    <tref href="#S"></tref>
+    <tref href="#T"></tref>
+    <tref href="#U"></tref>
+    <tref href="#V"></tref>
+    <tref href="#W"></tref>
+    <tref href="#X"></tref>
+    <tref href="#Y"></tref>
+    <tref href="#Z"></tref>
+    <tref href="#aa"></tref>
+</svg>
