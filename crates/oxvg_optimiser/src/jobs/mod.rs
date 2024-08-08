@@ -6,6 +6,7 @@ mod cleanup_ids;
 mod cleanup_list_of_values;
 mod cleanup_numeric_values;
 mod collapse_groups;
+mod convert_colors;
 
 use std::rc::Rc;
 
@@ -21,6 +22,7 @@ pub use self::cleanup_ids::CleanupIds;
 pub use self::cleanup_list_of_values::CleanupListOfValues;
 pub use self::cleanup_numeric_values::CleanupNumericValues;
 pub use self::collapse_groups::CollapseGroups;
+pub use self::convert_colors::ConvertColors;
 
 pub enum PrepareOutcome {
     None,
@@ -48,6 +50,7 @@ pub struct Jobs {
     cleanup_list_of_values: Option<CleanupListOfValues>,
     cleanup_numeric_values: Option<CleanupNumericValues>,
     collapse_groups: Option<CollapseGroups>,
+    convert_colors: Option<ConvertColors>,
 }
 
 impl Jobs {
@@ -115,6 +118,7 @@ impl IntoIterator for Jobs {
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.collapse_groups
                 .map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.convert_colors.map(|job| Box::new(job) as Box<dyn Job>),
         ];
         jobs.into_iter()
     }

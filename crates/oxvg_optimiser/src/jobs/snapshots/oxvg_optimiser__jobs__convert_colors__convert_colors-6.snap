@@ -1,0 +1,20 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
+expression: "test_config(r#\"{ \"convertColors\": { \"method\": \"currentColor\" } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should not apply `currentColor` to masks -->\n    <path fill=\"currentcolor\"/>\n    <mask id=\"mask1\" fill=\"#fff\"/>\n    <mask id=\"mask2\">\n        <path fill=\"rgba(255,255,255,0.75)\"/>\n    </mask>\n    <mask id=\"mask3\">\n        <g>\n            <path fill=\"#fff\"/>\n            <path stroke=\"#000\"/>\n        </g>\n        <mask id=\"inner-mask\" fill=\"rgba(0,0,0,.5)\"/>\n    </mask>\n    <path fill=\"currentcolor\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should not apply `currentColor` to masks -->
+    <path fill="currentColor"></path>
+    <mask id="mask1" fill="#fff"></mask>
+    <mask id="mask2">
+        <path fill="#ffffffbf"></path>
+    </mask>
+    <mask id="mask3">
+        <g>
+            <path fill="#fff"></path>
+            <path stroke="#000"></path>
+        </g>
+        <mask id="inner-mask" fill="#00000080"></mask>
+    </mask>
+    <path fill="currentColor"></path>
+</svg>
