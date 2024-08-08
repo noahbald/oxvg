@@ -2,6 +2,8 @@
 
 This project is an effort to improve the SVG tooling with browser-grade parsing, transforming, optimising, and linting.
 
+Hopefully this project will be useful to some as a back-end applications competing with Adobe Illustrator or InkScape.
+
 ## Features
 
 The following is a high-level overview of planned features
@@ -24,6 +26,12 @@ And maybe in the future???
 
 - Web frontend comparable to InkScape
 - TUI frontend
+
+### Progress
+
+Please check out the following milestones to see how the project is tracking
+
+- [Requirements for 0.0.1](https://github.com/noahbald/oxvg/milestone/1)
 
 ### SVGO Parity
 

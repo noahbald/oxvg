@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
+expression: "test_config(r#\"{ \"convertColors\": { \"method\": \"lightning\" } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to short hex -->\n    <g color=\"#ff00aa\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should convert to short hex -->
+    <g color="#f0a"></g>
+</svg>

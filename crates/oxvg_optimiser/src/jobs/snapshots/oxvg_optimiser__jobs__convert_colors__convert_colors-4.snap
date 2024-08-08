@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
+expression: "test_config(r#\"{ \"convertColors\": { \"method\": \"currentColor\" } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to currentColor -->\n    <g color=\"black\"/>\n    <g color=\"BLACK\"/>\n    <g color=\"none\"/>\n    <path fill=\"rgb(64, 64, 64)\"/>\n    <path fill=\"rgb(86.27451%,86.666667%,87.058824%)\"/>\n    <path fill=\"rgb(-255,100,500)\"/>\n    <path fill=\"none\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should convert to currentColor -->
+    <g color="currentColor"></g>
+    <g color="currentColor"></g>
+    <g color="none"></g>
+    <path fill="currentColor"></path>
+    <path fill="currentColor"></path>
+    <path fill="currentColor"></path>
+    <path fill="none"></path>
+</svg>

@@ -271,6 +271,17 @@ impl Element {
         parent_element
     }
 
+    pub fn closest(&self, name: &LocalName) -> Option<Self> {
+        let mut current = self.clone();
+        while let Some(parent) = current.get_parent() {
+            if current.get_name().is_some_and(|n| &n == name) {
+                return Some(current);
+            }
+            current = parent;
+        }
+        None
+    }
+
     pub fn get_attr_as_number<F: std::str::FromStr>(
         &self,
         attr: &LocalName,
