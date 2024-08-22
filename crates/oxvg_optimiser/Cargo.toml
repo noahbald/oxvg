@@ -23,6 +23,7 @@ markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
 regex = { workspace = true }
+ryu = "1.0.18"
 thiserror = "1.0.56"
 urlencoding = "2.1"
 
