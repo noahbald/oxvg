@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_path/src/lib.rs
+expression: "dbg!(Path::parse(&\"M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60\").unwrap())"
+---
+M10 50C20 30 40 50 60 70 10 20 30 40 50 60

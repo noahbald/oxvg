@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 oxvg_ast = { workspace = true }
+oxvg_path = { workspace = true, features = ["lightningcss", "deserialize"] }
 oxvg_selectors = { workspace = true }
 oxvg_utils = { workspace = true }
 
@@ -23,7 +24,6 @@ markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
 regex = { workspace = true }
-ryu = "1.0.18"
 thiserror = "1.0.56"
 urlencoding = "2.1"
 

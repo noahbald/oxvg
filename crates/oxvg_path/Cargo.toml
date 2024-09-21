@@ -1,0 +1,23 @@
+[package]
+name = "oxvg_path"
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["lightningcss"]
+lightningcss = ["dep:lightningcss"]
+deserialize = ["dep:serde"]
+
+[dependencies]
+bitflags = "2.6.0"
+lightningcss = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+ryu = "1.0.18"
+
+[dev-dependencies]
+insta = { workspace = true }

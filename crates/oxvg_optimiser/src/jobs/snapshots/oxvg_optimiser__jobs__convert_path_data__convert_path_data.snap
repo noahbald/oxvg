@@ -1,0 +1,22 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Optimise move commands -->\n    <path d=\"M 10,50\"/>\n    <path d=\"M 10 50\"/>\n    <path d=\"M10 50\"/>\n    <path d=\"M10,50\"/>\n    <path d=\"M10-3.05176e-005\"/>\n    <path d=\"M10-50.2.30-2\"/>\n    <path d=\"M10-50l.2.30\"/>\n    <path d=\"M 10 , 50\"/>\n    <path d=\"M -10,-50\"/>\n    <path d=\"M -10 -50\"/>\n    <path d=\"M-10 -50\"/>\n    <path d=\"M-10-50\"/>\n    <path d=\"M-10,-50\"/>\n    <path d=\"M -10 , -50\"/>\n    <path d=\"...\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Optimise move commands -->
+    <path d="M10 50"></path>
+    <path d="M10 50"></path>
+    <path d="M10 50"></path>
+    <path d="M10 50"></path>
+    <path d="M10 0"></path>
+    <path d="M10-50.2.3-2"></path>
+    <path d="m10-50 .2.3"></path>
+    <path d="M10 50"></path>
+    <path d="M-10-50"></path>
+    <path d="M-10-50"></path>
+    <path d="M-10-50"></path>
+    <path d="M-10-50"></path>
+    <path d="M-10-50"></path>
+    <path d="M-10-50"></path>
+    <path d="..."></path>
+</svg>
