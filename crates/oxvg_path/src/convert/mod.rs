@@ -11,8 +11,14 @@ use crate::geometry::MakeArcs;
 use crate::math::to_fixed;
 use crate::{command, Path};
 
+#[cfg(feature = "oxvg")]
+use oxvg_style;
+#[cfg(feature = "oxvg")]
+use std::collections::BTreeMap;
+
 bitflags! {
     /// External style information that may be relevant when optimising a path
+    #[derive(Debug)]
     pub struct StyleInfo: usize {
         const has_marker_mid = 0b0_0001;
         const maybe_has_stroke = 0b0010;
@@ -79,45 +85,43 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
 }
 
 impl StyleInfo {
-    #[cfg(feature = "lightningcss")]
-    pub fn gather(from: &str, has_marker: bool) -> Self {
-        use lightningcss::{
-            properties::{
-                svg::{SVGPaint, StrokeLinecap, StrokeLinejoin},
-                Property, PropertyId,
-            },
-            stylesheet::{ParserOptions, StyleAttribute},
-        };
+    #[cfg(feature = "oxvg")]
+    pub fn gather(
+        computed_styles: &BTreeMap<oxvg_style::SVGStyleID, &oxvg_style::SVGStyle>,
+        has_marker: bool,
+    ) -> Self {
+        use lightningcss::properties::svg::{StrokeLinecap, StrokeLinejoin};
 
-        let Some(style) = StyleAttribute::parse(from, ParserOptions::default()).ok() else {
-            return Self::is_safe_to_use_z;
-        };
+        let has_marker_mid = computed_styles.contains_key(&oxvg_style::SVGStyleID::MarkerMid);
 
-        let declarations = style.declarations;
-        let has_marker_mid = declarations.get(&PropertyId::MarkerMid).is_some();
-
-        let stroke = declarations
-            .get(&PropertyId::Stroke)
-            .map(|property| property.0.into_owned());
-        let maybe_has_stroke =
-            stroke.is_some_and(|property| !matches!(property, Property::Stroke(SVGPaint::None)));
-
-        let linecap = declarations
-            .get(&PropertyId::StrokeLinecap)
-            .map(|property| property.0.into_owned());
-        let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
-            !matches!(property, Property::StrokeLinecap(StrokeLinecap::Butt))
+        let stroke = computed_styles.get(&oxvg_style::SVGStyleID::Stroke);
+        let maybe_has_stroke = stroke.is_some_and(|property| {
+            !matches!(
+                property,
+                oxvg_style::SVGStyle::Stroke(oxvg_style::SVGPaint::None)
+            )
         });
 
-        let linejoin = declarations
-            .get(&PropertyId::StrokeLinejoin)
-            .map(|property| property.0.into_owned());
+        let linecap = computed_styles.get(&oxvg_style::SVGStyleID::SrokeLinecap);
+        let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
+            !matches!(
+                property,
+                oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
+            )
+        });
+
+        let linejoin = computed_styles.get(&oxvg_style::SVGStyleID::StrokeLinejoin);
         let is_safe_to_use_z = if maybe_has_stroke {
-            // TODO: Find out what the `dynamic` business in SVGO is meant to mean
             linecap.is_some_and(|property| {
-                matches!(property, Property::StrokeLinecap(StrokeLinecap::Round))
+                matches!(
+                    property,
+                    oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
+                )
             }) && linejoin.is_some_and(|property| {
-                matches!(property, Property::StrokeLinejoin(StrokeLinejoin::Round))
+                matches!(
+                    property,
+                    oxvg_style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
+                )
             })
         } else {
             true

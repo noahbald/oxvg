@@ -18,6 +18,7 @@ oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_path = { path = "crates/oxvg_path" }
 oxvg_selectors = { path = "crates/oxvg_selectors" }
+oxvg_style = { path = "crates/oxvg_style" }
 oxvg_utils = { path = "crates/oxvg_utils" }
 
 anyhow = "1.0"
@@ -27,7 +28,7 @@ cssparser = "0.31.0"
 derivative = "2.2"
 insta = "1.36.1"
 lazy_static = "1.4"
-lightningcss = "1.0.0-alpha.57"
+lightningcss = "1.0.0-alpha.59"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 regex = "1.10"

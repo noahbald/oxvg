@@ -12,6 +12,7 @@ mod convert_path_data;
 
 use std::rc::Rc;
 
+use lightningcss::stylesheet;
 use oxvg_selectors::Element;
 use rcdom::NodeData;
 use serde::Deserialize;
@@ -33,12 +34,20 @@ pub enum PrepareOutcome {
     Skip,
 }
 
+pub struct Context {
+    style: oxvg_style::ComputedStyles,
+}
+
 pub trait Job {
     fn prepare(&mut self, _document: &rcdom::RcDom) -> PrepareOutcome {
         PrepareOutcome::None
     }
 
-    fn run(&self, _node: &Rc<rcdom::Node>) {}
+    fn use_style(&self, _node: &Rc<rcdom::Node>) -> bool {
+        false
+    }
+
+    fn run(&self, _node: &Rc<rcdom::Node>, _context: &Context) {}
 
     fn breakdown(&mut self, _document: &rcdom::RcDom) {}
 }
@@ -68,7 +77,11 @@ impl Jobs {
 
         #[cfg(test)]
         println!("~~ --- starting job");
-        Element::new(root.document.clone())
+        let root_element = Element::new(root.document.clone());
+        let stylesheet = &oxvg_style::root_style(&root_element);
+        let stylesheet =
+            stylesheet::StyleSheet::parse(stylesheet, stylesheet::ParserOptions::default()).ok();
+        root_element
             .depth_first()
             .filter(|child| matches!(child.node.data, NodeData::Element { .. }))
             .collect::<Vec<_>>()
@@ -87,7 +100,21 @@ impl Jobs {
                     };
                     println!("--- element {i} <{name}{attrs}>",);
                 }
-                jobs.iter().for_each(|job| job.run(&child.node));
+                let use_style = jobs.iter().any(|job| job.use_style(&child.node));
+                let mut computed_style = oxvg_style::ComputedStyles::default();
+                if let Some(s) = &stylesheet {
+                    if use_style {
+                        computed_style.with_all(&child.node, &s.rules.0);
+                    }
+                } else if use_style {
+                    computed_style.with_inline_style(&child.node);
+                    computed_style.with_inherited(&child.node, &[]);
+                }
+
+                let context = Context {
+                    style: computed_style,
+                };
+                jobs.iter().for_each(|job| job.run(&child.node, &context));
                 #[cfg(test)]
                 {
                     println!("{}", node_to_string(child.node.clone()).unwrap_or_default());

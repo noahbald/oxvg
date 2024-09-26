@@ -4,7 +4,7 @@ use markup5ever::local_name;
 use oxvg_ast::Attributes;
 use serde::Deserialize;
 
-use crate::Job;
+use crate::{Context, Job};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +13,7 @@ pub struct AddAttributesToSVGElement {
 }
 
 impl Job for AddAttributesToSVGElement {
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element;
 
         let Element { attrs, name, .. } = &node.data else {

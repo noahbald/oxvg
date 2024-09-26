@@ -13,7 +13,7 @@ use oxvg_selectors::{
 };
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Context, Job, PrepareOutcome};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,7 @@ impl Job for CollapseGroups {
         }
     }
 
-    fn run(&self, node: &std::rc::Rc<rcdom::Node>) {
+    fn run(&self, node: &std::rc::Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element as ElementData;
 
         let ElementData { attrs, .. } = &node.data else {

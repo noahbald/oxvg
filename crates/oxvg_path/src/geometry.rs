@@ -86,7 +86,7 @@ impl Curve {
 
     pub fn is_data_straight(args: &[f64], error: f64) -> bool {
         // Get line equation a·x + b·y + c = 0 coefficients a, b (c = 0) by start and end points.
-        let i = args.len() - 1;
+        let i = args.len() - 2;
         let a = -args[i + 1]; // y1 − y2 (y1 = 0)
         let b = args[i]; // x2 − x1 (x1 = 0)
         let d = 1.0 / (a * a + b * b); // same part for all points

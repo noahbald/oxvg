@@ -45,10 +45,11 @@ impl std::fmt::Display for Path {
                 if i == 0 {
                     prev.fmt(f)?;
                 }
-                if current.is_space_needed(prev) {
+                let str = current.to_string();
+                if current.is_space_needed(prev) && !str.starts_with('-') {
                     f.write_char(' ')?;
                 }
-                current.fmt(f)?;
+                f.write_str(&str)?;
                 Ok(())
             })
     }

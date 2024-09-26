@@ -21,13 +21,13 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
         if matches!(item.command, command::Data::ClosePath) {
             return;
         }
-        if prev.command.id().next_implicit() == item.command.id() {
+        if prev.command.id().next_implicit() == item.command.id() && index > 1 {
             item.command = command::Data::Implicit(Box::new(item.command.clone()));
         }
 
         let error = options.error();
         let mut absolute_command = to_absolute(item);
-        if prev.command.id().next_implicit() == absolute_command.id() {
+        if prev.command.id().next_implicit() == absolute_command.id() && index > 1 {
             absolute_command = command::Data::Implicit(Box::new(absolute_command));
         }
         options.round_data(absolute_command.args_mut(), error);
@@ -56,10 +56,12 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
                 // omission via decimal: 10 20.1 .1 20 -> 10 20.1.1 20
                 || (f64::floor(args[0]) == 0.0 && args[0].fract() > f64::EPSILON && prev.command.args().last().is_some_and(|a| a.fract() > f64::EPSILON)));
 
-        if is_relative_better && !options.flags.force_absolute_path() {
-            return;
-        }
+        if !is_relative_better || options.flags.force_absolute_path() {
         item.command = absolute_command;
+        }
+        if index == 1 && matches!(item.command, command::Data::LineBy(_) | command::Data::LineTo(_)) {
+            item.command = command::Data::Implicit(Box::new(item.command.clone()));
+        }
     });
     let result = PositionedPath(new_path.into_iter().flatten().collect());
     #[cfg(debug_assertions)]

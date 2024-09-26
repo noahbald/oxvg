@@ -4,7 +4,7 @@ use markup5ever::local_name;
 use oxvg_selectors::Element;
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Context, Job, PrepareOutcome};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +19,7 @@ impl Job for ConvertEllipseToCircle {
         }
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         let element = Element::new(node.clone());
         let Some(name) = element.get_name() else {
             return;

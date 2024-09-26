@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use markup5ever::{local_name, tendril::StrTendril, Attribute};
 
-use crate::Job;
+use crate::{Context, Job};
 
 pub struct Options {
     pub float_precision: usize,
@@ -83,7 +83,7 @@ pub trait CleanupValues {
 }
 
 impl<T: CleanupValues> Job for T {
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element;
 
         let Element { attrs, .. } = &node.data else {

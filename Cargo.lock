@@ -754,9 +754,9 @@ checksum = "13e3bf6590cbc649f4d1a3eefc9d5d6eb746f5200ffb04e5e142700b8faa56e7"
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.57"
+version = "1.0.0-alpha.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10bc10261f46b8df263b80e7779d1748b1880488cd951fbb9e096430cead10e6"
+checksum = "53e225b3fa0a8bd5562c8833b1a32afa88761c4e661d3177b8cdc4e13cbf078e"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.6.0",
@@ -768,6 +768,7 @@ dependencies = [
  "getrandom",
  "itertools",
  "lazy_static",
+ "lightningcss-derive",
  "parcel_selectors",
  "parcel_sourcemap",
  "paste",
@@ -775,6 +776,18 @@ dependencies = [
  "rayon",
  "serde",
  "smallvec",
+]
+
+[[package]]
+name = "lightningcss-derive"
+version = "1.0.0-alpha.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1013,6 +1026,7 @@ dependencies = [
  "oxvg_ast",
  "oxvg_path",
  "oxvg_selectors",
+ "oxvg_style",
  "oxvg_utils",
  "regex",
  "serde",
@@ -1029,6 +1043,7 @@ dependencies = [
  "bitflags 2.6.0",
  "insta",
  "lightningcss",
+ "oxvg_style",
  "ryu",
  "serde",
 ]
@@ -1049,6 +1064,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxvg_style"
+version = "0.1.0"
+dependencies = [
+ "lightningcss",
+ "markup5ever",
+ "markup5ever_rcdom",
+ "oxvg_selectors",
+]
+
+[[package]]
 name = "oxvg_utils"
 version = "0.1.0"
 dependencies = [
@@ -1057,9 +1082,9 @@ dependencies = [
 
 [[package]]
 name = "parcel_selectors"
-version = "0.26.5"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce9c47a67c66fee4a5a42756f9784d92941bd0ab2b653539a9e90521a44b66f0"
+checksum = "1f4d26c18a8377a64728c04bf3b2e48ec43b0c77e687a18e03eb837d65e08a14"
 dependencies = [
  "bitflags 2.6.0",
  "cssparser 0.33.0",

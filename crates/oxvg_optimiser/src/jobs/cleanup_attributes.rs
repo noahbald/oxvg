@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use serde::Deserialize;
 
-use crate::Job;
+use crate::{Context, Job};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +13,7 @@ pub struct CleanupAttributes {
 }
 
 impl Job for CleanupAttributes {
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element;
 
         let Element { attrs, .. } = &node.data else {

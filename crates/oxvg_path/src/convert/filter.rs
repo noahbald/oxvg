@@ -86,7 +86,7 @@ pub fn filter(
             return;
         }
         from::curve_to_shorthand(prev, item, options, &state);
-        if remove::useless_segment(item, options) {
+        if remove::useless_segment(item, options, info) {
             *item_option = None;
             return;
         }

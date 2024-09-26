@@ -11,8 +11,9 @@ workspace = true
 
 [dependencies]
 oxvg_ast = { workspace = true }
-oxvg_path = { workspace = true, features = ["lightningcss", "deserialize"] }
+oxvg_path = { workspace = true, features = ["oxvg", "deserialize"] }
 oxvg_selectors = { workspace = true }
+oxvg_style = { workspace = true }
 oxvg_utils = { workspace = true }
 
 anyhow = { workspace = true }

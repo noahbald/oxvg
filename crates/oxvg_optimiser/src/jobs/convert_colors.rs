@@ -18,7 +18,7 @@ use markup5ever::local_name;
 use oxvg_selectors::Element;
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Context, Job, PrepareOutcome};
 
 #[derive(Deserialize, Clone)]
 pub enum ConvertCase {
@@ -76,7 +76,7 @@ impl Job for ConvertColors {
         }
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element as ElementData;
 
         let ElementData { attrs, name, .. } = &node.data else {

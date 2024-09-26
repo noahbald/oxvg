@@ -36,7 +36,36 @@ fn remove_repeated_moves(path: &PositionedPath) -> PositionedPath {
             prev_option.as_ref().map(|p| &p.command),
             Some(command::Data::MoveBy(_) | command::Data::MoveTo(_))
         ) {
-            *prev_option = None;
+            match prev_option {
+                Some(Position {
+                    command: command::Data::MoveBy(prev_a),
+                    ..
+                }) => match item.command {
+                    command::Data::MoveBy(a) => {
+                        *prev_a = [prev_a[0] + a[0], prev_a[1] + a[1]];
+                        *item_option = None;
+                    }
+                    command::Data::MoveTo(_) => {
+                        *prev_a = [
+                            prev_a[0] + item.end.0[0] - item.start.0[0],
+                            prev_a[1] + item.end.0[1] - item.start.0[1],
+                        ];
+                        *item_option = None;
+                    }
+                    _ => {}
+                },
+                Some(Position {
+                    command: command::Data::MoveTo(prev_a),
+                    ..
+                }) => match item.command {
+                    command::Data::MoveBy(_) | command::Data::MoveTo(_) => {
+                        *prev_a = item.end.0;
+                        *item_option = None;
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
         }
     });
     PositionedPath(new_path.into_iter().flatten().collect())

@@ -9,7 +9,7 @@ use oxvg_selectors::{collections::REFERENCES_PROPS, Element};
 use regex::CaptureMatches;
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Context, Job, PrepareOutcome};
 
 #[derive(Debug)]
 enum ReplaceCounter<'a> {
@@ -66,7 +66,7 @@ impl Job for CleanupIds {
         PrepareOutcome::None
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         use rcdom::NodeData::Element as ElementData;
 
         if self.ignore_document {

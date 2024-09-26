@@ -63,8 +63,10 @@ pub fn repeated(
     true
 }
 
-pub fn useless_segment(item: &Position, options: &convert::Options) -> bool {
-    if !options.flags.remove_useless() {
+pub fn useless_segment(item: &Position, options: &convert::Options, info: &StyleInfo) -> bool {
+    let maybe_has_stroke_and_linecap =
+        info.contains(StyleInfo::maybe_has_stroke) && info.contains(StyleInfo::maybe_has_linecap);
+    if !options.flags.remove_useless() || maybe_has_stroke_and_linecap {
         return false;
     }
 

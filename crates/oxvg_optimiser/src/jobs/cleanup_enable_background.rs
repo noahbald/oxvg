@@ -5,7 +5,7 @@ use oxvg_selectors::Element;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Context, Job, PrepareOutcome};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -37,7 +37,7 @@ impl Job for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     /// node's width and height
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         let element = oxvg_selectors::Element::new(node.clone());
 
         if let Some(mut style) = element.get_attr(&local_name!("style")) {

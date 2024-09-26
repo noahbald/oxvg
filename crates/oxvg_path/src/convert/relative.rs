@@ -126,8 +126,8 @@ fn convert_command_to_relative(
                 a[3] - cursor.0[1],
             ];
             command = command::Data::QuadraticBezierBy(a);
-            cursor.0[0] = a[2];
-            cursor.0[1] = a[3];
+            cursor.0[0] += a[2];
+            cursor.0[1] += a[3];
         }
         command::Data::SmoothQuadraticBezierTo(a) => {
             let a = [a[0] - cursor.0[0], a[1] - cursor.0[1]];

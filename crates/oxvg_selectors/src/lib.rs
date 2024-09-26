@@ -11,7 +11,7 @@ use std::{
 
 use cssparser::ToCss;
 use derivative::Derivative;
-use markup5ever::{local_name, Attribute, LocalName, Namespace};
+use markup5ever::{local_name, tendril::StrTendril, Attribute, LocalName, Namespace};
 use rcdom::NodeData;
 use selectors::{
     attr::{CaseSensitivity, NamespaceConstraint},
@@ -143,6 +143,14 @@ impl Element {
             .into_iter()
             .filter(|child| matches!(child.data, NodeData::Element { .. }))
             .map(Self::new)
+    }
+
+    pub fn text_content(&self) -> impl Iterator<Item = RefCell<StrTendril>> {
+        let children = self.node.children.borrow().clone();
+        children.into_iter().filter_map(|child| match &child.data {
+            NodeData::Text { contents } => Some(contents.clone()),
+            _ => None,
+        })
     }
 
     // FIXME: Collecting for these 'siblings' functions seems redundant
@@ -716,7 +724,7 @@ impl Iterator for Select {
 }
 
 impl Selector {
-    fn matches_with_scope_and_cache(
+    pub fn matches_with_scope_and_cache(
         &self,
         element: &Element,
         scope: Option<Element>,
@@ -738,6 +746,10 @@ impl Selector {
              .0
             .iter()
             .any(|s| matching::matches_selector(s, 0, None, element, context))
+    }
+
+    pub fn matches_naive(&self, element: &Element) -> bool {
+        self.matches_with_scope_and_cache(element, None, &mut NthIndexCache::default())
     }
 }
 

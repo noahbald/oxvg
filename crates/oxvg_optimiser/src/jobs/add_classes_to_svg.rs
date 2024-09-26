@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, rc::Rc};
 use markup5ever::{local_name, tendril::Tendril};
 use serde::Deserialize;
 
-use crate::Job;
+use crate::{Context, Job};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,7 @@ pub struct AddClassesToSVG {
 }
 
 impl Job for AddClassesToSVG {
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
         let element = oxvg_selectors::Element::from(node);
         if !element.is_root() || element.get_name() != Some(local_name!("svg")) {
             return;

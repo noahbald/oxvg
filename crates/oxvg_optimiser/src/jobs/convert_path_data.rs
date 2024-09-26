@@ -5,7 +5,7 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use oxvg_selectors::Element;
 use serde::Deserialize;
 
-use crate::Job;
+use crate::{Context, Job};
 
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,21 +31,23 @@ pub struct ConvertPathData {
 }
 
 impl Job for ConvertPathData {
-    fn run(&self, node: &Rc<rcdom::Node>) {
+    fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {
+        let element = Element::new(node.clone());
+        element.get_attr(&local_name!("d")).is_some()
+    }
+
+    fn run(&self, node: &Rc<rcdom::Node>, context: &Context) {
         let element = Element::new(node.clone());
         let Some(d) = element.get_attr(&local_name!("d")) else {
             return;
         };
 
-        let style = element
-            .get_attr(&local_name!("style"))
-            .map(|attr| attr.value)
-            .unwrap_or_default();
         let style_info = convert::StyleInfo::gather(
-            &style,
+            &context.style.computed(),
             element.get_attr(&local_name!("marker-start")).is_some()
                 || element.get_attr(&local_name!("marker-end")).is_some(),
         );
+        dbg!("ConvertPathData::run: gained style info", &style_info);
 
         let path = match Path::parse(&d.value) {
             Ok(path) => path,
@@ -146,6 +148,55 @@ fn convert_path_data() -> anyhow::Result<()> {
     <path d="M-10,-50"/>
     <path d="M -10 , -50"/>
     <path d="..."/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M 10,50 L 20,30"/>
+    <path d="M 10,50 C 20,30 40,50 60,70"/>
+    <path d="M 10,50 C 20,30 40,50 60,70 S 20,30 30,60"/>
+    <path d="M 10,50 Q 30,60 30,70"/>
+    <path d="M 10,50 Q 30,60 30,70 T 40,70"/>
+    <path d="M 10,50 A 20,60 45 0,1 40,70"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M 10,50 M 20,60"/>
+    <path d="M 10,50 20,60"/>
+    <path d="M 10,50 L 20,30 L 40,60"/>
+    <path d="M 10,50 L 20,30 40,60"/>
+    <path d="M 10,50 C 20,30 40,50 60,70 C 40,40 50,60 70,80"/>
+    <path d="M 10,50 C 20,30 40,50 60,70 40,40 50,60 70,80"/>
+    <path d="M 10,50 C 20,30 40,50 60,70 S 30,30 40,50 S 60,70 80,100"/>
+    <path d="M 10,50 C 20,30 40,50 60,70 S 30,30 40,50 60,70 80,100"/>
+    <path d="M 10,50 Q 30,60 30,70 Q 40,70 50,90"/>
+    <path d="M 10,50 Q 30,60 30,70 40,70 50,90"/>
+    <path d="M 10,50 Q 30,60 30,70 T 40,70 T 50,90"/>
+    <path d="M 10,50 Q 30,60 30,70 T 40,70 50,90"/>
+    <path d="M 10,50 A 20,60 45 0,1 40,70 A 30,50 -30 1,1 50,70"/>
+    <path d="M 10,50 A 20,60 45 0,1 40,70 30,50 -30 1,1 50,70"/>
+    <style>
+      .marker-mid { marker-mid: url(#); }
+    </style>
+    <path d="M0,0 0,5 0,10" class="marker-mid"/>
+    <path d="M0,0 0,5 0,10" marker-mid="url(#)"/>
+    <style>
+      .linecap-round { stroke: black; stroke-linecap: round; }
+      .linecap-butt { stroke: black; stroke-linecap: butt; }
+    </style>
+    <path d="M0,0 0,0" stroke="black" stroke-linecap="round"/>
+    <path d="M0,0 0,0" class="linecap-round"/>
+    <path d="M0,0 0,0" stroke="black" stroke-linecap="butt"/>
+    <path d="M0,0 0,0" class="linecap-butt"/>
 </svg>"#
         )
     )?);
