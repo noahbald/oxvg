@@ -201,6 +201,21 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M 10,50 l 20,30 L 20,30"/>
+    <path d="M 10,50 c 20,30 40,50 60,70 C 20,30 40,50 60,70"/>
+    <path d="M 10,50 c 20,30 40,50 60,70 s 20,40 40,50 L 10,20"/>
+    <path d="M 10,50 q 20,60 30,70 Q 20,60 30,70"/>
+    <path d="M 10,50 q 20,60 30,70 t 40,70 L 10,20"/>
+    <path d="M 10,50 a 20,60 45 0,1 40,70 A 20,60 45 0,1 40,70"/>
+    <path d="M1 1 v8 c0-2 0-4 0-6"/>
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
 
     Ok(())

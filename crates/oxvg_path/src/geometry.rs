@@ -91,13 +91,13 @@ impl Curve {
         let b = args[i]; // x2 − x1 (x1 = 0)
         let d = 1.0 / (a * a + b * b); // same part for all points
 
-        if i <= 1 || d.is_finite() {
+        if i <= 1 || !d.is_finite() {
             // curve that ends at start point isn't the case
             return false;
         }
 
         // Distance from point (x0, y0) to the line is sqrt((c − a·x0 − b·y0)² / (a² + b²))
-        for i in ((i - 2)..=0).step_by(2) {
+        for i in (0..=(i - 2)).rev().step_by(2) {
             if f64::sqrt(f64::powi(a * args[i] + b * args[i + 1], 2) * d) > error {
                 return false;
             }
