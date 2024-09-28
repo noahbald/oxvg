@@ -12,10 +12,11 @@ use crate::{
 
 use super::StyleInfo;
 
+#[derive(Clone)]
 pub struct State<'a> {
     options: &'a convert::Options,
     info: &'a StyleInfo,
-    relative_subpoint: [f64; 2],
+    pub relative_subpoints: Vec<[f64; 2]>,
     base_path: [f64; 2],
     prev_q_control_point: Option<Point>,
     saggita: Option<f64>,
@@ -23,16 +24,20 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    fn new(options: &'a convert::Options, info: &'a StyleInfo) -> Self {
-        Self {
+    pub fn new(path: &PositionedPath, options: &'a convert::Options, info: &'a StyleInfo) -> Self {
+        let mut state = Self {
             options,
             info,
-            relative_subpoint: [0.0; 2],
+            relative_subpoints: vec![[0.0; 2]; path.0.len()],
             base_path: [0.0; 2],
             prev_q_control_point: None,
             saggita: None,
             error: options.error(),
+        };
+        if let Some(item) = path.0.first() {
+            state.relative_subpoints[0] = item.end.0;
         }
+        state
     }
 }
 
@@ -44,21 +49,21 @@ impl<'a> State<'a> {
 pub fn filter(
     path: &PositionedPath,
     options: &convert::Options,
+    state: &mut State,
     info: &StyleInfo,
 ) -> PositionedPath {
-    let mut state = State::new(options, info);
-
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..path.0.len()).for_each(|index| {
         let Some((prev, item_option, next_paths)) = PositionedPath::split_mut(&mut new_path, index)
         else {
             return;
         };
+        state.relative_subpoints[index] = state.relative_subpoints[index - 1];
         let item = item_option
             .as_mut()
             .expect("`split_mut` guard would return if item is `None`");
 
-        if remove::repeated_close_path(prev, item, &mut state) {
+        if remove::repeated_close_path(prev, item, state, index) {
             *item_option = None;
             return;
         }
@@ -69,28 +74,28 @@ pub fn filter(
                 item.command,
                 command::Data::SmoothBezierBy(_) | command::Data::CubicBezierBy(_)
             ));
-            arc::Convert::curve(prev, item, next_paths, options, &state, s_data);
+            arc::Convert::curve(prev, item, next_paths, options, state, s_data);
         }
 
         let next = match next_paths.split_first_mut() {
             Some((next, _)) => next,
             None => &mut None,
         };
-        round::relative_coordinates(item, &mut state, options);
-        round::arc_smart(item, options, &mut state);
-        from::straight_curve_to_line(prev, item, next, &s_data, options, &state);
+        round::relative_coordinates(item, state, options, index);
+        round::arc_smart(item, options, state);
+        from::straight_curve_to_line(prev, item, next, &s_data, options, state);
         from::c_to_q(item, next, options, state.error);
         from::line_to_shorthand(item, options);
         if remove::repeated(prev, item, options, info) {
             *item_option = None;
             return;
         }
-        from::curve_to_shorthand(prev, item, options, &state);
+        from::curve_to_shorthand(prev, item, options, state);
         if remove::useless_segment(item, options, info) {
             *item_option = None;
             return;
         }
-        from::home_to_z(item, next, options, &state, info);
+        from::home_to_z(item, next, options, state, info);
 
         state.prev_q_control_point = get_q_control_point(item, state.prev_q_control_point);
     });

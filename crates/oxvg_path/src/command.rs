@@ -192,7 +192,7 @@ impl Data {
         args[index] = value;
     }
 
-    fn is_implicit(&self) -> bool {
+    pub fn is_implicit(&self) -> bool {
         matches!(self, Self::Implicit(_))
     }
 
@@ -253,7 +253,9 @@ impl Data {
     /// Whether, when formatting itself, a space is needed between itself and the previous
     /// command
     pub(crate) fn is_space_needed(&self, prev: &Self) -> bool {
-        self.is_implicit() && prev.args().last().is_some_and(|n| (n % 1.0) == 0.0)
+        self.is_implicit()
+            && (prev.args().last().is_some_and(|n| (n % 1.0) == 0.0)
+                || self.args().first().is_some_and(|n| n >= &1.0))
     }
 
     /// Calculates the saggita of an arc-by if possible
@@ -388,8 +390,8 @@ impl ID {
 
     pub fn next_implicit(&self) -> Self {
         match self {
-            Self::MoveTo | Self::MoveBy => Self::LineTo,
-            // Self::MoveBy => Self::LineBy,
+            Self::MoveTo => Self::LineTo,
+            Self::MoveBy => Self::LineBy,
             Self::Implicit(c) => c.next_implicit(),
             c => c.clone(),
         }

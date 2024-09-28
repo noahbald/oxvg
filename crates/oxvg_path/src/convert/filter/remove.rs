@@ -3,11 +3,16 @@ use crate::{
     convert::{self, filter, StyleInfo},
 };
 
-pub fn repeated_close_path(prev: &Position, item: &Position, state: &mut filter::State) -> bool {
+pub fn repeated_close_path(
+    prev: &Position,
+    item: &Position,
+    state: &mut filter::State,
+    index: usize,
+) -> bool {
     if !matches!(item.command, command::Data::ClosePath) {
         return false;
     }
-    state.relative_subpoint = state.base_path;
+    state.relative_subpoints[index] = state.base_path;
     if matches!(prev.command, command::Data::ClosePath) {
         return true;
     }

@@ -60,7 +60,8 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
     // optimal mixed
     dbg!("convert::run: converting path", path.to_string());
     let mut positioned_path = relative(path);
-    positioned_path = filter(&positioned_path, options, style_info);
+    let mut state = filter::State::new(&positioned_path, options, style_info);
+    positioned_path = filter(&positioned_path, options, &mut state, style_info);
     if options.flags.utilize_absolute() {
         positioned_path = mixed(&positioned_path, options);
     }
@@ -207,7 +208,7 @@ impl Options {
         match self.precision {
             p if p > 0 && p < 20 => {
                 let fixed = to_fixed(data, p);
-                if (fixed - data).abs() < f64::EPSILON {
+                if (fixed - data).abs() == 0.0 {
                     return data;
                 }
                 let rounded = to_fixed(data, p - 1);

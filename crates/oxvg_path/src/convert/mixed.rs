@@ -36,7 +36,9 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
 
         let absolute_command_str = format!("{absolute_command}");
         let relative_command_str = format!("{relative_command}");
-        if absolute_command_str.len() >= relative_command_str.len()
+        let absolute_command_max_len = absolute_command_str.len() + usize::from(absolute_command.is_implicit());
+        let relative_command_max_len = relative_command_str.len() + usize::from(relative_command.is_implicit());
+        if absolute_command_max_len >= relative_command_max_len
             && !options.flags.force_absolute_path()
         {
             return;
@@ -48,7 +50,7 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
             // will have space (l0 20l10 20 -> l0 20 10 20); and
             && item.command.id().is_implicit()
             // will omiting space be worth it; and
-            && absolute_command_str.len() == relative_command_str.len() - 1
+            && absolute_command_max_len == relative_command_max_len - 1
             // will omit space
             && (
                 // omission via sign: l0 20 -10 20 -> l0 20-10 20
@@ -57,7 +59,7 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
                 || (f64::floor(args[0]) == 0.0 && args[0].fract() > f64::EPSILON && prev.command.args().last().is_some_and(|a| a.fract() > f64::EPSILON)));
 
         if !is_relative_better || options.flags.force_absolute_path() {
-        item.command = absolute_command;
+            item.command = absolute_command;
         }
         if index == 1 && matches!(item.command, command::Data::LineBy(_) | command::Data::LineTo(_)) {
             item.command = command::Data::Implicit(Box::new(item.command.clone()));
@@ -83,13 +85,10 @@ fn to_absolute(item: &Position) -> command::Data {
         | command::Data::QuadraticBezierBy(_)
         | command::Data::SmoothBezierBy(_)
         | command::Data::CubicBezierBy(_) => {
-            let a: Vec<_> = item
-                .command
-                .args()
-                .iter()
-                .enumerate()
-                .map(|(i, a)| a + item.start.0[i % 2])
-                .collect();
+            let mut a = item.command.args().to_vec();
+            for i in (0..a.len()).rev() {
+                a[i] += item.start.0[i % 2];
+            }
             match item.command {
                 command::Data::MoveBy(_) => command::Data::MoveTo(a.try_into().unwrap()),
                 command::Data::LineBy(_) => command::Data::LineTo(a.try_into().unwrap()),
@@ -118,6 +117,12 @@ fn to_absolute(item: &Position) -> command::Data {
             a[6] += item.start.0[1];
             command::Data::ArcTo(a)
         }
+        command::Data::Implicit(ref c) => to_absolute(&Position {
+            command: *c.clone(),
+            start: item.start,
+            end: item.end,
+            s_data: item.s_data.clone(),
+        }),
         _ => item.command.clone(),
     }
 }

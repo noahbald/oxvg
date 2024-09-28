@@ -43,8 +43,8 @@ impl Parser {
             return Ok(());
         }
         let is_implicit = match self.path_data.last() {
-            Some(command::Data::Implicit(c)) => c.id() == self.current_command,
-            Some(c) => c.id() == self.current_command,
+            Some(command::Data::Implicit(c)) => c.id().next_implicit() == self.current_command,
+            Some(c) => c.id().next_implicit() == self.current_command,
             _ => false,
         };
         let flushed_args: [f64; 7] = std::mem::replace(&mut self.args, [0.0; 7]);
