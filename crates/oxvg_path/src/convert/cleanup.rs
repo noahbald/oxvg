@@ -6,6 +6,11 @@ use crate::{
 pub fn cleanup(path: &PositionedPath) -> PositionedPath {
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);
+    if result.0.len() == 1 {
+        if let command::Data::MoveBy(a) = result.0[0].command {
+            result.0[0].command = command::Data::MoveTo(a);
+        }
+    }
     #[cfg(debug_assertions)]
     {
         let path_dbg = path.clone().take().to_string();

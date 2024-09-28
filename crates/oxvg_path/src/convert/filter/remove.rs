@@ -30,10 +30,11 @@ pub fn repeated(
     options: &convert::Options,
     info: &StyleInfo,
 ) -> bool {
+    let command = item.command.as_explicit();
     if !options.flags.collapse_repeated()
         || info.contains(StyleInfo::has_marker_mid)
         || !matches!(
-            item.command,
+            command,
             command::Data::MoveBy(_)
                 | command::Data::HorizontalLineBy(_)
                 | command::Data::VerticalLineBy(_)
@@ -41,7 +42,6 @@ pub fn repeated(
     {
         return false;
     }
-    let command = item.command.as_explicit();
     if prev.command.id().as_explicit() != &command.id() {
         return false;
     }
@@ -74,14 +74,14 @@ pub fn useless_segment(item: &Position, options: &convert::Options, info: &Style
         return false;
     }
 
-    let all_zero = item
-        .command
+    let command = item.command.as_explicit();
+    let all_zero = command
         .args()
         .iter()
         .all(|a| (a - 0.0).abs() < f64::EPSILON);
     if all_zero
         && matches!(
-            item.command,
+            command,
             command::Data::LineBy(_)
                 | command::Data::HorizontalLineBy(_)
                 | command::Data::VerticalLineBy(_)
