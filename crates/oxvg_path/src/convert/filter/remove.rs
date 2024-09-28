@@ -30,7 +30,7 @@ pub fn repeated(
     options: &convert::Options,
     info: &StyleInfo,
 ) -> bool {
-    if options.flags.collapse_repeated()
+    if !options.flags.collapse_repeated()
         || info.contains(StyleInfo::has_marker_mid)
         || !matches!(
             item.command,
@@ -41,21 +41,20 @@ pub fn repeated(
     {
         return false;
     }
-    if prev.command.id() != item.command.id() {
+    let command = item.command.as_explicit();
+    if prev.command.id().as_explicit() != &command.id() {
         return false;
     }
     let prev_args = prev.command.args_mut();
-    if let command::Data::HorizontalLineBy(a) | command::Data::VerticalLineBy(a) = item.command {
-        if (prev_args[0] - a[0]).abs() > f64::EPSILON {
+    if let command::Data::HorizontalLineBy(a) | command::Data::VerticalLineBy(a) = command {
+        // Direction change, e.g negative to positive
+        if (prev_args[0] >= 0.0) != (a[0] >= 0.0) {
             return false;
         }
     }
 
-    match item.command {
+    match command {
         command::Data::HorizontalLineBy(a) | command::Data::VerticalLineBy(a) => {
-            if (prev_args[0] - a[0]).abs() > f64::EPSILON {
-                return false;
-            }
             prev_args[0] += a[0];
         }
         command::Data::MoveBy(a) => {

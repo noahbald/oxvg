@@ -125,6 +125,7 @@ lazy_static! {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn convert_path_data() -> anyhow::Result<()> {
     use crate::test_config;
 
@@ -224,6 +225,27 @@ fn convert_path_data() -> anyhow::Result<()> {
     <path d="m 10 10 l 1 1 M 20 20"/>
     <path d="m 0 0 l .1133 1 l .1133 2 l .1133 3"/>
     <path d="m 0 0 l .0025 3 .0025 2 .0025 3 .0025 2"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M 10,50 L 10,50"/>
+    <path d="M 10,50 L 20,50"/>
+    <path d="M 10,50 L 10,60"/>
+    <path d="M 10,50 L 20,30 10,30"/>
+    <path d="M 10,50 L 20,30 20,20"/>
+    <path d="M 10,50 L 20,30 10,30 40,50"/>
+    <path d="M 10,50 L 20,30 20,20 40,50"/>
+    <path d="M 10,50 L 20,50 L 30,50"/>
+    <path d="M 10,50 L 20,50 30,50"/>
+    <path d="M 10,50 L 20,50 L 30,50 L 40,50"/>
+    <path d="M 10,50 L 10,60 L 10,70"/>
+    <path d="M 10,50 L 10,60 10,70"/>
+    <path d="M 10,50 L 10,60 L 10,70 L 10,80"/>
 </svg>"#
         )
     )?);

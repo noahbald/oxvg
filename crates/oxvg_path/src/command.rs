@@ -196,6 +196,13 @@ impl Data {
         matches!(self, Self::Implicit(_))
     }
 
+    pub fn as_explicit(&self) -> &Self {
+        if let Self::Implicit(inner) = self {
+            return inner.as_explicit();
+        }
+        self
+    }
+
     pub fn is_to(&self) -> bool {
         match self {
             Self::MoveTo(_)
@@ -386,6 +393,13 @@ impl ID {
 
     pub fn is_implicit(&self) -> bool {
         matches!(self, Self::Implicit(_))
+    }
+
+    pub fn as_explicit(&self) -> &Self {
+        if let Self::Implicit(inner) = self {
+            return inner.as_explicit();
+        };
+        self
     }
 
     pub fn next_implicit(&self) -> Self {
