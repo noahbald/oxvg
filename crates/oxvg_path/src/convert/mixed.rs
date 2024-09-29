@@ -21,23 +21,18 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
         if matches!(item.command, command::Data::ClosePath) {
             return;
         }
-        if prev.command.id().next_implicit() == item.command.id() && index > 1 {
-            item.command = command::Data::Implicit(Box::new(item.command.clone()));
-        }
+        item.command = item.command.as_explicit().clone();
 
         let error = options.error();
         let mut absolute_command = to_absolute(item);
-        if prev.command.id().next_implicit() == absolute_command.id() && index > 1 {
-            absolute_command = command::Data::Implicit(Box::new(absolute_command));
-        }
         options.round_data(absolute_command.args_mut(), error);
         let mut relative_command = item.command.clone();
         options.round_data(relative_command.args_mut(), error);
 
         let absolute_command_str = format!("{absolute_command}");
         let relative_command_str = format!("{relative_command}");
-        let absolute_command_max_len = absolute_command_str.len() + usize::from(absolute_command.is_implicit());
-        let relative_command_max_len = relative_command_str.len() + usize::from(relative_command.is_implicit());
+        let absolute_command_max_len = absolute_command_str.len();
+        let relative_command_max_len = relative_command_str.len();
         if absolute_command_max_len >= relative_command_max_len
             && !options.flags.force_absolute_path()
         {
@@ -48,7 +43,8 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
         let is_relative_better =
             options.flags.negative_extra_space()
             // will have space (l0 20l10 20 -> l0 20 10 20); and
-            && item.command.id().is_implicit()
+            // FIXME: BREAK: Should we use `prev.command.next_implicit()` instead?
+            && prev.command.id() == item.command.id()
             // will omiting space be worth it; and
             && absolute_command_max_len == relative_command_max_len - 1
             // will omit space

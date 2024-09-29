@@ -191,7 +191,7 @@ pub fn home_to_z(
         return;
     }
     if !matches!(
-        item.command,
+        item.command.as_explicit(),
         command::Data::LineBy(_)
             | command::Data::HorizontalLineBy(_)
             | command::Data::VerticalLineBy(_)
