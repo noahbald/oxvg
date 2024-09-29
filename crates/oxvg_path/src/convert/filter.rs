@@ -35,6 +35,7 @@ impl<'a> State<'a> {
             error: options.error(),
         };
         if let Some(item) = path.0.first() {
+            state.base_path = item.end.0;
             state.relative_subpoints[0] = item.end.0;
         }
         state

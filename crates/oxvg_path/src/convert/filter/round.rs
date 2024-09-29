@@ -30,6 +30,9 @@ pub fn relative_coordinates(
         _ => {
             let relative_subpoint = &mut state.relative_subpoints[index];
             let a = item.command.args();
+            if a.len() < 2 {
+                return;
+            }
             relative_subpoint[0] += a[a.len() - 2];
             relative_subpoint[1] += a[a.len() - 1];
         }

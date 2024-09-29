@@ -299,6 +299,15 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="m100,200 300,400 z m100,200 L 300,400"/>
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
 
     Ok(())
