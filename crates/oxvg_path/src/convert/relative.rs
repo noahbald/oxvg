@@ -53,8 +53,8 @@ fn convert_command_to_relative(
             // update start and cursor
             cursor.0[0] += a[0];
             cursor.0[1] += a[1];
-            start.0[0] = a[0];
-            start.0[1] = a[1];
+            start.0[0] = cursor.0[0];
+            start.0[1] = cursor.0[1];
         }
         command::Data::LineBy(a) | command::Data::SmoothQuadraticBezierBy(a) => {
             cursor.0[0] += a[0];

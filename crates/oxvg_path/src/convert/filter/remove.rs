@@ -9,11 +9,11 @@ pub fn repeated_close_path(
     state: &mut filter::State,
     index: usize,
 ) -> bool {
-    if !matches!(item.command, command::Data::ClosePath) {
+    if !matches!(item.command.as_explicit(), command::Data::ClosePath) {
         return false;
     }
     state.relative_subpoints[index] = state.base_path;
-    if matches!(prev.command, command::Data::ClosePath) {
+    if matches!(prev.command.as_explicit(), command::Data::ClosePath) {
         return true;
     }
     // prev may not have been `z`, but state is too close to curent position to be considered

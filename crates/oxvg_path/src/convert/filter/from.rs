@@ -123,7 +123,7 @@ pub fn curve_to_shorthand(
         prev_q_control_point,
         ..
     } = state;
-    match item.command {
+    match item.command.as_explicit() {
         command::Data::CubicBezierBy(c) => match prev.command {
             // c + c -> c + s
             command::Data::CubicBezierBy(prev_c)

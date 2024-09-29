@@ -330,6 +330,15 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M213 543q0 -41 20 -66.5q20 -25.5 50 -45.5l49 228q-54 -4 -86.5 -34q-32.5 -30 -32.5 -82zt0 0zM371 48z" />
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
     // NOTE: The following SVGO tests should be used for apply_transforms
     // convertPathData.11.svg.txt
