@@ -6,6 +6,7 @@ use crate::{
 pub fn cleanup(path: &PositionedPath) -> PositionedPath {
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);
+    let mut result = ensure_implicity(&mut result);
     if result.0.len() == 1 {
         if let command::Data::MoveBy(a) = result.0[0].command {
             result.0[0].command = command::Data::MoveTo(a);
@@ -106,4 +107,26 @@ fn switch_leading_move(path: &mut PositionedPath) {
         }
         _ => {}
     }
+}
+
+fn ensure_implicity(path: &mut PositionedPath) -> PositionedPath {
+    // TODO: Fix emplicity corrections elsewhere
+    let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
+    (0..new_path.len()).for_each(|index| {
+        let Some((prev, item_option, _)) = PositionedPath::split_mut(&mut new_path, index) else {
+            return;
+        };
+
+        let Some(item) = item_option else {
+            return;
+        };
+        let prev_id = prev.command.id();
+        let item_id = item.command.id();
+        if !item_id.is_implicit() && prev_id.next_implicit() == item_id {
+            item.command = command::Data::Implicit(Box::new(item.command.clone()));
+        } else if item_id.is_implicit() && &prev_id.next_implicit() != item_id.as_explicit() {
+            item.command = item.command.as_explicit().clone();
+        }
+    });
+    PositionedPath(new_path.into_iter().flatten().collect())
 }

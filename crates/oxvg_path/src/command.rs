@@ -244,6 +244,7 @@ impl Data {
                         .expect("extending `t` args doesn't fit into `q`"),
                 )
             }
+            Self::Implicit(c) => c.make_longhand(data),
             _ => self.clone(),
         }
     }

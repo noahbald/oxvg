@@ -52,7 +52,7 @@ fn make_specific_longhand(next: &mut Option<Position>, id: &command::ID, data: &
     let Some(next) = next else {
         return;
     };
-    if &next.command.id() != id {
+    if next.command.id().as_explicit() != id {
         return;
     };
     next.command = next.command.make_longhand(data);

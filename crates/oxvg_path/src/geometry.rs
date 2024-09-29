@@ -31,6 +31,9 @@ impl Curve {
             command::Data::SmoothBezierBy(s) => {
                 let p_data = prev.command.args();
                 let len = p_data.len();
+                if len < 4 {
+                    return Some(Self([0.0, 0.0, s[0], s[1], s[2], s[3]]));
+                }
                 Some(Self([
                     p_data[len - 2] - p_data[len - 4],
                     p_data[len - 1] - p_data[len - 3],
