@@ -151,7 +151,7 @@ pub fn curve_to_shorthand(
                 if f64::abs(q[0] + prev_q[0] - prev_q[2]) < *error
                     && f64::abs(q[1] + prev_q[1] - prev_q[3]) < *error =>
             {
-                item.command = command::Data::SmoothQuadraticBezierBy([q[1], q[2]]);
+                item.command = command::Data::SmoothQuadraticBezierBy([q[2], q[3]]);
             }
             // t + q -> t + t
             command::Data::SmoothQuadraticBezierBy(_) => {
