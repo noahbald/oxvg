@@ -151,12 +151,7 @@ fn convert_command_to_relative(
             cursor.0[1] = start.0[1];
         }
         command::Data::Implicit(command) => {
-            let is_by = command.is_by();
-            let mut command = convert_command_to_relative(&command, start, cursor, is_first);
-            if is_by {
-                command.command = command::Data::Implicit(Box::new(command.command));
-            }
-            return command;
+            return convert_command_to_relative(&command, start, cursor, is_first);
         }
     };
     command::Position {

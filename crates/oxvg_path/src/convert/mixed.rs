@@ -21,7 +21,6 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
         if matches!(item.command, command::Data::ClosePath) {
             return;
         }
-        item.command = item.command.as_explicit().clone();
 
         let error = options.error();
         let mut absolute_command = to_absolute(item);
@@ -56,9 +55,6 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
 
         if !is_relative_better || options.flags.force_absolute_path() {
             item.command = absolute_command;
-        }
-        if index == 1 && matches!(item.command, command::Data::LineBy(_) | command::Data::LineTo(_)) {
-            item.command = command::Data::Implicit(Box::new(item.command.clone()));
         }
     });
     let result = PositionedPath(new_path.into_iter().flatten().collect());

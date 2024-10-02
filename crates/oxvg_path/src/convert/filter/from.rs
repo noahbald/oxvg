@@ -52,7 +52,7 @@ fn make_specific_longhand(next: &mut Option<Position>, id: &command::ID, data: &
     let Some(next) = next else {
         return;
     };
-    if next.command.id().as_explicit() != id {
+    if &next.command.id() != id {
         return;
     };
     next.command = next.command.make_longhand(data);
@@ -123,7 +123,7 @@ pub fn curve_to_shorthand(
         prev_q_control_point,
         ..
     } = state;
-    match item.command.as_explicit() {
+    match item.command {
         command::Data::CubicBezierBy(c) => match prev.command {
             // c + c -> c + s
             command::Data::CubicBezierBy(prev_c)
@@ -191,7 +191,7 @@ pub fn home_to_z(
         return;
     }
     if !matches!(
-        item.command.as_explicit(),
+        item.command,
         command::Data::LineBy(_)
             | command::Data::HorizontalLineBy(_)
             | command::Data::VerticalLineBy(_)

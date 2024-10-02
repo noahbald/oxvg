@@ -36,7 +36,7 @@ impl Default for MakeArcs {
 
 impl Curve {
     pub fn smooth_bezier_by_args<'a>(prev: &'a Position, item: &'a Position) -> Option<Self> {
-        match item.command.as_explicit() {
+        match item.command {
             command::Data::SmoothBezierBy(s) => {
                 let p_data = prev.command.args();
                 let len = p_data.len();
@@ -52,7 +52,7 @@ impl Curve {
                     s[3],
                 ]))
             }
-            command::Data::CubicBezierBy(c) => Some(Self(*c)),
+            command::Data::CubicBezierBy(c) => Some(Self(c)),
             _ => None,
         }
     }

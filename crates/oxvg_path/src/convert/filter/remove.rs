@@ -9,11 +9,11 @@ pub fn repeated_close_path(
     state: &mut filter::State,
     index: usize,
 ) -> bool {
-    if !matches!(item.command.as_explicit(), command::Data::ClosePath) {
+    if !matches!(item.command, command::Data::ClosePath) {
         return false;
     }
     state.relative_subpoints[index] = state.base_path;
-    if matches!(prev.command.as_explicit(), command::Data::ClosePath) {
+    if matches!(prev.command, command::Data::ClosePath) {
         return true;
     }
     // prev may not have been `z`, but state is too close to curent position to be considered
@@ -30,7 +30,7 @@ pub fn repeated(
     options: &convert::Options,
     info: &StyleInfo,
 ) -> bool {
-    let command = item.command.as_explicit();
+    let command = &item.command;
     if !options.flags.collapse_repeated()
         || info.contains(StyleInfo::has_marker_mid)
         || !matches!(
@@ -42,7 +42,7 @@ pub fn repeated(
     {
         return false;
     }
-    if prev.command.id().as_explicit() != &command.id() {
+    if prev.command.id() != command.id() {
         return false;
     }
     let prev_args = prev.command.args_mut();
@@ -74,7 +74,7 @@ pub fn useless_segment(item: &Position, options: &convert::Options, info: &Style
         return false;
     }
 
-    let command = item.command.as_explicit();
+    let command = &item.command;
     let all_zero = command
         .args()
         .iter()

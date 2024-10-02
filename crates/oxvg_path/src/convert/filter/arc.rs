@@ -28,7 +28,7 @@ impl Convert {
         s_data: &Curve,
     ) -> Option<Self> {
         if !matches!(
-            item.command.id().as_explicit(),
+            item.command.id(),
             command::ID::CubicBezierBy | command::ID::SmoothBezierBy
         ) || !s_data.is_convex()
         {
@@ -172,12 +172,12 @@ impl Convert {
             .filter_map(|p| p.as_mut())
             .take_while(|p| {
                 matches!(
-                    p.command.as_explicit(),
+                    p.command,
                     command::Data::CubicBezierBy(_) | command::Data::SmoothBezierBy(_)
                 )
             })
         {
-            let next_data = match next.command.as_explicit() {
+            let next_data = match next.command {
                 command::Data::SmoothBezierBy(_) => {
                     let mut longhand = next.command.make_longhand(prev.command.args());
                     let args = longhand.clone();
@@ -188,7 +188,7 @@ impl Convert {
                     self.suffix = String::from(Path(vec![longhand.clone()]));
                     [args[0], args[1], args[2], args[3], args[4], args[5]]
                 }
-                command::Data::CubicBezierBy(a) => *a,
+                command::Data::CubicBezierBy(a) => a,
                 _ => {
                     unreachable!("earlier `take_while` should have yielded only bezier-by commands")
                 }
