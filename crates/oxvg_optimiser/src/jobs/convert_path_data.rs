@@ -64,8 +64,8 @@ impl Job for ConvertPathData {
             &path,
             &convert::Options {
                 flags: self.into(),
-                make_arcs: self.make_arcs.clone(),
-                precision: self.float_precision.unwrap_or(*DEFAULT_FLOAT_PRECISION),
+                make_arcs: self.make_arcs.clone().unwrap_or_default(),
+                precision: self.float_precision.unwrap_or(DEFAULT_FLOAT_PRECISION),
             },
             &style_info,
         );
@@ -116,13 +116,7 @@ impl From<&ConvertPathData> for convert::Flags {
     }
 }
 
-lazy_static! {
-    static ref DEFAULT_MAKE_ARCS: MakeArcs = MakeArcs {
-        threshold: 2.5,
-        tolerance: 0.5,
-    };
-    static ref DEFAULT_FLOAT_PRECISION: i32 = 3;
-}
+static DEFAULT_FLOAT_PRECISION: i32 = 3;
 
 #[test]
 #[allow(clippy::too_many_lines)]
@@ -335,6 +329,23 @@ fn convert_path_data() -> anyhow::Result<()> {
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <path d="M213 543q0 -41 20 -66.5q20 -25.5 50 -45.5l49 228q-54 -4 -86.5 -34q-32.5 -30 -32.5 -82zt0 0zM371 48z" />
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 0L0 0c2.761 0 5 2.239 5 5"/>
+    <path d="M0 0L0 0c2.761 0 5 2.239 5 5l5-5"/>
+    <path d="M15 10c-2.761 0-5-2.239-5-5s2.239-5 5-5s5 2.239 5 5l-5 5"/>
+    <path d="M41.008 0.102c1.891 0.387 3.393 1.841 3.849 3.705"/>
+    <path d="M7.234 19.474C6.562 19.811 5.803 20 5 20c-2.761 0-5-2.239-5-5 0-1.767 0.917-3.32 2.301-4.209"/>
+    <path d="M60 0c-2.761 0-5 2.239-5 5s2.239 5 5 5s5-2.239 5-5S62.761 0 60 0z"/>
+    <path d="M15 23.54 c-2.017,0 -3.87,-.7 -5.33,-1.87 -.032,-.023 -.068,-.052 -.11,-.087 .042,.035 .078,.064 .11,.087 .048,.04 .08,.063 .08,.063 "/>
+    <path d="M-9.5,82.311c-2.657,0-4.81-2.152-4.81-4.811c0-2.656,2.153-4.811,4.81-4.811S-4.69,74.844-4.69,77.5 C-4.69,80.158-6.843,82.311-9.5,82.311z"/>
+    <path d="M1.5,13.4561 C1.5,15.3411 3.033,16.8751 4.918,16.8751 C6.478,16.8751 7.84,15.8201 8.229,14.3101 Z"/>
 </svg>"#
         )
     )?);

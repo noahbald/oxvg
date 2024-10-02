@@ -19,15 +19,24 @@ pub struct Circle {
 }
 
 #[cfg_attr(feature = "deserialize", derive(Deserialize))]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MakeArcs {
     pub threshold: f64,
     pub tolerance: f64,
 }
 
+impl Default for MakeArcs {
+    fn default() -> Self {
+        Self {
+            threshold: 2.5,
+            tolerance: 0.5,
+        }
+    }
+}
+
 impl Curve {
     pub fn smooth_bezier_by_args<'a>(prev: &'a Position, item: &'a Position) -> Option<Self> {
-        match item.command {
+        match item.command.as_explicit() {
             command::Data::SmoothBezierBy(s) => {
                 let p_data = prev.command.args();
                 let len = p_data.len();
@@ -43,7 +52,7 @@ impl Curve {
                     s[3],
                 ]))
             }
-            command::Data::CubicBezierBy(c) => Some(Self(c)),
+            command::Data::CubicBezierBy(c) => Some(Self(*c)),
             _ => None,
         }
     }
@@ -63,8 +72,10 @@ impl Curve {
     }
 
     pub fn is_arc(&self, circle: &Circle, make_arcs: &MakeArcs, error: f64) -> bool {
-        let tolerance =
-            (make_arcs.threshold * error).min((make_arcs.tolerance * circle.radius) / 100.0);
+        let tolerance = f64::min(
+            make_arcs.threshold * error,
+            (make_arcs.tolerance * circle.radius) / 100.0,
+        );
         [0.0, 0.25, 0.5, 0.75, 1.0].into_iter().all(|t| {
             (Point::cubic_bezier(self, t).distance(&circle.center) - circle.radius).abs()
                 <= tolerance
@@ -198,7 +209,7 @@ impl Circle {
         let x1 = -self.center.0[0];
         let y1 = -self.center.0[1];
         let x2 = curve.0[4] - self.center.0[0];
-        let y2 = curve.0[4] - self.center.0[1];
+        let y2 = curve.0[5] - self.center.0[1];
         f64::acos((x1 * x2 + y1 * y2) / f64::sqrt((x1 * x1 + y1 * y1) * (x2 * x2 + y2 * y2)))
     }
 }

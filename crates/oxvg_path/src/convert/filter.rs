@@ -72,10 +72,14 @@ pub fn filter(
         let s_data = Curve::smooth_bezier_by_args(prev, item);
         if let Some(ref s_data) = s_data {
             assert!(matches!(
-                item.command,
+                item.command.as_explicit(),
                 command::Data::SmoothBezierBy(_) | command::Data::CubicBezierBy(_)
             ));
-            arc::Convert::curve(prev, item, next_paths, options, state, s_data);
+            let arc_state = arc::Convert::curve(prev, item, next_paths, options, state, s_data);
+            if arc_state.is_some_and(|s| s.remove_item) {
+                *item_option = None;
+                return;
+            }
         }
 
         let next = match next_paths.split_first_mut() {

@@ -263,7 +263,7 @@ impl Data {
     pub(crate) fn is_space_needed(&self, prev: &Self) -> bool {
         self.is_implicit()
             && (prev.args().last().is_some_and(|n| (n % 1.0) == 0.0)
-                || self.args().first().is_some_and(|n| n >= &1.0))
+                || self.args().first().is_some_and(|n| n >= &1.0 || n == &0.0))
     }
 
     /// Calculates the saggita of an arc-by if possible
@@ -352,8 +352,11 @@ impl std::fmt::Display for Data {
                     to_short_string(previous).fmt(f)?;
                 }
                 let s = to_short_string(current);
+                #[allow(clippy::float_cmp)] // This is fine for formatting
                 if current >= &1.0
-                    || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(char::is_numeric))
+                    || (current == &0.0)
+                    || (previous == &0.0 && current >= &0.0)
+                    || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
                 {
                     f.write_char(' ')?;
                 }

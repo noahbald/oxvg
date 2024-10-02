@@ -30,6 +30,7 @@ bitflags! {
 
 bitflags! {
     /// Control flags for certain behaviours while optimising a path
+    #[derive(Debug)]
     pub struct Flags: usize {
         const remove_useless_flag= 0b0000_0000_0000_0001;
         const smart_arc_rounding_flag= 0b_0000_0000_0010;
@@ -45,9 +46,10 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct Options {
     pub flags: Flags,
-    pub make_arcs: Option<MakeArcs>,
+    pub make_arcs: MakeArcs,
     pub precision: i32,
 }
 

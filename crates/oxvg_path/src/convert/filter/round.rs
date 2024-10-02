@@ -97,10 +97,10 @@ pub fn arc_smart(item: &mut Position, options: &convert::Options, state: &mut fi
     if options.precision <= 0 {
         return;
     }
-    let command::Data::ArcBy(mut args) = item.command else {
+    let command::Data::ArcBy(ref mut args) = item.command else {
         return;
     };
-    let Some(saggita) = math::saggita(&args, state.error) else {
+    let Some(saggita) = math::saggita(args, state.error) else {
         return;
     };
 
