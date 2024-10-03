@@ -415,9 +415,82 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": { "floatPrecision": 8 } }"#,
+        Some(
+            r#"<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <path d="M33.027833,1.96545901 C33.097408,2.03503401 38.0413624,6.97898843 38.0413624,6.97898842 C38.0413625,6.97898834 38.0094318,4.0346712 38.0094318,4.0346712 L34,0.0252395624 L34,0 L13,0 L13,2 L33.062374,2 Z"></path>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+    <path d="M32 4a4 4 0 00-4-4H8a4 4 0 01-4 4v28a4 4 0 014 4h20a4 4 0 004-4V4z"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+    <path d="M300 200 h-150 a150 150 0 1 0 150 -150 z" fill="red" stroke="blue" stroke-width="5" />
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32">
+  <path d="M 6 12 v -6 h 6 a 3 3 0 0 1 -6 6 z" />
+  <path d="M 18 12 v -6 h 6 a 3 3 0 0 1 -6 6 z" stroke="#f00" stroke-width="4" />
+  <path d="M 30 12 v -6 h 6 a 3 3 0 0 1 -6 6 z" stroke="#f00" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+</svg>"##
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+    <path d="M6 32.845 6 14.766 6 32.845"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path d="M1 1m1 1"/>
+  <path fill="black" d="M8.5 12Zm0 8q3.35 0 5.675-2.325"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+    <path d="M 6 6 h 0.1 h 0.2"/>
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
     // NOTE: The following SVGO tests should be used for apply_transforms
     // convertPathData.11.svg.txt
+    // convertPathData.18.svg.txt
+    // convertPathData.19.svg.txt
+    // convertPathData.22.svg.txt
+    // convertPathData.23.svg.txt
+    // convertPathData.24.svg.txt
+    // convertPathData.25.svg.txt
+    // convertPathData.26.svg.txt
 
     Ok(())
 }

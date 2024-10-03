@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\">\n    <path d=\"M 6 6 h 0.1 h 0.2\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+    <path d="M6 6h.3"></path>
+</svg>

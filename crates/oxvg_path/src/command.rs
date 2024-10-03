@@ -315,18 +315,13 @@ impl From<(&ID, [f64; 7])> for Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.id().fmt(f)?;
-        if self.args().len() == 1 {
-            self.args().first().unwrap().fmt(f)?;
-            return Ok(());
-        }
+        let mut previous_option = None;
         self.args()
-            .windows(2)
-            .enumerate()
-            .try_for_each(|(i, window)| -> std::fmt::Result {
-                let previous = &window[0];
-                let current = &window[1];
-                let to_short_string = |n: &f64| -> String {
-                    let mut s = ryu::Buffer::new().format(*n).to_owned();
+            .iter()
+            .try_for_each(|current| -> std::fmt::Result {
+                let current = *current;
+                let to_short_string = |n: f64| -> String {
+                    let mut s = ryu::Buffer::new().format(n).to_owned();
                     // Remove trailing zeros
                     if s.contains('.') {
                         s = match s.strip_suffix('0') {
@@ -348,19 +343,19 @@ impl std::fmt::Display for Data {
                     }
                     s
                 };
-                if i == 0 {
-                    to_short_string(previous).fmt(f)?;
-                }
                 let s = to_short_string(current);
                 #[allow(clippy::float_cmp)] // This is fine for formatting
-                if current >= &1.0
-                    || (current == &0.0)
-                    || (previous == &0.0 && current >= &0.0)
-                    || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
-                {
-                    f.write_char(' ')?;
+                if let Some(previous) = previous_option {
+                    if current >= 1.0
+                        || (current == 0.0)
+                        || (previous == 0.0 && current >= 0.0)
+                        || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
+                    {
+                        f.write_char(' ')?;
+                    }
                 }
                 s.fmt(f)?;
+                previous_option = Some(current);
                 Ok(())
             })?;
         Ok(())
