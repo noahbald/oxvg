@@ -4,6 +4,7 @@ use markup5ever::local_name;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use oxvg_selectors::Element;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::{Context, Job};
 
@@ -21,7 +22,7 @@ pub struct ConvertPathData {
     force_absolute_path: Option<bool>,
     negative_extra_space: Option<bool>,
     make_arcs: Option<MakeArcs>,
-    float_precision: Option<i32>,
+    float_precision: Option<Precision>,
     utilize_absolute: Option<bool>,
     // TODO: Do we want to have apply_transforms as an option, or is it better to have this plugin
     // just *before* this one
@@ -29,6 +30,9 @@ pub struct ConvertPathData {
     // apply_transforms_stroked: Option<bool>,
     // transform_precision: Option<usize>,
 }
+
+#[derive(Clone, Default, Copy)]
+struct Precision(oxvg_path::convert::Precision);
 
 impl Job for ConvertPathData {
     fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {
@@ -65,7 +69,7 @@ impl Job for ConvertPathData {
             &convert::Options {
                 flags: self.into(),
                 make_arcs: self.make_arcs.clone().unwrap_or_default(),
-                precision: self.float_precision.unwrap_or(DEFAULT_FLOAT_PRECISION),
+                precision: self.float_precision.unwrap_or_default().0,
             },
             &style_info,
         );
@@ -116,7 +120,48 @@ impl From<&ConvertPathData> for convert::Flags {
     }
 }
 
-static DEFAULT_FLOAT_PRECISION: i32 = 3;
+#[derive(Debug)]
+enum DeserializePrecisionError {
+    OutOfRange,
+    InvalidType,
+}
+
+impl std::fmt::Display for DeserializePrecisionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OutOfRange => f.write_str("number out of range for i32"),
+            Self::InvalidType => f.write_str("expected null, i32, or false"),
+        }
+    }
+}
+
+impl serde::de::StdError for DeserializePrecisionError {}
+
+impl<'de> Deserialize<'de> for Precision {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        match value {
+            Value::Null => Ok(Self(oxvg_path::convert::Precision::None)),
+            Value::Number(x) => match x.as_i64() {
+                Some(x) => Ok(Self(oxvg_path::convert::Precision::Enabled(
+                    x.try_into().map_err(|_| {
+                        serde::de::Error::custom(DeserializePrecisionError::OutOfRange)
+                    })?,
+                ))),
+                None => Err(serde::de::Error::custom(
+                    DeserializePrecisionError::OutOfRange,
+                )),
+            },
+            Value::Bool(x) if !x => Ok(Self(oxvg_path::convert::Precision::Disabled)),
+            _ => Err(serde::de::Error::custom(
+                DeserializePrecisionError::InvalidType,
+            )),
+        }
+    }
+}
 
 #[test]
 #[allow(clippy::too_many_lines)]
@@ -346,6 +391,26 @@ fn convert_path_data() -> anyhow::Result<()> {
     <path d="M15 23.54 c-2.017,0 -3.87,-.7 -5.33,-1.87 -.032,-.023 -.068,-.052 -.11,-.087 .042,.035 .078,.064 .11,.087 .048,.04 .08,.063 .08,.063 "/>
     <path d="M-9.5,82.311c-2.657,0-4.81-2.152-4.81-4.811c0-2.656,2.153-4.811,4.81-4.811S-4.69,74.844-4.69,77.5 C-4.69,80.158-6.843,82.311-9.5,82.311z"/>
     <path d="M1.5,13.4561 C1.5,15.3411 3.033,16.8751 4.918,16.8751 C6.478,16.8751 7.84,15.8201 8.229,14.3101 Z"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": { "floatPrecision": 2 } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M.49 8.8c-.3-.75-.44-1.55-.44-2.35 0-3.54 2.88-6.43 6.43-6.43 3.53 0 6.42 2.88 6.42 6.43 0 .8-.15 1.6-.43 2.35"/>
+    <path d="M13.4 6.62c0-2.5-1.98-4.57-4.4-4.57S4.6 4.1 4.6 6.62"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": { "floatPrecision": 0 } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M.49 8.8c-.3-.75-.44-1.55-.44-2.35 0-3.54 2.88-6.43 6.43-6.43 3.53 0 6.42 2.88 6.42 6.43 0 .8-.15 1.6-.43 2.35"/>
+    <path d="M13.4 6.62c0-2.5-1.98-4.57-4.4-4.57S4.6 4.1 4.6 6.62"/>
 </svg>"#
         )
     )?);

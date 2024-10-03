@@ -46,11 +46,24 @@ bitflags! {
     }
 }
 
+#[derive(Debug, Copy, Clone, Default)]
+pub enum Precision {
+    /// Use default precision
+    #[default]
+    None,
+    /// Avoid rounding where possible
+    ///
+    /// Error tolerance will be 1e-2 where necessary
+    Disabled,
+    /// Precision to a specific decimal place
+    Enabled(i32),
+}
+
 #[derive(Debug)]
 pub struct Options {
     pub flags: Flags,
     pub make_arcs: MakeArcs,
-    pub precision: i32,
+    pub precision: Precision,
 }
 
 pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
@@ -202,29 +215,61 @@ impl Default for Flags {
 
 impl Options {
     pub fn error(&self) -> f64 {
-        let trunc_by = f64::powi(10.0, self.precision);
-        f64::trunc(f64::powi(0.1, self.precision) * trunc_by) / trunc_by
+        match self.precision.inner() {
+            Some(precision) => {
+                let trunc_by = f64::powi(10.0, precision);
+                f64::trunc(f64::powi(0.1, precision) * trunc_by) / trunc_by
+            }
+            None => 1e-2,
+        }
     }
 
     pub fn round(&self, data: f64, error: f64) -> f64 {
-        match self.precision {
-            p if p > 0 && p < 20 => {
-                let fixed = to_fixed(data, p);
-                if (fixed - data).abs() == 0.0 {
-                    return data;
-                }
-                let rounded = to_fixed(data, p - 1);
-                if to_fixed((rounded - data).abs(), p + 1) >= error {
-                    fixed
-                } else {
-                    rounded
-                }
+        let precision = self.precision.unwrap_or(0);
+        if precision > 0 && precision < 20 {
+            let fixed = to_fixed(data, precision);
+            if (fixed - data).abs() == 0.0 {
+                return data;
             }
-            _ => data.round(),
+            let rounded = to_fixed(data, precision - 1);
+            if to_fixed((rounded - data).abs(), precision + 1) >= error {
+                fixed
+            } else {
+                rounded
+            }
+        } else {
+            data.round()
         }
     }
 
     pub fn round_data(&self, data: &mut [f64], error: f64) {
         data.iter_mut().for_each(|d| *d = self.round(*d, error));
+    }
+
+    pub fn round_path(&self, path: &mut Path, error: f64) {
+        path.0
+            .iter_mut()
+            .for_each(|c| self.round_data(c.args_mut(), error));
+    }
+}
+
+impl Precision {
+    fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+
+    fn unwrap_or(self, default: i32) -> i32 {
+        match self.inner() {
+            Some(x) => x,
+            None => default,
+        }
+    }
+
+    fn inner(self) -> Option<i32> {
+        match self {
+            Self::Enabled(x) => Some(x),
+            Self::None => Some(3),
+            Self::Disabled => None,
+        }
     }
 }

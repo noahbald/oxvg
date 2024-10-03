@@ -87,12 +87,12 @@ pub fn c_to_q(
     let mut new_args = [x1 + x2 - start.0[0], y1 + y2 - start.0[1], args[4], args[5]];
     options.round_data(&mut new_args, error);
     let new_command = command::Data::QuadraticBezierBy(new_args);
-    if format!("{new_command}").len() >= format!("{}", item.command).len() {
+    if new_command.to_string().len() >= item.command.to_string().len() {
         return;
     }
     item.command = new_command;
 
-    make_specific_longhand(next, &command::ID::SmoothBezierBy, &args);
+    make_specific_longhand(next, &command::ID::SmoothBezierBy, &new_args);
 }
 
 pub fn line_to_shorthand(item: &mut Position, options: &convert::Options) {

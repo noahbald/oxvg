@@ -95,7 +95,7 @@ impl Convert {
         // NOTE: At this point, `prev` and `item` are `Some(_)`
         // We keep them as `&mut Option<_>` so they may be replaced with `None` later
         arc_state.get_s_data_info(prev, make_arcs, state.error);
-        arc_state.check_next_curves_fit(item, next_paths, make_arcs, state.error);
+        arc_state.check_next_curves_fit(item, next_paths, make_arcs, options, state.error);
 
         let Convert {
             ref output,
@@ -105,12 +105,9 @@ impl Convert {
         } = arc_state;
         let mut output_path = Path(output.clone().into_iter().map(|p| p.command).collect());
         // Round for string length comparison
-        output_path.0.iter_mut().for_each(|p| {
-            p.args_mut()
-                .iter_mut()
-                .for_each(|d| *d = options.round(*d, state.error));
-        });
-        let arc_curves_path = Path(arc_curves.clone().into_iter().map(|p| p.command).collect());
+        options.round_path(&mut output_path, state.error);
+        let mut arc_curves_path = Path(arc_curves.clone().into_iter().map(|p| p.command).collect());
+        options.round_path(&mut arc_curves_path, state.error);
         if String::from(output_path).len() + suffix.len() < String::from(arc_curves_path).len() {
             arc_state.use_output_arc(prev, item, next_paths, options, s_data, state.error);
         }
@@ -164,6 +161,7 @@ impl Convert {
         item: &Position,
         next_paths: &mut [Option<Position>],
         make_arcs: &MakeArcs,
+        options: &convert::Options,
         error: f64,
     ) {
         let mut prev = item;
@@ -185,7 +183,11 @@ impl Convert {
                     for i in 2..args.len() {
                         longhand.set_arg(i, 0.0);
                     }
-                    self.suffix = String::from(Path(vec![longhand.clone()]));
+                    // NOTE: Command type doesn't matter here, it's used to measure an arbitrary 2
+                    // arg command
+                    let mut suffix = Path(vec![command::Data::MoveTo([args[0], args[1]])]);
+                    options.round_path(&mut suffix, error);
+                    self.suffix = String::from(suffix);
                     [args[0], args[1], args[2], args[3], args[4], args[5]]
                 }
                 command::Data::CubicBezierBy(a) => a,

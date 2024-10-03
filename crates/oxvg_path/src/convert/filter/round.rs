@@ -10,10 +10,10 @@ pub fn relative_coordinates(
     options: &convert::Options,
     index: usize,
 ) {
-    if options.precision == 0 {
+    if options.precision.is_disabled() {
         return;
     }
-    update_relative_subpoint(item, state, index);
+    update_relative_subpoint(item, options, state, index);
     item.command.args_mut().iter_mut().for_each(|a| {
         *a = options.round(*a, state.error);
     });
@@ -48,7 +48,13 @@ pub fn relative_coordinates(
     };
 }
 
-fn update_relative_subpoint(item: &mut Position, state: &mut filter::State, index: usize) {
+fn update_relative_subpoint(
+    item: &mut Position,
+    options: &convert::Options,
+    state: &mut filter::State,
+    index: usize,
+) {
+    options.round_data(&mut state.relative_subpoints[index], state.error);
     match &item.command {
         command::Data::MoveBy(_)
         | command::Data::LineBy(_)
@@ -82,7 +88,7 @@ fn update_relative_subpoint(item: &mut Position, state: &mut filter::State, inde
                 end: item.end,
                 s_data: item.s_data.clone(),
             };
-            update_relative_subpoint(&mut new_position, state, index);
+            update_relative_subpoint(&mut new_position, options, state, index);
             new_position.command = command::Data::Implicit(Box::new(new_position.command));
             *item = new_position;
         }
@@ -94,7 +100,10 @@ pub fn arc_smart(item: &mut Position, options: &convert::Options, state: &mut fi
     if !options.flags.smart_arc_rounding() {
         return;
     }
-    if options.precision <= 0 {
+    let Some(precision) = options.precision.inner() else {
+        return;
+    };
+    if precision == 0 {
         return;
     }
     let command::Data::ArcBy(ref mut args) = item.command else {
@@ -104,7 +113,7 @@ pub fn arc_smart(item: &mut Position, options: &convert::Options, state: &mut fi
         return;
     };
 
-    for precision_new in (0..options.precision).rev() {
+    for precision_new in (0..precision).rev() {
         let radius = math::to_fixed(args[0], precision_new);
         let Some(saggita_new) = math::saggita(
             &[radius, radius, args[2], args[3], args[4], args[5], args[6]],

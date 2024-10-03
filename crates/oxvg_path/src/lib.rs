@@ -138,6 +138,12 @@ impl PositionedPath {
     }
 }
 
+impl std::fmt::Display for PositionedPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Path(self.0.iter().map(|p| p.command.clone()).collect()).fmt(f)
+    }
+}
+
 #[test]
 fn test_path_parse() {
     // Should parse single command
