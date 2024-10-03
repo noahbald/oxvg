@@ -481,6 +481,33 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+    <path d="M 6 6 h 0.0005"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+    <path d="m 1 1 a 10000 10000 0 0 0 8 0" stroke="black"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+    <path d="m 1 1 a 10.567 10.567 0 0 0 1 0" stroke="black"/>
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
     // NOTE: The following SVGO tests should be used for apply_transforms
     // convertPathData.11.svg.txt

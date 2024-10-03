@@ -105,7 +105,15 @@ fn switch_leading_move(path: &mut PositionedPath) {
                 second.command = command::Data::Implicit(Box::new(c.clone()));
             }
         }
-        _ => {}
+        _ => {
+            if let Position {
+                command: command::Data::MoveBy(a),
+                ..
+            } = first
+            {
+                first.command = command::Data::MoveTo(*a);
+            }
+        }
     }
 }
 
