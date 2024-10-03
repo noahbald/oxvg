@@ -508,6 +508,50 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg viewBox="0 0 20 20">
+    <path d="M0 0q2 0 5 5t5 5q5 0 5 5"/>
+    <path d="M0 0q2 0 5 5t5 5q2 0 5-2"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg>
+    <path d="m 0 12 C 4 4 8 4 12 12"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 20">
+  <path d="M-6.3 9.9q.7-4.5.2-5-.5-.5-1.5-.5l0 0q-.4 0-2 .3"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
+    <marker id="a" stroke="red" viewBox="0 0 5 5">
+        <circle cx="2" cy="2" r="1"/>
+    </marker>
+    <marker id="b" stroke="green" viewBox="0 0 5 5">
+        <circle cx="2" cy="2" r="0.5"/>
+    </marker>
+    <path marker-start="url(#a)" d="M5 5h0"/>
+    <path marker-start="url(#b)" d="M5 5"/>
+</svg>"#
+        )
+    )?);
+
     // TODO: Rest of tests to be added in next commit
     // NOTE: The following SVGO tests should be used for apply_transforms
     // convertPathData.11.svg.txt
