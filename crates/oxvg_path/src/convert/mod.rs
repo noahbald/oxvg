@@ -1,3 +1,15 @@
+//! A collection of utility function to filter-map SVG paths.
+//!
+//! Use the `run` function for a high level way of running all the available conversions to produce
+//! the best path optimisation available.
+//!
+//! From a low-level perspective, the process of optimising a path is as follows:
+//! 1. Convert all commands to one type. In our case, we've arbitrarily selected relative commands
+//! 2. Filter-map commands by converting, merging, or removing commands when possible
+//! 3. Convert commands back to a mix of absolute and relative commands, depending which is more
+//!    compressed
+//! 4. Cleanup, doing a bit of post-processing to make sure any mistakes made prior are fixed
+
 mod cleanup;
 pub mod filter;
 mod mixed;
@@ -18,12 +30,22 @@ use std::collections::BTreeMap;
 
 bitflags! {
     /// External style information that may be relevant when optimising a path
+    ///
+    /// If you aren't able to get such information, try using the
+    /// `StyleInfo::conservative` constructor
     #[derive(Debug)]
     pub struct StyleInfo: usize {
+        /// Whether a `marker-mid` CSS style is assigned to the element
         const has_marker_mid = 0b0_0001;
+        /// Whether a `stroke` style or attribute with an svg-paint is applied to the element
         const maybe_has_stroke = 0b0010;
+        /// Whether a `stroke-linecap` style or attribute with `"round"` or `"square` is
+        /// applied to the element
         const maybe_has_linecap = 0b100;
+        /// Whether a `stroke-linecap` and `stroke-linejoin` style of attribute with `"round"` is
+        /// applied to the element
         const is_safe_to_use_z = 0b1000;
+        /// Whether a `marker-start` or `marker-end` attribute is applied to the element
         const has_marker = 0b_0001_0000;
     }
 }
@@ -32,21 +54,33 @@ bitflags! {
     /// Control flags for certain behaviours while optimising a path
     #[derive(Debug)]
     pub struct Flags: usize {
+        /// Whether to remove redundant paths that don't draw anything
         const remove_useless_flag= 0b0000_0000_0000_0001;
+        /// Whether to round arc radius more accurately
         const smart_arc_rounding_flag= 0b_0000_0000_0010;
+        /// Whether to convert commands which are straight into lines
         const straight_curves_flag = 0b00_0000_0000_0100;
+        /// Whether to convert cubic beziers to quadratic beziers when they essentially are
         const convert_to_q_flag = 0b_0000_0000_0000_1000;
+        /// Whether to convert lines to vertical/horizontal when they move in one direction
         const line_shorthands_flag = 0b00_0000_0001_0000;
+        /// Whether to collapse repeated commands which can be expressed as one
         const collapse_repeated_flag = 0b_0000_0010_0000;
+        /// Whether to convert smooth curves where possible
         const curve_smooth_shorthands_flag = 0b0100_0000;
+        /// Whether to convert returning lines to z
         const convert_to_z_flag = 0b_0000_0000_1000_0000;
+        /// Whether to strongly force absolute commands, even when suboptimal
         const force_absolute_path_flag = 0b001_0000_0000;
+        /// Whether to weakly force absolute commands, when slightly suboptimal
         const negative_extra_space_flag = 0b10_0000_0000;
+        /// Whether to not strongly force relative commands, even when suboptimal
         const utilize_absolute_flag = 0b0_0100_0000_0000;
     }
 }
 
 #[derive(Debug, Copy, Clone, Default)]
+/// How many decimal points to round path command arguments
 pub enum Precision {
     /// Use default precision
     #[default]
@@ -59,13 +93,34 @@ pub enum Precision {
     Enabled(i32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
+/// The main options for controlling how the path optimisations are completed.
 pub struct Options {
     pub flags: Flags,
     pub make_arcs: MakeArcs,
     pub precision: Precision,
 }
 
+/// Returns an optimised version of the input path
+///
+/// Note that depending on the options and style-info given, the optimisation may be lossy.
+///
+/// # Examples
+///
+/// If you don't have any access to attributes or styles for a specific SVG element the path
+/// belongs to, try running this with the conservative approach
+///
+/// ```
+/// use oxvg_path::Path;
+/// use oxvg_path::convert::{Options, StyleInfo, run};
+///
+/// let path = Path::parse("M 10,50 L 10,50").unwrap();
+/// let options = Options::default();
+/// let style_info = StyleInfo::conservative();
+///
+/// let path = run(&path, &options, &style_info);
+/// assert_eq!(&path.to_string(), "M10 50h0");
+/// ```
 pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
     let includes_vertices = path
         .0
@@ -102,6 +157,7 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
 
 impl StyleInfo {
     #[cfg(feature = "oxvg")]
+    /// Determine the path optimisations that are allowed based on relevant context
     pub fn gather(
         computed_styles: &BTreeMap<oxvg_style::SVGStyleID, &oxvg_style::SVGStyle>,
         has_marker: bool,
@@ -149,6 +205,15 @@ impl StyleInfo {
         result.set(Self::maybe_has_linecap, maybe_has_linecap);
         result.set(Self::is_safe_to_use_z, is_safe_to_use_z);
         result.set(Self::has_marker, has_marker);
+        result
+    }
+
+    /// Returns a safe set of style-info
+    ///
+    /// Use this if no contextual details are available
+    pub fn conservative() -> Self {
+        let mut result = Self::all();
+        result.set(Self::is_safe_to_use_z, false);
         result
     }
 }
@@ -214,6 +279,7 @@ impl Default for Flags {
 }
 
 impl Options {
+    /// Converts the precision into a tolerance that can be compared against
     pub fn error(&self) -> f64 {
         match self.precision.inner() {
             Some(precision) => {
@@ -224,6 +290,7 @@ impl Options {
         }
     }
 
+    /// Rounds a number to a decimal place based on the given error
     pub fn round(&self, data: f64, error: f64) -> f64 {
         let precision = self.precision.unwrap_or(0);
         if precision > 0 && precision < 20 {
@@ -242,14 +309,25 @@ impl Options {
         }
     }
 
+    /// Rounds a set of numbers to a decimal place
     pub fn round_data(&self, data: &mut [f64], error: f64) {
         data.iter_mut().for_each(|d| *d = self.round(*d, error));
     }
 
+    /// Rounds a path's data to a decimal place
     pub fn round_path(&self, path: &mut Path, error: f64) {
         path.0
             .iter_mut()
             .for_each(|c| self.round_data(c.args_mut(), error));
+    }
+
+    /// Produces the safest options for path optimisation
+    pub fn conservative() -> Self {
+        Self {
+            flags: Flags::default(),
+            make_arcs: MakeArcs::default(),
+            precision: Precision::conservative(),
+        }
     }
 }
 
@@ -271,5 +349,10 @@ impl Precision {
             Self::None => Some(3),
             Self::Disabled => None,
         }
+    }
+
+    /// Returns the maximum possible precision
+    pub fn conservative() -> Self {
+        Self::Enabled(19)
     }
 }

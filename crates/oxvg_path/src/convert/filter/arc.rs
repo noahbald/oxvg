@@ -6,6 +6,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+/// The state of arc conversion
 pub struct Convert {
     circle: Circle,
     radius: f64,
@@ -75,8 +76,8 @@ impl Convert {
         })
     }
 
-    /// # Panics
-    /// If internal assertions fail
+    /// Converts curves into arcs where possible, otherwise will convert into their best
+    /// alternative
     pub fn curve(
         prev: &mut Position,
         item: &mut Position,
@@ -114,6 +115,7 @@ impl Convert {
         Some(arc_state)
     }
 
+    /// For a bezier curve, gets the data regarding it's smooth-bezier args equivalent
     fn get_s_data_info(&mut self, prev: &Position, make_arcs: &MakeArcs, error: f64) {
         let prev_s_data = match prev {
             Position {
@@ -156,6 +158,7 @@ impl Convert {
         }
     }
 
+    /// Checks whether the next curves continue the current item
     fn check_next_curves_fit(
         &mut self,
         item: &Position,
@@ -263,6 +266,7 @@ impl Convert {
         }
     }
 
+    /// Replaces all commands fitting the curve with a single command
     fn use_output_arc(
         &mut self,
         prev: &mut Position,

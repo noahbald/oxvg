@@ -25,6 +25,7 @@ pub enum Error {
 }
 
 impl Parser {
+    /// Returns whether the numbers of args parsed matches what's expected for the command
     fn is_flush_ready(&self) -> bool {
         self.current_command.is_implicit()
             && (self.args_len == 0 || self.args_len == self.args_capacity)

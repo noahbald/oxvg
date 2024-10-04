@@ -1,3 +1,22 @@
+//! OXVG Path is a library used for parsing and minifying SVG paths.
+//! It supports parsing of any valid SVG path and provides optimisations close to exactly as SVGO.
+//!
+//! Use the [Path](Path) struct for simple parsing and serializing. By only parsing and serializing,
+//! it will produce optimised formatting out of the box.
+//! It is made up individual command [Data](command::Data).
+//!
+//! For more rigorous minification, try using the [run](convert::run) function. This will use
+//! non-destructive conversions to shorten the path.
+//!
+//! # Differences to SVGO
+//!
+//! - Unlike SVGO, all close paths are serialized as `Z` instead of either `z` or `Z`. This is fine because the two commands function exactly the same.
+//! - An equivalent of the `applyTransforms` option isn't available, but may be in the future.
+//!
+//! # Licensing
+//!
+//! This library is based off the [`convertPathData`](https://svgo.dev/docs/plugins/convertPathData/) plugin from SVGO and is similarly released under MIT.
+
 #[macro_use]
 extern crate bitflags;
 
@@ -15,9 +34,24 @@ use std::fmt::Write;
 pub use crate::parser::Error;
 
 #[derive(Debug, Clone)]
+/// A path is a set of commands
+///
+/// # Example
+///
+/// Out of the box, parsing and serializing a path will produce optimal formatting
+///
+/// ```
+/// use oxvg_path::Path;
+///
+/// let path = Path::parse("M 10 0.01 L 0.5 -1").unwrap();
+/// assert_eq!(&path.to_string(), "M10 .01.5-1");
+/// ```
+///
+/// For more extensive minification, look into using the [run](convert::run) function.
 pub struct Path(pub Vec<command::Data>);
 
 #[derive(Debug, Clone)]
+/// Equivalent of a [Path](Path), with positional information
 pub struct PositionedPath(pub Vec<command::Position>);
 
 impl Path {
@@ -86,7 +120,7 @@ type SplitPositionedPathWithPrevOption<'a> = (
 );
 
 impl PositionedPath {
-    /// Converts the `PositionedPath` into a Path, emptying `PositionedPath` in the process
+    /// Converts self into a [Path](Path), emptying self in the process
     pub fn take(&mut self) -> Path {
         let entries = std::mem::take(&mut self.0);
         Path(entries.into_iter().map(|p| p.command).collect())
@@ -96,7 +130,7 @@ impl PositionedPath {
     ///
     /// # Returns
     /// When the list is of some length, `item` isn't first, and `item` is `Some`
-    /// ```
+    /// ```ignore
     /// Some(
     ///     // None, if at index 0; otherwise, Some(&mut Option<Position>)
     ///     prev,
@@ -117,6 +151,7 @@ impl PositionedPath {
         Some((prev, item, next_paths))
     }
 
+    /// See `split_mut`
     pub fn split_mut_with_prev_option(
         path: &mut [Option<Position>],
         index: usize,

@@ -7,9 +7,22 @@ use crate::{
 };
 
 #[derive(Debug, Default, Clone, Copy)]
+/// A point is an `[x, y]` coordinate
 pub struct Point(pub [f64; 2]);
 
 #[derive(Debug, Clone)]
+/// A bezier curve.
+///
+/// For an absolute, command
+/// `"C x1 y1 x2 y2 x y"`
+///
+/// Or, for a relative command
+/// `"c dx1 dy1 dx2 dy2 dx, dy"`
+///
+/// The point `[x y]` specifies where the curve should end.
+///
+/// The points `[x1 y1]` and `[x2 y2]` are the control points. The former being for controlling the
+/// start of the curve and the latter controlling the end.
 pub struct Curve(pub [f64; 6]);
 
 #[derive(Debug, Clone)]
@@ -20,6 +33,7 @@ pub struct Circle {
 
 #[cfg_attr(feature = "deserialize", derive(Deserialize))]
 #[derive(Clone, Debug)]
+/// When running calculations against arcs, the level of error tolerated
 pub struct MakeArcs {
     pub threshold: f64,
     pub tolerance: f64,
@@ -35,6 +49,7 @@ impl Default for MakeArcs {
 }
 
 impl Curve {
+    /// Returns a curve based on a bezier commands
     pub fn smooth_bezier_by_args<'a>(prev: &'a Position, item: &'a Position) -> Option<Self> {
         match item.command {
             command::Data::SmoothBezierBy(s) => {
@@ -57,6 +72,9 @@ impl Curve {
         }
     }
 
+    /// Returns whether a curve is convex
+    ///
+    /// A curve is convex when the middle of the curve's line is below the curve's midpoint
     pub fn is_convex(&self) -> bool {
         let data = self.0;
         let Some(center) = Point::intersection([
@@ -71,6 +89,7 @@ impl Curve {
             && (data[5] < center[1]) == (center[1] < data[1])
     }
 
+    /// Returns whether a curve is an arc of a circle
     pub fn is_arc(&self, circle: &Circle, make_arcs: &MakeArcs, error: f64) -> bool {
         let tolerance = f64::min(
             make_arcs.threshold * error,
@@ -82,6 +101,7 @@ impl Curve {
         })
     }
 
+    /// Returns whether a curve from a previous command is an arc of a circle
     pub fn is_arc_prev(&self, circle: &Circle, make_arcs: &MakeArcs, error: f64) -> bool {
         let center = circle.center.0;
         self.is_arc(
@@ -94,10 +114,12 @@ impl Curve {
         )
     }
 
+    /// Returns whether the arc fits on a straight line
     pub fn is_straight(&self, error: f64) -> bool {
         Self::is_data_straight(&self.0, error)
     }
 
+    /// Returns whether the arc fits on a straight line
     pub fn is_data_straight(args: &[f64], error: f64) -> bool {
         // Get line equation a·x + b·y + c = 0 coefficients a, b (c = 0) by start and end points.
         let i = args.len() - 2;
@@ -119,6 +141,7 @@ impl Curve {
         true
     }
 
+    /// Returns the angle from the start of an arc to the end
     pub fn find_arc_angle(&self, rel_circle: &Circle) -> f64 {
         rel_circle.arc_angle(self)
     }
@@ -153,6 +176,7 @@ impl Point {
         Some(Self(cross))
     }
 
+    /// Returns the point `t` percent along a curve's chord
     fn cubic_bezier(curve: &Curve, t: f64) -> Self {
         let t2 = t * t;
         let t3 = t2 * t;
@@ -165,16 +189,19 @@ impl Point {
         ])
     }
 
+    /// Returns the distance between two points
     fn distance(&self, other: &Point) -> f64 {
         math::hypot(self.0[0] - other.0[0], self.0[1] - other.0[1])
     }
 
+    /// Creates a point diagonally across from another point
     pub fn reflect(&self, base: Self) -> Self {
         Self([2.0 * base.0[0] - self.0[0], 2.0 * base.0[1] - self.0[1]])
     }
 }
 
 impl Circle {
+    /// From a curve, which is potentially an arc, find the correspoding circle
     pub fn find(curve: &Curve, make_arcs: &MakeArcs, error: f64) -> Option<Self> {
         let mid_point = Point::cubic_bezier(curve, 0.5).0;
         let m1 = [mid_point[0] / 2.0, mid_point[1] / 2.0];
@@ -205,6 +232,7 @@ impl Circle {
         None
     }
 
+    /// Returns the angle of a curve fitting the circle
     pub fn arc_angle(&self, curve: &Curve) -> f64 {
         let x1 = -self.center.0[0];
         let y1 = -self.center.0[1];
