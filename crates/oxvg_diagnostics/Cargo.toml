@@ -1,8 +1,11 @@
 [package]
 name = "oxvg_diagnostics"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
+description = "Error reporting for the oxvg library"
 
 [lints]
 workspace = true

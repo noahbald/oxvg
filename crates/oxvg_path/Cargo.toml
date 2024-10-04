@@ -1,15 +1,19 @@
 [package]
 name = "oxvg_path"
-version = "0.1.0"
+version = "0.0.1-beta.1"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
+readme = "../../readme.md"
+keywords = ["svg", "svgo", "path"]
+description = "SVG path parsing, serialization, and minification"
 
 [lints]
 workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["oxvg"]
 oxvg = ["dep:lightningcss", "dep:oxvg_style"]
 deserialize = ["dep:serde"]
 

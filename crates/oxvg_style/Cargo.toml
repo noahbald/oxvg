@@ -1,8 +1,11 @@
 [package]
 name = "oxvg_style"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
+description = "SVG specific lightningcss wrappers"
 
 [lints]
 workspace = true

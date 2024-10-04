@@ -10,15 +10,17 @@ return_self_not_must_use = "allow"
 
 [workspace.package]
 authors = ["Noah <noahwbaldwin@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/noahbald/oxvg"
 
 [workspace.dependencies]
 oxvg = { path = "crates/oxvg" }
-oxvg_ast = { path = "crates/oxvg_ast" }
-oxvg_diagnostics = { path = "crates/oxvg_diagnostics" }
+oxvg_ast = { path = "crates/oxvg_ast", version = "0.0.1-alpha.1" }
+oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = "0.0.1-alpha.1" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
-oxvg_path = { path = "crates/oxvg_path" }
-oxvg_selectors = { path = "crates/oxvg_selectors" }
-oxvg_style = { path = "crates/oxvg_style" }
+oxvg_path = { path = "crates/oxvg_path", version = "0.0.1" }
+oxvg_selectors = { path = "crates/oxvg_selectors", version = "0.0.1-alpha.1" }
+oxvg_style = { path = "crates/oxvg_style", version = "0.0.1-alpha.1" }
 oxvg_utils = { path = "crates/oxvg_utils" }
 
 anyhow = "1.0"

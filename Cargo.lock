@@ -985,7 +985,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 dependencies = [
  "markup5ever",
  "oxvg_diagnostics",
@@ -994,7 +994,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_diagnostics"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 dependencies = [
  "miette",
  "quick-xml",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bitflags 2.6.0",
  "insta",
@@ -1050,7 +1050,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_selectors"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 dependencies = [
  "cssparser 0.31.2",
  "derivative",
@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_style"
-version = "0.1.0"
+version = "0.0.1-alpha.1"
 dependencies = [
  "lightningcss",
  "markup5ever",
