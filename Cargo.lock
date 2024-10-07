@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.1"
+version = "0.0.1-beta.1"
 dependencies = [
  "bitflags 2.6.0",
  "insta",
