@@ -4,7 +4,7 @@ use crate::{
 };
 use std::fmt::Write;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     /// M
     /// Move the current point to coordinate `x`, `y`. Any subsequent coordinate pair(s) are

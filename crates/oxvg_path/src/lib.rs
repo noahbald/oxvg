@@ -33,7 +33,7 @@ use std::fmt::Write;
 
 pub use crate::parser::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// A path is a set of commands
 ///
 /// # Example
