@@ -34,6 +34,8 @@ use std::fmt::Write;
 pub use crate::parser::Error;
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// A path is a set of commands
 ///
 /// # Example

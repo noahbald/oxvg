@@ -14,14 +14,16 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
+jsonschema = ["schemars", "serde"]
 oxvg = ["dep:lightningcss", "dep:oxvg_style"]
-deserialize = ["dep:serde"]
+serde = ["dep:serde"]
 
 [dependencies]
 oxvg_style = { workspace = true, optional = true }
 bitflags = "2.6.0"
 lightningcss = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+schemars = { version = "0.8.21", optional = true }
 ryu = "1.0.18"
 
 [dev-dependencies]

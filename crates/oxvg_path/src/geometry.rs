@@ -1,6 +1,3 @@
-#[cfg(feature = "deserialize")]
-use serde::Deserialize;
-
 use crate::{
     command::{self, Position},
     math,
@@ -31,7 +28,7 @@ pub struct Circle {
     pub radius: f64,
 }
 
-#[cfg_attr(feature = "deserialize", derive(Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
 /// When running calculations against arcs, the level of error tolerated
 pub struct MakeArcs {
