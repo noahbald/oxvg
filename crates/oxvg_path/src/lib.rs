@@ -17,21 +17,26 @@
 //!
 //! This library is based off the [`convertPathData`](https://svgo.dev/docs/plugins/convertPathData/) plugin from SVGO and is similarly released under MIT.
 
+#[cfg(feature = "optimise")]
+#[cfg(feature = "parse")]
 #[macro_use]
 extern crate bitflags;
 
+#[cfg(feature = "optimise")]
 pub mod command;
+#[cfg(feature = "optimise")]
 pub mod convert;
+#[cfg(feature = "optimise")]
 pub mod geometry;
+#[cfg(feature = "optimise")]
 pub(crate) mod math;
+#[cfg(feature = "parse")]
 mod parser;
+#[cfg(feature = "optimise")]
+pub mod positioned;
 
-use command::Position;
-
+#[cfg(feature = "parse")]
 use crate::parser::Parser;
-use std::fmt::Write;
-
-pub use crate::parser::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -52,22 +57,22 @@ pub use crate::parser::Error;
 /// For more extensive minification, look into using the [run](convert::run) function.
 pub struct Path(pub Vec<command::Data>);
 
-#[derive(Debug, Clone)]
-/// Equivalent of a [Path](Path), with positional information
-pub struct PositionedPath(pub Vec<command::Position>);
-
 impl Path {
+    #[cfg(feature = "parse")]
     /// Parses a path definition from a string
     ///
     /// # Errors
     /// If the definition is invalid
-    pub fn parse(definition: impl Into<String>) -> Result<Self, Error> {
+    pub fn parse(definition: impl Into<String>) -> Result<Self, parser::Error> {
         Parser::default().parse(definition)
     }
 }
 
+#[cfg(feature = "format")]
 impl std::fmt::Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+
         if self.0.len() == 1 {
             self.0.first().unwrap().fmt(f)?;
             return Ok(());
@@ -91,97 +96,22 @@ impl std::fmt::Display for Path {
     }
 }
 
+#[cfg(feature = "format")]
 impl From<Path> for String {
     fn from(value: Path) -> Self {
         format!("{value}")
     }
 }
 
+#[cfg(feature = "format")]
 impl From<&Path> for String {
     fn from(value: &Path) -> Self {
         format!("{value}")
     }
 }
 
-impl From<PositionedPath> for Path {
-    fn from(value: PositionedPath) -> Self {
-        Self(value.0.iter().map(|p| p.command.clone()).collect())
-    }
-}
-
-type SplitPositionedPath<'a> = (
-    &'a mut Position,
-    &'a mut Option<Position>,
-    &'a mut [Option<Position>],
-);
-
-type SplitPositionedPathWithPrevOption<'a> = (
-    &'a mut Option<Position>,
-    &'a mut Option<Position>,
-    &'a mut [Option<Position>],
-);
-
-impl PositionedPath {
-    /// Converts self into a [Path](Path), emptying self in the process
-    pub fn take(&mut self) -> Path {
-        let entries = std::mem::take(&mut self.0);
-        Path(entries.into_iter().map(|p| p.command).collect())
-    }
-
-    /// Split by `[...prev_paths, prev, item, ...next_paths]`
-    ///
-    /// # Returns
-    /// When the list is of some length, `item` isn't first, and `item` is `Some`
-    /// ```ignore
-    /// Some(
-    ///     // None, if at index 0; otherwise, Some(&mut Option<Position>)
-    ///     prev,
-    ///     // &mut Some(Position), An item, whose value can be set to None
-    ///     item,
-    ///     // The rest of the items ahead
-    ///     next_paths,
-    /// )
-    /// ```
-    ///
-    /// Otherwise, `None`
-    pub fn split_mut(path: &mut [Option<Position>], index: usize) -> Option<SplitPositionedPath> {
-        let (prev, item, next_paths) = Self::split_mut_with_prev_option(path, index)?;
-        let Some(prev) = prev else {
-            // Don't change; `item` is first item
-            return None;
-        };
-        Some((prev, item, next_paths))
-    }
-
-    /// See `split_mut`
-    pub fn split_mut_with_prev_option(
-        path: &mut [Option<Position>],
-        index: usize,
-    ) -> Option<SplitPositionedPathWithPrevOption> {
-        let (prev, next_inclusive) = path.split_at_mut(index);
-        let Some((item, next_paths)) = next_inclusive.split_first_mut() else {
-            // Can't use; empty list
-            return None;
-        };
-        if item.is_none() {
-            // Item already removed
-            return None;
-        }
-        let Some(prev) = prev.iter_mut().rev().find(|p| p.is_some()) else {
-            // Don't change; `item` is first item
-            return None;
-        };
-        Some((prev, item, next_paths))
-    }
-}
-
-impl std::fmt::Display for PositionedPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Path(self.0.iter().map(|p| p.command.clone()).collect()).fmt(f)
-    }
-}
-
 #[test]
+#[cfg(feature = "default")]
 fn test_path_parse() {
     // Should parse single command
     insta::assert_snapshot!(dbg!(Path::parse("M 10,50").unwrap()));

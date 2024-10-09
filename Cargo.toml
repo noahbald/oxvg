@@ -34,7 +34,7 @@ lightningcss = "1.0.0-alpha.59"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 regex = "1.10"
-serde = "1.0.197"
+serde = "1.0.201"
 serde_json = "1.0.114"
 quick-xml = "0.31.0"
 xml5ever = "0.18.0"
