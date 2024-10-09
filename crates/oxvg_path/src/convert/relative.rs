@@ -1,12 +1,12 @@
-use crate::{command, geometry::Point, Path, PositionedPath};
+use crate::{command, geometry::Point, positioned, Path};
 
 /// Convert absolute path data coordinates to relative
-pub fn relative(path: &Path) -> PositionedPath {
+pub fn relative(path: &Path) -> positioned::Path {
     let new_path = path;
     let start = &mut Point([0.0; 2]);
     let cursor = &mut Point([0.0; 2]);
 
-    let result = PositionedPath(
+    let result = positioned::Path(
         new_path
             .0
             .iter()

@@ -7,7 +7,7 @@ use crate::{
     command::{self, Position},
     convert,
     geometry::{Curve, Point},
-    PositionedPath,
+    positioned::Path,
 };
 
 use super::StyleInfo;
@@ -24,7 +24,7 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    pub fn new(path: &PositionedPath, options: &'a convert::Options, info: &'a StyleInfo) -> Self {
+    pub fn new(path: &Path, options: &'a convert::Options, info: &'a StyleInfo) -> Self {
         let mut state = Self {
             options,
             info,
@@ -48,15 +48,14 @@ impl<'a> State<'a> {
 /// # Panics
 /// If the path length changes while running
 pub fn filter(
-    path: &PositionedPath,
+    path: &Path,
     options: &convert::Options,
     state: &mut State,
     info: &StyleInfo,
-) -> PositionedPath {
+) -> Path {
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..path.0.len()).for_each(|index| {
-        let Some((prev, item_option, next_paths)) = PositionedPath::split_mut(&mut new_path, index)
-        else {
+        let Some((prev, item_option, next_paths)) = Path::split_mut(&mut new_path, index) else {
             return;
         };
         state.relative_subpoints[index] = state.relative_subpoints[index - 1];
@@ -104,7 +103,7 @@ pub fn filter(
 
         state.prev_q_control_point = get_q_control_point(item, state.prev_q_control_point);
     });
-    let result = PositionedPath(new_path.into_iter().flatten().collect());
+    let result = Path(new_path.into_iter().flatten().collect());
     #[cfg(debug_assertions)]
     {
         let path_dbg = path.clone().take().to_string();
