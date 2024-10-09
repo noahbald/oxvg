@@ -5,6 +5,8 @@ use crate::{
 use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 pub enum Data {
     /// M
     /// Move the current point to coordinate `x`, `y`. Any subsequent coordinate pair(s) are

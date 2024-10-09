@@ -14,15 +14,21 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
+default = ["parse", "format", "optimise"]
+jsonschema = ["schemars", "serde"]
 oxvg = ["dep:lightningcss", "dep:oxvg_style"]
-deserialize = ["dep:serde"]
+serde = ["dep:serde"]
+parse = ["bitflags"]
+format = ["ryu"]
+optimise = ["format", "bitflags"]
 
 [dependencies]
 oxvg_style = { workspace = true, optional = true }
-bitflags = "2.6.0"
+bitflags = { version = "2.6.0", optional = true }
 lightningcss = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
-ryu = "1.0.18"
+schemars = { version = "0.8.19", optional = true }
+ryu = { version = "1.0.18", optional = true }
 
 [dev-dependencies]
 insta = { workspace = true }

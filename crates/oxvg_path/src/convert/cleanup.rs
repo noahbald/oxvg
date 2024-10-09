@@ -1,9 +1,9 @@
 use crate::{
     command::{self, Position},
-    PositionedPath,
+    positioned::Path,
 };
 
-pub fn cleanup(path: &PositionedPath) -> PositionedPath {
+pub fn cleanup(path: &Path) -> Path {
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);
     let mut result = ensure_implicity(&mut result);
@@ -23,11 +23,11 @@ pub fn cleanup(path: &PositionedPath) -> PositionedPath {
     result
 }
 
-fn remove_repeated_moves(path: &PositionedPath) -> PositionedPath {
+fn remove_repeated_moves(path: &Path) -> Path {
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {
         let Some((prev_option, item_option, _)) =
-            PositionedPath::split_mut_with_prev_option(&mut new_path, index)
+            Path::split_mut_with_prev_option(&mut new_path, index)
         else {
             return;
         };
@@ -74,10 +74,10 @@ fn remove_repeated_moves(path: &PositionedPath) -> PositionedPath {
             }
         }
     });
-    PositionedPath(new_path.into_iter().flatten().collect())
+    Path(new_path.into_iter().flatten().collect())
 }
 
-fn switch_leading_move(path: &mut PositionedPath) {
+fn switch_leading_move(path: &mut Path) {
     let Some((first, rest)) = path.0.split_first_mut() else {
         return;
     };
@@ -117,11 +117,11 @@ fn switch_leading_move(path: &mut PositionedPath) {
     }
 }
 
-fn ensure_implicity(path: &mut PositionedPath) -> PositionedPath {
+fn ensure_implicity(path: &mut Path) -> Path {
     // TODO: Fix emplicity corrections elsewhere
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {
-        let Some((prev, item_option, _)) = PositionedPath::split_mut(&mut new_path, index) else {
+        let Some((prev, item_option, _)) = Path::split_mut(&mut new_path, index) else {
             return;
         };
 
@@ -136,5 +136,5 @@ fn ensure_implicity(path: &mut PositionedPath) -> PositionedPath {
             item.command = item.command.as_explicit().clone();
         }
     });
-    PositionedPath(new_path.into_iter().flatten().collect())
+    Path(new_path.into_iter().flatten().collect())
 }

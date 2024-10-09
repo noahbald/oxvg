@@ -1,16 +1,17 @@
 use crate::{
     command::{self, Position},
-    convert, PositionedPath,
+    convert,
+    positioned::Path,
 };
 
 /// Writes data in the shortest form using absolute or relative coordinates.
 ///
 /// # Panics
 /// If internal assertions fail
-pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPath {
+pub fn mixed(path: &Path, options: &convert::Options) -> Path {
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {
-        let Some((prev, item_option, _)) = PositionedPath::split_mut(&mut new_path, index)
+        let Some((prev, item_option, _)) = Path::split_mut(&mut new_path, index)
         else {
             return;
         };
@@ -57,7 +58,7 @@ pub fn mixed(path: &PositionedPath, options: &convert::Options) -> PositionedPat
             item.command = absolute_command;
         }
     });
-    let result = PositionedPath(new_path.into_iter().flatten().collect());
+    let result = Path(new_path.into_iter().flatten().collect());
     #[cfg(debug_assertions)]
     {
         let path_dbg = path.clone().take().to_string();
