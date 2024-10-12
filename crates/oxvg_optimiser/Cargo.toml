@@ -21,6 +21,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
+log = { workspace = true }
 markup5ever = { workspace = true }
 miette = { version = "7.0.0", features = ["fancy"] }
 rcdom = { workspace = true }
@@ -31,5 +32,14 @@ urlencoding = "2.1"
 [dev-dependencies]
 oxvg_ast = { workspace = true }
 
+divan = { workspace = true }
 insta = { workspace = true }
 xml5ever = { workspace = true }
+
+[[bench]]
+name = "path"
+harness = false
+
+[profile.bench]
+opt-level = 3
+debug-assertions = false

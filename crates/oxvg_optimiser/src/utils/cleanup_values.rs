@@ -97,16 +97,15 @@ impl<T: CleanupValues> Job for T {
 
             match self.round_values(attr) {
                 Ok(new_value) => {
-                    dbg!(
-                        "CleanupValues::run: rounding value",
+                    log::debug!(
+                        "CleanupValues::run: rounding value: {}={} -> {new_value}",
                         &attr.name.local,
                         &attr.value,
-                        &new_value
                     );
                     attr.value = new_value;
                 }
                 Err(error) => {
-                    dbg!(error);
+                    log::debug!("CleanupValues::run: failed to round values: {error}");
                 }
             };
         }

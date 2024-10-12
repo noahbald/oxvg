@@ -16,7 +16,6 @@
 //! # Licensing
 //!
 //! This library is based off the [`convertPathData`](https://svgo.dev/docs/plugins/convertPathData/) plugin from SVGO and is similarly released under MIT.
-
 #[cfg(feature = "optimise")]
 #[cfg(feature = "parse")]
 #[macro_use]
@@ -31,7 +30,7 @@ pub mod geometry;
 #[cfg(feature = "optimise")]
 pub(crate) mod math;
 #[cfg(feature = "parse")]
-mod parser;
+pub mod parser;
 #[cfg(feature = "optimise")]
 pub mod positioned;
 
@@ -41,6 +40,7 @@ use crate::parser::Parser;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+
 /// A path is a set of commands
 ///
 /// # Example
@@ -114,31 +114,27 @@ impl From<&Path> for String {
 #[cfg(feature = "default")]
 fn test_path_parse() {
     // Should parse single command
-    insta::assert_snapshot!(dbg!(Path::parse("M 10,50").unwrap()));
+    insta::assert_snapshot!(Path::parse("M 10,50").unwrap());
 
     // Should parse multiple commands
-    insta::assert_snapshot!(dbg!(Path::parse(
-        "M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60"
-    )
-    .unwrap()));
+    insta::assert_snapshot!(
+        Path::parse("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap()
+    );
 
     // Should parse arc
-    insta::assert_snapshot!(dbg!(Path::parse("m-0,1a 25,25 -30 0,1 0,0").unwrap()));
+    insta::assert_snapshot!(Path::parse("m-0,1a 25,25 -30 0,1 0,0").unwrap());
 
     // Should parse implicit
-    insta::assert_snapshot!(dbg!(Path::parse(
-        "M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005"
-    )
-    .unwrap()));
+    insta::assert_snapshot!(
+        Path::parse("M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005").unwrap()
+    );
 
     // Should parse minified
-    insta::assert_snapshot!(dbg!(
-        Path::parse("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap()
-    ));
+    insta::assert_snapshot!(Path::parse("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap());
 
     // Should error when command isn't given
-    assert!(dbg!(Path::parse("0,0")).is_err());
+    assert!(Path::parse("0,0").is_err());
 
     // Should error when args are missing
-    assert!(dbg!(Path::parse("m1")).is_err());
+    assert!(Path::parse("m1").is_err());
 }

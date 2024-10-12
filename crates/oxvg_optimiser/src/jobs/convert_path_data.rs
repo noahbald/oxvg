@@ -51,12 +51,12 @@ impl Job for ConvertPathData {
             element.get_attr(&local_name!("marker-start")).is_some()
                 || element.get_attr(&local_name!("marker-end")).is_some(),
         );
-        dbg!("ConvertPathData::run: gained style info", &style_info);
+        log::debug!("ConvertPathData::run: gained style info {:?}", &style_info);
 
         let path = match Path::parse(&d.value) {
             Ok(path) => path,
             Err(e) => {
-                dbg!("ConvertPathData::run: failed to parse path", e);
+                log::debug!("ConvertPathData::run: failed to parse path: {e}");
                 return;
             }
         };
