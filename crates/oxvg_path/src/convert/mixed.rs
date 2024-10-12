@@ -64,7 +64,7 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
         let path_dbg = path.clone().take().to_string();
         let result_dbg = result.clone().take().to_string();
         if path_dbg != result_dbg {
-            dbg!("convert::mixed: updated path", result_dbg);
+            log::debug!("convert::mixed: updated path: {result_dbg}");
         }
     }
     result

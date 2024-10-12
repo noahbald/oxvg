@@ -28,9 +28,9 @@ anyhow = "1.0"
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.31.0"
 derivative = "2.2"
-insta = "1.36.1"
 lazy_static = "1.4"
 lightningcss = "1.0.0-alpha.59"
+log = "0.4.20"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 regex = "1.10"
@@ -38,3 +38,10 @@ serde = "1.0.201"
 serde_json = "1.0.114"
 quick-xml = "0.31.0"
 xml5ever = "0.18.0"
+
+# Developer dependencies
+divan = "0.1.14"
+insta = "1.36.1"
+
+[profile.bench]
+debug-assertions = false

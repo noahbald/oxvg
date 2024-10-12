@@ -128,7 +128,7 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
         .any(|c| !matches!(c, command::Data::MoveBy(_) | command::Data::MoveTo(_)));
     // The general optimisation process: original -> naively relative -> filter redundant ->
     // optimal mixed
-    dbg!("convert::run: converting path", path.to_string());
+    log::debug!("convert::run: converting path: {path}");
     let mut positioned_path = relative(path);
     let mut state = filter::State::new(&positioned_path, options, style_info);
     positioned_path = filter(&positioned_path, options, &mut state, style_info);
@@ -151,7 +151,7 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
     for command in &mut path.0 {
         options.round_data(command.args_mut(), options.error());
     }
-    dbg!("convert::run: done", path.to_string());
+    log::debug!("convert::run: done: {path}");
     path
 }
 

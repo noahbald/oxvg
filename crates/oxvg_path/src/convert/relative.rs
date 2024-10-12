@@ -18,7 +18,7 @@ pub fn relative(path: &Path) -> positioned::Path {
     {
         let result_dbg = result.clone().take().to_string();
         if path.to_string() != result_dbg {
-            dbg!("convert::relative: path changed to", result_dbg);
+            log::debug!("convert::relative: path changed to {result_dbg}");
         }
     }
     result
