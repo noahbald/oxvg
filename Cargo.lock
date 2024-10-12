@@ -1059,6 +1059,7 @@ dependencies = [
  "insta",
  "lazy_static",
  "lightningcss",
+ "log",
  "markup5ever",
  "markup5ever_rcdom",
  "miette",

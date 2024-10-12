@@ -52,15 +52,15 @@ impl Job for CollapseGroups {
 }
 
 fn move_attributes_to_child(element: &Element, attrs: &RefCell<Vec<Attribute>>) {
-    dbg!("collapse_groups: move_attributes_to_child");
+    log::debug!("collapse_groups: move_attributes_to_child");
     if attrs.borrow().len() == 0 {
-        dbg!("collapse_groups: not moving attrs: no attrs to move");
+        log::debug!("collapse_groups: not moving attrs: no attrs to move");
         return;
     }
 
     let children: Vec<_> = element.children().collect();
     if children.len() != 1 {
-        dbg!("collapse_groups: not moving attrs: many children");
+        log::debug!("collapse_groups: not moving attrs: many children");
         return;
     }
 
@@ -73,7 +73,7 @@ fn move_attributes_to_child(element: &Element, attrs: &RefCell<Vec<Attribute>>) 
         || dbg!(is_position_visually_unstable(element, child))
         || dbg!(is_node_with_filter(element))
     {
-        dbg!("collapse_groups: not moving attrs: see true condition");
+        log::debug!("collapse_groups: not moving attrs: see true condition");
         return;
     };
 
@@ -84,21 +84,21 @@ fn move_attributes_to_child(element: &Element, attrs: &RefCell<Vec<Attribute>>) 
         let name = node::QualName(name.clone());
 
         if has_animated_attr(child, &name) {
-            dbg!("collapse_groups: canelled moves: has animated_attr");
+            log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
 
         let Some(old_value) = new_child_attrs.get(&name) else {
-            dbg!("collapse_groups: moved {}: same as parent", &name.0.local);
+            log::debug!("collapse_groups: moved {}: same as parent", &name.0.local);
             new_child_attrs.insert(name, value);
             continue;
         };
 
         if name.0.local == local_name!("transform") {
-            dbg!("collapse_groups: moved transform: is transform");
+            log::debug!("collapse_groups: moved transform: is transform");
             new_child_attrs.insert(name, format!("{value} {old_value}").into());
         } else if old_value.to_string() == *"inherit" {
-            dbg!(
+            log::debug!(
                 "collapse_groups: moved {}: is explicit inherit",
                 &name.0.local
             );
@@ -106,14 +106,17 @@ fn move_attributes_to_child(element: &Element, attrs: &RefCell<Vec<Attribute>>) 
         } else if INHERITABLE_ATTRS.contains(name.0.local.as_ref())
             && new_child_attrs.get(&name).is_none()
         {
-            dbg!("collapse_groups: canelled moves: inheritable attr is applicable");
+            log::debug!("collapse_groups: canelled moves: inheritable attr is applicable");
             return;
         } else if INHERITABLE_ATTRS.contains(name.0.local.as_ref())
             || new_child_attrs.get(&name) == Some(&attr.value)
         {
-            dbg!("collapse_groups: removing {}: inheritable attr is not inherited");
+            log::debug!(
+                "collapse_groups: removing {}: inheritable attr is not inherited",
+                name.0.local
+            );
         } else {
-            dbg!(
+            log::debug!(
                 "collapse_groups: ignoring {}: fails to meet movement criteria",
                 &name.0.local,
             );
@@ -183,7 +186,7 @@ fn is_position_visually_unstable(node: &Element, child: &Element) -> bool {
         || node.get_attr(&local_name!("mask")).is_some();
     let is_child_transformed_group = child.get_name() == Some(local_name!("g"))
         && child.get_attr(&local_name!("transform")).is_some();
-    dbg!(is_node_clipping) || dbg!(is_child_transformed_group)
+    is_node_clipping || is_child_transformed_group
 }
 
 fn is_node_with_filter(node: &Element) -> bool {
@@ -191,7 +194,6 @@ fn is_node_with_filter(node: &Element) -> bool {
         || node.get_attr(&local_name!("style")).is_some_and(|code| {
             StyleAttribute::parse(code.value.as_ref(), ParserOptions::default()).is_ok_and(
                 |style| {
-                    dbg!(&style.declarations);
                     style
                         .declarations
                         .get(&PropertyId::Filter(VendorPrefix::None))

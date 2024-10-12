@@ -58,7 +58,7 @@ impl Job for CleanupIds {
 
         self.prepare_ignore_document(root);
         if self.ignore_document {
-            dbg!("CleanupIds::prepare: skipping");
+            log::debug!("CleanupIds::prepare: skipping");
             return PrepareOutcome::Skip;
         }
 
@@ -89,10 +89,10 @@ impl Job for CleanupIds {
                 .map(|item| item.as_str())
                 .for_each(|item| {
                     if self.replaceable_ids.contains(item) {
-                        dbg!("CleanupIds::run: found potential reference", item);
+                        log::debug!("CleanupIds::run: found potential reference: {item}");
                         ref_renames.push(((node.clone(), attr.name.clone()), item.to_string()));
                     } else {
-                        dbg!("CleanupIds::run: found unmatched reference", item);
+                        log::debug!("CleanupIds::run: found unmatched reference: {item}");
                         generated_id.insert_prevent_collision(item.to_string());
                     }
                 });
@@ -128,16 +128,15 @@ impl Job for CleanupIds {
                 generated_id.next();
             }
             if self.minify.unwrap_or(MINIFY_DEFAULT) {
-                dbg!(
-                    "CleanupIds::breakdown: updating reference",
+                log::debug!(
+                    "CleanupIds::breakdown: updating reference: {} <-> {reference}",
                     &name.local,
-                    reference,
                 );
                 element.set_attr_qual(name, replacements.into());
             }
         }
-        dbg!(
-            "CleanupIds::breakdown: replacing",
+        log::debug!(
+            "CleanupIds::breakdown: replacing: {:#?} <-> {:#?}",
             &self.id_renames,
             &used_ids,
         );
@@ -184,8 +183,8 @@ impl CleanupIds {
     /// - Removes any duplicate replaceable ids
     fn prepare_id_rename(&mut self, root: &Element) {
         let mut preserved_ids = Vec::new();
-        dbg!(
-            "CleanupIds: prepare_id: preserve",
+        log::debug!(
+            "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",
             &self.preserve,
             &self.preserve_prefixes
         );
@@ -195,10 +194,10 @@ impl CleanupIds {
                 continue;
             };
             let value = attr.value.to_string();
-            dbg!("CleanupIds: prepare_id: found id", &value);
+            log::debug!("CleanupIds: prepare_id: found id: {value}");
             if self.replaceable_ids.contains(&value) || value.chars().all(char::is_numeric) {
                 element.remove_attr(&local_name!("id"));
-                dbg!("CleanupIds: prepare_id: removed redundant id", &value);
+                log::debug!("CleanupIds: prepare_id: removed redundant id: {value}");
                 continue;
             }
             let is_preserved_prefix = self
@@ -210,7 +209,7 @@ impl CleanupIds {
                 .as_ref()
                 .is_some_and(|preserve| preserve.contains(&value));
             dbg!(
-                "CleanupIds: prepare_id: will preserve if true",
+                "CleanupIds: prepare_id: will preserve if true: {:#?} <-> {:#?}",
                 &is_preserved_prefix,
                 &is_preserve,
             );

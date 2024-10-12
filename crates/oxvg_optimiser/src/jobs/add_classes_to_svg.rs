@@ -44,7 +44,6 @@ impl Job for AddClassesToSVG {
             },
         };
         let class_names = class.into_iter().collect::<Vec<_>>().join(" ");
-        dbg!(&class_names);
 
         element.set_attr(&local_name!("class"), class_names.into());
     }

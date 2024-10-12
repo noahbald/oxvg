@@ -68,7 +68,7 @@ impl Job for ConvertColors {
                 if names_2_hex || rgb_2_hex || convert_case.is_some() || short_hex || short_name {
                     PrepareOutcome::None
                 } else {
-                    dbg!("ConvertColors::prepare: skipping useless config");
+                    log::debug!("ConvertColors::prepare: skipping useless config");
                     PrepareOutcome::Skip
                 }
             }
@@ -124,7 +124,7 @@ impl Job for ConvertColors {
 
 impl Method {
     fn convert_style(&self, style: &mut StyleAttribute) {
-        dbg!("Method::convert_style: doing a thing");
+        log::debug!("Method::convert_style: doing a thing");
         // CurrentColor is the only case in which we need to mutate the source css
         if !matches!(self, Self::CurrentColor) {
             return;
