@@ -11,11 +11,12 @@ pub(crate) struct Parser {
     args_capacity: usize,
     current_number: String,
     had_decminal: bool,
+    cursor: usize,
 }
 
 #[derive(Debug)]
 pub enum Error {
-    CommandEndedTooEarly,
+    CommandEndedTooEarly(usize),
     NoCommand,
     DuplicateComma,
     InvalidFirstCommand,
@@ -36,7 +37,7 @@ impl Parser {
     /// The old command is collated and pushed to `path_data`
     fn flush_args(&mut self, command: &command::ID) -> Result<(), Error> {
         if !self.is_flush_ready() {
-            Err(Error::CommandEndedTooEarly)?;
+            Err(Error::CommandEndedTooEarly(self.cursor))?;
         }
         self.args_capacity = command.args();
         if self.current_command.is_implicit() && self.args_len == 0 {
@@ -85,7 +86,7 @@ impl Parser {
             return Ok(());
         } else if !self.is_flush_ready() {
             // stop if previous arguments are not flushed
-            Err(Error::CommandEndedTooEarly)?;
+            Err(Error::CommandEndedTooEarly(self.cursor))?;
         }
         self.flush_args(command)?;
         Ok(())
@@ -104,6 +105,7 @@ impl Parser {
     }
 
     pub fn parse(&mut self, definition: impl Into<String>) -> Result<Path, Error> {
+        self.cursor = 0;
         for char in definition.into().chars() {
             if char.is_whitespace() && self.current_number.is_empty() {
                 continue;
@@ -117,6 +119,7 @@ impl Parser {
                 self.had_comma = true;
                 continue;
             }
+            self.had_comma = false;
             if let Ok(command_id) = command::ID::try_from(char) {
                 if !self.current_number.is_empty() {
                     self.process_number()?;
@@ -131,7 +134,7 @@ impl Parser {
             }
             if (!char.is_numeric() && !matches!(char, '+' | '-' | '.' | 'e' | 'E'))
                 // '.' is start of new number
-                || (self.had_decminal && char == '.')
+                || (self.had_decminal && char == '.' && !self.current_number.ends_with('e') && !self.current_number.ends_with('-'))
                 // '-' is start of new number
                 || (!self.current_number.is_empty()
                     && !self.current_number.ends_with('e')
@@ -186,6 +189,7 @@ impl Parser {
                 self.had_decminal = self.had_decminal || char == '.';
                 self.current_number.push(char);
             }
+            self.cursor += 1;
         }
         if !self.current_number.is_empty() {
             self.process_number()?;
@@ -198,7 +202,7 @@ impl Parser {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let fmt = match self {
-            Self::CommandEndedTooEarly => "A path command ended too early",
+            Self::CommandEndedTooEarly(_) => "A path command ended too early",
             Self::NoCommand => "Expected a path command",
             Self::DuplicateComma => "Found unexpected comma in path command",
             Self::InvalidFirstCommand => "Expected path to start with `m` or `M`",
