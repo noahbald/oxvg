@@ -354,6 +354,7 @@ impl std::fmt::Display for Data {
                         || (current == 0.0)
                         || (previous == 0.0 && current >= 0.0)
                         || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
+                        || (current > 0.0 && current < 1e-4)
                     {
                         f.write_char(' ')?;
                     }

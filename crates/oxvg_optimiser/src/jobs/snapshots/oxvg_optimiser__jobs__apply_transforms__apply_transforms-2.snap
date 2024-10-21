@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/apply_transforms.rs
+expression: "test_config(r#\"{ \"applyTransforms\": {}, \"convertPathData\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\">\n    <path d=\"M32 4a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v28a4 4 0 0 1 4 4h20a4 4 0 0 0 4-4V4z\" fill=\"#888\" transform=\"matrix(1 0 0 -1 0 36)\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+    <path d="M32 32a4 4 0 0 1-4 4H8a4 4 0 0 0-4-4V4a4 4 0 0 0 4-4h20a4 4 0 0 1 4 4Z" fill="#888"></path>
+</svg>

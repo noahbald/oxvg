@@ -1,5 +1,6 @@
 mod add_attributes_to_svg_element;
 mod add_classes_to_svg;
+mod apply_transforms;
 mod cleanup_attributes;
 mod cleanup_enable_background;
 mod cleanup_ids;
@@ -19,6 +20,7 @@ use serde::Deserialize;
 
 pub use self::add_attributes_to_svg_element::AddAttributesToSVGElement;
 pub use self::add_classes_to_svg::AddClassesToSVG;
+pub use self::apply_transforms::ApplyTransforms;
 pub use self::cleanup_attributes::CleanupAttributes;
 pub use self::cleanup_enable_background::CleanupEnableBackground;
 pub use self::cleanup_ids::CleanupIds;
@@ -57,6 +59,7 @@ pub trait Job {
 pub struct Jobs {
     add_attributes_to_svg_element: Option<AddAttributesToSVGElement>,
     add_classes_to_svg: Option<AddClassesToSVG>,
+    apply_transforms: Option<ApplyTransforms>,
     cleanup_attributes: Option<CleanupAttributes>,
     cleanup_enable_background: Option<CleanupEnableBackground>,
     cleanup_ids: Option<CleanupIds>,
@@ -126,6 +129,7 @@ impl Jobs {
         println!("~~ --- job ending\n\n");
 
         jobs.iter_mut().for_each(|job| job.breakdown(root));
+        log::debug!("completed {} jobs", jobs.len());
     }
 }
 
@@ -139,6 +143,8 @@ impl IntoIterator for Jobs {
             jobs.add_attributes_to_svg_element
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.add_classes_to_svg
+                .map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.apply_transforms
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.cleanup_attributes
                 .map(|job| Box::new(job) as Box<dyn Job>),
