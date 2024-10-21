@@ -2,6 +2,7 @@
 extern crate lazy_static;
 
 pub mod collections;
+pub mod regex;
 
 use std::{
     borrow::BorrowMut,
@@ -21,10 +22,8 @@ use selectors::{
 };
 
 #[derive(Clone, Derivative)]
-#[derivative(Debug)]
 pub struct Element {
     pub node: RcNode,
-    #[derivative(Debug = "ignore")]
     selector_flags: Cell<Option<ElementSelectorFlags>>,
 }
 
@@ -599,6 +598,16 @@ impl From<RcNode> for Element {
             node: value,
             selector_flags: Cell::new(None),
         }
+    }
+}
+
+impl std::fmt::Debug for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Element { ")?;
+        f.write_str("node.node_data: { ")?;
+        self.node.data.fmt(f)?;
+        f.write_str(" } }")?;
+        Ok(())
     }
 }
 

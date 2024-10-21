@@ -5,7 +5,11 @@ use std::{
 };
 
 use markup5ever::{local_name, tendril::StrTendril};
-use oxvg_selectors::{collections::REFERENCES_PROPS, Element};
+use oxvg_selectors::{
+    collections::REFERENCES_PROPS,
+    regex::{REFERENCES_BEGIN, REFERENCES_HREF, REFERENCES_URL},
+    Element,
+};
 use regex::CaptureMatches;
 use serde::Deserialize;
 
@@ -363,13 +367,6 @@ fn find_references<'a>(name: &str, value: &'a str) -> Option<CaptureMatches<'sta
         _ => return None,
     };
     Some(matches)
-}
-
-lazy_static! {
-    static ref REFERENCES_URL: regex::Regex =
-        regex::Regex::new(r#"(?:\W|^)url\(['"]?#(.+?)['"]?\)"#).unwrap();
-    static ref REFERENCES_HREF: regex::Regex = regex::Regex::new("^#(.+?)$").unwrap();
-    static ref REFERENCES_BEGIN: regex::Regex = regex::Regex::new(r"(\w+)\.[a-zA-Z]").unwrap();
 }
 
 #[test]

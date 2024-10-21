@@ -32,13 +32,11 @@ urlencoding = "2.1"
 [dev-dependencies]
 oxvg_ast = { workspace = true }
 
+ctor = { workspace = true }
 divan = { workspace = true }
+env_logger = { workspace = true }
 insta = { workspace = true }
 xml5ever = { workspace = true }
-
-[[bench]]
-name = "path"
-harness = false
 
 [profile.bench]
 opt-level = 3

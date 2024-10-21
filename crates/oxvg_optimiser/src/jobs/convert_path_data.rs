@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::{Context, Job};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertPathData {
     remove_useless: Option<bool>,
@@ -31,7 +31,7 @@ pub struct ConvertPathData {
     // transform_precision: Option<usize>,
 }
 
-#[derive(Clone, Default, Copy)]
+#[derive(Clone, Default, Copy, Debug)]
 struct Precision(oxvg_path::convert::Precision);
 
 impl Job for ConvertPathData {
@@ -56,7 +56,7 @@ impl Job for ConvertPathData {
         let path = match Path::parse(&d.value) {
             Ok(path) => path,
             Err(e) => {
-                log::debug!("ConvertPathData::run: failed to parse path: {e}");
+                log::error!("failed to parse path: {e}\n{}", d.value);
                 return;
             }
         };
@@ -551,17 +551,6 @@ fn convert_path_data() -> anyhow::Result<()> {
 </svg>"#
         )
     )?);
-
-    // TODO: Rest of tests to be added in next commit
-    // NOTE: The following SVGO tests should be used for apply_transforms
-    // convertPathData.11.svg.txt
-    // convertPathData.18.svg.txt
-    // convertPathData.19.svg.txt
-    // convertPathData.22.svg.txt
-    // convertPathData.23.svg.txt
-    // convertPathData.24.svg.txt
-    // convertPathData.25.svg.txt
-    // convertPathData.26.svg.txt
 
     Ok(())
 }
