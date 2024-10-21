@@ -1,7 +1,23 @@
 use crate::{
     command::{self, Position},
+    geometry::Point,
     positioned::Path,
 };
+
+pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
+    let path = Path(
+        path.0
+            .iter()
+            .map(|p| Position {
+                command: p.clone(),
+                start: Point([0.0; 2]),
+                end: Point([0.0; 2]),
+                s_data: None,
+            })
+            .collect(),
+    );
+    cleanup(&path).take()
+}
 
 pub fn cleanup(path: &Path) -> Path {
     let mut result = remove_repeated_moves(path);

@@ -15,7 +15,7 @@ pub mod filter;
 mod mixed;
 mod relative;
 
-pub use crate::convert::cleanup::cleanup;
+pub use crate::convert::cleanup::{cleanup, cleanup_unpositioned};
 pub use crate::convert::filter::filter;
 pub use crate::convert::mixed::mixed;
 pub use crate::convert::relative::relative;
@@ -159,7 +159,7 @@ impl StyleInfo {
     #[cfg(feature = "oxvg")]
     /// Determine the path optimisations that are allowed based on relevant context
     pub fn gather(
-        computed_styles: &BTreeMap<oxvg_style::SVGStyleID, &oxvg_style::SVGStyle>,
+        computed_styles: &BTreeMap<oxvg_style::SVGStyleID, &oxvg_style::Style>,
         has_marker: bool,
     ) -> Self {
         use lightningcss::properties::svg::{StrokeLinecap, StrokeLinejoin};
@@ -168,32 +168,36 @@ impl StyleInfo {
 
         let stroke = computed_styles.get(&oxvg_style::SVGStyleID::Stroke);
         let maybe_has_stroke = stroke.is_some_and(|property| {
-            !matches!(
-                property,
-                oxvg_style::SVGStyle::Stroke(oxvg_style::SVGPaint::None)
-            )
+            property.is_dynamic()
+                || !matches!(
+                    property.inner(),
+                    oxvg_style::SVGStyle::Stroke(oxvg_style::SVGPaint::None)
+                )
         });
 
-        let linecap = computed_styles.get(&oxvg_style::SVGStyleID::SrokeLinecap);
+        let linecap = computed_styles.get(&oxvg_style::SVGStyleID::StrokeLinecap);
         let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
-            !matches!(
-                property,
-                oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
-            )
+            property.is_dynamic()
+                || !matches!(
+                    property.inner(),
+                    oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
+                )
         });
 
         let linejoin = computed_styles.get(&oxvg_style::SVGStyleID::StrokeLinejoin);
         let is_safe_to_use_z = if maybe_has_stroke {
             linecap.is_some_and(|property| {
-                matches!(
-                    property,
-                    oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
-                )
+                property.is_static()
+                    && matches!(
+                        property.inner(),
+                        oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
+                    )
             }) && linejoin.is_some_and(|property| {
-                matches!(
-                    property,
-                    oxvg_style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
-                )
+                property.is_static()
+                    && matches!(
+                        property.inner(),
+                        oxvg_style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
+                    )
             })
         } else {
             true
