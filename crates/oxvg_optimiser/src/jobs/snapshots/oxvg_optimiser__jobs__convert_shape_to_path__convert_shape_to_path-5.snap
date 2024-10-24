@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
+expression: "test_config(r#\"{ \"convertShapeToPath\": { \"convertArcs\": true, \"floatPrecision\": 3 } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"65mm\" height=\"45mm\" viewBox=\"0 0 65 45\">\n  <rect x=\"26.614\" y=\"29.232\" width=\"34.268\" height=\"8.1757\"/>\n  <line x1=\"26.6142\" y1=\"29.2322\" x2=\"34.2682\" y2=\"8.1757\"/>\n  <polyline points=\"26.6142,29.2322 34.2682,8.1757\"/>\n  <polygon points=\"26.6142,29.2322 34.2682,8.1757\"/>\n  <circle cx=\"26.6142\" cy=\"29.2322\" r=\"34.2682\"/>\n  <ellipse cx=\"26.6142\" cy=\"29.2322\" rx=\"34.2682\" ry=\"8.1757\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="65mm" height="45mm" viewBox="0 0 65 45">
+  <path d="M26.614 29.232H60.882V37.408H26.614Z"></path>
+  <path d="M26.614 29.232 34.268 8.176"></path>
+  <path d="M26.614 29.232 34.268 8.176"></path>
+  <path d="M26.614 29.232 34.268 8.176Z"></path>
+  <path d="M26.614-5.036A34.268 34.268 0 1 0 26.614 63.5 34.268 34.268 0 1 0 26.614-5.036Z"></path>
+  <path d="M26.614 21.057A34.268 8.176 0 1 0 26.614 37.408 34.268 8.176 0 1 0 26.614 21.057Z"></path>
+</svg>

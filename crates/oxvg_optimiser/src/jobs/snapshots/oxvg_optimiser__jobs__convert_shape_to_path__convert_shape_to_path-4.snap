@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
+expression: "test_config(r#\"{ \"convertShapeToPath\": { \"convertArcs\": true } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <circle cx=\"10\" cy=\"10\" r=\"5\"/>\n    <ellipse cx=\"10\" cy=\"10\" rx=\"5\" ry=\"5\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 5A5 5 0 1 0 10 15 5 5 0 1 0 10 5Z"></path>
+    <path d="M10 5A5 5 0 1 0 10 15 5 5 0 1 0 10 5Z"></path>
+</svg>

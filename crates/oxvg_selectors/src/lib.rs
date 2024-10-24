@@ -216,6 +216,35 @@ impl Element {
         Some(name.local.clone())
     }
 
+    pub fn set_name(&mut self, new_name: markup5ever::LocalName) {
+        let NodeData::Element {
+            ref attrs,
+            ref mathml_annotation_xml_integration_point,
+            ref template_contents,
+            ..
+        } = self.node.data
+        else {
+            return;
+        };
+        let attrs = attrs.clone();
+        let mathml_annotation_xml_integration_point = *mathml_annotation_xml_integration_point;
+        let template_contents = template_contents.clone();
+        self.replace(rcdom::Node {
+            data: NodeData::Element {
+                name: markup5ever::QualName {
+                    prefix: None,
+                    ns: "".into(),
+                    local: new_name,
+                },
+                attrs,
+                mathml_annotation_xml_integration_point,
+                template_contents,
+            },
+            parent: Cell::new(None),
+            children: self.node.children.clone(),
+        });
+    }
+
     pub fn get_attr(&self, attr: &markup5ever::LocalName) -> Option<Attribute> {
         let NodeData::Element { ref attrs, .. } = self.node.as_ref().data else {
             return None;
@@ -352,6 +381,17 @@ impl Element {
         let mut siblings = parent.node.children.borrow_mut();
         siblings.remove(index);
         Some((parent.clone(), index))
+    }
+
+    /// Replaces self with a new node, updating it's parent
+    /// Returns the old element
+    pub fn replace(&self, mut node: rcdom::Node) {
+        let Some((parent, index)) = self.remove() else {
+            return;
+        };
+        let mut siblings = parent.node.children.borrow_mut();
+        node.parent = Cell::new(Some(Rc::downgrade(&parent.node)));
+        siblings.insert(index, Rc::new(node));
     }
 
     pub fn move_to(&self, target: &Self) {
