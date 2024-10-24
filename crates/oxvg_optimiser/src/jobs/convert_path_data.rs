@@ -32,7 +32,7 @@ pub struct ConvertPathData {
 }
 
 #[derive(Clone, Default, Copy, Debug)]
-struct Precision(oxvg_path::convert::Precision);
+pub struct Precision(pub oxvg_path::convert::Precision);
 
 impl Job for ConvertPathData {
     fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {

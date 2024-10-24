@@ -28,6 +28,7 @@ anyhow = "1.0"
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.31.0"
 derivative = "2.2"
+itertools = "0.13.0"
 lazy_static = "1.4"
 lightningcss = "1.0.0-alpha.59"
 log = "0.4.20"

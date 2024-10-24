@@ -16,6 +16,7 @@ workspace = true
 cssparser = { workspace = true }
 derivative = { workspace = true }
 lazy_static = { workspace = true }
+log = { workspace = true }
 markup5ever = { workspace = true }
 rcdom = { workspace = true }
 regex = { workspace = true }
