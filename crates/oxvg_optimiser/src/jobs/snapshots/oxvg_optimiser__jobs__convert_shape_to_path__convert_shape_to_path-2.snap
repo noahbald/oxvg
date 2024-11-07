@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
+expression: "test_config(r#\"{ \"convertShapeToPath\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <line x2=\"100%\" y2=\"100%\"/>\n    <line x1=\"24\" y2=\"24\"/>\n    <line x1=\"10\" y1=\"10\" x2=\"50\" y2=\"20\"/>\n    <line stroke=\"#000\" x1=\"10\" y1=\"10\" x2=\"50\" y2=\"20\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <line x2="100%" y2="100%"></line>
+    <path d="M24 0 0 24"></path>
+    <path d="M10 10 50 20"></path>
+    <path stroke="#000" d="M10 10 50 20"></path>
+</svg>

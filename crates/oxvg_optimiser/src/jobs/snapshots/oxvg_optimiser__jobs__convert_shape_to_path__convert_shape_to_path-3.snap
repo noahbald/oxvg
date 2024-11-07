@@ -1,0 +1,15 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
+expression: "test_config(r#\"{ \"convertShapeToPath\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <polyline points=\"10,10 20\"/>\n    <polyline points=\"10,80 20,50 50,20 80,10\"/>\n    <polyline points=\"20 ,10  50    40 30.5-1e-1 , 20 10\"/>\n    <polyline stroke=\"#000\" points=\"10,10 20,20 10,20\"/>\n    <polygon points=\"10,10 20\"/>\n    <polygon points=\"10,80 20,50 50,20 80,10\"/>\n    <polygon points=\"20 10  50 40 30,20\"/>\n    <polygon stroke=\"#000\" points=\"10,10 20,20 10,20\"/>\n    <polygon stroke=\"none\" points=\"10,10 20,20 10,20\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    
+    <path d="M10 80 20 50 50 20 80 10"></path>
+    <path d="M20 10 50 40 30.5-.1 20 10"></path>
+    <path stroke="#000" d="M10 10 20 20 10 20"></path>
+    
+    <path d="M10 80 20 50 50 20 80 10Z"></path>
+    <path d="M20 10 50 40 30 20Z"></path>
+    <path stroke="#000" d="M10 10 20 20 10 20Z"></path>
+    <path stroke="none" d="M10 10 20 20 10 20Z"></path>
+</svg>
