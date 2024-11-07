@@ -4,13 +4,14 @@ use lazy_static::lazy_static;
 use lightningcss::{
     declaration,
     printer::{self, PrinterOptions},
-    properties::{self},
+    properties::{self, transform::TransformList},
     rules::{self},
     stylesheet::{self, ParserOptions},
     traits::ToCss,
-    values, vendor_prefix,
+    values,
+    vendor_prefix::{self, VendorPrefix},
 };
-use markup5ever::{local_name, Attribute};
+use markup5ever::{local_name, Attribute, LocalName};
 use oxvg_selectors::{Element, Selector};
 use rcdom::NodeData;
 
@@ -37,6 +38,8 @@ pub enum SVGStyle {
         properties::transform::TransformList,
         vendor_prefix::VendorPrefix,
     ),
+    GradientTransform(properties::transform::TransformList),
+    PatternTransform(properties::transform::TransformList),
     /// The matched style isn't relevant for SVG optimisation
     Unsupported,
 }
@@ -51,7 +54,10 @@ pub enum SVGStyleID {
     StrokeLinejoin,
     StrokeWidth,
     Transform,
+    GradientTransform,
+    PatternTransform,
     Unsupported,
+    Unspecified,
 }
 
 #[derive(Debug)]
@@ -337,6 +343,8 @@ impl SVGStyle {
             Self::StrokeLinejoin(_) => SVGStyleID::StrokeLinejoin,
             Self::StrokeWidth(_) => SVGStyleID::StrokeWidth,
             Self::Transform(_, _) => SVGStyleID::Transform,
+            Self::GradientTransform(_) => SVGStyleID::GradientTransform,
+            Self::PatternTransform(_) => SVGStyleID::PatternTransform,
             Self::Unsupported => SVGStyleID::Unsupported,
         }
     }
@@ -356,18 +364,9 @@ impl TryFrom<&Attribute> for SVGStyle {
     type Error = ();
 
     fn try_from(value: &Attribute) -> Result<Self, Self::Error> {
-        let property_id = match value.name.local {
-            local_name!("marker-mid") => properties::PropertyId::MarkerMid,
-            local_name!("stroke") => properties::PropertyId::Stroke,
-            local_name!("stroke-dasharray") => properties::PropertyId::StrokeDasharray,
-            local_name!("stroke-dashoffset") => properties::PropertyId::StrokeDashoffset,
-            local_name!("stroke-linecap") => properties::PropertyId::StrokeLinecap,
-            local_name!("stroke-linejoin") => properties::PropertyId::StrokeLinejoin,
-            local_name!("stroke-width") => properties::PropertyId::StrokeWidth,
-            local_name!("transform") => {
-                properties::PropertyId::Transform(vendor_prefix::VendorPrefix::None)
-            }
-            _ => return Err(()),
+        let style_id = SVGStyleID::from(&value.name.local);
+        let Some(property_id) = style_id.property_id() else {
+            return Err(());
         };
         let mut value = value.value.to_string();
         if matches!(property_id, properties::PropertyId::Transform(_)) {
@@ -396,22 +395,38 @@ impl TryFrom<&Attribute> for SVGStyle {
                 )
             });
             let v = LIST_SEP_SPACE.replace_all(&v, "$a, ");
-            value = ROTATE
-                .replace_all(&v, |caps: &regex::Captures| {
-                    format!("{}({}deg", &caps["f"], &caps["v"])
-                })
-                .to_string();
+            let v = LIST_SEP_FIX.replace_all(&v, ")");
+            let v = ROTATE.replace_all(&v, |caps: &regex::Captures| {
+                format!("{}({}deg", &caps["f"], &caps["v"])
+            });
+            let v = FUNC_SEP.replace_all(&v, ") ");
+            log::debug!("tried making transform compatible: {value} -> {v}");
+            value = v.to_string();
         }
         let property =
-            properties::Property::parse_string(property_id, &value, ParserOptions::default())
-                .map_err(|_| ())?;
-        Ok((&property).into())
+            properties::Property::parse_string(property_id, &value, ParserOptions::default());
+        match property {
+            Ok(property) => match SVGStyle::from((&property, &style_id)) {
+                Self::Unsupported => style_id.empty_style().ok_or(()),
+                style => Ok(style),
+            },
+            Err(e) => {
+                log::debug!("failed to parse attribute: {}", e.to_string());
+                style_id.empty_style().ok_or(())
+            }
+        }
     }
 }
 
 impl From<&properties::Property<'_>> for SVGStyle {
-    fn from(value: &properties::Property) -> Self {
-        match value {
+    fn from(value: &properties::Property<'_>) -> Self {
+        Self::from((value, &SVGStyleID::Unspecified))
+    }
+}
+
+impl From<(&properties::Property<'_>, &SVGStyleID)> for SVGStyle {
+    fn from((property, id): (&properties::Property<'_>, &SVGStyleID)) -> Self {
+        match property {
             properties::Property::MarkerMid(m) => SVGStyle::MarkerMid(match m {
                 lightningcss::properties::svg::Marker::Url(u) => Some(u.url.to_string()),
                 lightningcss::properties::svg::Marker::None => None,
@@ -422,7 +437,21 @@ impl From<&properties::Property<'_>> for SVGStyle {
             properties::Property::StrokeLinecap(s) => SVGStyle::StrokeLinecap(*s),
             properties::Property::StrokeLinejoin(s) => SVGStyle::StrokeLinejoin(*s),
             properties::Property::StrokeWidth(s) => SVGStyle::StrokeWidth(s.clone()),
-            properties::Property::Transform(l, p) => SVGStyle::Transform(l.clone(), *p),
+            properties::Property::Transform(l, p)
+                if matches!(id, SVGStyleID::Transform | SVGStyleID::Unspecified) =>
+            {
+                SVGStyle::Transform(l.clone(), *p)
+            }
+            properties::Property::Transform(l, _) if id == &SVGStyleID::GradientTransform => {
+                SVGStyle::GradientTransform(l.clone())
+            }
+            properties::Property::Transform(l, _) if id == &SVGStyleID::PatternTransform => {
+                SVGStyle::PatternTransform(l.clone())
+            }
+            properties::Property::Unparsed(_) => {
+                log::debug!("property may be valid but couldn't be parsed");
+                SVGStyle::Unsupported
+            }
             _ => SVGStyle::Unsupported,
         }
     }
@@ -443,6 +472,52 @@ impl From<&lightningcss::properties::svg::SVGPaint<'_>> for SVGPaint {
             properties::svg::SVGPaint::ContextStroke => Self::ContextStroke,
             properties::svg::SVGPaint::None => Self::None,
         }
+    }
+}
+
+impl From<&LocalName> for SVGStyleID {
+    fn from(value: &LocalName) -> Self {
+        match *value {
+            local_name!("marker-mid") => Self::MarkerMid,
+            local_name!("stroke") => Self::Stroke,
+            local_name!("stroke-dasharray") => Self::StrokeDasharray,
+            local_name!("stroke-dashoffset") => Self::StrokeDashoffset,
+            local_name!("stroke-linecap") => Self::StrokeLinecap,
+            local_name!("stroke-linejoin") => Self::StrokeLinejoin,
+            local_name!("stroke-width") => Self::StrokeWidth,
+            local_name!("transform") => Self::Transform,
+            local_name!("gradientTransform") => Self::GradientTransform,
+            local_name!("patternTransform") => Self::PatternTransform,
+            _ => Self::Unsupported,
+        }
+    }
+}
+
+impl SVGStyleID {
+    fn property_id(&self) -> Option<properties::PropertyId> {
+        let property_id = match self {
+            Self::MarkerMid => properties::PropertyId::MarkerMid,
+            Self::Stroke => properties::PropertyId::Stroke,
+            Self::StrokeDasharray => properties::PropertyId::StrokeDasharray,
+            Self::StrokeDashoffset => properties::PropertyId::StrokeDashoffset,
+            Self::StrokeLinecap => properties::PropertyId::StrokeLinecap,
+            Self::StrokeLinejoin => properties::PropertyId::StrokeLinejoin,
+            Self::StrokeWidth => properties::PropertyId::StrokeWidth,
+            Self::Transform | Self::GradientTransform | Self::PatternTransform => {
+                properties::PropertyId::Transform(vendor_prefix::VendorPrefix::None)
+            }
+            _ => return None,
+        };
+        Some(property_id)
+    }
+
+    fn empty_style(&self) -> Option<SVGStyle> {
+        Some(match self {
+            Self::Transform => SVGStyle::Transform(TransformList(vec![]), VendorPrefix::None),
+            Self::GradientTransform => SVGStyle::GradientTransform(TransformList(vec![])),
+            Self::PatternTransform => SVGStyle::PatternTransform(TransformList(vec![])),
+            _ => return None,
+        })
     }
 }
 
@@ -495,7 +570,10 @@ impl StyleMode {
 }
 
 lazy_static! {
-    static ref LIST_SEP_SPACE: regex::Regex = regex::Regex::new(r"(?<a>\d)\s+").unwrap();
+    static ref LIST_SEP_SPACE: regex::Regex =
+        regex::Regex::new(r"(?<a>-?\d*\.?\d*(e-?)?\d+),?").unwrap();
+    static ref LIST_SEP_FIX: regex::Regex = regex::Regex::new(r",\s*\)").unwrap();
+    static ref FUNC_SEP: regex::Regex = regex::Regex::new(r"\)[,\s]*").unwrap();
     static ref ROTATE: regex::Regex =
         regex::Regex::new(r"(?<f>rotate|skew|skewX|skewY)\((?<v>\s*[^\s\),]+)").unwrap();
     static ref ROTATE_LONG: regex::Regex = regex::Regex::new(

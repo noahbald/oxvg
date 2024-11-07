@@ -11,6 +11,7 @@ mod convert_colors;
 mod convert_ellipse_to_circle;
 mod convert_path_data;
 mod convert_shape_to_path;
+mod convert_transform;
 
 use std::rc::Rc;
 
@@ -32,6 +33,7 @@ pub use self::convert_colors::ConvertColors;
 pub use self::convert_ellipse_to_circle::ConvertEllipseToCircle;
 pub use self::convert_path_data::ConvertPathData;
 pub use self::convert_shape_to_path::ConvertShapeToPath;
+pub use self::convert_transform::ConvertTransform;
 
 pub enum PrepareOutcome {
     None,
@@ -72,6 +74,7 @@ pub struct Jobs {
     convert_ellipse_to_circle: Option<ConvertEllipseToCircle>,
     convert_path_data: Option<ConvertPathData>,
     convert_shape_to_path: Option<ConvertShapeToPath>,
+    convert_transform: Option<ConvertTransform>,
 }
 
 impl Jobs {
@@ -166,6 +169,8 @@ impl IntoIterator for Jobs {
             jobs.convert_path_data
                 .map(|job| Box::new(job) as Box<dyn Job>),
             jobs.convert_shape_to_path
+                .map(|job| Box::new(job) as Box<dyn Job>),
+            jobs.convert_transform
                 .map(|job| Box::new(job) as Box<dyn Job>),
         ];
         jobs.into_iter()

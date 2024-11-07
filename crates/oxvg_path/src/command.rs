@@ -324,30 +324,7 @@ impl std::fmt::Display for Data {
             .iter()
             .try_for_each(|current| -> std::fmt::Result {
                 let current = *current;
-                let to_short_string = |n: f64| -> String {
-                    let mut s = ryu::Buffer::new().format(n).to_owned();
-                    // Remove trailing zeros
-                    if s.contains('.') {
-                        s = match s.strip_suffix('0') {
-                            Some(s) => s.into(),
-                            None => s,
-                        };
-                    }
-                    if s == "0." || s == "-0." {
-                        return String::from("0");
-                    }
-                    if s.ends_with('.') {
-                        s.pop();
-                    }
-                    // Remove leading zero
-                    if s.starts_with("0.") {
-                        s.remove(0);
-                    } else if s.starts_with("-0.") {
-                        s.remove(1);
-                    }
-                    s
-                };
-                let s = to_short_string(current);
+                let s = short_number(current);
                 #[allow(clippy::float_cmp)] // This is fine for formatting
                 if let Some(previous) = previous_option {
                     if current >= 1.0
@@ -365,6 +342,33 @@ impl std::fmt::Display for Data {
             })?;
         Ok(())
     }
+}
+
+pub fn short_number<F>(n: F) -> String
+where
+    F: ryu::Float,
+{
+    let mut s = ryu::Buffer::new().format(n).to_owned();
+    // Remove trailing zeros
+    if s.contains('.') {
+        s = match s.strip_suffix('0') {
+            Some(s) => s.into(),
+            None => s,
+        };
+    }
+    if s == "0." || s == "-0." {
+        return String::from("0");
+    }
+    if s.ends_with('.') {
+        s.pop();
+    }
+    // Remove leading zero
+    if s.starts_with("0.") {
+        s.remove(0);
+    } else if s.starts_with("-0.") {
+        s.remove(1);
+    }
+    s
 }
 
 impl ID {
