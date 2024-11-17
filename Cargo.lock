@@ -580,6 +580,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast-rs"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
+
+[[package]]
 name = "dtoa"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1073,9 +1079,13 @@ dependencies = [
 name = "oxvg_ast"
 version = "0.0.1-alpha.1"
 dependencies = [
+ "anyhow",
+ "downcast-rs",
  "markup5ever",
+ "markup5ever_rcdom",
  "oxvg_diagnostics",
  "serde",
+ "xml5ever",
 ]
 
 [[package]]

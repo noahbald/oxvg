@@ -1,189 +1,138 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use crate::{atom::Atom, element::Element};
 
-use markup5ever::tendril::StrTendril;
-use serde::{de::Visitor, Deserialize};
+#[cfg(feature = "parse")]
+use crate::parse;
 
-#[derive(Default, Clone)]
-pub struct Attributes(Vec<QualName>, BTreeMap<QualName, StrTendril>);
+#[cfg(feature = "serialize")]
+use crate::serialize;
 
-struct AttributesVisitor(PhantomData<fn() -> Attributes>);
-
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
-pub struct QualName(pub markup5ever::QualName);
-
-struct QualNameVisitor(PhantomData<fn() -> QualName>);
-
-pub struct TendrilVisitor(PhantomData<fn() -> StrTendril>);
-
-impl Attributes {
-    pub fn contains_key(&self, key: &QualName) -> bool {
-        self.1.contains_key(key)
-    }
-
-    pub fn insert(&mut self, key: QualName, value: StrTendril) -> Option<StrTendril> {
-        self.0.push(key.clone());
-        self.1.insert(key, value)
-    }
-
-    pub fn get(&self, key: &QualName) -> Option<&StrTendril> {
-        self.1.get(key)
-    }
-
-    pub fn into_b_tree(&self) -> &BTreeMap<QualName, StrTendril> {
-        &self.1
-    }
-
-    pub fn iter(&self) -> std::collections::btree_map::Iter<'_, QualName, StrTendril> {
-        self.1.iter()
-    }
+#[derive(PartialEq)]
+pub enum Type {
+    Element,
+    Attribute,
+    Text,
+    CDataSection,
+    ProcessingInstruction,
+    Comment,
+    Document,
+    DocumentType,
+    DocumentFragment,
 }
 
-impl<'a> IntoIterator for &'a Attributes {
-    type Item = (&'a QualName, &'a StrTendril);
-    type IntoIter = std::collections::btree_map::Iter<'a, QualName, StrTendril>;
+pub trait Node: Sized + 'static + parse::Node + serialize::Node {
+    type Atom: Atom;
+    type Child: Node<Atom = Self::Atom>;
+    type ParentChild: Node<Atom = Self::Atom>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.1.iter()
-    }
-}
+    /// Whether the underlying pointer is at the same address as the other
+    fn ptr_eq(&self, other: &impl Node) -> bool;
 
-impl<'de> Deserialize<'de> for Attributes {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_map(AttributesVisitor::new())
-    }
-}
+    /// Returns an node list containing all the children of this node
+    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self>;
 
-impl<'a> From<&'a Vec<markup5ever::Attribute>> for Attributes {
-    fn from(value: &'a Vec<markup5ever::Attribute>) -> Self {
-        let mut output = Self::default();
-        for attr in value {
-            output.0.push(QualName(attr.name.clone()));
-            output
-                .1
-                .insert(QualName(attr.name.clone()), attr.value.clone());
-        }
-        output
-    }
-}
+    /// Returns an node list containing all the children of this node
+    fn child_nodes(&self) -> Vec<Self::Child>;
 
-impl From<Attributes> for Vec<markup5ever::Attribute> {
-    fn from(val: Attributes) -> Self {
-        val.iter()
-            .map(|(name, value)| markup5ever::Attribute {
-                name: name.0.clone(),
-                value: value.clone(),
-            })
-            .collect()
-    }
-}
+    /// Upcasts self as an element
+    fn element(&self) -> Option<impl Element>;
 
-impl From<&Attributes> for Vec<markup5ever::Attribute> {
-    fn from(val: &Attributes) -> Self {
-        let mut output: Vec<markup5ever::Attribute> = Vec::new();
-        for attr in val {
-            output.push(markup5ever::Attribute {
-                name: attr.0 .0.clone(),
-                value: attr.1.clone(),
-            });
-        }
-        output
-    }
-}
-
-impl AttributesVisitor {
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'de> Visitor<'de> for AttributesVisitor {
-    type Value = Attributes;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a map of attributes")
+    fn first_child(&self) -> Option<impl Node> {
+        self.child_nodes().first().map(Node::to_owned)
     }
 
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::MapAccess<'de>,
-    {
-        let mut attributes = Attributes::default();
-
-        while let Some((key, value)) = map.next_entry::<QualName, Option<String>>()? {
-            let value = value.unwrap_or_else(String::new).into();
-            attributes.insert(key, value);
-        }
-
-        Ok(attributes)
-    }
-}
-
-impl<'de> Deserialize<'de> for QualName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(QualNameVisitor::new())
-    }
-}
-
-impl From<markup5ever::QualName> for QualName {
-    fn from(value: markup5ever::QualName) -> Self {
-        Self(value)
-    }
-}
-
-impl std::fmt::Display for QualName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let local = &self.0.local;
-        match &self.0.prefix {
-            Some(prefix) => write!(f, "{prefix}:{local}"),
-            None => write!(f, "{local}"),
-        }
-    }
-}
-
-impl QualNameVisitor {
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'de> Visitor<'de> for QualNameVisitor {
-    type Value = QualName;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("A qualified name for an attribute as a string")
+    fn last_child(&self) -> Option<impl Node> {
+        self.child_nodes().last().map(Node::to_owned)
     }
 
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        let mut parts = v.split(':');
-        let Some(prefix) = parts.next() else {
-            Err(serde::de::Error::custom("attribute should have contents"))?
-        };
-
-        let (prefix, local) = match parts.next() {
-            Some(local) => (
-                markup5ever::Prefix::try_static(prefix),
-                markup5ever::LocalName::try_static(local)
-                    .unwrap_or_else(|| markup5ever::LocalName::from(local)),
-            ),
-            None => (
-                None,
-                markup5ever::LocalName::try_static(prefix)
-                    .unwrap_or_else(|| markup5ever::LocalName::from(prefix)),
-            ),
-        };
-        Ok(QualName(markup5ever::QualName {
-            prefix,
-            ns: ns!(svg),
-            local,
-        }))
+    fn next_sibling(&self) -> Option<Self::ParentChild> {
+        self.parent_node()?
+            .child_nodes()
+            .iter()
+            .take_while(|n| !n.ptr_eq(self))
+            .next()
+            .map(Node::to_owned)
     }
+
+    /// Returns a string containins the name of the [Node]. The structure of the name will differ
+    /// with the node type. E.g. An `Element` will contain the name of the corresponding tag, like
+    /// `"AUDIO"` for an `HTMLAudioElement`, a text node will have the `"#text"` string, or a
+    /// `Document` node will have the `"#document"` string.
+    fn node_name(&self) -> Self::Atom;
+
+    fn node_type(&self) -> Type;
+
+    fn node_value(&self) -> Option<Self::Atom>;
+
+    /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
+    /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]
+    fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>>;
+
+    fn append_child(&mut self, a_child: Self::Child) {
+        self.child_nodes().push(a_child);
+    }
+
+    /// <https://dom.spec.whatwg.org/#concept-node-clone>
+    fn clone_node(&self) -> Self;
+
+    fn contains(&self, other_node: &Self::Child) -> bool {
+        self.child_nodes_iter().any(|c| {
+            if c.ptr_eq(other_node) {
+                return true;
+            }
+            c.contains(other_node)
+        })
+    }
+
+    fn has_child_nodes(&self) -> bool {
+        !self.child_nodes().is_empty()
+    }
+
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+        let len = self.child_nodes().len();
+        let reference_index = self.child_index(reference_node).unwrap_or(len);
+        self.child_nodes().insert(reference_index - 1, new_node);
+    }
+
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+        let len = self.child_nodes().len();
+        let reference_index = self.child_index(reference_node).unwrap_or(len - 2);
+        self.child_nodes().insert(reference_index + 1, new_node);
+    }
+
+    fn remove_child(&mut self, child: Self::Child) -> Option<Self::Child> {
+        let mut children = self.child_nodes();
+        let child_index = children
+            .iter()
+            .enumerate()
+            .find(|(_, n)| n.ptr_eq(&child))
+            .map(|(i, _)| i);
+        child_index.map(|i| children.remove(i))
+    }
+
+    fn replace_child(
+        &mut self,
+        new_child: Self::Child,
+        old_child: Self::Child,
+    ) -> Option<Self::Child> {
+        let mut children = self.child_nodes();
+        Some(std::mem::replace(
+            &mut children[self.child_index(old_child)?],
+            new_child,
+        ))
+    }
+
+    fn child_index(&self, child: Self::Child) -> Option<usize> {
+        self.child_nodes()
+            .iter()
+            .enumerate()
+            .find(|(_, n)| n.ptr_eq(&child))
+            .map(|(i, _)| i)
+    }
+
+    /// Create a cloned refcell without copying the underlying data
+    fn to_owned(&self) -> Self;
+
+    fn as_impl(&self) -> impl Node;
+
+    fn as_parent_child(&self) -> Self::ParentChild;
 }

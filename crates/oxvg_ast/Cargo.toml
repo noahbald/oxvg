@@ -11,9 +11,18 @@ description = "Deserialization wrappers for rcdom"
 workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["markup5ever"]
+markup5ever = ["dep:markup5ever", "dep:rcdom", "dep:xml5ever"]
+parse = ["dep:anyhow"]
+serialize = []
 
 [dependencies]
 oxvg_diagnostics = { workspace = true }
 
-markup5ever = { workspace = true }
+anyhow = { workspace = true, optional = true }
+downcast-rs = { workspace = true }
+markup5ever = { workspace = true, optional = true }
+rcdom = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+xml5ever = { workspace = true, optional = true }
