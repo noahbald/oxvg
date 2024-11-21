@@ -5,7 +5,7 @@ edition = "2021"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Deserialization wrappers for rcdom"
+description = "Trait representation for concrete ASTs"
 
 [lints]
 workspace = true
@@ -13,16 +13,25 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["markup5ever"]
-markup5ever = ["dep:markup5ever", "dep:rcdom", "dep:xml5ever"]
+markup5ever = [
+  "dep:markup5ever",
+  "dep:rcdom",
+  "dep:xml5ever",
+  "dep:string_cache",
+]
 parse = ["dep:anyhow"]
 serialize = []
+selectors = ["dep:selectors", "dep:cssparser"]
 
 [dependencies]
 oxvg_diagnostics = { workspace = true }
 
 anyhow = { workspace = true, optional = true }
+cssparser = { workspace = true, optional = true }
 downcast-rs = { workspace = true }
 markup5ever = { workspace = true, optional = true }
+string_cache = { workspace = true, optional = true }
 rcdom = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+selectors = { version = "0.25.0", optional = true }
 xml5ever = { workspace = true, optional = true }

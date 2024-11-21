@@ -2,15 +2,19 @@ use core::panic;
 use std::{
     cell::{Cell, RefCell, RefMut},
     collections::VecDeque,
+    fmt::Debug,
     rc::Rc,
 };
 
-use markup5ever::{tendril::StrTendril, Attribute, LocalName, Prefix, QualName};
+use markup5ever::{
+    local_name, tendril::StrTendril, Attribute, LocalName, Namespace, NamespaceStaticSet, Prefix,
+    QualName,
+};
 use rcdom::NodeData;
 
 use crate::{
     attribute::{Attr, Attributes},
-    element::Element,
+    element::{self, Element},
     name::Name,
     node::{self, Node},
 };
@@ -21,13 +25,19 @@ use crate::parse;
 #[cfg(feature = "serialize")]
 use crate::serialize;
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 struct Atom5Ever(StrTendril);
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 struct Prefix5Ever(Prefix);
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 struct LocalName5Ever(LocalName);
 
-#[derive(PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct QualName5Ever(QualName);
 
 enum Attribute5Ever<'a> {
@@ -40,7 +50,12 @@ struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
 #[derive(Clone)]
 struct Node5Ever(Rc<rcdom::Node>);
 
-struct Element5Ever(Node5Ever);
+#[derive(Clone)]
+struct Element5Ever {
+    node: Node5Ever,
+    #[cfg(feature = "selectors")]
+    selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
+}
 
 impl crate::atom::Atom for Atom5Ever {}
 
@@ -59,6 +74,18 @@ impl From<Atom5Ever> for String {
 impl From<String> for Atom5Ever {
     fn from(value: String) -> Self {
         Self(value.into())
+    }
+}
+
+impl Into<String> for &Atom5Ever {
+    fn into(self) -> String {
+        self.0.to_string()
+    }
+}
+
+impl AsRef<str> for Atom5Ever {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
@@ -82,6 +109,12 @@ impl From<String> for LocalName5Ever {
     }
 }
 
+impl AsRef<str> for LocalName5Ever {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 impl crate::atom::Atom for Prefix5Ever {}
 
 impl From<&str> for Prefix5Ever {
@@ -102,9 +135,42 @@ impl From<String> for Prefix5Ever {
     }
 }
 
+impl AsRef<str> for Prefix5Ever {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl crate::atom::Atom for Namespace5Ever {}
+
+impl From<&str> for Namespace5Ever {
+    fn from(value: &str) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<Namespace5Ever> for String {
+    fn from(value: Namespace5Ever) -> Self {
+        value.0.to_string()
+    }
+}
+
+impl From<String> for Namespace5Ever {
+    fn from(value: String) -> Self {
+        Self(value.into())
+    }
+}
+
+impl AsRef<str> for Namespace5Ever {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 impl Name for QualName5Ever {
     type LocalName = LocalName5Ever;
     type Prefix = Prefix5Ever;
+    type Namespace = Namespace5Ever;
 
     fn local_name(&self) -> Self::LocalName {
         LocalName5Ever(self.0.local.clone())
@@ -112,6 +178,29 @@ impl Name for QualName5Ever {
 
     fn prefix(&self) -> Option<Self::Prefix> {
         Some(Prefix5Ever(self.0.prefix.clone()?))
+    }
+
+    fn ns(&self) -> Self::Namespace {
+        Namespace5Ever(self.0.ns.clone())
+    }
+}
+
+impl From<&str> for QualName5Ever {
+    fn from(value: &str) -> Self {
+        match value.split_once(':') {
+            Some((prefix, local)) => Self(QualName::new(
+                Some(prefix.into()),
+                Namespace::default(),
+                local.into(),
+            )),
+            None => Self(QualName::new(None, Namespace::default(), value.into())),
+        }
+    }
+}
+
+impl Default for QualName5Ever {
+    fn default() -> Self {
+        Self(QualName::new(None, Namespace::default(), "".into()))
     }
 }
 
@@ -155,9 +244,22 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         Some(Attribute5Ever::Borrowed(attr))
     }
 
-    fn get_named_item(&self, name: QualName5Ever) -> Option<Self::Attribute<'a>> {
+    fn get_named_item(&self, name: &LocalName5Ever) -> Option<Self::Attribute<'a>> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
-            v.iter_mut().find(|a| a.name == name.0)
+            v.iter_mut().find(|a| a.name.local == name.0)
+        })
+        .ok()?;
+        Some(Attribute5Ever::Borrowed(attr))
+    }
+
+    fn get_named_item_ns(
+        &self,
+        namespace: &Namespace5Ever,
+        name: &LocalName5Ever,
+    ) -> Option<Self::Attribute<'a>> {
+        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
+            v.iter_mut()
+                .find(|a| a.name.local == name.0 && a.name.ns == namespace.0)
         })
         .ok()?;
         Some(Attribute5Ever::Borrowed(attr))
@@ -231,7 +333,7 @@ impl Node for Node5Ever {
 
     fn element(&self) -> Option<Element5Ever> {
         match self.node_type() {
-            node::Type::Element => Some(Element5Ever(Node::to_owned(self))),
+            node::Type::Element => Element5Ever::new(Node::to_owned(self)),
             _ => None,
         }
     }
@@ -369,8 +471,19 @@ impl Element for Element5Ever {
     type Name = QualName5Ever;
     type Attributes<'a> = Attributes5Ever<'a>;
 
+    fn new(node: Node5Ever) -> Option<Self> {
+        if node.node_type() != node::Type::Element {
+            return None;
+        }
+        Some(Self {
+            node,
+            #[cfg(feature = "selectors")]
+            selector_flags: Cell::new(None),
+        })
+    }
+
     fn tag_name(&self) -> Self::Atom {
-        self.0.node_name()
+        self.node.node_name()
     }
 
     fn local_name(&self) -> LocalName5Ever {
@@ -388,7 +501,7 @@ impl Element for Element5Ever {
         };
 
         parent.remove_child(self.as_node());
-        self.0 .0.parent.set(None);
+        self.node.0.parent.set(None);
     }
 
     fn prefix(&self) -> Option<Prefix5Ever> {
@@ -402,7 +515,7 @@ impl Element for Element5Ever {
             .expect("Parent node of element should be a node type")
             .clone();
         match downcast.node_type() {
-            node::Type::Element => Some(Self(downcast)),
+            node::Type::Element => Self::new(downcast),
             _ => None,
         }
     }
@@ -414,51 +527,51 @@ impl Node for Element5Ever {
     type ParentChild = Node5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
-        self.0.ptr_eq(other)
+        self.node.ptr_eq(other)
     }
 
-    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
-        self.0.child_nodes_iter().map(Self)
+    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
+        self.node.child_nodes_iter()
     }
 
     fn child_nodes(&self) -> Vec<Self::Child> {
-        self.0.child_nodes()
+        self.node.child_nodes()
     }
 
     fn element(&self) -> Option<impl Element> {
-        Some(self.to_owned())
+        Some(Node::to_owned(self))
     }
 
     fn node_type(&self) -> node::Type {
-        self.0.node_type()
+        self.node.node_type()
     }
 
     fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>> {
-        self.0.parent_node()
+        self.node.parent_node()
     }
 
     fn node_name(&self) -> Self::Atom {
-        self.0.node_name()
+        self.node.node_name()
     }
 
     fn node_value(&self) -> Option<Self::Atom> {
-        self.0.node_value()
+        self.node.node_value()
     }
 
     fn clone_node(&self) -> Self {
-        Self(self.0.clone_node())
+        Self::new(self.node.clone_node()).unwrap()
     }
 
     fn to_owned(&self) -> Self {
-        Self(Node::to_owned(&self.0))
+        Self::new(Node::to_owned(&self.node)).unwrap()
     }
 
     fn as_impl(&self) -> impl Node {
-        self.0.as_impl()
+        self.node.as_impl()
     }
 
     fn as_parent_child(&self) -> Self::ParentChild {
-        Node::to_owned(&self.0)
+        Node::to_owned(&self.node)
     }
 }
 
@@ -473,14 +586,14 @@ impl Element5Ever {
     }
 
     fn data(&self) -> Element5EverData {
-        let NodeData::Element { name, attrs, .. } = &self.0 .0.data else {
+        let NodeData::Element { name, attrs, .. } = &self.node.0.data else {
             unreachable!("Element contains non-element data. This is a bug!")
         };
         Element5EverData { name, attrs }
     }
 
     fn as_node(&self) -> <Self as Node>::Child {
-        self.0.clone()
+        self.node.clone()
     }
 
     fn find_element(node: Node5Ever) -> Option<Self> {
@@ -499,6 +612,27 @@ impl Element5Ever {
         }
         None
     }
+
+    #[cfg(feature = "selectors")]
+    pub fn set_selector_flags(&self, selector_flags: selectors::matching::ElementSelectorFlags) {
+        if selector_flags.is_empty() {
+            return;
+        };
+        self.selector_flags.set(Some(
+            selector_flags | self.selector_flags.take().unwrap_or(selector_flags),
+        ));
+    }
+}
+
+impl Debug for Element5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            r"Element5Ever {{
+    data: {:?},
+}}",
+            self.node.0.data
+        ))
+    }
 }
 
 #[cfg(feature = "parse")]
@@ -515,6 +649,188 @@ impl parse::Node for Element5Ever {
 #[cfg(feature = "serialize")]
 impl serialize::Node for Element5Ever {
     fn serialize(&self) -> anyhow::Result<String> {
-        self.0.serialize()
+        self.node.serialize()
+    }
+}
+
+impl element::Features for Element5Ever {}
+
+#[cfg(feature = "selectors")]
+impl selectors::Element for Element5Ever {
+    type Impl = crate::selectors::SelectorImpl<
+        <Self as Node>::Atom,
+        <<Self as Element>::Name as Name>::LocalName,
+        <<Self as Element>::Name as Name>::Namespace,
+    >;
+
+    fn opaque(&self) -> selectors::OpaqueElement {
+        selectors::OpaqueElement::new(self)
+    }
+
+    fn parent_element(&self) -> Option<Self> {
+        Element::parent_element(self)
+    }
+
+    fn parent_node_is_shadow_root(&self) -> bool {
+        false
+    }
+
+    fn containing_shadow_host(&self) -> Option<Self> {
+        None
+    }
+
+    fn is_pseudo_element(&self) -> bool {
+        false
+    }
+
+    fn prev_sibling_element(&self) -> Option<Self> {
+        Element::previous_element_sibling(self)
+    }
+
+    fn next_sibling_element(&self) -> Option<Self> {
+        Element::next_element_sibling(self)
+    }
+
+    fn first_element_child(&self) -> Option<Self> {
+        self.children().first().map(Element5Ever::clone)
+    }
+
+    fn is_html_element_in_html_document(&self) -> bool {
+        true
+    }
+
+    fn has_local_name(
+        &self,
+        local_name: &<Self::Impl as selectors::SelectorImpl>::BorrowedLocalName,
+    ) -> bool {
+        self.local_name() == local_name.0
+    }
+
+    fn has_namespace(
+        &self,
+        ns: &<Self::Impl as selectors::SelectorImpl>::BorrowedNamespaceUrl,
+    ) -> bool {
+        self.qual_name().ns() == ns.0
+    }
+
+    fn is_same_type(&self, other: &Self) -> bool {
+        let name = self.qual_name();
+        let other_name = other.qual_name();
+
+        name.local_name() == other_name.local_name() && name.prefix() == other_name.prefix()
+    }
+
+    fn attr_matches(
+        &self,
+        ns: &selectors::attr::NamespaceConstraint<
+            &<Self::Impl as selectors::SelectorImpl>::NamespaceUrl,
+        >,
+        local_name: &<Self::Impl as selectors::SelectorImpl>::LocalName,
+        operation: &selectors::attr::AttrSelectorOperation<
+            &<Self::Impl as selectors::SelectorImpl>::AttrValue,
+        >,
+    ) -> bool {
+        use selectors::attr::NamespaceConstraint;
+
+        let value = match ns {
+            NamespaceConstraint::Any => self.get_attribute(&local_name.0),
+            NamespaceConstraint::Specific(ns) => self.get_attribute_ns(&ns.0, &local_name.0),
+        };
+        let Some(value) = value else {
+            return false;
+        };
+        let string = value.0.as_ref();
+        operation.eval_str(string)
+    }
+
+    fn match_non_ts_pseudo_class(
+        &self,
+        pc: &<Self::Impl as selectors::SelectorImpl>::NonTSPseudoClass,
+        _context: &mut selectors::context::MatchingContext<Self::Impl>,
+    ) -> bool {
+        use crate::selectors::PseudoClass;
+
+        match pc {
+            PseudoClass::Link(..) | PseudoClass::AnyLink(..) => self.is_link(),
+        }
+    }
+
+    fn match_pseudo_element(
+        &self,
+        _pe: &<Self::Impl as selectors::SelectorImpl>::PseudoElement,
+        _context: &mut selectors::context::MatchingContext<Self::Impl>,
+    ) -> bool {
+        false
+    }
+
+    fn apply_selector_flags(&self, flags: selectors::matching::ElementSelectorFlags) {
+        let self_flags = flags.for_self();
+        self.set_selector_flags(self_flags);
+
+        let Some(parent) = Element::parent_element(self) else {
+            return;
+        };
+        let parent_flags = flags.for_parent();
+        parent.set_selector_flags(parent_flags);
+    }
+
+    fn is_link(&self) -> bool {
+        matches!(
+            self.local_name().0,
+            local_name!("a") | local_name!("area") | local_name!("link")
+        ) && self.has_attribute(&LocalName5Ever(local_name!("href")))
+    }
+
+    fn is_html_slot_element(&self) -> bool {
+        false
+    }
+
+    fn has_id(
+        &self,
+        id: &<Self::Impl as selectors::SelectorImpl>::Identifier,
+        case_sensitivity: selectors::attr::CaseSensitivity,
+    ) -> bool {
+        let Some(self_id) = self.get_attribute(&LocalName5Ever(local_name!("id"))) else {
+            return false;
+        };
+        case_sensitivity.eq(id.0 .0.as_bytes(), self_id.0.as_bytes())
+    }
+
+    fn has_class(
+        &self,
+        name: &<Self::Impl as selectors::SelectorImpl>::Identifier,
+        case_sensitivity: selectors::attr::CaseSensitivity,
+    ) -> bool {
+        let Some(self_class) = self.get_attribute(&LocalName5Ever(local_name!("class"))) else {
+            return false;
+        };
+        case_sensitivity.eq(name.0 .0.as_bytes(), self_class.0.as_bytes())
+    }
+
+    fn imported_part(
+        &self,
+        _name: &<Self::Impl as selectors::SelectorImpl>::Identifier,
+    ) -> Option<<Self::Impl as selectors::SelectorImpl>::Identifier> {
+        None
+    }
+
+    fn is_part(&self, _name: &<Self::Impl as selectors::SelectorImpl>::Identifier) -> bool {
+        false
+    }
+
+    fn is_empty(&self) -> bool {
+        self.child_nodes_iter()
+            .all(|child| match child.node_type() {
+                node::Type::Element => false,
+                node::Type::Text => child.node_value().is_some(),
+                _ => true,
+            })
+    }
+
+    fn is_root(&self) -> bool {
+        let Some(parent) = self.parent_node() else {
+            return true;
+        };
+        parent.node_type() == node::Type::Document
     }
 }

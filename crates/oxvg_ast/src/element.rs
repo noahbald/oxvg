@@ -1,15 +1,26 @@
+use std::fmt::Debug;
+
 use crate::{
+    atom::Atom,
     attribute::{Attr, Attributes},
     name::Name,
     node::{Node, Type},
 };
 
-pub trait Element: Node {
+#[cfg(not(feature = "selectors"))]
+pub trait Features {}
+
+#[cfg(feature = "selectors")]
+pub trait Features: selectors::Element {}
+
+pub trait Element: Node + Features + Debug {
     type Name: Name;
     type Attributes<'a>: Attributes<
         'a,
         Attribute<'a>: Attr<'a, Name = Self::Name, Atom = <Self as Node>::Atom>,
     >;
+
+    fn new(node: impl Node) -> Option<Self>;
 
     fn attributes(&self) -> Self::Attributes<'_>;
 
@@ -24,6 +35,7 @@ pub trait Element: Node {
     fn children_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         self.child_nodes_iter()
             .filter(|n| matches!(n.node_type(), Type::Element))
+            .filter_map(|n| Self::new(n))
     }
 
     fn first_element_child(&self) -> Option<Self> {
@@ -38,7 +50,7 @@ pub trait Element: Node {
 
     fn next_element_sibling(&self) -> Option<Self> {
         let mut saw_self = false;
-        for sibling in self.parent_element()?.children_iter() {
+        for sibling in Element::parent_element(self)?.children_iter() {
             if saw_self {
                 return Some(sibling);
             } else if sibling.ptr_eq(self) {
@@ -52,7 +64,7 @@ pub trait Element: Node {
 
     fn previous_element_sibling(&self) -> Option<Self> {
         let mut previous = None;
-        for sibling in self.parent_element()?.children_iter() {
+        for sibling in Element::parent_element(self)?.children_iter() {
             if sibling.ptr_eq(self) {
                 return previous;
             }
@@ -84,12 +96,22 @@ pub trait Element: Node {
         Some(())
     }
 
-    fn get_attribute<'a, N>(&'a self, name: N) -> Option<Self::Atom>
+    fn get_attribute<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
-        N: Name,
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        N: Atom,
     {
         Some(self.get_attribute_node(name)?.value())
+    }
+
+    fn get_attribute_ns<'a, N, NS>(&'a self, namespace: &NS, name: &N) -> Option<Self::Atom>
+    where
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<Namespace = NS>>>,
+        NS: Atom,
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        N: Atom,
+    {
+        Some(self.get_attribute_node_ns(namespace, name)?.value())
     }
 
     fn get_attribute_names<'a, N>(&'a self) -> Vec<N>
@@ -109,19 +131,33 @@ pub trait Element: Node {
 
     fn get_attribute_node<'a, N>(
         &'a self,
-        attr_name: N,
+        attr_name: &N,
     ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute<'a>>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
-        N: Name,
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        N: Atom,
     {
         self.attributes().get_named_item(attr_name)
     }
 
-    fn has_attribute<'a, N>(&'a self, name: N) -> bool
+    fn get_attribute_node_ns<'a, N, NS>(
+        &'a self,
+        namespace: &NS,
+        name: &N,
+    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute<'a>>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
-        N: Name,
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<Namespace = NS>>>,
+        NS: Atom,
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        N: Atom,
+    {
+        self.attributes().get_named_item_ns(namespace, name)
+    }
+
+    fn has_attribute<'a, N>(&'a self, name: &N) -> bool
+    where
+        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        N: Atom,
     {
         self.get_attribute_node(name).is_some()
     }

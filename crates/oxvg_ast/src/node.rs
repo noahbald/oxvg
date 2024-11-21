@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Write};
+
 use crate::{atom::Atom, element::Element};
 
 #[cfg(feature = "parse")]
@@ -28,7 +30,7 @@ pub trait Node: Sized + 'static + parse::Node + serialize::Node {
     fn ptr_eq(&self, other: &impl Node) -> bool;
 
     /// Returns an node list containing all the children of this node
-    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self>;
+    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
 
     /// Returns an node list containing all the children of this node
     fn child_nodes(&self) -> Vec<Self::Child>;
@@ -74,7 +76,7 @@ pub trait Node: Sized + 'static + parse::Node + serialize::Node {
     /// <https://dom.spec.whatwg.org/#concept-node-clone>
     fn clone_node(&self) -> Self;
 
-    fn contains(&self, other_node: &Self::Child) -> bool {
+    fn contains(&self, other_node: &impl Node) -> bool {
         self.child_nodes_iter().any(|c| {
             if c.ptr_eq(other_node) {
                 return true;

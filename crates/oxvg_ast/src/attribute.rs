@@ -31,7 +31,13 @@ pub trait Attributes<'a> {
 
     fn get_named_item<'b>(
         &self,
-        name: <Self::Attribute<'b> as Attr<'b>>::Name,
+        name: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::LocalName,
+    ) -> Option<Self::Attribute<'a>>;
+
+    fn get_named_item_ns<'b>(
+        &self,
+        namespace: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::Namespace,
+        name: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::LocalName,
     ) -> Option<Self::Attribute<'a>>;
 
     fn item(&self, index: usize) -> Option<Self::Attribute<'a>>;
