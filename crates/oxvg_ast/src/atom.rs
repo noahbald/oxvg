@@ -1,5 +1,8 @@
+use std::fmt::Display;
+
 pub trait Atom:
     Eq
+    + Display
     + PartialEq
     + std::fmt::Debug
     + Clone
@@ -10,4 +13,7 @@ pub trait Atom:
     + AsRef<str>
     + 'static
 {
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
 }

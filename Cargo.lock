@@ -1116,6 +1116,7 @@ name = "oxvg_optimiser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags 2.6.0",
  "ctor",
  "divan",
  "env_logger",
@@ -1180,7 +1181,7 @@ dependencies = [
  "log",
  "markup5ever",
  "markup5ever_rcdom",
- "oxvg_selectors",
+ "oxvg_ast",
  "regex",
 ]
 

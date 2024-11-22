@@ -13,7 +13,7 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_selectors = { workspace = true }
+oxvg_ast = { workspace = true, features = ["selectors"] }
 
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }

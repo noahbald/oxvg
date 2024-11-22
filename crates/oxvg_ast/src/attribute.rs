@@ -1,6 +1,8 @@
+use std::fmt::Debug;
+
 use crate::{atom::Atom, name::Name};
 
-pub trait Attr<'b>: PartialEq {
+pub trait Attr: PartialEq {
     type Name: Name;
     type Atom: Atom;
 
@@ -18,10 +20,8 @@ pub trait Attr<'b>: PartialEq {
 }
 
 /// <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap>
-pub trait Attributes<'a> {
-    type Attribute<'b>: Attr<'b>
-    where
-        'a: 'b;
+pub trait Attributes<'a>: Debug {
+    type Attribute: Attr;
 
     fn len(&self) -> usize;
 
@@ -29,25 +29,22 @@ pub trait Attributes<'a> {
         self.len() == 0
     }
 
-    fn get_named_item<'b>(
+    fn get_named_item(
         &self,
-        name: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::LocalName,
-    ) -> Option<Self::Attribute<'a>>;
+        name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Self::Attribute>;
 
-    fn get_named_item_ns<'b>(
+    fn get_named_item_ns(
         &self,
-        namespace: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::Namespace,
-        name: &<<Self::Attribute<'b> as Attr<'b>>::Name as Name>::LocalName,
-    ) -> Option<Self::Attribute<'a>>;
+        namespace: &<<Self::Attribute as Attr>::Name as Name>::Namespace,
+        name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Self::Attribute>;
 
-    fn item(&self, index: usize) -> Option<Self::Attribute<'a>>;
+    fn item(&self, index: usize) -> Option<Self::Attribute>;
 
-    fn remove_named_item(
-        &self,
-        name: &<Self::Attribute<'a> as Attr<'a>>::Name,
-    ) -> Option<Self::Attribute<'_>>;
+    fn remove_named_item(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::Attribute>;
 
-    fn set_named_item(&self, attr: Self::Attribute<'a>) -> Option<Self::Attribute<'_>>;
+    fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute>;
 
-    fn iter(&'a self) -> impl Iterator<Item = Self::Attribute<'a>> + 'a;
+    fn iter(&self) -> impl Iterator<Item = Self::Attribute>;
 }

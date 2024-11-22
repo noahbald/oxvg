@@ -10,13 +10,14 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_ast = { workspace = true }
+oxvg_ast = { workspace = true, feature = ["selectors"] }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_selectors = { workspace = true }
 oxvg_style = { workspace = true }
 oxvg_utils = { workspace = true }
 
 anyhow = { workspace = true }
+bitflags = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

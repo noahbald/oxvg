@@ -17,10 +17,10 @@ pub trait Element: Node + Features + Debug {
     type Name: Name;
     type Attributes<'a>: Attributes<
         'a,
-        Attribute<'a>: Attr<'a, Name = Self::Name, Atom = <Self as Node>::Atom>,
+        Attribute: Attr<Name = Self::Name, Atom = <Self as Node>::Atom>,
     >;
 
-    fn new(node: impl Node) -> Option<Self>;
+    fn new(node: Self::Child) -> Option<Self>;
 
     fn attributes(&self) -> Self::Attributes<'_>;
 
@@ -98,7 +98,7 @@ pub trait Element: Node + Features + Debug {
 
     fn get_attribute<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         Some(self.get_attribute_node(name)?.value())
@@ -106,9 +106,9 @@ pub trait Element: Node + Features + Debug {
 
     fn get_attribute_ns<'a, N, NS>(&'a self, namespace: &NS, name: &N) -> Option<Self::Atom>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<Namespace = NS>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<Namespace = NS>>>,
         NS: Atom,
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         Some(self.get_attribute_node_ns(namespace, name)?.value())
@@ -116,7 +116,7 @@ pub trait Element: Node + Features + Debug {
 
     fn get_attribute_names<'a, N>(&'a self) -> Vec<N>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
         N: Name,
     {
         let attrs = self.attributes();
@@ -132,9 +132,9 @@ pub trait Element: Node + Features + Debug {
     fn get_attribute_node<'a, N>(
         &'a self,
         attr_name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute<'a>>
+    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         self.attributes().get_named_item(attr_name)
@@ -144,11 +144,11 @@ pub trait Element: Node + Features + Debug {
         &'a self,
         namespace: &NS,
         name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute<'a>>
+    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<Namespace = NS>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<Namespace = NS>>>,
         NS: Atom,
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         self.attributes().get_named_item_ns(namespace, name)
@@ -156,7 +156,7 @@ pub trait Element: Node + Features + Debug {
 
     fn has_attribute<'a, N>(&'a self, name: &N) -> bool
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         self.get_attribute_node(name).is_some()
@@ -164,7 +164,7 @@ pub trait Element: Node + Features + Debug {
 
     fn has_attributes<'a, N>(&'a self, names: &[N]) -> bool
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
         N: Name,
     {
         let attrs = self.attributes();
@@ -188,7 +188,7 @@ pub trait Element: Node + Features + Debug {
 
     fn remove_attribute<'a, N>(&'a self, attr_name: &N)
     where
-        Self::Attributes<'a>: Attributes<'a, Attribute<'a>: Attr<'a, Name = N>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
         N: Name,
     {
         let attrs = self.attributes();
@@ -201,4 +201,22 @@ pub trait Element: Node + Features + Debug {
     }
 
     fn parent_element(&self) -> Option<Self>;
+
+    #[cfg(feature = "selectors")]
+    /// # Errors
+    /// If the selector is invalid
+    fn select<'a>(
+        &'a self,
+        selector: &'a str,
+    ) -> Result<
+        crate::selectors::Select<Self>,
+        cssparser::ParseError<'_, selectors::parser::SelectorParseErrorKind<'_>>,
+    > {
+        crate::selectors::Select::new(self, selector)
+    }
+
+    #[cfg(feature = "selectors")]
+    fn depth_first(&self) -> crate::selectors::ElementIterator<Self> {
+        crate::selectors::ElementIterator::new(self)
+    }
 }

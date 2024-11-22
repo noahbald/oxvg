@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use lazy_static::lazy_static;
 use lightningcss::{
@@ -11,9 +11,12 @@ use lightningcss::{
     values,
     vendor_prefix::{self, VendorPrefix},
 };
-use markup5ever::{local_name, Attribute, LocalName};
-use oxvg_selectors::{Element, Selector};
-use rcdom::NodeData;
+use oxvg_ast::{
+    atom::Atom,
+    attribute::{Attr, Attributes},
+    element::Element,
+    selectors::Selector,
+};
 
 #[derive(Debug)]
 pub enum SVGPaint {
@@ -89,50 +92,47 @@ pub struct ComputedStyles {
 ///
 /// # Panics
 /// If the internal selector is invalid
-pub fn root_style(root: &Element) -> String {
-    root.select("style")
-        .expect("`style` should be a valid selector")
-        .map(|s| {
-            s.text_content()
-                .map(|s| s.borrow().to_string())
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
+pub fn root_style<E: Element>(root: &E) -> String {
+    let output = root
+        .select("style")
+        .expect("`style` should be a valid selector");
+    output
+        .filter_map(|e| e.node_value())
+        .map(|v| v.to_string())
         .collect::<Vec<_>>()
         .join("\n")
 }
 
 impl ComputedStyles {
     /// Include all sources of styles
-    pub fn with_all(&mut self, node: &Rc<rcdom::Node>, styles: &[rules::CssRule]) {
-        self.with_inherited(node, styles);
-        self.with_style(node, styles);
-        self.with_attribute(node);
-        self.with_inline_style(node);
+    pub fn with_all<E: Element>(&mut self, element: &E, styles: &[rules::CssRule]) {
+        self.with_inherited(element, styles);
+        self.with_style(element, styles);
+        self.with_attribute(element);
+        self.with_inline_style(element);
     }
 
     /// Include the computed styles of a parent element
-    pub fn with_inherited(&mut self, node: &Rc<rcdom::Node>, styles: &[rules::CssRule]) {
-        let element = Element::new(node.clone());
-        let Some(parent) = element.get_parent() else {
+    pub fn with_inherited<E: Element>(&mut self, element: &E, styles: &[rules::CssRule]) {
+        let Some(parent) = Element::parent_element(element) else {
             return;
         };
         let mut inherited = ComputedStyles::default();
-        inherited.with_all(&parent.node, styles);
+        inherited.with_all(&parent, styles);
         self.inherited = inherited.into_computed();
     }
 
     /// Include styles from the `style` attribute
-    pub fn with_style(&mut self, node: &Rc<rcdom::Node>, styles: &[rules::CssRule]) {
+    pub fn with_style<E: Element>(&mut self, element: &E, styles: &[rules::CssRule]) {
         styles
             .iter()
-            .for_each(|s| self.with_nested_style(node, s, "", 0, &StyleMode::Static));
+            .for_each(|s| self.with_nested_style(element, s, "", 0, &StyleMode::Static));
     }
 
     /// Include a style within a style scope
-    fn with_nested_style(
+    fn with_nested_style<E: Element>(
         &mut self,
-        node: &Rc<rcdom::Node>,
+        element: &E,
         style: &rules::CssRule,
         selector: &str,
         specificity: u32,
@@ -144,11 +144,10 @@ impl ComputedStyles {
                     return;
                 };
                 let selector = format!("{selector}{this_selector}");
-                let Ok(select) = Selector::try_from(selector.as_str()) else {
+                let Ok(select) = Selector::new(selector.as_str()) else {
                     return;
                 };
-                let element = Element::new(node.clone());
-                if !select.matches_naive(&element) {
+                if !select.matches_naive(element) {
                     return;
                 };
                 let specificity = specificity + s.specificity();
@@ -157,7 +156,7 @@ impl ComputedStyles {
             rules::CssRule::Container(rules::container::ContainerRule { rules, .. })
             | rules::CssRule::Media(rules::media::MediaRule { rules, .. }) => {
                 rules.0.iter().for_each(|r| {
-                    self.with_nested_style(node, r, selector, specificity, &StyleMode::Dynamic);
+                    self.with_nested_style(element, r, selector, specificity, &StyleMode::Dynamic);
                 });
             }
             _ => {}
@@ -165,26 +164,21 @@ impl ComputedStyles {
     }
 
     /// Include styles from a presentable attribute
-    fn with_attribute(&mut self, node: &Rc<rcdom::Node>) {
-        let node: &rcdom::Node = node.borrow();
-        let NodeData::Element { ref attrs, .. } = node.data else {
-            return;
-        };
-        attrs.borrow().iter().for_each(|a| {
-            let Ok(style) = SVGStyle::try_from(a) else {
+    fn with_attribute<E: Element>(&mut self, element: &E) {
+        for a in element.attributes().iter() {
+            let Ok(style) = SVGStyle::new::<E>(&a) else {
                 return;
             };
             self.attr.insert(style.id(), StyleMode::Static.style(style));
-        });
+        }
     }
 
-    pub fn with_inline_style(&mut self, node: &Rc<rcdom::Node>) {
-        let element = Element::new(node.clone());
-        let Some(style) = element.get_attr(&local_name!("style")) else {
+    pub fn with_inline_style<E: Element>(&mut self, element: &E) {
+        let Some(style) = element.get_attribute(&"style".into()) else {
             return;
         };
         let Some(style) =
-            stylesheet::StyleAttribute::parse(&style.value, stylesheet::ParserOptions::default())
+            stylesheet::StyleAttribute::parse(style.as_str(), stylesheet::ParserOptions::default())
                 .ok()
         else {
             return;
@@ -333,42 +327,18 @@ impl ComputedStyles {
 }
 
 impl SVGStyle {
-    fn id(&self) -> SVGStyleID {
-        match self {
-            Self::MarkerMid(_) => SVGStyleID::MarkerMid,
-            Self::Stroke(_) => SVGStyleID::Stroke,
-            Self::StrokeDasharray(_) => SVGStyleID::StrokeDasharray,
-            Self::StrokeDashoffset(_) => SVGStyleID::StrokeDashoffset,
-            Self::StrokeLinecap(_) => SVGStyleID::StrokeLinecap,
-            Self::StrokeLinejoin(_) => SVGStyleID::StrokeLinejoin,
-            Self::StrokeWidth(_) => SVGStyleID::StrokeWidth,
-            Self::Transform(_, _) => SVGStyleID::Transform,
-            Self::GradientTransform(_) => SVGStyleID::GradientTransform,
-            Self::PatternTransform(_) => SVGStyleID::PatternTransform,
-            Self::Unsupported => SVGStyleID::Unsupported,
-        }
-    }
-
-    pub fn to_css_string(&self, important: bool) -> Option<String> {
-        let property = match self {
-            Self::Transform(list, prefix) => properties::Property::Transform(list.clone(), *prefix),
-            _ => return None,
-        };
-        property
-            .to_css_string(important, PrinterOptions::default())
-            .ok()
-    }
-}
-
-impl TryFrom<&Attribute> for SVGStyle {
-    type Error = ();
-
-    fn try_from(value: &Attribute) -> Result<Self, Self::Error> {
-        let style_id = SVGStyleID::from(&value.name.local);
+    /// # Errors
+    ///
+    /// If the attr has no known property id
+    pub fn new<'a, E: Element>(
+        attr: &<E::Attributes<'a> as Attributes<'a>>::Attribute,
+    ) -> Result<Self, ()> {
+        let style_id = SVGStyleID::from(attr.local_name());
         let Some(property_id) = style_id.property_id() else {
             return Err(());
         };
-        let mut value = value.value.to_string();
+        let value = attr.value();
+        let mut value = value.into();
         if matches!(property_id, properties::PropertyId::Transform(_)) {
             let v = ROTATE_LONG.replace_all(&value, |caps: &regex::Captures| {
                 let original = format!("rotate({} {} {})", &caps["r"], &caps["x"], &caps["y"]);
@@ -400,7 +370,7 @@ impl TryFrom<&Attribute> for SVGStyle {
                 format!("{}({}deg", &caps["f"], &caps["v"])
             });
             let v = FUNC_SEP.replace_all(&v, ") ");
-            log::debug!("tried making transform compatible: {value} -> {v}");
+            log::debug!("tried making transform compatible: {value:?} -> {v}");
             value = v.to_string();
         }
         let property =
@@ -415,6 +385,32 @@ impl TryFrom<&Attribute> for SVGStyle {
                 style_id.empty_style().ok_or(())
             }
         }
+    }
+
+    fn id(&self) -> SVGStyleID {
+        match self {
+            Self::MarkerMid(_) => SVGStyleID::MarkerMid,
+            Self::Stroke(_) => SVGStyleID::Stroke,
+            Self::StrokeDasharray(_) => SVGStyleID::StrokeDasharray,
+            Self::StrokeDashoffset(_) => SVGStyleID::StrokeDashoffset,
+            Self::StrokeLinecap(_) => SVGStyleID::StrokeLinecap,
+            Self::StrokeLinejoin(_) => SVGStyleID::StrokeLinejoin,
+            Self::StrokeWidth(_) => SVGStyleID::StrokeWidth,
+            Self::Transform(_, _) => SVGStyleID::Transform,
+            Self::GradientTransform(_) => SVGStyleID::GradientTransform,
+            Self::PatternTransform(_) => SVGStyleID::PatternTransform,
+            Self::Unsupported => SVGStyleID::Unsupported,
+        }
+    }
+
+    pub fn to_css_string(&self, important: bool) -> Option<String> {
+        let property = match self {
+            Self::Transform(list, prefix) => properties::Property::Transform(list.clone(), *prefix),
+            _ => return None,
+        };
+        property
+            .to_css_string(important, PrinterOptions::default())
+            .ok()
     }
 }
 
@@ -475,19 +471,19 @@ impl From<&lightningcss::properties::svg::SVGPaint<'_>> for SVGPaint {
     }
 }
 
-impl From<&LocalName> for SVGStyleID {
-    fn from(value: &LocalName) -> Self {
-        match *value {
-            local_name!("marker-mid") => Self::MarkerMid,
-            local_name!("stroke") => Self::Stroke,
-            local_name!("stroke-dasharray") => Self::StrokeDasharray,
-            local_name!("stroke-dashoffset") => Self::StrokeDashoffset,
-            local_name!("stroke-linecap") => Self::StrokeLinecap,
-            local_name!("stroke-linejoin") => Self::StrokeLinejoin,
-            local_name!("stroke-width") => Self::StrokeWidth,
-            local_name!("transform") => Self::Transform,
-            local_name!("gradientTransform") => Self::GradientTransform,
-            local_name!("patternTransform") => Self::PatternTransform,
+impl<A: Atom> From<A> for SVGStyleID {
+    fn from(value: A) -> Self {
+        match value.as_ref() {
+            "marker-mid" => Self::MarkerMid,
+            "stroke" => Self::Stroke,
+            "stroke-dasharray" => Self::StrokeDasharray,
+            "stroke-dashoffset" => Self::StrokeDashoffset,
+            "stroke-linecap" => Self::StrokeLinecap,
+            "stroke-linejoin" => Self::StrokeLinejoin,
+            "stroke-width" => Self::StrokeWidth,
+            "transform" => Self::Transform,
+            "gradientTransform" => Self::GradientTransform,
+            "patternTransform" => Self::PatternTransform,
             _ => Self::Unsupported,
         }
     }

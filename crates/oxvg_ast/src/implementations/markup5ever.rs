@@ -2,7 +2,7 @@ use core::panic;
 use std::{
     cell::{Cell, RefCell, RefMut},
     collections::VecDeque,
-    fmt::Debug,
+    fmt::{Debug, Display},
     rc::Rc,
 };
 
@@ -26,32 +26,32 @@ use crate::parse;
 use crate::serialize;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-struct Atom5Ever(StrTendril);
+pub struct Atom5Ever(StrTendril);
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-struct Prefix5Ever(Prefix);
+pub struct Prefix5Ever(Prefix);
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-struct LocalName5Ever(LocalName);
+pub struct LocalName5Ever(LocalName);
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
+pub struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct QualName5Ever(QualName);
+pub struct QualName5Ever(QualName);
 
-enum Attribute5Ever<'a> {
+pub enum Attribute5Ever<'a> {
     Borrowed(RefMut<'a, Attribute>),
     Owned(Attribute),
 }
 
-struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
+pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
 
 #[derive(Clone)]
-struct Node5Ever(Rc<rcdom::Node>);
+pub struct Node5Ever(Rc<rcdom::Node>);
 
 #[derive(Clone)]
-struct Element5Ever {
+pub struct Element5Ever {
     node: Node5Ever,
     #[cfg(feature = "selectors")]
     selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
@@ -89,6 +89,12 @@ impl AsRef<str> for Atom5Ever {
     }
 }
 
+impl Display for Atom5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
 impl crate::atom::Atom for LocalName5Ever {}
 
 impl From<&str> for LocalName5Ever {
@@ -112,6 +118,12 @@ impl From<String> for LocalName5Ever {
 impl AsRef<str> for LocalName5Ever {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
+    }
+}
+
+impl Display for LocalName5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -141,6 +153,12 @@ impl AsRef<str> for Prefix5Ever {
     }
 }
 
+impl Display for Prefix5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
 impl crate::atom::Atom for Namespace5Ever {}
 
 impl From<&str> for Namespace5Ever {
@@ -164,6 +182,12 @@ impl From<String> for Namespace5Ever {
 impl AsRef<str> for Namespace5Ever {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
+    }
+}
+
+impl Display for Namespace5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -204,7 +228,7 @@ impl Default for QualName5Ever {
     }
 }
 
-impl Attr<'_> for Attribute5Ever<'_> {
+impl Attr for Attribute5Ever<'_> {
     type Atom = Atom5Ever;
     type Name = QualName5Ever;
 
@@ -233,18 +257,18 @@ impl PartialEq for Attribute5Ever<'_> {
 }
 
 impl<'a> Attributes<'a> for Attributes5Ever<'a> {
-    type Attribute<'b> = Attribute5Ever<'b> where 'a: 'b;
+    type Attribute = Attribute5Ever<'a>;
 
     fn len(&self) -> usize {
         self.0.borrow().len()
     }
 
-    fn item(&self, index: usize) -> Option<Self::Attribute<'a>> {
+    fn item(&self, index: usize) -> Option<Self::Attribute> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| v.get_mut(index)).ok()?;
         Some(Attribute5Ever::Borrowed(attr))
     }
 
-    fn get_named_item(&self, name: &LocalName5Ever) -> Option<Self::Attribute<'a>> {
+    fn get_named_item(&self, name: &LocalName5Ever) -> Option<Self::Attribute> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut().find(|a| a.name.local == name.0)
         })
@@ -256,7 +280,7 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         &self,
         namespace: &Namespace5Ever,
         name: &LocalName5Ever,
-    ) -> Option<Self::Attribute<'a>> {
+    ) -> Option<Self::Attribute> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut()
                 .find(|a| a.name.local == name.0 && a.name.ns == namespace.0)
@@ -265,16 +289,13 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         Some(Attribute5Ever::Borrowed(attr))
     }
 
-    fn remove_named_item(
-        &self,
-        name: &<Self::Attribute<'a> as Attr<'a>>::Name,
-    ) -> Option<Self::Attribute<'a>> {
+    fn remove_named_item(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::Attribute> {
         let mut attrs = self.0.borrow_mut();
         let index = attrs.iter().position(|a| a.name == name.0)?;
         Some(Attribute5Ever::Owned(attrs.remove(index)))
     }
 
-    fn set_named_item(&self, attr: Self::Attribute<'a>) -> Option<Self::Attribute<'a>> {
+    fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute> {
         let Attribute5Ever::Owned(attr) = attr else {
             panic!("Tried setting attribute to borrowed value, try cloning first");
         };
@@ -284,11 +305,19 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         Some(Attribute5Ever::Owned(old_attr))
     }
 
-    fn iter(&'a self) -> impl Iterator<Item = Self::Attribute<'a>> {
+    fn iter(&self) -> impl Iterator<Item = Self::Attribute> {
         AttributesIterator {
             index: 0,
             attrs_ref: self.0,
         }
+    }
+}
+
+impl Debug for Attributes5Ever<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.iter()
+            .try_for_each(|a| f.write_fmt(format_args!(r#""{}" "#, a.local_name())))?;
+        f.write_str("(Attribute5Ever)")
     }
 }
 
@@ -336,6 +365,10 @@ impl Node for Node5Ever {
             node::Type::Element => Element5Ever::new(Node::to_owned(self)),
             _ => None,
         }
+    }
+
+    fn find_element(&self) -> Option<Element5Ever> {
+        Element5Ever::find_element(Node::to_owned(self))
     }
 
     fn node_type(&self) -> node::Type {
@@ -540,6 +573,10 @@ impl Node for Element5Ever {
 
     fn element(&self) -> Option<impl Element> {
         Some(Node::to_owned(self))
+    }
+
+    fn find_element(&self) -> Option<impl Element> {
+        self.element()
     }
 
     fn node_type(&self) -> node::Type {

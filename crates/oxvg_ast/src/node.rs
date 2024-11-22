@@ -1,5 +1,3 @@
-use std::fmt::{Debug, Write};
-
 use crate::{atom::Atom, element::Element};
 
 #[cfg(feature = "parse")]
@@ -21,7 +19,7 @@ pub enum Type {
     DocumentFragment,
 }
 
-pub trait Node: Sized + 'static + parse::Node + serialize::Node {
+pub trait Node: Clone + 'static + parse::Node + serialize::Node {
     type Atom: Atom;
     type Child: Node<Atom = Self::Atom>;
     type ParentChild: Node<Atom = Self::Atom>;
@@ -37,6 +35,8 @@ pub trait Node: Sized + 'static + parse::Node + serialize::Node {
 
     /// Upcasts self as an element
     fn element(&self) -> Option<impl Element>;
+
+    fn find_element(&self) -> Option<impl Element>;
 
     fn first_child(&self) -> Option<impl Node> {
         self.child_nodes().first().map(Node::to_owned)
