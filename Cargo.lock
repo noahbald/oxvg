@@ -1060,6 +1060,7 @@ dependencies = [
  "clap",
  "config",
  "markup5ever_rcdom",
+ "oxvg_ast",
  "oxvg_optimiser",
  "serde",
  "xml5ever",

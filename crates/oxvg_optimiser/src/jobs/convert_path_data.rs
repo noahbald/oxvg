@@ -1,8 +1,5 @@
-use std::rc::Rc;
-
-use markup5ever::local_name;
+use oxvg_ast::element::Element;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
-use oxvg_selectors::Element;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -24,7 +21,7 @@ pub struct ConvertPathData {
     make_arcs: Option<MakeArcs>,
     float_precision: Option<Precision>,
     utilize_absolute: Option<bool>,
-    // TODO: Do we want to have apply_transforms as an option, or is it better to have this plugin
+    // TODO: Do we want to have apply_transforms as an option, or is it better to have this as a plugin
     // just *before* this one
     // apply_transforms: Option<bool>,
     // apply_transforms_stroked: Option<bool>,
@@ -35,28 +32,27 @@ pub struct ConvertPathData {
 pub struct Precision(pub oxvg_path::convert::Precision);
 
 impl Job for ConvertPathData {
-    fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {
-        let element = Element::new(node.clone());
-        element.get_attr(&local_name!("d")).is_some()
+    fn use_style(&self, element: &impl Element) -> bool {
+        element.has_attribute(&"d".into())
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>, context: &Context) {
-        let element = Element::new(node.clone());
-        let Some(d) = element.get_attr(&local_name!("d")) else {
+    fn run(&self, element: &impl Element, context: &Context) {
+        let d_localname = "d".into();
+        let Some(d) = element.get_attribute_local(&d_localname) else {
             return;
         };
 
         let style_info = convert::StyleInfo::gather(
             &context.style.computed(),
-            element.get_attr(&local_name!("marker-start")).is_some()
-                || element.get_attr(&local_name!("marker-end")).is_some(),
+            element.has_attribute_local(&"marker-start".into())
+                || element.has_attribute_local(&"marker-end".into()),
         );
-        log::debug!("ConvertPathData::run: gained style info {:?}", &style_info);
+        log::debug!("ConvertPathData::run: gained style info {style_info:?}");
 
-        let path = match Path::parse(&d.value) {
+        let path = match Path::parse(d.as_ref()) {
             Ok(path) => path,
             Err(e) => {
-                log::error!("failed to parse path: {e}\n{}", d.value);
+                log::error!("failed to parse path: {e}\n{d}");
                 return;
             }
         };
@@ -74,7 +70,7 @@ impl Job for ConvertPathData {
             &style_info,
         );
 
-        element.set_attr(&local_name!("d"), String::from(path).into());
+        element.set_attribute_local(d_localname, String::from(path).into());
     }
 }
 

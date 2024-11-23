@@ -16,7 +16,7 @@ use crate::{
     attribute::{Attr, Attributes},
     element::{self, Element},
     name::Name,
-    node::{self, Node},
+    node::{self, Node, Ref},
 };
 
 #[cfg(feature = "parse")]
@@ -45,10 +45,14 @@ pub enum Attribute5Ever<'a> {
     Owned(Attribute),
 }
 
+#[derive(Clone)]
 pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Node5Ever(Rc<rcdom::Node>);
+
+#[derive(Debug)]
+pub struct Node5EverRef(Rc<Node5Ever>);
 
 #[derive(Clone)]
 pub struct Element5Ever {
@@ -77,9 +81,9 @@ impl From<String> for Atom5Ever {
     }
 }
 
-impl Into<String> for &Atom5Ever {
-    fn into(self) -> String {
-        self.0.to_string()
+impl From<&Atom5Ever> for String {
+    fn from(val: &Atom5Ever) -> Self {
+        val.0.to_string()
     }
 }
 
@@ -211,13 +215,24 @@ impl Name for QualName5Ever {
 
 impl From<&str> for QualName5Ever {
     fn from(value: &str) -> Self {
-        match value.split_once(':') {
-            Some((prefix, local)) => Self(QualName::new(
-                Some(prefix.into()),
-                Namespace::default(),
-                local.into(),
-            )),
-            None => Self(QualName::new(None, Namespace::default(), value.into())),
+        let mut parts = value.split(':');
+        let prefix_or_local = parts
+            .next()
+            .expect("Attempted to make qual-name from empty string");
+        let maybe_local = parts.next();
+        assert_eq!(parts.next(), None);
+
+        match maybe_local {
+            Some(local) => Self(QualName {
+                prefix: Some(prefix_or_local.into()),
+                local: local.into(),
+                ns: string_cache::Atom::default(),
+            }),
+            None => Self(QualName {
+                prefix: None,
+                local: prefix_or_local.into(),
+                ns: string_cache::Atom::default(),
+            }),
         }
     }
 }
@@ -228,12 +243,26 @@ impl Default for QualName5Ever {
     }
 }
 
+impl From<String> for QualName5Ever {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
 impl Attr for Attribute5Ever<'_> {
     type Atom = Atom5Ever;
     type Name = QualName5Ever;
 
     fn value(&self) -> Self::Atom {
         Atom5Ever(self.inner().value.clone())
+    }
+
+    fn value_ref(&self) -> &str {
+        self.inner().value.as_ref()
+    }
+
+    fn set_value(&mut self, value: Self::Atom) -> Self::Atom {
+        Atom5Ever(std::mem::replace(&mut self.inner_mut().value, value.0))
     }
 
     fn name(&self) -> Self::Name {
@@ -248,11 +277,39 @@ impl Attribute5Ever<'_> {
             Self::Borrowed(attr) => attr,
         }
     }
+
+    fn inner_mut(&mut self) -> &mut Attribute {
+        match self {
+            Self::Owned(attr) => attr,
+            Self::Borrowed(attr) => attr,
+        }
+    }
 }
 
 impl PartialEq for Attribute5Ever<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.inner() == other.inner()
+    }
+}
+
+impl From<(QualName5Ever, Atom5Ever)> for Attribute5Ever<'_> {
+    fn from(value: (QualName5Ever, Atom5Ever)) -> Self {
+        let (QualName5Ever(name), Atom5Ever(value)) = value;
+        Self::Owned(Attribute { name, value })
+    }
+}
+
+impl From<(LocalName5Ever, Atom5Ever)> for Attribute5Ever<'_> {
+    fn from(value: (LocalName5Ever, Atom5Ever)) -> Self {
+        let (LocalName5Ever(name), Atom5Ever(value)) = value;
+        Self::Owned(Attribute {
+            name: QualName {
+                local: name,
+                prefix: None,
+                ns: string_cache::Atom::default(),
+            },
+            value,
+        })
     }
 }
 
@@ -268,7 +325,15 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         Some(Attribute5Ever::Borrowed(attr))
     }
 
-    fn get_named_item(&self, name: &LocalName5Ever) -> Option<Self::Attribute> {
+    fn get_named_item(&self, name: &QualName5Ever) -> Option<Self::Attribute> {
+        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
+            v.iter_mut().find(|a| a.name == name.0)
+        })
+        .ok()?;
+        Some(Attribute5Ever::Borrowed(attr))
+    }
+
+    fn get_named_item_local(&self, name: &LocalName5Ever) -> Option<Self::Attribute> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut().find(|a| a.name.local == name.0)
         })
@@ -295,6 +360,15 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         Some(Attribute5Ever::Owned(attrs.remove(index)))
     }
 
+    fn remove_named_item_local(
+        &self,
+        name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Self::Attribute> {
+        let mut attrs = self.0.borrow_mut();
+        let index = attrs.iter().position(|a| a.name.local == name.0)?;
+        Some(Attribute5Ever::Owned(attrs.remove(index)))
+    }
+
     fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute> {
         let Attribute5Ever::Owned(attr) = attr else {
             panic!("Tried setting attribute to borrowed value, try cloning first");
@@ -303,6 +377,18 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         let index = attrs.iter().position(|a| a.name == attr.name)?;
         let old_attr = std::mem::replace(&mut attrs[index], attr);
         Some(Attribute5Ever::Owned(old_attr))
+    }
+
+    fn set_named_item_qual(
+        &self,
+        name: <Self::Attribute as Attr>::Name,
+        value: <Self::Attribute as Attr>::Atom,
+    ) -> Option<Self::Attribute> {
+        let attr = Attribute5Ever::Owned(Attribute {
+            name: name.0,
+            value: value.0,
+        });
+        self.set_named_item(attr)
     }
 
     fn iter(&self) -> impl Iterator<Item = Self::Attribute> {
@@ -344,11 +430,15 @@ impl Node for Node5Ever {
     type ParentChild = Node5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
-        let other: &dyn std::any::Any = other;
-        let Some(downcast) = other.downcast_ref::<&Self>() else {
-            return false;
-        };
-        Rc::ptr_eq(&downcast.0, &self.0)
+        self.as_ptr_byte() == other.as_ptr_byte()
+    }
+
+    fn as_ptr_byte(&self) -> usize {
+        Rc::as_ptr(&self.0) as usize
+    }
+
+    fn as_ref(&self) -> Box<dyn node::Ref> {
+        Box::new(Node5EverRef(Rc::new(self.clone())))
     }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
@@ -360,6 +450,7 @@ impl Node for Node5Ever {
         self.child_nodes_iter().collect()
     }
 
+    #[allow(refining_impl_trait)]
     fn element(&self) -> Option<Element5Ever> {
         match self.node_type() {
             node::Type::Element => Element5Ever::new(Node::to_owned(self)),
@@ -367,6 +458,7 @@ impl Node for Node5Ever {
         }
     }
 
+    #[allow(refining_impl_trait)]
     fn find_element(&self) -> Option<Element5Ever> {
         Element5Ever::find_element(Node::to_owned(self))
     }
@@ -409,6 +501,16 @@ impl Node for Node5Ever {
             NodeData::Text { contents } => Atom5Ever(contents.borrow().clone()),
             _ => return None,
         })
+    }
+
+    fn remove(&self) {
+        let Some(mut parent) = self.parent_node() else {
+            // Element already removed
+            return;
+        };
+
+        parent.remove_child(self.clone());
+        self.0.parent.set(None);
     }
 
     fn clone_node(&self) -> Self {
@@ -468,6 +570,8 @@ impl Node for Node5Ever {
     }
 }
 
+impl node::Features for Node5Ever {}
+
 #[cfg(feature = "parse")]
 impl parse::Node for Node5Ever {
     fn parse(source: &str) -> anyhow::Result<Self> {
@@ -485,18 +589,22 @@ impl parse::Node for Node5Ever {
 #[cfg(feature = "serialize")]
 impl serialize::Node for Node5Ever {
     fn serialize(&self) -> anyhow::Result<String> {
-        use rcdom::SerializableHandle;
-        use xml5ever::serialize::{serialize, SerializeOpts};
-
         let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
-        serialize(
-            &mut sink,
-            &std::convert::Into::<SerializableHandle>::into(self.0.clone()),
-            SerializeOpts::default(),
-        )?;
+        self.serialize_into(&mut sink)?;
 
         let sink: Vec<_> = sink.into_inner()?;
         Ok(String::from_utf8_lossy(&sink).to_string())
+    }
+
+    fn serialize_into<Wr: std::io::Write>(&self, sink: Wr) -> anyhow::Result<()> {
+        use rcdom::SerializableHandle;
+        use xml5ever::serialize::{serialize, SerializeOpts};
+
+        Ok(serialize(
+            sink,
+            &std::convert::Into::<SerializableHandle>::into(self.0.clone()),
+            SerializeOpts::default(),
+        )?)
     }
 }
 
@@ -519,26 +627,29 @@ impl Element for Element5Ever {
         self.node.node_name()
     }
 
-    fn local_name(&self) -> LocalName5Ever {
-        self.qual_name().local_name()
+    fn qual_name(&self) -> Self::Name {
+        QualName5Ever(self.data().name.clone())
+    }
+
+    fn set_local_name(&mut self, new_name: <Self::Name as Name>::LocalName) {
+        let data = &mut Rc::get_mut(&mut self.node.0)
+            .expect("cannot set name, element already borrowed")
+            .data;
+        let rcdom::NodeData::Element { name, .. } = data else {
+            unreachable!()
+        };
+        name.local = new_name.0;
     }
 
     fn attributes(&self) -> Self::Attributes<'_> {
         Attributes5Ever(self.data().attrs)
     }
 
-    fn remove(&self) {
-        let Some(mut parent) = self.parent_node() else {
-            // Element already removed
-            return;
+    fn set_attributes(&self, new_attrs: Self::Attributes<'_>) {
+        let rcdom::NodeData::Element { attrs, .. } = &self.node.0.data else {
+            unreachable!()
         };
-
-        parent.remove_child(self.as_node());
-        self.node.0.parent.set(None);
-    }
-
-    fn prefix(&self) -> Option<Prefix5Ever> {
-        self.qual_name().prefix()
+        attrs.replace(new_attrs.0.take());
     }
 
     fn parent_element(&self) -> Option<Self> {
@@ -552,6 +663,13 @@ impl Element for Element5Ever {
             _ => None,
         }
     }
+
+    fn flatten(&self) {
+        for child in self.child_nodes_iter() {
+            self.after(child);
+        }
+        self.remove();
+    }
 }
 
 impl Node for Element5Ever {
@@ -561,6 +679,14 @@ impl Node for Element5Ever {
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
         self.node.ptr_eq(other)
+    }
+
+    fn as_ptr_byte(&self) -> usize {
+        self.node.as_ptr_byte()
+    }
+
+    fn as_ref(&self) -> Box<dyn Ref> {
+        self.node.as_ref()
     }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
@@ -595,6 +721,10 @@ impl Node for Element5Ever {
         self.node.node_value()
     }
 
+    fn remove(&self) {
+        self.node.remove();
+    }
+
     fn clone_node(&self) -> Self {
         Self::new(self.node.clone_node()).unwrap()
     }
@@ -618,19 +748,11 @@ struct Element5EverData<'a> {
 }
 
 impl Element5Ever {
-    fn qual_name(&self) -> <Self as Element>::Name {
-        QualName5Ever(self.data().name.clone())
-    }
-
     fn data(&self) -> Element5EverData {
         let NodeData::Element { name, attrs, .. } = &self.node.0.data else {
             unreachable!("Element contains non-element data. This is a bug!")
         };
         Element5EverData { name, attrs }
-    }
-
-    fn as_node(&self) -> <Self as Node>::Child {
-        self.node.clone()
     }
 
     fn find_element(node: Node5Ever) -> Option<Self> {
@@ -672,6 +794,8 @@ impl Debug for Element5Ever {
     }
 }
 
+impl node::Features for Element5Ever {}
+
 #[cfg(feature = "parse")]
 impl parse::Node for Element5Ever {
     fn parse(source: &str) -> anyhow::Result<Self> {
@@ -683,10 +807,31 @@ impl parse::Node for Element5Ever {
     }
 }
 
+impl Ref for Node5EverRef {
+    fn inner_as_any(&self) -> &dyn std::any::Any {
+        self as &dyn std::any::Any
+    }
+
+    fn inner_as_node<N: Node>(&self) -> Option<&N>
+    where
+        Self: Sized,
+    {
+        self.inner_as_any().downcast_ref()
+    }
+
+    fn clone(&self) -> Box<dyn Ref> {
+        Box::new(Self(self.0.clone()))
+    }
+}
+
 #[cfg(feature = "serialize")]
 impl serialize::Node for Element5Ever {
     fn serialize(&self) -> anyhow::Result<String> {
         self.node.serialize()
+    }
+
+    fn serialize_into<Wr: std::io::Write>(&self, sink: Wr) -> anyhow::Result<()> {
+        self.node.serialize_into(sink)
     }
 }
 
@@ -729,7 +874,7 @@ impl selectors::Element for Element5Ever {
     }
 
     fn first_element_child(&self) -> Option<Self> {
-        self.children().first().map(Element5Ever::clone)
+        self.children().first().cloned()
     }
 
     fn is_html_element_in_html_document(&self) -> bool {
@@ -770,7 +915,7 @@ impl selectors::Element for Element5Ever {
         use selectors::attr::NamespaceConstraint;
 
         let value = match ns {
-            NamespaceConstraint::Any => self.get_attribute(&local_name.0),
+            NamespaceConstraint::Any => self.get_attribute_local(&local_name.0),
             NamespaceConstraint::Specific(ns) => self.get_attribute_ns(&ns.0, &local_name.0),
         };
         let Some(value) = value else {
@@ -815,7 +960,7 @@ impl selectors::Element for Element5Ever {
         matches!(
             self.local_name().0,
             local_name!("a") | local_name!("area") | local_name!("link")
-        ) && self.has_attribute(&LocalName5Ever(local_name!("href")))
+        ) && self.has_attribute_local(&LocalName5Ever(local_name!("href")))
     }
 
     fn is_html_slot_element(&self) -> bool {
@@ -827,7 +972,7 @@ impl selectors::Element for Element5Ever {
         id: &<Self::Impl as selectors::SelectorImpl>::Identifier,
         case_sensitivity: selectors::attr::CaseSensitivity,
     ) -> bool {
-        let Some(self_id) = self.get_attribute(&LocalName5Ever(local_name!("id"))) else {
+        let Some(self_id) = self.get_attribute_local(&LocalName5Ever(local_name!("id"))) else {
             return false;
         };
         case_sensitivity.eq(id.0 .0.as_bytes(), self_id.0.as_bytes())
@@ -838,7 +983,8 @@ impl selectors::Element for Element5Ever {
         name: &<Self::Impl as selectors::SelectorImpl>::Identifier,
         case_sensitivity: selectors::attr::CaseSensitivity,
     ) -> bool {
-        let Some(self_class) = self.get_attribute(&LocalName5Ever(local_name!("class"))) else {
+        let Some(self_class) = self.get_attribute_local(&LocalName5Ever(local_name!("class")))
+        else {
             return false;
         };
         case_sensitivity.eq(name.0 .0.as_bytes(), self_class.0.as_bytes())

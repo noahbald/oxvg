@@ -1,6 +1,7 @@
-use std::rc::Rc;
-
-use markup5ever::{local_name, tendril::StrTendril, Attribute};
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+};
 
 use crate::{Context, Job};
 
@@ -23,7 +24,7 @@ pub trait CleanupValues {
 
     fn get_mode(&self) -> Mode;
 
-    fn round_values(&self, attr: &mut Attribute) -> anyhow::Result<StrTendril> {
+    fn round_values<A: Attr>(&self, attr: &mut A) -> anyhow::Result<A::Atom> {
         let mut rounded_list: Vec<String> = Vec::new();
         let Options {
             float_precision,
@@ -37,7 +38,7 @@ pub trait CleanupValues {
                 continue;
             }
 
-            let Some(captures) = NUMERIC_VALUES.captures(&value) else {
+            let Some(captures) = NUMERIC_VALUES.captures(value) else {
                 if value.contains("new") {
                     rounded_list.push("new".to_string());
                 } else {
@@ -83,26 +84,20 @@ pub trait CleanupValues {
 }
 
 impl<T: CleanupValues> Job for T {
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        use rcdom::NodeData::Element;
-
-        let Element { attrs, .. } = &node.data else {
-            return;
-        };
-
-        for attr in attrs.borrow_mut().iter_mut() {
-            if !self.get_mode().allowed_attribute(attr) {
+    fn run(&self, element: &impl Element, _context: &Context) {
+        for mut attr in element.attributes().iter() {
+            if !self.get_mode().allowed_attribute(&attr) {
                 continue;
             }
 
-            match self.round_values(attr) {
+            let name = attr.name();
+            let value = attr.value();
+            match self.round_values(&mut attr) {
                 Ok(new_value) => {
                     log::debug!(
-                        "CleanupValues::run: rounding value: {}={} -> {new_value}",
-                        &attr.name.local,
-                        &attr.value,
+                        "CleanupValues::run: rounding value: {name:?}={value} -> {new_value}"
                     );
-                    attr.value = new_value;
+                    attr.set_value(new_value);
                 }
                 Err(error) => {
                     log::debug!("CleanupValues::run: failed to round values: {error}");
@@ -113,34 +108,32 @@ impl<T: CleanupValues> Job for T {
 }
 
 impl Mode {
-    pub fn allowed_attribute(&self, attr: &Attribute) -> bool {
-        let name = &attr.name.local;
+    pub fn allowed_attribute(&self, attr: &impl Attr) -> bool {
+        let name = attr.local_name();
+        let name = name.as_ref();
         match self {
             Self::List => {
-                &local_name!("points") == name
-                || &local_name!("enable-background") == name
-                || &local_name!("viewBox") == name
-                || &local_name!("stroke-dasharray") == name
-                || &local_name!("dx") == name
-                || &local_name!("dy") == name
-                || &local_name!("x") == name
-                || &local_name!("y") == name
+                "points" == name
+                || "enable-background" == name
+                || "viewBox" == name
+                || "stroke-dasharray" == name
+                || "dx" == name
+                || "dy" == name
+                || "x" == name
+                || "y" == name
                 // WARN: This differs from SVGO, which doesn't include `d`
-                || &local_name!("d") == name
+                || "d" == name
             }
-            Self::SingleValue => &local_name!("version") != name,
+            Self::SingleValue => "version" != name,
         }
     }
 
-    pub fn separate_value<'a>(&'a self, attr: &'a Attribute) -> impl Iterator<Item = String> + 'a {
-        if (matches!(self, Self::List) || attr.name.local == local_name!("viewBox")) {
-            Box::new(
-                SEPARATOR
-                    .split(&attr.value)
-                    .map(std::string::ToString::to_string),
-            ) as Box<dyn Iterator<Item = String>>
+    pub fn separate_value<'a>(&self, attr: &'a impl Attr) -> impl Iterator<Item = &'a str> {
+        let value = attr.value_ref();
+        if (matches!(self, Self::List) || attr.local_name() == "viewBox".into()) {
+            Box::new(SEPARATOR.split(value)) as Box<dyn Iterator<Item = &str>>
         } else {
-            Box::new(std::iter::once(attr.value.to_string())) as Box<dyn Iterator<Item = String>>
+            Box::new(std::iter::once(value)) as Box<dyn Iterator<Item = &str>>
         }
     }
 }

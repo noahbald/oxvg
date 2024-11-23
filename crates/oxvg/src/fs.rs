@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
-use rcdom::SerializableHandle;
-use xml5ever::serialize::{serialize, SerializeOpts};
+use oxvg_ast::node::Node;
 
 pub fn load_files(paths: &[PathBuf]) -> Vec<(PathBuf, Vec<u8>)> {
     paths.iter().flat_map(load_file).collect()
@@ -24,10 +23,9 @@ fn load_file(path: &PathBuf) -> Box<dyn Iterator<Item = (PathBuf, Vec<u8>)>> {
     )
 }
 
-pub fn write_file(path: &Option<PathBuf>, source: &PathBuf, dom: &rcdom::RcDom) {
-    let document: SerializableHandle = dom.document.clone().into();
+pub fn write_file(path: &Option<PathBuf>, source: &PathBuf, dom: &impl Node) {
     let Some(path) = path else {
-        serialize(&mut std::io::stdout(), &document, SerializeOpts::default()).unwrap();
+        dom.serialize().map(|s| println!("{s}")).ok();
         return;
     };
 
@@ -36,12 +34,12 @@ pub fn write_file(path: &Option<PathBuf>, source: &PathBuf, dom: &rcdom::RcDom) 
         return write_file(&Some(path.clone()), source, dom);
     };
 
-    let mut sink = if metadata.is_some_and(|data| data.is_dir()) {
+    let sink = if metadata.is_some_and(|data| data.is_dir()) {
         let path = path.join(source.file_name().unwrap());
         std::fs::File::create(path).unwrap()
     } else {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::File::create(path).unwrap()
     };
-    serialize(&mut sink, &document, SerializeOpts::default()).unwrap();
+    dom.serialize_into(sink).unwrap();
 }

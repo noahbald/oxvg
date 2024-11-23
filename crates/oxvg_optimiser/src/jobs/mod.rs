@@ -47,13 +47,13 @@ pub trait Job {
         PrepareOutcome::None
     }
 
-    fn use_style(&self, _node: &impl Element) -> bool {
+    fn use_style(&self, _element: &impl Element) -> bool {
         false
     }
 
-    fn run(&self, _node: &impl Element, _context: &Context) {}
+    fn run(&self, _element: &impl Element, _context: &Context) {}
 
-    fn breakdown(&mut self, _document: &impl Node) {}
+    fn breakdown<N: Node>(&mut self, _document: &N) {}
 }
 
 #[derive(Deserialize, Default, Clone)]

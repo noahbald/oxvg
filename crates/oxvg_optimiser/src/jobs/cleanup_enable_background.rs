@@ -1,7 +1,4 @@
-use std::rc::Rc;
-
-use markup5ever::local_name;
-use oxvg_selectors::Element;
+use oxvg_ast::{atom::Atom, attribute::Attr, element::Element, node::Node};
 use regex::Regex;
 use serde::Deserialize;
 
@@ -20,11 +17,11 @@ struct EnableBackgroundDimensions<'a> {
 }
 
 impl Job for CleanupEnableBackground {
-    fn prepare(&mut self, document: &rcdom::RcDom) -> PrepareOutcome {
-        let Some(root) = &Element::from_document_root(document) else {
+    fn prepare(&mut self, document: &impl Node) -> PrepareOutcome {
+        let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
-        self.prepare_contains_filter(root);
+        self.prepare_contains_filter(&root);
         PrepareOutcome::None
     }
 
@@ -37,52 +34,48 @@ impl Job for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     /// node's width and height
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        let element = oxvg_selectors::Element::new(node.clone());
-
-        if let Some(mut style) = element.get_attr(&local_name!("style")) {
-            style.value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
-                .unwrap()
-                .replace_all(style.value.as_ref(), "")
-                .to_string()
-                .into();
+    fn run(&self, element: &impl Element, _context: &Context) {
+        if let Some(mut style) = element.get_attribute_node_local(&"style".into()) {
+            style.set_value(
+                Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
+                    .unwrap()
+                    .replace_all(style.value().as_ref(), "")
+                    .to_string()
+                    .into(),
+            );
         }
 
+        let enable_background_localname = "enable_background".into();
         if !self.contains_filter {
-            element.remove_attr(&local_name!("enable-background"));
+            element.remove_attribute_local(&enable_background_localname);
             return;
         };
 
-        let Some(enable_background) = element.get_attr(&local_name!("enable-background")) else {
+        let Some(enable_background) = element.get_attribute_local(&"enable-background".into())
+        else {
             return;
         };
-        let Some(name) = element.get_name() else {
-            return;
-        };
+        let name = element.local_name();
 
         let enabled_background_dimensions =
             Self::get_enabled_background_dimensions(&enable_background);
         let matches_dimensions =
-            Self::enabled_background_matches(&element, enabled_background_dimensions);
-        if matches_dimensions && name == local_name!("svg") {
-            element.remove_attr(&local_name!("enable-background"));
-        } else if matches_dimensions
-            && (name == local_name!("mask") || name == local_name!("pattern"))
-        {
-            element.set_attr(&local_name!("enable-background"), "new".into());
+            Self::enabled_background_matches(element, enabled_background_dimensions);
+        if matches_dimensions && name == "svg".into() {
+            element.remove_attribute_local(&enable_background_localname);
+        } else if matches_dimensions && (name == "mask".into() || name == "pattern".into()) {
+            element.set_attribute_local(enable_background_localname, "new".into());
         }
     }
 }
 
 impl CleanupEnableBackground {
-    fn prepare_contains_filter(&mut self, root: &Element) {
+    fn prepare_contains_filter(&mut self, root: &impl Element) {
         self.contains_filter = root.select("filter").unwrap().next().is_some();
     }
 
-    fn get_enabled_background_dimensions(
-        attr: &markup5ever::Attribute,
-    ) -> Option<EnableBackgroundDimensions> {
-        let parameters: Vec<_> = attr.value.split_whitespace().collect();
+    fn get_enabled_background_dimensions(attr: &impl Atom) -> Option<EnableBackgroundDimensions> {
+        let parameters: Vec<_> = attr.as_ref().split_whitespace().collect();
         // Only allow `new <x> <y> <width> <height>`
         if parameters.len() != 5 {
             return None;
@@ -95,22 +88,19 @@ impl CleanupEnableBackground {
     }
 
     fn enabled_background_matches(
-        element: &Element,
+        element: &impl Element,
         dimensions: Option<EnableBackgroundDimensions>,
     ) -> bool {
-        use markup5ever::tendril::Tendril;
-
         let Some(dimensions) = dimensions else {
             return false;
         };
-        let Some(width) = element.get_attr(&local_name!("width")) else {
+        let Some(width) = element.get_attribute_local(&"width".into()) else {
             return false;
         };
-        let Some(height) = element.get_attr(&local_name!("height")) else {
+        let Some(height) = element.get_attribute_local(&"height".into()) else {
             return false;
         };
-        Tendril::from(dimensions.width) == width.value
-            && Tendril::from(dimensions.height) == height.value
+        dimensions.width == width.as_ref() && dimensions.height == height.as_ref()
     }
 }
 

@@ -24,6 +24,8 @@ pub trait Element: Node + Features + Debug {
 
     fn attributes(&self) -> Self::Attributes<'_>;
 
+    fn set_attributes(&self, new_attrs: Self::Attributes<'_>);
+
     fn child_element_count(&self) -> usize {
         self.children().len()
     }
@@ -38,15 +40,36 @@ pub trait Element: Node + Features + Debug {
             .filter_map(|n| Self::new(n))
     }
 
+    fn closest_local(&self, name: &<Self::Name as Name>::LocalName) -> Option<Self> {
+        let parent = Element::parent_element(self)?;
+        if &parent.local_name() == name {
+            Some(parent)
+        } else {
+            parent.closest_local(name)
+        }
+    }
+
+    fn has_child_elements(&self) -> bool {
+        self.children_iter().next().is_some()
+    }
+
     fn first_element_child(&self) -> Option<Self> {
         self.children_iter().next()
     }
+
+    fn flatten(&self);
 
     fn last_element_child(&self) -> Option<Self> {
         self.children_iter().next_back()
     }
 
-    fn local_name(&self) -> <Self::Name as Name>::LocalName;
+    fn qual_name(&self) -> Self::Name;
+
+    fn local_name(&self) -> <Self::Name as Name>::LocalName {
+        self.qual_name().local_name()
+    }
+
+    fn set_local_name(&mut self, name: <Self::Name as Name>::LocalName);
 
     fn next_element_sibling(&self) -> Option<Self> {
         let mut saw_self = false;
@@ -60,7 +83,9 @@ pub trait Element: Node + Features + Debug {
         None
     }
 
-    fn prefix(&self) -> Option<<Self::Name as Name>::Prefix>;
+    fn prefix(&self) -> Option<<Self::Name as Name>::Prefix> {
+        self.qual_name().prefix()
+    }
 
     fn previous_element_sibling(&self) -> Option<Self> {
         let mut previous = None;
@@ -98,10 +123,18 @@ pub trait Element: Node + Features + Debug {
 
     fn get_attribute<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
     where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
+        N: Name,
+    {
+        Some(self.get_attribute_node(name)?.value())
+    }
+
+    fn get_attribute_local<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
+    where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
-        Some(self.get_attribute_node(name)?.value())
+        Some(self.get_attribute_node_local(name)?.value())
     }
 
     fn get_attribute_ns<'a, N, NS>(&'a self, namespace: &NS, name: &N) -> Option<Self::Atom>
@@ -134,10 +167,21 @@ pub trait Element: Node + Features + Debug {
         attr_name: &N,
     ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
     where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
+        N: Name,
+    {
+        self.attributes().get_named_item(attr_name)
+    }
+
+    fn get_attribute_node_local<'a, N>(
+        &'a self,
+        attr_name: &N,
+    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
+    where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
-        self.attributes().get_named_item(attr_name)
+        self.attributes().get_named_item_local(attr_name)
     }
 
     fn get_attribute_node_ns<'a, N, NS>(
@@ -156,10 +200,18 @@ pub trait Element: Node + Features + Debug {
 
     fn has_attribute<'a, N>(&'a self, name: &N) -> bool
     where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
+        N: Name,
+    {
+        self.get_attribute_node(name).is_some()
+    }
+
+    fn has_attribute_local<'a, N>(&'a self, name: &N) -> bool
+    where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
-        self.get_attribute_node(name).is_some()
+        self.get_attribute_node_local(name).is_some()
     }
 
     fn has_attributes<'a, N>(&'a self, names: &[N]) -> bool
@@ -184,8 +236,6 @@ pub trait Element: Node + Features + Debug {
         parent.insert_before(other, self.as_parent_child());
     }
 
-    fn remove(&self);
-
     fn remove_attribute<'a, N>(&'a self, attr_name: &N)
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
@@ -195,9 +245,40 @@ pub trait Element: Node + Features + Debug {
         attrs.remove_named_item(attr_name);
     }
 
+    fn remove_attribute_local<'a, N>(&'a self, attr_name: &N)
+    where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
+        N: Atom,
+    {
+        let attrs = self.attributes();
+        attrs.remove_named_item_local(attr_name);
+    }
+
     fn replace_with(&self, other: Self::ParentChild) {
         self.after(other);
         self.remove();
+    }
+
+    fn set_attribute<'a, N, V>(&'a self, attr_name: N, value: V)
+    where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Atom = V>>,
+        N: Name,
+        V: Atom,
+    {
+        let attrs = self.attributes();
+        attrs.set_named_item((attr_name, value).into());
+    }
+
+    fn set_attribute_local<'a, N, V>(&'a self, attr_name: N, value: V)
+    where
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
+        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Atom = V>>,
+        N: Atom,
+        V: Atom,
+    {
+        let attrs = self.attributes();
+        attrs.set_named_item((attr_name, value).into());
     }
 
     fn parent_element(&self) -> Option<Self>;
