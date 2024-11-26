@@ -1083,6 +1083,7 @@ dependencies = [
  "anyhow",
  "cssparser 0.31.2",
  "downcast-rs",
+ "log",
  "markup5ever",
  "markup5ever_rcdom",
  "oxvg_diagnostics",

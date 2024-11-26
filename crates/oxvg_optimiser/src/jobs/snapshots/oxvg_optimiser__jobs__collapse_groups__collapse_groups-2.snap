@@ -1,17 +1,17 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should pass all inheritable attributes to children -->\n    <g>\n        <g attr1=\"val1\">\n            <path d=\"...\"/>\n        </g>\n    </g>\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path d=\"...\"/>\n        </g>\n    </g>\n    <g attr1=\"val1\">\n        <g>\n            <path d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should pass all inheritable attributes to children -->\n    <g>\n        <g attr1=\"val1\">\n            <path d=\"...\"/>\n        </g>\n    </g>\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path d=\"...\"/>\n        </g>\n    </g>\n    <g attr1=\"val1\">\n        <g>\n            <path d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should pass all inheritable attributes to children -->
     
     
-        <path attr1="val1" d="..."></path>
+        <path d="..." attr1="val1"></path>
             
         
     
     
-        <path attr1="val1" attr2="val2" d="..."></path>
+        <path d="..." attr2="val2" attr1="val1"></path>
             
         
     <g attr1="val1">
@@ -22,7 +22,7 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"
     </g>
     <g attr1="val1">
         
-        <path attr2="val2" d="..."></path>
+        <path d="..." attr2="val2"></path>
             
         <path d="..."></path>
     </g>

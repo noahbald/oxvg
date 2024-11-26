@@ -1,9 +1,13 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::{atom::Atom, name::Name};
 
 pub trait Attr:
-    PartialEq + From<(Self::Name, Self::Atom)> + From<(<Self::Name as Name>::LocalName, Self::Atom)>
+    PartialEq
+    + From<(Self::Name, Self::Atom)>
+    + From<(<Self::Name as Name>::LocalName, Self::Atom)>
+    + Display
+    + Debug
 {
     type Name: Name;
     type Atom: Atom;
@@ -23,6 +27,8 @@ pub trait Attr:
     fn value_ref(&self) -> &str;
 
     fn set_value(&mut self, value: Self::Atom) -> Self::Atom;
+
+    fn into_owned(self) -> Self;
 }
 
 /// <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap>

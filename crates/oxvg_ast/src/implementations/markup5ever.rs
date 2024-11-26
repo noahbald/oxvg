@@ -40,6 +40,7 @@ pub struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QualName5Ever(QualName);
 
+#[derive(Debug)]
 pub enum Attribute5Ever<'a> {
     Borrowed(RefMut<'a, Attribute>),
     Owned(Attribute),
@@ -48,7 +49,7 @@ pub enum Attribute5Ever<'a> {
 #[derive(Clone)]
 pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Node5Ever(Rc<rcdom::Node>);
 
 #[derive(Debug)]
@@ -249,6 +250,16 @@ impl From<String> for QualName5Ever {
     }
 }
 
+impl Display for QualName5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let local = &self.0.local;
+        match &self.0.prefix {
+            Some(prefix) => f.write_fmt(format_args!("{prefix}:{local}")),
+            None => Display::fmt(&local, f),
+        }
+    }
+}
+
 impl Attr for Attribute5Ever<'_> {
     type Atom = Atom5Ever;
     type Name = QualName5Ever;
@@ -267,6 +278,13 @@ impl Attr for Attribute5Ever<'_> {
 
     fn name(&self) -> Self::Name {
         QualName5Ever(self.inner().name.clone())
+    }
+
+    fn into_owned(self) -> Self {
+        match self {
+            Self::Owned(_) => self,
+            Self::Borrowed(attr) => Self::Owned(attr.clone()),
+        }
     }
 }
 
@@ -313,6 +331,14 @@ impl From<(LocalName5Ever, Atom5Ever)> for Attribute5Ever<'_> {
     }
 }
 
+impl Display for Attribute5Ever<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = self.name();
+        let value = self.value();
+        f.write_fmt(format_args!(r#"{name}="{value}""#))
+    }
+}
+
 impl<'a> Attributes<'a> for Attributes5Ever<'a> {
     type Attribute = Attribute5Ever<'a>;
 
@@ -327,7 +353,8 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
 
     fn get_named_item(&self, name: &QualName5Ever) -> Option<Self::Attribute> {
         let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
-            v.iter_mut().find(|a| a.name == name.0)
+            v.iter_mut()
+                .find(|a| a.name.prefix == name.0.prefix && a.name.local == name.0.local)
         })
         .ok()?;
         Some(Attribute5Ever::Borrowed(attr))
@@ -356,7 +383,9 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
 
     fn remove_named_item(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::Attribute> {
         let mut attrs = self.0.borrow_mut();
-        let index = attrs.iter().position(|a| a.name == name.0)?;
+        let index = attrs
+            .iter()
+            .position(|a| a.name.prefix == name.0.prefix && a.name.local == name.0.local)?;
         Some(Attribute5Ever::Owned(attrs.remove(index)))
     }
 
@@ -374,9 +403,18 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
             panic!("Tried setting attribute to borrowed value, try cloning first");
         };
         let attrs = &mut *self.0.borrow_mut();
-        let index = attrs.iter().position(|a| a.name == attr.name)?;
-        let old_attr = std::mem::replace(&mut attrs[index], attr);
-        Some(Attribute5Ever::Owned(old_attr))
+        if let Some(index) = attrs
+            .iter()
+            .position(|a| a.name.prefix == attr.name.prefix && a.name.local == attr.name.local)
+        {
+            Some(Attribute5Ever::Owned(std::mem::replace(
+                &mut attrs[index],
+                attr,
+            )))
+        } else {
+            attrs.push(attr);
+            None
+        }
     }
 
     fn set_named_item_qual(
@@ -402,7 +440,7 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
 impl Debug for Attributes5Ever<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.iter()
-            .try_for_each(|a| f.write_fmt(format_args!(r#""{}" "#, a.local_name())))?;
+            .try_for_each(|a| f.write_fmt(format_args!(r#"{}="{}" "#, a.name(), a.value())))?;
         f.write_str("(Attribute5Ever)")
     }
 }
@@ -421,6 +459,25 @@ impl<'a> Iterator for AttributesIterator<'a> {
         let result = Attribute5Ever::Borrowed(result);
         self.index += 1;
         Some(result)
+    }
+}
+
+impl Node5Ever {
+    fn node_data_text_content(node: &Rc<rcdom::Node>) -> Option<String> {
+        match &node.data {
+            NodeData::Text { contents } => Some(contents.borrow().to_string()),
+            NodeData::Doctype { .. } | NodeData::Document => None,
+            NodeData::Comment { .. } | NodeData::ProcessingInstruction { .. } => {
+                Some(String::new())
+            }
+            NodeData::Element { .. } => Some(
+                node.children
+                    .borrow()
+                    .iter()
+                    .filter_map(Node5Ever::node_data_text_content)
+                    .fold(String::new(), |acc, item| acc + &item),
+            ),
+        }
     }
 }
 
@@ -474,12 +531,32 @@ impl Node for Node5Ever {
         }
     }
 
-    fn parent_node(&self) -> Option<impl Node<Child = Self, Atom = Self::Atom>> {
+    #[allow(refining_impl_trait)]
+    fn parent_node(&self) -> Option<Node5Ever> {
         let cell = &self.0.parent;
         let parent = cell.take()?;
         let node = parent.upgrade().map(Self);
         cell.set(Some(parent));
         node
+    }
+
+    #[allow(refining_impl_trait)]
+    fn set_parent_node(&self, new_parent: &impl Node<Atom = Self::Atom>) -> Option<Node5Ever> {
+        let parent = new_parent as &dyn std::any::Any;
+        let parent = parent
+            .downcast_ref::<Node5Ever>()
+            .expect("Incorrect implementation passed as new parent");
+        let parent = Rc::downgrade(&parent.0);
+        let old_parent = self.0.parent.replace(Some(parent))?;
+        Some(Node5Ever(old_parent.upgrade()?))
+    }
+
+    fn append_child(&mut self, a_child: Self::Child) {
+        self.0.children.borrow_mut().push(a_child.0);
+    }
+
+    fn insert(&mut self, index: usize, new_node: Self::Child) {
+        self.0.children.borrow_mut().insert(index, new_node.0);
     }
 
     fn node_name(&self) -> Self::Atom {
@@ -503,6 +580,21 @@ impl Node for Node5Ever {
         })
     }
 
+    fn text_content(&self) -> Option<String> {
+        if self.0.children.borrow().len() > 0 {
+            return Node5Ever::node_data_text_content(&self.0);
+        }
+        match &self.0.data {
+            NodeData::Doctype { .. } | NodeData::Document => None,
+            // FIXME: Empty string should only be returned on recursive calls
+            NodeData::Comment { contents } | NodeData::ProcessingInstruction { contents, .. } => {
+                Some(contents.to_string())
+            }
+            NodeData::Text { contents } => Some(contents.borrow().to_string()),
+            NodeData::Element { .. } => Some(String::new()),
+        }
+    }
+
     fn remove(&self) {
         let Some(mut parent) = self.parent_node() else {
             // Element already removed
@@ -511,6 +603,15 @@ impl Node for Node5Ever {
 
         parent.remove_child(self.clone());
         self.0.parent.set(None);
+    }
+
+    fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
+        let mut children = self.0.children.borrow_mut();
+        if children.len() <= index {
+            None
+        } else {
+            Some(Node5Ever(children.remove(index)))
+        }
     }
 
     fn clone_node(&self) -> Self {
@@ -570,6 +671,19 @@ impl Node for Node5Ever {
     }
 }
 
+impl Debug for Node5Ever {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let data = &self.0.data;
+        let child_len = self.0.children.borrow().len();
+        f.write_fmt(format_args!(
+            "Node5Ever {{
+    data: {data:?}
+    children: {child_len}
+}}"
+        ))
+    }
+}
+
 impl node::Features for Node5Ever {}
 
 #[cfg(feature = "parse")]
@@ -613,7 +727,7 @@ impl Element for Element5Ever {
     type Attributes<'a> = Attributes5Ever<'a>;
 
     fn new(node: Node5Ever) -> Option<Self> {
-        if node.node_type() != node::Type::Element {
+        if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {
             return None;
         }
         Some(Self {
@@ -632,13 +746,34 @@ impl Element for Element5Ever {
     }
 
     fn set_local_name(&mut self, new_name: <Self::Name as Name>::LocalName) {
-        let data = &mut Rc::get_mut(&mut self.node.0)
-            .expect("cannot set name, element already borrowed")
-            .data;
-        let rcdom::NodeData::Element { name, .. } = data else {
+        let rcdom::NodeData::Element {
+            ref attrs,
+            ref template_contents,
+            mathml_annotation_xml_integration_point,
+            ..
+        } = self.node.0.data
+        else {
             unreachable!()
         };
-        name.local = new_name.0;
+        let clone = Node5Ever(Rc::new(rcdom::Node {
+            parent: Cell::new(None),
+            children: self.node.0.children.clone(),
+            data: NodeData::Element {
+                name: QualName {
+                    prefix: None,
+                    ns: string_cache::Atom::default(),
+                    local: new_name.0,
+                },
+                attrs: attrs.clone(),
+                template_contents: template_contents.clone(),
+                mathml_annotation_xml_integration_point,
+            },
+        }));
+        self.replace_with(clone);
+    }
+
+    fn append(&self, node: Self::Child) {
+        self.node.0.children.borrow_mut().push(node.0);
     }
 
     fn attributes(&self) -> Self::Attributes<'_> {
@@ -660,6 +795,18 @@ impl Element for Element5Ever {
             .clone();
         match downcast.node_type() {
             node::Type::Element => Self::new(downcast),
+            _ => None,
+        }
+    }
+
+    fn document(&self) -> Option<Self> {
+        let parent: Node5Ever = self.parent_node()?;
+        match parent.0.data {
+            NodeData::Element { .. } => parent.element()?.document(),
+            NodeData::Document => Some(Element5Ever {
+                node: parent,
+                selector_flags: Cell::new(None),
+            }),
             _ => None,
         }
     }
@@ -709,8 +856,28 @@ impl Node for Element5Ever {
         self.node.node_type()
     }
 
-    fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>> {
+    #[allow(refining_impl_trait)]
+    fn parent_node(&self) -> Option<Node5Ever> {
         self.node.parent_node()
+    }
+
+    #[allow(refining_impl_trait)]
+    fn set_parent_node(&self, new_parent: &impl Node<Atom = Self::Atom>) -> Option<Element5Ever> {
+        let new_parent_element = new_parent as &dyn std::any::Any;
+        let new_parent_element = new_parent_element.downcast_ref::<Element5Ever>().unwrap();
+        let old_parent = Element5Ever {
+            node: self.node.set_parent_node(&new_parent_element.node)?,
+            selector_flags: Cell::new(None),
+        };
+        Some(old_parent)
+    }
+
+    fn append_child(&mut self, a_child: Self::Child) {
+        self.node.append_child(a_child);
+    }
+
+    fn insert(&mut self, index: usize, new_node: Self::Child) {
+        self.node.insert(index, new_node);
     }
 
     fn node_name(&self) -> Self::Atom {
@@ -721,8 +888,16 @@ impl Node for Element5Ever {
         self.node.node_value()
     }
 
+    fn text_content(&self) -> Option<String> {
+        self.node.text_content()
+    }
+
     fn remove(&self) {
         self.node.remove();
+    }
+
+    fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
+        self.node.remove_child_at(index)
     }
 
     fn clone_node(&self) -> Self {
@@ -785,11 +960,14 @@ impl Element5Ever {
 
 impl Debug for Element5Ever {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = self.qual_name();
+        let attributes = self.attributes();
+        let child_count = match self.node.0.children.borrow().len() {
+            0 => String::from("/>"),
+            len => format!(">{len} child nodes</{name}>"),
+        };
         f.write_fmt(format_args!(
-            r"Element5Ever {{
-    data: {:?},
-}}",
-            self.node.0.data
+            r"Element5Ever {{ <{name} {attributes:?}{child_count} }}"
         ))
     }
 }
@@ -809,14 +987,8 @@ impl parse::Node for Element5Ever {
 
 impl Ref for Node5EverRef {
     fn inner_as_any(&self) -> &dyn std::any::Any {
-        self as &dyn std::any::Any
-    }
-
-    fn inner_as_node<N: Node>(&self) -> Option<&N>
-    where
-        Self: Sized,
-    {
-        self.inner_as_any().downcast_ref()
+        let inner: &Node5Ever = self.0.as_ref();
+        inner as &dyn std::any::Any
     }
 
     fn clone(&self) -> Box<dyn Ref> {

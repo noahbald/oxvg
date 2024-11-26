@@ -15,18 +15,18 @@ impl Job for AddAttributesToSVGElement {
     fn run(&self, element: &impl Element, _context: &Context) {
         let name = element.local_name();
 
-        if !element.is_root() || name != "svg".into() {
+        if !element.is_root() || name.as_ref() != "svg" {
             return;
         };
 
         for (name, value) in &self.attributes {
-            let name = name.as_str();
-            let value = value.as_str();
-            if element.has_attribute(&name.into()) {
+            let name = name.as_str().into();
+            let value = value.as_str().into();
+            if element.has_attribute(&name) {
                 continue;
             }
 
-            element.set_attribute(name.into(), value.into())
+            element.set_attribute(name, value);
         }
     }
 }

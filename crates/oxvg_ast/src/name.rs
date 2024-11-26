@@ -1,7 +1,17 @@
+use std::fmt::Display;
+
 use crate::atom::Atom;
 
 pub trait Name:
-    Eq + PartialEq + Clone + Default + std::fmt::Debug + for<'a> From<&'a str> + From<String> + 'static
+    Eq
+    + PartialEq
+    + Clone
+    + Default
+    + std::fmt::Debug
+    + for<'a> From<&'a str>
+    + From<String>
+    + 'static
+    + Display
 {
     type LocalName: Atom;
     type Prefix: Atom;

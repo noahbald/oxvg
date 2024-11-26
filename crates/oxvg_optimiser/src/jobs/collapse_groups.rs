@@ -47,10 +47,15 @@ impl Job for CollapseGroups {
 fn move_attributes_to_child(element: &impl Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
-    let Some(first_child) = Element::first_element_child(element) else {
-        log::debug!("collapse_groups: not moving attrs: many children");
+    let mut children = element.children_iter();
+    let Some(first_child) = children.next() else {
+        log::debug!("collapse_groups: not moving attrs: no children");
         return;
     };
+    if children.next().is_some() {
+        log::debug!("collapse_groups: not moving attrs: many children");
+        return;
+    }
 
     let attrs = element.attributes();
     if attrs.len() == 0 {
@@ -66,64 +71,59 @@ fn move_attributes_to_child(element: &impl Element) {
         return;
     };
 
-    let new_attrs = element.attributes().clone();
+    let mut removals = Vec::default();
     let first_child_attrs = first_child.attributes();
-    let new_child_attrs = first_child_attrs.clone();
     for attr in attrs.iter() {
         let name = attr.name();
         let local_name = name.local_name();
         let local_name: &str = local_name.as_ref();
         let value = attr.value();
 
+        let child_attr = first_child_attrs.get_named_item(&name);
         if has_animated_attr(&first_child, &name) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
 
-        let Some(child_attr) = new_child_attrs.get_named_item(&name) else {
-            log::debug!("collapse_groups: moved {name:?}: same as parent",);
-            new_child_attrs.set_named_item(attr);
+        removals.push(attr.name());
+        let Some(mut child_attr) = child_attr else {
+            log::debug!("collapse_groups: moved {name}: same as parent",);
+            first_child_attrs.set_named_item(attr.into_owned());
             continue;
         };
 
         let child_attr_value = child_attr.value();
         if name.local_name().as_ref() == "transform" {
             log::debug!("collapse_groups: moved transform: is transform");
-            new_child_attrs.set_named_item_qual(name, format!("{value} {child_attr_value}").into());
+            child_attr.set_value(format!("{value} {child_attr_value}").into());
         } else if child_attr_value.as_ref() == "inherit" {
-            log::debug!("collapse_groups: moved {name:?}: is explicit inherit");
-            new_child_attrs.set_named_item_qual(name, value);
-        } else if INHERITABLE_ATTRS.contains(local_name)
-            && new_child_attrs.get_named_item(&name).is_none()
-        {
-            log::debug!("collapse_groups: canelled moves: inheritable attr is applicable");
+            log::debug!("collapse_groups: moved {name}: is explicit inherit");
+            child_attr.set_value(value);
+        } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
+            log::debug!("collapse_groups: removing {name}: inheritable attr is not inherited");
             return;
-        } else if INHERITABLE_ATTRS.contains(local_name)
-            || new_child_attrs.get_named_item(&name) == Some(attr)
-        {
-            log::debug!("collapse_groups: removing {name:?}: inheritable attr is not inherited");
-        } else {
-            log::debug!("collapse_groups: ignoring {name:?}: fails to meet movement criteria");
-            new_attrs.set_named_item_qual(name, value);
         }
     }
 
-    element.set_attributes(new_attrs);
-    first_child.set_attributes(new_child_attrs);
+    for attr in removals {
+        element.remove_attribute(&attr);
+    }
 }
 
 fn flatten_when_all_attributes_moved(element: &impl Element) {
-    if element.attributes().is_empty() {
+    if !element.attributes().is_empty() {
+        log::debug!("skipping flatten: has attributes");
         return;
     }
 
     let animation_group = oxvg_selectors::collections::Group::set(&ElementGroup::Animation);
     {
-        if element.children_iter().any(|child| {
+        if element.depth_first().any(|child| {
             let local_name = child.local_name();
             let name: &str = local_name.as_ref();
-            animation_group.contains(name)
+            dbg!(animation_group.contains(dbg!(name)))
         }) {
+            log::debug!("skipping flatten: has animating child");
             return;
         }
     }
@@ -134,22 +134,24 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
 fn has_animated_attr(element: &impl Element, name: &impl Name) -> bool {
     let local_name = name.local_name();
     let node_name: &str = local_name.as_ref();
-    if Group::set(&ElementGroup::Animation).contains(node_name)
-        && element
-            .get_attribute_local(&"attributeName".into())
-            .is_some_and(|attr| attr.as_ref() == node_name)
-    {
-        return true;
+    for child in std::iter::once(element.clone()).chain(element.depth_first()) {
+        let child_name_local = child.local_name();
+        let child_name: &str = child_name_local.as_ref();
+        if Group::set(&ElementGroup::Animation).contains(child_name)
+            && child
+                .get_attribute_local(&"attributeName".into())
+                .is_some_and(|attr| attr.as_ref() == node_name)
+        {
+            return true;
+        }
     }
-    element
-        .children_iter()
-        .any(|child| has_animated_attr(&child, name))
+    false
 }
 
 fn is_group_identifiable<E: Element>(node: &E, child: &E) -> bool {
     let class = &"class".into();
     child.has_attribute_local(&"id".into())
-        && (node.has_attribute_local(class) || child.has_attribute_local(class))
+        && (!node.has_attribute_local(class) || !child.has_attribute_local(class))
 }
 
 fn is_position_visually_unstable<E: Element>(node: &E, child: &E) -> bool {

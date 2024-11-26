@@ -92,35 +92,37 @@ impl Jobs {
         let stylesheet = &oxvg_style::root_style(&root_element);
         let stylesheet =
             stylesheet::StyleSheet::parse(stylesheet, stylesheet::ParserOptions::default()).ok();
-        root_element.depth_first().for_each(|child| {
-            #[cfg(test)]
-            {
-                let name = child.local_name();
-                let attrs = child.attributes();
-                println!("--- element {i} <{name}{attrs:?}>",);
-            }
-            let use_style = jobs.use_style(&child);
-            let mut computed_style = oxvg_style::ComputedStyles::default();
-            if let Some(s) = &stylesheet {
-                if use_style {
-                    computed_style.with_all(&child, &s.rules.0);
+        std::iter::once(root_element.clone())
+            .chain(root_element.depth_first())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|child| {
+                #[cfg(test)]
+                {
+                    println!("--- element {i} {child:?}",);
                 }
-            } else if use_style {
-                computed_style.with_inline_style(&child);
-                computed_style.with_inherited(&child, &[]);
-            }
+                let use_style = jobs.use_style(&child);
+                let mut computed_style = oxvg_style::ComputedStyles::default();
+                if let Some(s) = &stylesheet {
+                    if use_style {
+                        computed_style.with_all(&child, &s.rules.0);
+                    }
+                } else if use_style {
+                    computed_style.with_inline_style(&child);
+                    computed_style.with_inherited(&child, &[]);
+                }
 
-            let context = Context {
-                style: computed_style,
-            };
-            jobs.run(&child, &context);
-            #[cfg(test)]
-            {
-                println!("{}", node_to_string(&child).unwrap_or_default());
-                println!("---");
-                i += 1;
-            }
-        });
+                let context = Context {
+                    style: computed_style,
+                };
+                jobs.run(&child, &context);
+                #[cfg(test)]
+                {
+                    println!("{}", node_to_string(&child).unwrap_or_default());
+                    println!("---");
+                    i += 1;
+                }
+            });
         #[cfg(test)]
         println!("~~ --- job ending\n\n");
 

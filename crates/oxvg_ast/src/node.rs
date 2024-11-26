@@ -18,10 +18,6 @@ pub enum Type {
 pub trait Ref: Debug {
     fn inner_as_any(&self) -> &dyn std::any::Any;
 
-    fn inner_as_node<N: Node>(&self) -> Option<&N>
-    where
-        Self: Sized;
-
     fn clone(&self) -> Box<dyn Ref>;
 }
 
@@ -41,7 +37,7 @@ pub trait Features: crate::serialize::Node {}
 #[cfg(feature = "serialize")]
 pub trait Features: crate::parse::Node + crate::serialize::Node {}
 
-pub trait Node: Clone + 'static + Features {
+pub trait Node: Clone + Debug + 'static + Features {
     type Atom: Atom;
     type Child: Node<Atom = Self::Atom>;
     type ParentChild: Node<Atom = Self::Atom>;
@@ -95,13 +91,18 @@ pub trait Node: Clone + 'static + Features {
 
     fn node_value(&self) -> Option<Self::Atom>;
 
+    fn text_content(&self) -> Option<String>;
+
     /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
     /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]
     fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>>;
 
-    fn append_child(&mut self, a_child: Self::Child) {
-        self.child_nodes().push(a_child);
-    }
+    fn set_parent_node(
+        &self,
+        new_parent: &impl Node<Atom = Self::Atom>,
+    ) -> Option<impl Node<Child = <Self::ParentChild as Node>::Child, Atom = Self::Atom>>;
+
+    fn append_child(&mut self, a_child: Self::Child);
 
     /// <https://dom.spec.whatwg.org/#concept-node-clone>
     fn clone_node(&self) -> Self;
@@ -115,28 +116,31 @@ pub trait Node: Clone + 'static + Features {
         })
     }
 
+    fn insert(&mut self, index: usize, new_node: Self::Child);
+
     fn insert_before(&mut self, new_node: Self::Child, reference_node: Self::Child) {
         let len = self.child_nodes().len();
         let reference_index = self.child_index(reference_node).unwrap_or(len);
-        self.child_nodes().insert(reference_index - 1, new_node);
+        self.insert(reference_index - 1, new_node);
     }
 
     fn insert_after(&mut self, new_node: Self::Child, reference_node: Self::Child) {
         let len = self.child_nodes().len();
         let reference_index = self.child_index(reference_node).unwrap_or(len - 2);
-        self.child_nodes().insert(reference_index + 1, new_node);
+        self.insert(reference_index + 1, new_node);
     }
 
     fn remove(&self);
 
+    fn remove_child_at(&mut self, index: usize) -> Option<Self::Child>;
+
     fn remove_child(&mut self, child: Self::Child) -> Option<Self::Child> {
-        let mut children = self.child_nodes();
-        let child_index = children
-            .iter()
+        let child_index = self
+            .child_nodes_iter()
             .enumerate()
             .find(|(_, n)| n.ptr_eq(&child))
-            .map(|(i, _)| i);
-        child_index.map(|i| Vec::remove(&mut children, i))
+            .map(|(i, _)| i)?;
+        self.remove_child_at(child_index)
     }
 
     fn replace_child(

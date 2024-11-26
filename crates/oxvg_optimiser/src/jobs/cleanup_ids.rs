@@ -6,6 +6,7 @@ use std::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    name::Name,
     node::{self, Node},
 };
 use oxvg_selectors::{
@@ -78,7 +79,8 @@ impl Job for CleanupIds {
         // Find references in attributes
         let mut ref_renames = self.ref_renames.borrow_mut();
         for attr in element.attributes().iter() {
-            let local_name = attr.local_name();
+            let name = attr.name();
+            let local_name = name.local_name();
             let value = attr.value();
             let Some(matches) = find_references(local_name.as_ref(), value.as_ref()) else {
                 continue;
@@ -91,7 +93,7 @@ impl Job for CleanupIds {
                         log::debug!("CleanupIds::run: found potential reference: {item}");
                         ref_renames.push(RefRename {
                             element_ref: element.as_ref(),
-                            local_name: attr.local_name().to_string(),
+                            local_name: name.to_string(),
                             referenced_id: item.to_string(),
                         });
                     } else {
@@ -111,6 +113,7 @@ impl Job for CleanupIds {
         // Generate renames for references
         let mut used_ids = BTreeMap::new();
         let mut generated_id = self.generated_id.borrow_mut();
+        dbg!(&self.ref_renames);
         for RefRename {
             element_ref,
             local_name,
@@ -122,8 +125,8 @@ impl Job for CleanupIds {
                 .downcast_ref::<N>()
                 .expect("cleanup ids used with inconsistent types");
             let element = element.element().expect("memoised invalid node type");
-            let Some(ref mut attr) = element.get_attribute_local(&local_name.as_str().into())
-            else {
+            let Some(ref mut attr) = element.get_attribute(&local_name.as_str().into()) else {
+                log::debug!("CleanupIds::breakdown: {local_name} attribute missing");
                 continue;
             };
             let minified_id = used_ids
@@ -144,10 +147,7 @@ impl Job for CleanupIds {
                 log::debug!(
                     "CleanupIds::breakdown: updating reference: {local_name} <-> {referenced_id}"
                 );
-                element.set_attribute_local(
-                    local_name.as_str().into(),
-                    replacements.0.as_str().into(),
-                );
+                element.set_attribute(local_name.as_str().into(), replacements.0.as_str().into());
             }
         }
         log::debug!(
@@ -185,11 +185,15 @@ impl CleanupIds {
         let contains_unpredictable_refs = unpredictable_refs.next().is_some_and(|element| {
             !Self::is_ref_okay(&element) || !unpredictable_refs.all(|e| Self::is_ref_okay(&e))
         });
-        let Some(parent) = Element::parent_element(root) else {
+        let Some(document) = root.document() else {
             self.ignore_document = true;
             return;
         };
-        let contains_only_defs = parent.select("svg > :not(defs)").unwrap().next().is_none();
+        let contains_only_defs = document
+            .select("svg > :not(defs)")
+            .unwrap()
+            .next()
+            .is_none();
         self.ignore_document = contains_unpredictable_refs || contains_only_defs;
     }
 

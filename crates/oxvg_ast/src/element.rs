@@ -49,6 +49,8 @@ pub trait Element: Node + Features + Debug {
         }
     }
 
+    fn document(&self) -> Option<Self>;
+
     fn has_child_elements(&self) -> bool {
         self.children_iter().next().is_some()
     }
@@ -108,15 +110,17 @@ pub trait Element: Node + Features + Debug {
         let Some(mut parent) = self.parent_node() else {
             return;
         };
+        node.remove();
+        node.set_parent_node(&parent);
         parent.insert_after(node, self.as_parent_child());
     }
 
-    fn append(&self, node: Self::Child) {
-        self.child_nodes().push(node);
-    }
+    fn append(&self, node: Self::Child);
 
     fn before(&self, node: <Self as Node>::ParentChild) -> Option<()> {
         let mut parent = self.parent_node()?;
+        node.remove();
+        node.set_parent_node(&parent);
         parent.insert_before(node, self.as_parent_child());
         Some(())
     }
@@ -233,6 +237,8 @@ pub trait Element: Node + Features + Debug {
         let Some(mut parent) = self.parent_node() else {
             return;
         };
+        other.remove();
+        other.set_parent_node(&parent);
         parent.insert_before(other, self.as_parent_child());
     }
 

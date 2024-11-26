@@ -97,7 +97,7 @@ pub fn root_style<E: Element>(root: &E) -> String {
         .select("style")
         .expect("`style` should be a valid selector");
     output
-        .filter_map(|e| e.node_value())
+        .filter_map(|e| e.text_content())
         .map(|v| v.to_string())
         .collect::<Vec<_>>()
         .join("\n")
@@ -167,7 +167,7 @@ impl ComputedStyles {
     fn with_attribute<E: Element>(&mut self, element: &E) {
         for a in element.attributes().iter() {
             let Ok(style) = SVGStyle::new::<E>(&a) else {
-                return;
+                continue;
             };
             self.attr.insert(style.id(), StyleMode::Static.style(style));
         }

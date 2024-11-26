@@ -1,12 +1,12 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should join transform attributes into `transform=\"rotate(45) scale(2)\"` -->\n    <g attr1=\"val1\">\n        <g transform=\"rotate(45)\">\n            <path transform=\"scale(2)\" d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should join transform attributes into `transform=\"rotate(45) scale(2)\"` -->\n    <g attr1=\"val1\">\n        <g transform=\"rotate(45)\">\n            <path transform=\"scale(2)\" d=\"...\"/>\n        </g>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should join transform attributes into `transform="rotate(45) scale(2)"` -->
     <g attr1="val1">
         
-        <path d="..." transform="rotate(45) scale(2)"></path>
+        <path transform="rotate(45) scale(2)" d="..."></path>
             
         <path d="..."></path>
     </g>

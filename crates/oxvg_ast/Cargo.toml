@@ -29,6 +29,7 @@ oxvg_diagnostics = { workspace = true }
 anyhow = { workspace = true, optional = true }
 cssparser = { workspace = true, optional = true }
 downcast-rs = { workspace = true }
+log = { workspace = true }
 markup5ever = { workspace = true, optional = true }
 string_cache = { workspace = true, optional = true }
 rcdom = { workspace = true, optional = true }

@@ -86,13 +86,16 @@ impl Job for ConvertColors {
 
         for mut attr in element.attributes().iter() {
             let is_style = attr.local_name() == "style".into();
-            let style = attr.value();
-            let style = StyleAttribute::parse(style.as_ref(), ParserOptions::default());
+            let style = if is_style {
+                attr.value().to_string()
+            } else {
+                format!("{}:{}", attr.local_name(), attr.value())
+            };
+            let style = StyleAttribute::parse(&style, ParserOptions::default());
             let mut style = match style {
                 Ok(result) => result,
                 Err(e) => {
-                    // TODO: Improve error messaging
-                    println!("{e}");
+                    log::debug!("failed to convert {attr}: {e}");
                     continue;
                 }
             };

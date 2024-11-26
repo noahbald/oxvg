@@ -33,19 +33,23 @@ impl Job for CleanupEnableBackground {
     /// This job will:
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
-    /// node's width and height
+    ///   node's width and height
     fn run(&self, element: &impl Element, _context: &Context) {
-        if let Some(mut style) = element.get_attribute_node_local(&"style".into()) {
-            style.set_value(
-                Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
-                    .unwrap()
-                    .replace_all(style.value().as_ref(), "")
-                    .to_string()
-                    .into(),
-            );
+        let style_name = &"style".into();
+        if let Some(mut style) = element.get_attribute_node_local(style_name) {
+            let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
+                .unwrap()
+                .replace_all(style.value().as_ref(), "")
+                .to_string();
+            if new_value.is_empty() {
+                drop(style);
+                element.remove_attribute_local(style_name);
+            } else {
+                style.set_value(new_value.into());
+            }
         }
 
-        let enable_background_localname = "enable_background".into();
+        let enable_background_localname = "enable-background".into();
         if !self.contains_filter {
             element.remove_attribute_local(&enable_background_localname);
             return;
