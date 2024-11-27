@@ -14,7 +14,6 @@ oxvg_ast = { workspace = true, features = ["selectors"] }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_selectors = { workspace = true }
 oxvg_style = { workspace = true }
-oxvg_utils = { workspace = true }
 
 anyhow = { workspace = true }
 bitflags = { workspace = true }
@@ -24,21 +23,14 @@ serde_json = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
-markup5ever = { workspace = true }
-miette = { version = "7.0.0", features = ["fancy"] }
-rcdom = { workspace = true }
 regex = { workspace = true }
-thiserror = "1.0.56"
 urlencoding = "2.1"
 
 [dev-dependencies]
-oxvg_ast = { workspace = true }
-
 ctor = { workspace = true }
 divan = { workspace = true }
 env_logger = { workspace = true }
 insta = { workspace = true }
-xml5ever = { workspace = true }
 
 [profile.bench]
 opt-level = 3

@@ -13,16 +13,9 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cssparser = { workspace = true }
-derivative = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
-markup5ever = { workspace = true }
-rcdom = { workspace = true }
 regex = { workspace = true }
-selectors = "0.25.0"
-traversal = "0.1.2"
-xml5ever = { workspace = true }
 
 [dev-dependencies]
 oxvg_ast = { workspace = true }
