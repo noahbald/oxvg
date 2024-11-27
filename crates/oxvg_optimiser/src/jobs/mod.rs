@@ -12,6 +12,7 @@ mod convert_ellipse_to_circle;
 mod convert_path_data;
 mod convert_shape_to_path;
 mod convert_transform;
+mod remove_doctype;
 
 use lightningcss::stylesheet;
 use oxvg_ast::element::Element;
@@ -32,6 +33,7 @@ pub use self::convert_ellipse_to_circle::ConvertEllipseToCircle;
 pub use self::convert_path_data::ConvertPathData;
 pub use self::convert_shape_to_path::ConvertShapeToPath;
 pub use self::convert_transform::ConvertTransform;
+pub use self::remove_doctype::RemoveDoctype;
 
 pub enum PrepareOutcome {
     None,
@@ -73,6 +75,7 @@ pub struct Jobs {
     convert_path_data: Option<Box<ConvertPathData>>,
     convert_shape_to_path: Option<Box<ConvertShapeToPath>>,
     convert_transform: Option<Box<ConvertTransform>>,
+    remove_doctype: Option<Box<RemoveDoctype>>,
 }
 
 impl Jobs {
@@ -148,6 +151,7 @@ impl Default for Jobs {
             convert_path_data: Some(Box::new(ConvertPathData::default())),
             convert_shape_to_path: Some(Box::new(ConvertShapeToPath::default())),
             convert_transform: Some(Box::new(ConvertTransform::default())),
+            remove_doctype: Some(Box::new(RemoveDoctype::default())),
         }
     }
 }
@@ -161,18 +165,19 @@ bitflags! {
         const cleanup_list_of_values = 0b0_0000_0000_0100;
 
         // Default plugins
-        const cleanup_attributes = 0b_0000_0000_0000_1000;
-        const cleanup_ids = 0b00_0000_0000_0000_0001_0000;
-        const cleanup_numeric_values = 0b0_0000_0010_0000;
-        const convert_colors = 0b0000_0000_0000_0100_0000;
-        const cleanup_enable_background = 0b000_1000_0000;
-        const convert_shape_to_path = 0b00_0001_0000_0000;
-        const convert_ellipse_to_circle = 0b010_0000_0000;
-        const collapse_groups = 0b000_0000_0100_0000_0000;
+        const remove_doctype = 0b0000_0000_0000_0000_1000;
+        const cleanup_attributes = 0b_0000_0000_0001_0000;
+        const cleanup_ids = 0b00_0000_0000_0000_0010_0000;
+        const cleanup_numeric_values = 0b0_0000_0100_0000;
+        const convert_colors = 0b0000_0000_0000_1000_0000;
+        const cleanup_enable_background = 0b001_0000_0000;
+        const convert_shape_to_path = 0b00_0010_0000_0000;
+        const convert_ellipse_to_circle = 0b100_0000_0000;
+        const collapse_groups = 0b000_0000_1000_0000_0000;
         // NOTE: This one should be before `convert_path_data` in case the order is ever changed
-        const apply_transforms = 0b00_0000_1000_0000_0000;
-        const convert_path_data = 0b0_0001_0000_0000_0000;
-        const convert_transform = 0b0_0010_0000_0000_0000;
+        const apply_transforms = 0b00_0001_0000_0000_0000;
+        const convert_path_data = 0b0_0010_0000_0000_0000;
+        const convert_transform = 0b0_0100_0000_0000_0000;
     }
 }
 
@@ -216,6 +221,7 @@ impl JobRunner {
             JobFlag::convert_path_data => self.jobs.convert_path_data.is_some(),
             JobFlag::convert_shape_to_path => self.jobs.convert_shape_to_path.is_some(),
             JobFlag::convert_transform => self.jobs.convert_transform.is_some(),
+            JobFlag::remove_doctype => self.jobs.remove_doctype.is_some(),
             _ => unreachable!(),
         }
     }
@@ -274,6 +280,7 @@ impl JobRunner {
             JobFlag::convert_transform => {
                 self.jobs.convert_transform.as_mut().unwrap().prepare(node)
             }
+            JobFlag::remove_doctype => self.jobs.remove_doctype.as_mut().unwrap().prepare(node),
             _ => unreachable!(),
         }
     }
@@ -356,6 +363,12 @@ impl JobRunner {
             JobFlag::convert_transform => self
                 .jobs
                 .convert_transform
+                .as_ref()
+                .unwrap()
+                .use_style(element),
+            JobFlag::remove_doctype => self
+                .jobs
+                .remove_doctype
                 .as_ref()
                 .unwrap()
                 .use_style(element),
@@ -451,6 +464,12 @@ impl JobRunner {
                     .as_ref()
                     .unwrap()
                     .run(element, context),
+                JobFlag::remove_doctype => self
+                    .jobs
+                    .remove_doctype
+                    .as_ref()
+                    .unwrap()
+                    .run(element, context),
                 _ => unreachable!(),
             }
         }
@@ -536,6 +555,12 @@ impl JobRunner {
                 JobFlag::convert_transform => self
                     .jobs
                     .convert_transform
+                    .as_mut()
+                    .unwrap()
+                    .breakdown(document),
+                JobFlag::remove_doctype => self
+                    .jobs
+                    .remove_doctype
                     .as_mut()
                     .unwrap()
                     .breakdown(document),
