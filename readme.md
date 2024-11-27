@@ -1,47 +1,79 @@
 # Oxidised Vector Graphics
 
-This project is an effort to improve the SVG tooling with browser-grade parsing, transforming, optimising, and linting.
+OXVG is an effort to create high-performance SVG tooling.
 
-Hopefully this project will be useful to some as a back-end applications competing with Adobe Illustrator or InkScape.
+It's planned to include transforming, optimising, and linting, all written in Rust.
 
-## Features
+## 🎯 Tools
 
-The following is a high-level overview of planned features
+The following tools will be available in a CLI binary.
 
-- [ ] SVG Transformer/Optimiser
+### 🪶 Optimiser (In Progress)
 
-  - [ ] Implement all built-in SVGO plugins
-  - [ ] Implement all InkScape actions
-  - [ ] Implement new optimisations
-    - [ ] Non-destructively delete useless nodes
-    - [ ] Crop partially visible paths
+> [!info]- Please check out our [plan](https://github.com/noahbald/oxvg/milestone/1) for a v0.0.1 release
+>
+> For now, expect bugs!
 
-- [ ] SVG linter
+An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is in the works and is showing to be [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
 
-  - [ ] Implement all built-in svglint rules
-
-- [ ] NPX & NPM bindings
-
-And maybe in the future???
-
-- Web frontend comparable to InkScape
-- TUI frontend
-
-### Progress
-
-Please check out the following milestones to see how the project is tracking
-
-- [Requirements for 0.0.1](https://github.com/noahbald/oxvg/milestone/1)
-
-### SVGO Parity
-
-Oxvg aims to be as close as possible to SVGO while providing a more consistent configuration system.
-
-#### Functional Differences
+Please be aware that this isn't an exact clone of SVGO and certain differences may be found. If you rely on stability, for the time being we recommend sticking to SVGO.
 
 - **Configuration Structure**: To improve the simplicity of oxvg as a Rust program, the configuration structure is somewhat different. A migration tool will eventually be made to make switching over easier.
-- **Doesn't support valueless attributes**: Attributes formatted alike `<svg attr />` is valid HTML but not XML. Because of oxvg's dependencies, invalid XML syntax is not supported and will be converted to `<svg attr="" />`.
-- **Numerical cleanup**: Unlike SVGO, we include `d` in the type of attributes that can be rounded
+- **Doesn't support valueless attributes**: Attributes formatted alike `<svg attr />` is valid HTML but not XML. Because of oxvg's dependencies, invalid XML syntax is not supported and will be converted to `<svg attr="" />`. This may change in the future as we experiment with different parsers.
+
+### 🤖 Transformer (Planned)
+
+An SVG transformer similar to Inkscape's actions is planned.
+
+### 🧹 Linter (Planned)
+
+A basic linter similar to svglint is planned to make catching issues in SVG documents much easier.
+
+## 📖 Libraries
+
+If you're a Rust developer wanting to work with SVGs in your project, we have a set of crates at your disposal.
+As of now though, we're quite unstable and certain crates may be updated, merged, or moved as we see fit.
+
+### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions) (pre-alpha)
+
+These are where the commands for our transformer will live and will contain a set of actions to manipulate SVGs.
+
+### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast) (alpha)
+
+This crate provides a set of traits that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
+
+There's currently an implementation with markup5ever's rcdom which can do the following
+
+- Parse and serialize XML, SVG, and HTML documents
+- Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
+- An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
+
+### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser) (alpha)
+
+This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
+
+### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path) (beta)
+
+This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
+
+It's mostly complete and good to use in your application, though expect some changes as we may include feature to enable simple manipulations for paths in the future.
+
+### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_style/src) (alpha)
+
+This crate uses lightningcss to provide some shortcuts for using CSS with our AST.
+
+- Parsing presentation attributes as CSS
+- Collecting the computed styles of a HTML element
+
+This crate could probably do with some improvement for now, but I hope to clean it up and hopefully get the presentation attributes added to lightningcss instead.
+
+## 💭 Other future ideas
+
+The future potential of this project is still undecided. The following may be available some point in the future.
+
+- NPX & NPM bindings
+- A web frontend comparable to InkScape
+- A TUI frontend
 
 ## Building
 
@@ -54,19 +86,17 @@ cargo build --package oxvg
 ./target/debug/oxvg.exe --help
 ```
 
-## Goals
+Or you can try running it through `cargo` instead
 
-For me, this is a learning exercise, for others this may end up being a tool. These goals may be challenged as the project grows, but to me our goal is to
+```sh
+cargo run -- --help
+```
 
-- Write code that is easily understood by beginners to Rust
-- Focus on optimisation and quality
+## Contributing
 
-### Architecture
+You're welcome to help out and pick up a [good first issue](https://github.com/noahbald/oxvg/labels/good%20first%20issue) or email me to help.
 
-This project will probably be shifted around a lot as the architecture is fleshed out. The following should ideally come to into place.
-
-- Break components of the tooling into workspaces
-- All public functions should have testing
+---
 
 # Inspiration and Thanks
 
@@ -81,7 +111,9 @@ Thank you to these high quality, open source projects on SVG tooling
 
 ## Licensing
 
-This project partially copies patterns from the following libraries
+OXVG is open-source and licensed under the [MIT License](./LICENSE)
+
+This project ports or copies code from other open-source projects, listed below
 
 - SVGO
 - oxc
