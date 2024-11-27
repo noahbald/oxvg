@@ -1,5 +1,7 @@
-use std::rc::Rc;
-
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+};
 use serde::Deserialize;
 
 use crate::{Context, Job};
@@ -13,28 +15,23 @@ pub struct CleanupAttributes {
 }
 
 impl Job for CleanupAttributes {
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        use rcdom::NodeData::Element;
-
-        let Element { attrs, .. } = &node.data else {
-            return;
-        };
-        let attrs = &mut *attrs.borrow_mut();
-
-        for attr in attrs.iter_mut() {
+    fn run(&self, element: &impl Element, _context: &Context) {
+        for mut attr in element.attributes().iter() {
             if matches!(self.newlines, Some(true)) {
-                attr.value = attr.value.replace('\n', " ").into();
+                attr.set_value(attr.value().as_ref().replace('\n', " ").into());
             }
             if matches!(self.trim, Some(true)) {
-                attr.value = attr.value.trim().into();
+                attr.set_value(attr.value().as_ref().trim().into());
             }
             if matches!(self.spaces, Some(true)) {
-                attr.value = attr
-                    .value
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .into();
+                attr.set_value(
+                    attr.value()
+                        .as_ref()
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .into(),
+                );
             }
         }
     }

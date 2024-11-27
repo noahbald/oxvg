@@ -1,189 +1,276 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::fmt::Debug;
 
-use markup5ever::tendril::StrTendril;
-use serde::{de::Visitor, Deserialize};
+use crate::{atom::Atom, element::Element};
 
-#[derive(Default, Clone)]
-pub struct Attributes(Vec<QualName>, BTreeMap<QualName, StrTendril>);
-
-struct AttributesVisitor(PhantomData<fn() -> Attributes>);
-
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
-pub struct QualName(pub markup5ever::QualName);
-
-struct QualNameVisitor(PhantomData<fn() -> QualName>);
-
-pub struct TendrilVisitor(PhantomData<fn() -> StrTendril>);
-
-impl Attributes {
-    pub fn contains_key(&self, key: &QualName) -> bool {
-        self.1.contains_key(key)
-    }
-
-    pub fn insert(&mut self, key: QualName, value: StrTendril) -> Option<StrTendril> {
-        self.0.push(key.clone());
-        self.1.insert(key, value)
-    }
-
-    pub fn get(&self, key: &QualName) -> Option<&StrTendril> {
-        self.1.get(key)
-    }
-
-    pub fn into_b_tree(&self) -> &BTreeMap<QualName, StrTendril> {
-        &self.1
-    }
-
-    pub fn iter(&self) -> std::collections::btree_map::Iter<'_, QualName, StrTendril> {
-        self.1.iter()
-    }
+#[derive(PartialEq)]
+/// An enum which specifies the type of node.
+///
+/// # Notes
+///
+/// * that normally the type would be represented as a number
+/// * The following deprecated types are not included
+///   * `EntityReferenceNode`
+///   * `EntityNode`
+///   * `NotationNode`
+///
+/// [MDN | nodeType](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType)
+pub enum Type {
+    /// An [Element] node like `<p>` or `<div>`
+    Element,
+    /// An `Attribute` of an [Element]
+    Attribute,
+    /// The actual text inside an element or attribute
+    Text,
+    /// A `CDataSection`, such as `<!CDATA[[ ... ]]>`
+    CDataSection,
+    /// A `ProcessingInstruction` of an XML document, such as `<?xml-stylesheet ... ?>`
+    ProcessingInstruction,
+    /// A `Comment` node, such as `<!-- ... -->`
+    Comment,
+    /// A `Document` node
+    Document,
+    /// A `DocumentType` node such as `<!doctype html>`
+    DocumentType,
+    /// A `DocumentFragment` node
+    DocumentFragment,
 }
 
-impl<'a> IntoIterator for &'a Attributes {
-    type Item = (&'a QualName, &'a StrTendril);
-    type IntoIter = std::collections::btree_map::Iter<'a, QualName, StrTendril>;
+/// An opaque reference to [Node] that can be used in structs as `dyn` instead of `impl`
+pub trait Ref: Debug {
+    /// Upcasts the ref to `Any`
+    fn inner_as_any(&self) -> &dyn std::any::Any;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.1.iter()
-    }
+    /// Creates a clone of the underlying type, usually an `Rc`
+    fn clone(&self) -> Box<dyn Ref>;
 }
 
-impl<'de> Deserialize<'de> for Attributes {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_map(AttributesVisitor::new())
-    }
-}
+#[cfg(not(feature = "parse"))]
+#[cfg(not(feature = "serialize"))]
+pub trait Features {}
 
-impl<'a> From<&'a Vec<markup5ever::Attribute>> for Attributes {
-    fn from(value: &'a Vec<markup5ever::Attribute>) -> Self {
-        let mut output = Self::default();
-        for attr in value {
-            output.0.push(QualName(attr.name.clone()));
-            output
-                .1
-                .insert(QualName(attr.name.clone()), attr.value.clone());
-        }
-        output
-    }
-}
+#[cfg(feature = "parse")]
+#[cfg(not(feature = "serialize"))]
+pub trait Features: crate::parse::Node {}
 
-impl From<Attributes> for Vec<markup5ever::Attribute> {
-    fn from(val: Attributes) -> Self {
-        val.iter()
-            .map(|(name, value)| markup5ever::Attribute {
-                name: name.0.clone(),
-                value: value.clone(),
-            })
-            .collect()
-    }
-}
+#[cfg(not(feature = "parse"))]
+#[cfg(feature = "serialize")]
+pub trait Features: crate::serialize::Node {}
 
-impl From<&Attributes> for Vec<markup5ever::Attribute> {
-    fn from(val: &Attributes) -> Self {
-        let mut output: Vec<markup5ever::Attribute> = Vec::new();
-        for attr in val {
-            output.push(markup5ever::Attribute {
-                name: attr.0 .0.clone(),
-                value: attr.1.clone(),
-            });
-        }
-        output
-    }
-}
+#[cfg(feature = "parse")]
+#[cfg(feature = "serialize")]
+pub trait Features: crate::parse::Node + crate::serialize::Node {}
 
-impl AttributesVisitor {
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-}
+/// An XML DOM node upon which other DOM API objects are based
+///
+/// <https://developer.mozilla.org/en-US/docs/Web/API/Node>
+pub trait Node: Clone + Debug + 'static + Features {
+    type Atom: Atom;
+    type Child: Node<Atom = Self::Atom>;
+    type ParentChild: Node<Atom = Self::Atom>;
 
-impl<'de> Visitor<'de> for AttributesVisitor {
-    type Value = Attributes;
+    /// Whether the underlying pointer is at the same address as the other
+    fn ptr_eq(&self, other: &impl Node) -> bool;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a map of attributes")
+    /// The raw pointer address to the data
+    fn as_ptr_byte(&self) -> usize;
+
+    /// Get the node wrapped in an opaque reference
+    fn as_ref(&self) -> Box<dyn Ref>;
+
+    /// Returns an node list containing all the children of this node
+    fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
+
+    /// Returns a read-only node list containing all the children of this node.
+    ///
+    /// [MDN | childNodes](https://developer.mozilla.org/en-US/docs/Web/API/Node/childNodes)
+    fn child_nodes(&self) -> Vec<Self::Child>;
+
+    /// Returns whether the node's list of children is empty or not
+    fn has_child_nodes(&self) -> bool {
+        self.child_nodes_iter().next().is_some()
     }
 
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::MapAccess<'de>,
-    {
-        let mut attributes = Attributes::default();
+    /// Upcasts self as an element
+    fn element(&self) -> Option<impl Element>;
 
-        while let Some((key, value)) = map.next_entry::<QualName, Option<String>>()? {
-            let value = value.unwrap_or_else(String::new).into();
-            attributes.insert(key, value);
-        }
+    /// Does a breadth-first search to find an element from the current node, returning this node
+    /// if it is an element.
+    fn find_element(&self) -> Option<impl Element>;
 
-        Ok(attributes)
-    }
-}
-
-impl<'de> Deserialize<'de> for QualName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(QualNameVisitor::new())
-    }
-}
-
-impl From<markup5ever::QualName> for QualName {
-    fn from(value: markup5ever::QualName) -> Self {
-        Self(value)
-    }
-}
-
-impl std::fmt::Display for QualName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let local = &self.0.local;
-        match &self.0.prefix {
-            Some(prefix) => write!(f, "{prefix}:{local}"),
-            None => write!(f, "{local}"),
-        }
-    }
-}
-
-impl QualNameVisitor {
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<'de> Visitor<'de> for QualNameVisitor {
-    type Value = QualName;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("A qualified name for an attribute as a string")
+    /// Returns the first child in the node's tree
+    ///
+    /// [MDN | firstChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/firstChild)
+    fn first_child(&self) -> Option<impl Node> {
+        self.child_nodes().first().map(Node::to_owned)
     }
 
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        let mut parts = v.split(':');
-        let Some(prefix) = parts.next() else {
-            Err(serde::de::Error::custom("attribute should have contents"))?
-        };
-
-        let (prefix, local) = match parts.next() {
-            Some(local) => (
-                markup5ever::Prefix::try_static(prefix),
-                markup5ever::LocalName::try_static(local)
-                    .unwrap_or_else(|| markup5ever::LocalName::from(local)),
-            ),
-            None => (
-                None,
-                markup5ever::LocalName::try_static(prefix)
-                    .unwrap_or_else(|| markup5ever::LocalName::from(prefix)),
-            ),
-        };
-        Ok(QualName(markup5ever::QualName {
-            prefix,
-            ns: ns!(svg),
-            local,
-        }))
+    /// Returns the last child in the node's tree
+    ///
+    /// [MDN | lastChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/lastChild)
+    fn last_child(&self) -> Option<impl Node> {
+        self.child_nodes().last().map(Node::to_owned)
     }
+
+    /// Returns the node immediately following itself from the parent's list of children
+    ///
+    /// [MDN | nextSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/nextSibling)
+    fn next_sibling(&self) -> Option<Self::ParentChild> {
+        self.parent_node()?
+            .child_nodes()
+            .iter()
+            .take_while(|n| !n.ptr_eq(self))
+            .next()
+            .map(Node::to_owned)
+    }
+
+    /// Returns a string containins the name of the [Node]. The structure of the name will differ
+    /// with the node type. E.g. An `Element` will contain the name of the corresponding tag, like
+    /// `"AUDIO"` for an `HTMLAudioElement`, a text node will have the `"#text"` string, or a
+    /// `Document` node will have the `"#document"` string.
+    ///
+    /// [MDN | nodeName](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeName)
+    fn node_name(&self) -> Self::Atom;
+
+    /// Returns an enum that identifies what the node is.
+    ///
+    /// [MDN | nodeType](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType)
+    fn node_type(&self) -> Type;
+
+    /// Returns a string containing the value of the node.
+    ///
+    /// [MDN | nodeValue](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeValue)
+    fn node_value(&self) -> Option<Self::Atom>;
+
+    /// Returns a string representing the text content of a node and it's descendants
+    ///
+    /// [MDN | textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)
+    fn text_content(&self) -> Option<String>;
+
+    /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
+    /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]
+    ///
+    /// [MDN | parentNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentNode)
+    fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>>;
+
+    /// Changes the return value of [Node::parent_node] to the given node
+    ///
+    /// # Warning
+    /// This method only updated what parent it referenced, it doesn't change the child list of
+    /// either the old or new parent.
+    /// To avoid risking breaking the DOM tree, you must remove this element from the old parent
+    /// and add it to the new parent's child list.
+    ///
+    /// This is intentional for a [Node] which may not need a reference to parent, but if you're
+    /// using [Element], you may want to try using [Node::insert], [Node::insert_before],
+    /// [Node::insert_after], [Element::after], [Element::before], or
+    /// [Element::prepend]
+    fn set_parent_node(
+        &self,
+        new_parent: &impl Node<Atom = Self::Atom>,
+    ) -> Option<impl Node<Child = <Self::ParentChild as Node>::Child, Atom = Self::Atom>>;
+
+    /// Adds a node to the end of the list of children of a specified node. This will update the
+    /// parent of `a_child`
+    ///
+    /// [MDN | appendChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild)
+    fn append_child(&mut self, a_child: Self::Child);
+
+    /// Returns a duplicate of the node.
+    ///
+    /// [Spec](https://dom.spec.whatwg.org/#concept-node-clone)
+    /// [MDN | cloneNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/cloneNode)
+    fn clone_node(&self) -> Self;
+
+    /// Returns whether some node is a descendant if the current node.
+    ///
+    /// [MDN | contains](https://developer.mozilla.org/en-US/docs/Web/API/Node/contains)
+    fn contains(&self, other_node: &impl Node) -> bool {
+        self.child_nodes_iter().any(|c| {
+            if c.ptr_eq(other_node) {
+                return true;
+            }
+            c.contains(other_node)
+        })
+    }
+
+    /// Inserts a node as the nth child of the current node's children, updating the `new_node`'s
+    /// parent.
+    fn insert(&mut self, index: usize, new_node: Self::Child);
+
+    /// Inserts a node before the reference node as a child of the current node.
+    ///
+    /// [MDN | insertBefore](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertBefore)
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+        let len = self.child_nodes().len();
+        let reference_index = self.child_index(reference_node).unwrap_or(len);
+        self.insert(reference_index - 1, new_node);
+    }
+
+    /// Inserts a node after the reference node as a child of the current node.
+    ///
+    /// [MDN | insertAfter](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertAfter)
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+        let len = self.child_nodes().len();
+        let reference_index = self.child_index(reference_node).unwrap_or(len - 2);
+        self.insert(reference_index + 1, new_node);
+    }
+
+    /// Removes the current node from it's parent and removes the reference to the parent
+    ///
+    /// Note, this element is usually reserved for [Element], but is available for [Node] if
+    /// needed.
+    ///
+    /// [MDN | remove](https://developer.mozilla.org/en-US/docs/Web/API/Element/remove)
+    fn remove(&self);
+
+    /// Remove the nth child from this node's child list
+    fn remove_child_at(&mut self, index: usize) -> Option<Self::Child>;
+
+    /// Removes a child node from this node's child list
+    ///
+    /// [MDN | removeChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/removeChild)
+    fn remove_child(&mut self, child: Self::Child) -> Option<Self::Child> {
+        let child_index = self
+            .child_nodes_iter()
+            .enumerate()
+            .find(|(_, n)| n.ptr_eq(&child))
+            .map(|(i, _)| i)?;
+        self.remove_child_at(child_index)
+    }
+
+    /// Replaces a child node with the given one
+    ///
+    /// Note that the argument order in the spec is unusual, [Element::replace_with] may be easier
+    /// to follow
+    ///
+    /// [MDN | replaceChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/replaceChild)
+    fn replace_child(
+        &mut self,
+        new_child: Self::Child,
+        old_child: Self::Child,
+    ) -> Option<Self::Child> {
+        let mut children = self.child_nodes();
+        Some(std::mem::replace(
+            &mut children[self.child_index(old_child)?],
+            new_child,
+        ))
+    }
+
+    /// Returns the index of the child within the current node's child list
+    fn child_index(&self, child: Self::Child) -> Option<usize> {
+        self.child_nodes()
+            .iter()
+            .enumerate()
+            .find(|(_, n)| n.ptr_eq(&child))
+            .map(|(i, _)| i)
+    }
+
+    /// Create a cloned refcell without copying the underlying data
+    fn to_owned(&self) -> Self;
+
+    /// Upcast the node as an `impl Node`
+    fn as_impl(&self) -> impl Node;
+
+    /// Upcast the node as the specified `ParentChild`
+    fn as_parent_child(&self) -> Self::ParentChild;
 }

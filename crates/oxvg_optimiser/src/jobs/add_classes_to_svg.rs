@@ -1,6 +1,6 @@
-use std::{collections::BTreeSet, rc::Rc};
+use std::collections::BTreeSet;
 
-use markup5ever::{local_name, tendril::Tendril};
+use oxvg_ast::element::Element;
 use serde::Deserialize;
 
 use crate::{Context, Job};
@@ -16,36 +16,28 @@ pub struct AddClassesToSVG {
 }
 
 impl Job for AddClassesToSVG {
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        let element = oxvg_selectors::Element::from(node);
-        if !element.is_root() || element.get_name() != Some(local_name!("svg")) {
+    fn run(&self, element: &impl Element, _context: &Context) {
+        if !element.is_root() || element.local_name() != "svg".into() {
             return;
         }
-        let class = element
-            .get_attr(&local_name!("class"))
-            .map(|attr| attr.value);
-        let class = class.unwrap_or_else(Tendril::new);
-        let class = class.split_whitespace().map(String::from);
 
-        let class: BTreeSet<_> = match self.class_names.clone() {
+        let class_localname = "class".into();
+        let attr = element.get_attribute(&class_localname);
+        let attr = attr.map(|a| a.to_string()).unwrap_or_default();
+        let class = attr.split_whitespace();
+
+        let class_names: BTreeSet<_> = match &self.class_names {
             Some(names) => class
-                .chain(names.into_iter().flat_map(|string| {
-                    string
-                        .split_whitespace()
-                        .map(String::from)
-                        .collect::<Vec<_>>()
-                }))
+                .chain(names.into_iter().flat_map(|s| s.split_whitespace()))
                 .collect(),
-            None => match self.class_name.clone() {
-                Some(name) => class
-                    .chain(name.split_whitespace().map(String::from))
-                    .collect(),
+            None => match &self.class_name {
+                Some(name) => class.chain(name.split_whitespace()).collect(),
                 None => return,
             },
         };
-        let class_names = class.into_iter().collect::<Vec<_>>().join(" ");
+        let class_names = class_names.into_iter().collect::<Vec<_>>().join(" ");
 
-        element.set_attr(&local_name!("class"), class_names.into());
+        element.set_attribute(class_localname, class_names.into());
     }
 }
 

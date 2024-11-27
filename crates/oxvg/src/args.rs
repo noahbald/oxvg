@@ -1,10 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use xml5ever::{
-    driver::{parse_document, XmlParseOpts},
-    tendril::TendrilSink,
-};
 
 use crate::{
     config::Config,
@@ -12,7 +8,12 @@ use crate::{
 };
 
 pub trait RunCommand {
-    fn run(&self, config: Config);
+    /// # Errors
+    ///
+    /// If any part of the lifecycle fails
+    /// * Fails to read or parse any files
+    /// * Fails to write or serialize to any files
+    fn run(&self, config: Config) -> anyhow::Result<()>;
 }
 
 #[derive(Parser)]
@@ -48,14 +49,16 @@ pub struct Optimise {
 }
 
 impl RunCommand for Optimise {
-    fn run(&self, config: Config) {
+    fn run(&self, config: Config) -> anyhow::Result<()> {
+        use oxvg_ast::{implementations::markup5ever::Node5Ever, parse::Node};
+
         let files = load_files(&self.paths);
+        let config = config.optimisation.unwrap_or_default();
         for (path, file) in &files {
-            let dom: rcdom::RcDom =
-                parse_document(rcdom::RcDom::default(), XmlParseOpts::default())
-                    .one(String::from_utf8_lossy(file).to_string());
-            config.optimisation.clone().unwrap_or_default().run(&dom);
+            let dom: Node5Ever = Node::parse(&String::from_utf8_lossy(file))?;
+            config.clone().run(&dom);
             write_file(&self.output, path, &dom);
         }
+        Ok(())
     }
 }

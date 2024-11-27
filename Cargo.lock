@@ -580,6 +580,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast-rs"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
+
+[[package]]
 name = "dtoa"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1054,6 +1060,7 @@ dependencies = [
  "clap",
  "config",
  "markup5ever_rcdom",
+ "oxvg_ast",
  "oxvg_optimiser",
  "serde",
  "xml5ever",
@@ -1073,9 +1080,17 @@ dependencies = [
 name = "oxvg_ast"
 version = "0.0.1-alpha.1"
 dependencies = [
+ "anyhow",
+ "cssparser 0.31.2",
+ "downcast-rs",
+ "log",
  "markup5ever",
+ "markup5ever_rcdom",
  "oxvg_diagnostics",
+ "selectors",
  "serde",
+ "string_cache",
+ "xml5ever",
 ]
 
 [[package]]
@@ -1103,6 +1118,7 @@ name = "oxvg_optimiser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags 2.6.0",
  "ctor",
  "divan",
  "env_logger",
@@ -1167,7 +1183,7 @@ dependencies = [
  "log",
  "markup5ever",
  "markup5ever_rcdom",
- "oxvg_selectors",
+ "oxvg_ast",
  "regex",
 ]
 

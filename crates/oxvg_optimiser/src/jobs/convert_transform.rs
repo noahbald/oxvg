@@ -1,9 +1,9 @@
-use std::rc::Rc;
-
 use itertools::Itertools;
 use lightningcss::properties::transform::{Matrix, Matrix3d, Transform, TransformList};
-use markup5ever::{local_name, LocalName};
-use oxvg_selectors::Element;
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+};
 use oxvg_style::{SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
@@ -42,44 +42,26 @@ struct Inner {
 }
 
 impl Job for ConvertTransform {
-    fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {
-        use rcdom::NodeData::Element;
-
-        let Element { attrs, .. } = &node.data else {
-            return false;
-        };
-
-        attrs.borrow().iter().any(|attr| {
+    fn use_style(&self, element: &impl Element) -> bool {
+        element.attributes().iter().any(|attr| {
             matches!(
-                attr.name.local,
-                local_name!("transform")
-                    | local_name!("gradientTransform")
-                    | local_name!("patternTransform")
+                attr.local_name().as_ref(),
+                "transform" | "gradientTransform" | "patternTransform"
             )
         })
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>, context: &Context) {
-        let element = Element::new(node.clone());
-
+    fn run(&self, element: &impl Element, context: &Context) {
         if let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) {
-            self.transform_attr(transform, &local_name!("transform"), &element);
+            self.transform_attr(transform, "transform", element);
         }
 
         if let Some(gradient_transform) = context.style.attr.get(&SVGStyleID::GradientTransform) {
-            self.transform_attr(
-                gradient_transform,
-                &local_name!("patternTransform"),
-                &element,
-            );
+            self.transform_attr(gradient_transform, "patternTransform", element);
         }
 
         if let Some(pattern_transform) = context.style.attr.get(&SVGStyleID::PatternTransform) {
-            self.transform_attr(
-                pattern_transform,
-                &local_name!("patternTransform"),
-                &element,
-            );
+            self.transform_attr(pattern_transform, "patternTransform", element);
         }
     }
 }
@@ -100,14 +82,14 @@ impl ConvertTransform {
         }
     }
 
-    fn transform_attr(&self, value: &Style, name: &LocalName, element: &Element) {
+    fn transform_attr(&self, value: &Style, name: &str, element: &impl Element) {
         if let Some(value) = self.transform(value) {
             if value.is_empty() {
                 log::debug!("transform_attr: removing {name}");
-                element.remove_attr(name);
+                element.remove_attribute_local(&name.into());
             } else {
                 log::debug!("transform_attr: updating {name}");
-                element.set_attr(name, value.into());
+                element.set_attribute_local(name.into(), value.into());
             }
         }
     }

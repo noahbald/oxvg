@@ -1,4 +1,4 @@
-use std::{mem, rc::Rc};
+use std::mem;
 
 use lightningcss::{
     error::PrinterError,
@@ -14,8 +14,11 @@ use lightningcss::{
     stylesheet::{ParserOptions, StyleAttribute},
     values::color::CssColor,
 };
-use markup5ever::local_name;
-use oxvg_selectors::Element;
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+    node::Node,
+};
 use serde::Deserialize;
 
 use crate::{Context, Job, PrepareOutcome};
@@ -56,7 +59,7 @@ pub struct ConvertColors {
 }
 
 impl Job for ConvertColors {
-    fn prepare(&mut self, _document: &rcdom::RcDom) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &impl Node) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,
@@ -76,32 +79,23 @@ impl Job for ConvertColors {
         }
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        use rcdom::NodeData::Element as ElementData;
+    fn run(&self, element: &impl Element, _context: &Context) {
+        let mask_localname = &"mask".into();
+        let is_masked = &element.local_name() == mask_localname
+            || element.closest_local(mask_localname).is_some();
 
-        let ElementData { attrs, name, .. } = &node.data else {
-            return;
-        };
-
-        let is_masked = name.local == local_name!("mask")
-            || Element::new(node.clone())
-                .closest(&local_name!("mask"))
-                .is_some();
-
-        let mut attrs = attrs.borrow_mut();
-        for attr in attrs.iter_mut() {
-            let is_style = attr.name.local == local_name!("style");
+        for mut attr in element.attributes().iter() {
+            let is_style = attr.local_name() == "style".into();
             let style = if is_style {
-                attr.value.to_string()
+                attr.value().to_string()
             } else {
-                format!("{}:{}", attr.name.local, attr.value)
+                format!("{}:{}", attr.local_name(), attr.value())
             };
             let style = StyleAttribute::parse(&style, ParserOptions::default());
             let mut style = match style {
                 Ok(result) => result,
                 Err(e) => {
-                    // TODO: Improve error messaging
-                    println!("{e}");
+                    log::debug!("failed to convert {attr}: {e}");
                     continue;
                 }
             };
@@ -117,7 +111,7 @@ impl Job for ConvertColors {
                     minified_style = value.trim_start().to_string();
                 }
             }
-            attr.value = minified_style.into();
+            attr.set_value(minified_style.into());
         }
     }
 }

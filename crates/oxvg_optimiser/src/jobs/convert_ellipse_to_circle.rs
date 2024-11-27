@@ -1,7 +1,4 @@
-use std::rc::Rc;
-
-use markup5ever::local_name;
-use oxvg_selectors::Element;
+use oxvg_ast::{element::Element, node::Node};
 use serde::Deserialize;
 
 use crate::{Context, Job, PrepareOutcome};
@@ -11,7 +8,7 @@ use crate::{Context, Job, PrepareOutcome};
 pub struct ConvertEllipseToCircle(bool);
 
 impl Job for ConvertEllipseToCircle {
-    fn prepare(&mut self, _document: &rcdom::RcDom) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &impl Node) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -19,29 +16,29 @@ impl Job for ConvertEllipseToCircle {
         }
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        let element = Element::new(node.clone());
-        let Some(name) = element.get_name() else {
-            return;
-        };
-        if !matches!(name, local_name!("ellipse")) {
+    #[allow(clippy::similar_names)]
+    fn run(&self, element: &impl Element, _context: &Context) {
+        let name = element.local_name();
+        if name.as_ref() != "ellipse" {
             return;
         }
 
+        let rx_name = &"rx".into();
+        let ry_name = &"ry".into();
         let rx = element
-            .get_attr(&local_name!("rx"))
-            .map_or_else(|| String::from("0"), |attr| String::from(attr.value));
+            .get_attribute_local(rx_name)
+            .map_or(String::from("0"), |attr| attr.to_string());
         let ry = element
-            .get_attr(&local_name!("ry"))
-            .map_or_else(|| String::from("0"), |attr| String::from(attr.value));
+            .get_attribute_local(ry_name)
+            .map_or(String::from("0"), |attr| attr.to_string());
 
         if rx != ry && rx != "auto" && ry != "auto" {
             return;
         }
         let radius = if rx == "auto" { ry } else { rx };
-        element.remove_attr(&local_name!("rx"));
-        element.remove_attr(&local_name!("ry"));
-        element.set_attr(&local_name!("r"), radius.into());
+        element.remove_attribute_local(rx_name);
+        element.remove_attribute_local(ry_name);
+        element.set_attribute_local("r".into(), radius.into());
     }
 }
 

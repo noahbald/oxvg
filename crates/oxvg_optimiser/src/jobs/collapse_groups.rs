@@ -1,16 +1,15 @@
-use std::cell::RefCell;
-
 use lightningcss::{
     properties::PropertyId,
     stylesheet::{ParserOptions, StyleAttribute},
     vendor_prefix::VendorPrefix,
 };
-use markup5ever::{local_name, Attribute};
-use oxvg_ast::{node, Attributes};
-use oxvg_selectors::{
-    collections::{ElementGroup, Group, INHERITABLE_ATTRS},
-    Element, ElementData,
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+    name::Name,
+    node::Node,
 };
+use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::Deserialize;
 
 use crate::{Context, Job, PrepareOutcome};
@@ -20,7 +19,7 @@ use crate::{Context, Job, PrepareOutcome};
 pub struct CollapseGroups(bool);
 
 impl Job for CollapseGroups {
-    fn prepare(&mut self, _document: &rcdom::RcDom) -> crate::PrepareOutcome {
+    fn prepare(&mut self, _document: &impl Node) -> crate::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -28,128 +27,103 @@ impl Job for CollapseGroups {
         }
     }
 
-    fn run(&self, node: &std::rc::Rc<rcdom::Node>, _context: &Context) {
-        use rcdom::NodeData::Element as ElementData;
-
-        let ElementData { attrs, .. } = &node.data else {
-            return;
-        };
-        let element = Element::new(node.clone());
-        let Some(parent) = element.get_parent() else {
+    fn run(&self, element: &impl Element, _context: &Context) {
+        let Some(parent) = Element::parent_element(element) else {
             return;
         };
 
-        if element.is_root() || parent.get_name() == Some(local_name!("switch")) {
+        if element.is_root() || parent.local_name().as_ref() == "switch" {
             return;
         }
-        if element.get_name() != Some(local_name!("g")) || node.children.borrow().len() == 0 {
+        if element.local_name().as_ref() != "g" || !element.has_child_elements() {
             return;
         }
 
-        move_attributes_to_child(&element, attrs);
-        flatten_when_all_attributes_moved(&element, attrs);
+        move_attributes_to_child(element);
+        flatten_when_all_attributes_moved(element);
     }
 }
 
-fn move_attributes_to_child(element: &Element, attrs: &RefCell<Vec<Attribute>>) {
+fn move_attributes_to_child(element: &impl Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
-    if attrs.borrow().len() == 0 {
-        log::debug!("collapse_groups: not moving attrs: no attrs to move");
-        return;
-    }
 
-    let children: Vec<_> = element.children().collect();
-    if children.len() != 1 {
+    let mut children = element.children_iter();
+    let Some(first_child) = children.next() else {
+        log::debug!("collapse_groups: not moving attrs: no children");
+        return;
+    };
+    if children.next().is_some() {
         log::debug!("collapse_groups: not moving attrs: many children");
         return;
     }
 
-    let child = children.first().expect("No child after checking length");
-    let ElementData {
-        attrs: child_attrs, ..
-    } = &child.data();
+    let attrs = element.attributes();
+    if attrs.len() == 0 {
+        log::debug!("collapse_groups: not moving attrs: no attrs to move");
+        return;
+    }
 
-    if dbg!(is_group_identifiable(element, child))
-        || dbg!(is_position_visually_unstable(element, child))
+    if dbg!(is_group_identifiable(element, &first_child))
+        || dbg!(is_position_visually_unstable(element, &first_child))
         || dbg!(is_node_with_filter(element))
     {
         log::debug!("collapse_groups: not moving attrs: see true condition");
         return;
     };
 
-    let mut new_node_attrs = Attributes::default();
-    let mut new_child_attrs = Attributes::from(&*child_attrs.borrow());
-    for attr in attrs.borrow().iter() {
-        let Attribute { name, value } = attr.clone();
-        let name = node::QualName(name.clone());
+    let mut removals = Vec::default();
+    let first_child_attrs = first_child.attributes();
+    for attr in attrs.iter() {
+        let name = attr.name();
+        let local_name = name.local_name();
+        let local_name: &str = local_name.as_ref();
+        let value = attr.value();
 
-        if has_animated_attr(child, &name) {
+        let child_attr = first_child_attrs.get_named_item(&name);
+        if has_animated_attr(&first_child, &name) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
 
-        let Some(old_value) = new_child_attrs.get(&name) else {
-            log::debug!("collapse_groups: moved {}: same as parent", &name.0.local);
-            new_child_attrs.insert(name, value);
+        removals.push(attr.name());
+        let Some(mut child_attr) = child_attr else {
+            log::debug!("collapse_groups: moved {name}: same as parent",);
+            first_child_attrs.set_named_item(attr.into_owned());
             continue;
         };
 
-        if name.0.local == local_name!("transform") {
+        let child_attr_value = child_attr.value();
+        if name.local_name().as_ref() == "transform" {
             log::debug!("collapse_groups: moved transform: is transform");
-            new_child_attrs.insert(name, format!("{value} {old_value}").into());
-        } else if old_value.to_string() == *"inherit" {
-            log::debug!(
-                "collapse_groups: moved {}: is explicit inherit",
-                &name.0.local
-            );
-            new_child_attrs.insert(name, value);
-        } else if INHERITABLE_ATTRS.contains(name.0.local.as_ref())
-            && new_child_attrs.get(&name).is_none()
-        {
-            log::debug!("collapse_groups: canelled moves: inheritable attr is applicable");
+            child_attr.set_value(format!("{value} {child_attr_value}").into());
+        } else if child_attr_value.as_ref() == "inherit" {
+            log::debug!("collapse_groups: moved {name}: is explicit inherit");
+            child_attr.set_value(value);
+        } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
+            log::debug!("collapse_groups: removing {name}: inheritable attr is not inherited");
             return;
-        } else if INHERITABLE_ATTRS.contains(name.0.local.as_ref())
-            || new_child_attrs.get(&name) == Some(&attr.value)
-        {
-            log::debug!(
-                "collapse_groups: removing {}: inheritable attr is not inherited",
-                name.0.local
-            );
-        } else {
-            log::debug!(
-                "collapse_groups: ignoring {}: fails to meet movement criteria",
-                &name.0.local,
-            );
-            new_node_attrs.insert(name, value);
         }
     }
 
-    attrs.replace(new_node_attrs.into());
-    let attrs = child.attrs();
-    attrs.replace(
-        new_child_attrs
-            .iter()
-            .map(|(name, value)| Attribute {
-                name: name.0.clone(),
-                value: value.clone(),
-            })
-            .collect(),
-    );
+    for attr in removals {
+        element.remove_attribute(&attr);
+    }
 }
 
-fn flatten_when_all_attributes_moved(element: &Element, attrs: &RefCell<Vec<Attribute>>) {
-    if attrs.borrow().len() > 0 {
+fn flatten_when_all_attributes_moved(element: &impl Element) {
+    if !element.attributes().is_empty() {
+        log::debug!("skipping flatten: has attributes");
         return;
     }
 
     let animation_group = oxvg_selectors::collections::Group::set(&ElementGroup::Animation);
     {
-        let children: Vec<_> = element.children().collect();
-        if children.iter().any(|child| {
-            child
-                .get_name()
-                .is_some_and(|name| animation_group.contains(name.to_string().as_str()))
+        if element.depth_first().any(|child| {
+            let local_name = child.local_name();
+            let name: &str = local_name.as_ref();
+            dbg!(animation_group.contains(dbg!(name)))
         }) {
+            log::debug!("skipping flatten: has animating child");
             return;
         }
     }
@@ -157,50 +131,49 @@ fn flatten_when_all_attributes_moved(element: &Element, attrs: &RefCell<Vec<Attr
     element.flatten();
 }
 
-fn has_animated_attr(node: &Element, name: &node::QualName) -> bool {
-    let Some(node_name) = node.get_name() else {
-        return false;
-    };
-    if Group::set(&ElementGroup::Animation).contains(node_name.as_ref())
-        && node
-            .get_attr(&local_name!("attributeName"))
-            .is_some_and(|attr| attr.value.to_string() == name.to_string())
-    {
-        return true;
+fn has_animated_attr(element: &impl Element, name: &impl Name) -> bool {
+    let local_name = name.local_name();
+    let node_name: &str = local_name.as_ref();
+    for child in std::iter::once(element.clone()).chain(element.depth_first()) {
+        let child_name_local = child.local_name();
+        let child_name: &str = child_name_local.as_ref();
+        if Group::set(&ElementGroup::Animation).contains(child_name)
+            && child
+                .get_attribute_local(&"attributeName".into())
+                .is_some_and(|attr| attr.as_ref() == node_name)
+        {
+            return true;
+        }
     }
-    node.node
-        .children
-        .borrow()
-        .iter()
-        .any(|child| has_animated_attr(&Element::new(child.clone()), name))
+    false
 }
 
-fn is_group_identifiable(node: &Element, child: &Element) -> bool {
-    child.get_attr(&local_name!("id")).is_some()
-        && (node.get_attr(&local_name!("class")).is_none()
-            || child.get_attr(&local_name!("class")).is_none())
+fn is_group_identifiable<E: Element>(node: &E, child: &E) -> bool {
+    let class = &"class".into();
+    child.has_attribute_local(&"id".into())
+        && (!node.has_attribute_local(class) || !child.has_attribute_local(class))
 }
 
-fn is_position_visually_unstable(node: &Element, child: &Element) -> bool {
-    let is_node_clipping = node.get_attr(&local_name!("clip-path")).is_some()
-        || node.get_attr(&local_name!("mask")).is_some();
-    let is_child_transformed_group = child.get_name() == Some(local_name!("g"))
-        && child.get_attr(&local_name!("transform")).is_some();
+fn is_position_visually_unstable<E: Element>(node: &E, child: &E) -> bool {
+    let is_node_clipping =
+        node.has_attribute_local(&"clip-path".into()) || node.has_attribute_local(&"mask".into());
+    let is_child_transformed_group =
+        child.local_name().as_ref() == "g" && child.has_attribute_local(&"transform".into());
     is_node_clipping || is_child_transformed_group
 }
 
-fn is_node_with_filter(node: &Element) -> bool {
-    node.get_attr(&local_name!("filter")).is_some()
-        || node.get_attr(&local_name!("style")).is_some_and(|code| {
-            StyleAttribute::parse(code.value.as_ref(), ParserOptions::default()).is_ok_and(
-                |style| {
+fn is_node_with_filter(node: &impl Element) -> bool {
+    node.has_attribute_local(&"filter".into())
+        || node
+            .get_attribute_local(&"style".into())
+            .is_some_and(|code| {
+                StyleAttribute::parse(code.as_ref(), ParserOptions::default()).is_ok_and(|style| {
                     style
                         .declarations
                         .get(&PropertyId::Filter(VendorPrefix::None))
                         .is_some()
-                },
-            )
-        })
+                })
+            })
 }
 
 #[test]

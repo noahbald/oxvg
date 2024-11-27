@@ -1,7 +1,6 @@
-use std::{collections::BTreeSet, rc::Rc};
+use std::collections::BTreeMap;
 
-use markup5ever::local_name;
-use oxvg_ast::Attributes;
+use oxvg_ast::element::Element;
 use serde::Deserialize;
 
 use crate::{Context, Job};
@@ -9,30 +8,25 @@ use crate::{Context, Job};
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AddAttributesToSVGElement {
-    pub attributes: Attributes,
+    pub attributes: BTreeMap<String, String>,
 }
 
 impl Job for AddAttributesToSVGElement {
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        use rcdom::NodeData::Element;
+    fn run(&self, element: &impl Element, _context: &Context) {
+        let name = element.local_name();
 
-        let Element { attrs, name, .. } = &node.data else {
+        if !element.is_root() || name.as_ref() != "svg" {
             return;
         };
 
-        let is_root = oxvg_selectors::Element::new(node.clone()).is_root();
-        if name.local != local_name!("svg") || !is_root {
-            return;
-        };
-        let attrs = &mut *attrs.borrow_mut();
-        let keys: BTreeSet<_> = attrs.iter().map(|attr| attr.name.clone()).collect();
-
-        for attr in &Into::<Vec<markup5ever::Attribute>>::into(&self.attributes) {
-            let key = &attr.name;
-            if keys.contains(key) {
+        for (name, value) in &self.attributes {
+            let name = name.as_str().into();
+            let value = value.as_str().into();
+            if element.has_attribute(&name) {
                 continue;
             }
-            attrs.push(attr.clone());
+
+            element.set_attribute(name, value);
         }
     }
 }

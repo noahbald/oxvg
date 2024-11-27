@@ -1,5 +1,5 @@
 use core::ops::Mul;
-use std::{f64, rc::Rc};
+use std::f64;
 
 use lightningcss::{
     printer::PrinterOptions,
@@ -7,9 +7,12 @@ use lightningcss::{
     traits::ToCss,
     values::{length::LengthValue, percentage::DimensionPercentage},
 };
-use markup5ever::{local_name, LocalName};
+use oxvg_ast::{
+    attribute::{Attr, Attributes},
+    element::Element,
+};
 use oxvg_path::{command::Data, convert, Path};
-use oxvg_selectors::{collections, regex::REFERENCES_URL, Element};
+use oxvg_selectors::{collections, regex::REFERENCES_URL};
 use oxvg_style::{ComputedStyles, SVGPaint, SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
@@ -24,32 +27,30 @@ pub struct ApplyTransforms {
 }
 
 impl Job for ApplyTransforms {
-    fn use_style(&self, node: &Rc<rcdom::Node>) -> bool {
-        let element = Element::new(node.clone());
-        element.get_attr(&local_name!("d")).is_some()
+    fn use_style(&self, element: &impl Element) -> bool {
+        element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn run(&self, node: &Rc<rcdom::Node>, context: &Context) {
-        let element = Element::new(node.clone());
-
-        let Some(path) = element.get_attr(&local_name!("d")) else {
+    fn run(&self, element: &impl Element, context: &Context) {
+        let d_localname = "d".into();
+        let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");
             return;
         };
-        let Ok(mut path) = Path::parse(path.value) else {
+        let Ok(mut path) = Path::parse(path.into()) else {
             log::debug!("run: failed to parse path");
             return;
         };
 
-        for attr in element.attrs().borrow().iter() {
-            if attr.name.local == local_name!("id") || attr.name.local == local_name!("style") {
+        for attr in element.attributes().iter() {
+            if attr.local_name() == "id".into() || attr.local_name() == "style".into() {
                 log::debug!("run: element has id");
                 return;
             }
 
             let is_reference_prop =
-                collections::REFERENCES_PROPS.contains(attr.name.local.to_string().as_str());
-            if is_reference_prop && REFERENCES_URL.captures(&attr.value).is_some() {
+                collections::REFERENCES_PROPS.contains(attr.local_name().as_ref());
+            if is_reference_prop && REFERENCES_URL.captures(attr.value().as_ref()).is_some() {
                 log::debug!("run: element has reference");
                 return;
             }
@@ -105,18 +106,18 @@ impl Job for ApplyTransforms {
         let matrix = matrix32_to_slice(&matrix);
 
         if let Some(SVGStyle::Stroke(stroke)) = stroke {
-            if self.apply_stroked(&matrix, &context.style, stroke, stroke_width, &element) {
+            if self.apply_stroked(&matrix, &context.style, stroke, stroke_width, element) {
                 return;
             }
         }
 
         apply_matrix_to_path_data(&mut path, &matrix);
-        element.set_attr(
-            &local_name!("d"),
+        element.set_attribute_local(
+            d_localname,
             convert::cleanup_unpositioned(&path).to_string().into(),
         );
         log::debug!("new d <- {path}");
-        element.remove_attr(&local_name!("transform"));
+        element.remove_attribute_local(&"transform".into());
     }
 }
 
@@ -128,7 +129,7 @@ impl ApplyTransforms {
         style: &ComputedStyles,
         stroke: &SVGPaint,
         stroke_width: Option<&DimensionPercentage<LengthValue>>,
-        element: &Element,
+        element: &impl Element,
     ) -> bool {
         if matches!(stroke, SVGPaint::None) {
             return false;
@@ -144,10 +145,10 @@ impl ApplyTransforms {
             return true;
         }
 
-        let vector_effect = element.get_attr(&LocalName::from("vector-effect"));
+        let vector_effect = element.get_attribute_local(&"vector-effect".into());
         if vector_effect
             .as_ref()
-            .is_some_and(|v| v.value == "non-scaling-stroke".into())
+            .is_some_and(|v| v.as_ref() == "non-scaling-stroke")
         {
             return false;
         }
@@ -166,10 +167,7 @@ impl ApplyTransforms {
         };
         stroke_width = stroke_width.mul(scale as f32);
         if let Ok(value) = stroke_width.to_css_string(PrinterOptions::default()) {
-            element.set_attr(
-                &local_name!("stroke-width"),
-                value.trim_end_matches("px").into(),
-            );
+            element.set_attribute_local("stroke-width".into(), value.trim_end_matches("px").into());
         }
 
         if let Some(SVGStyle::StrokeDashoffset(l)) = style
@@ -182,7 +180,7 @@ impl ApplyTransforms {
                 .mul(scale as f32)
                 .to_css_string(PrinterOptions::default())
             {
-                element.set_attr(&local_name!("stroke-dashoffset"), value.into());
+                element.set_attribute_local("stroke-dashoffset".into(), value.into());
             };
         };
 
@@ -199,7 +197,7 @@ impl ApplyTransforms {
             if let Ok(value) =
                 svg::StrokeDasharray::Values(value).to_css_string(PrinterOptions::default())
             {
-                element.set_attr(&local_name!("stroke-dasharray"), value.into());
+                element.set_attribute_local("stroke-dasharray".into(), value.into());
             }
         }
 

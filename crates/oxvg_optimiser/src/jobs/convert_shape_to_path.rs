@@ -1,9 +1,8 @@
-use std::{f64, rc::Rc};
+use std::f64;
 
 use itertools::peek_nth;
-use markup5ever::local_name;
+use oxvg_ast::element::Element;
 use oxvg_path::{command::Data, convert, Path};
-use oxvg_selectors::Element;
 use serde::Deserialize;
 
 use crate::{Context, Job};
@@ -18,11 +17,9 @@ pub struct ConvertShapeToPath {
 }
 
 impl Job for ConvertShapeToPath {
-    fn run(&self, node: &Rc<rcdom::Node>, _context: &Context) {
-        let element = &mut Element::new(node.clone());
-        let Some(name) = element.get_name() else {
-            return;
-        };
+    fn run(&self, element: &impl Element, _context: &Context) {
+        let element = &mut element.clone();
+        let name = element.local_name();
 
         let path_options = &convert::Options {
             precision: self.float_precision.unwrap_or_default().0,
@@ -30,41 +27,43 @@ impl Job for ConvertShapeToPath {
         };
         let convert_arcs = self.convert_arcs.unwrap_or(false);
 
-        match name {
-            local_name!("rect") => Self::rect_to_path(element, path_options),
-            local_name!("line") => Self::line_to_path(element, path_options),
-            local_name!("polyline") => Self::poly_to_path(element, path_options, false),
-            local_name!("polygon") => Self::poly_to_path(element, path_options, true),
-            local_name!("circle") if convert_arcs => Self::circle_to_path(element, path_options),
-            local_name!("ellipse") if convert_arcs => Self::ellipse_to_path(element, path_options),
+        match name.as_ref() {
+            "rect" => Self::rect_to_path(element, path_options),
+            "line" => Self::line_to_path(element, path_options),
+            "polyline" => Self::poly_to_path(element, path_options, false),
+            "polygon" => Self::poly_to_path(element, path_options, true),
+            "circle" if convert_arcs => Self::circle_to_path(element, path_options),
+            "ellipse" if convert_arcs => Self::ellipse_to_path(element, path_options),
             _ => {}
         }
     }
 }
 
 impl ConvertShapeToPath {
-    fn rect_to_path(element: &mut Element, options: &convert::Options) {
-        if element.get_attr(&local_name!("rx")).is_some()
-            || element.get_attr(&local_name!("ry")).is_some()
-        {
+    fn rect_to_path(element: &mut impl Element, options: &convert::Options) {
+        if element.has_attribute_local(&"rx".into()) || element.has_attribute_local(&"ry".into()) {
             return;
         }
 
+        let x_name = &"x".into();
+        let y_name = &"y".into();
+        let width_name = &"width".into();
+        let height_name = &"height".into();
         let x = element
-            .get_attr(&local_name!("x"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(x_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let y = element
-            .get_attr(&local_name!("y"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(y_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let Some(width) = element
-            .get_attr(&local_name!("width"))
-            .map(|a| String::from(a.value))
+            .get_attribute_local(width_name)
+            .map(|a| a.to_string())
         else {
             return;
         };
         let Some(height) = element
-            .get_attr(&local_name!("height"))
-            .map(|a| String::from(a.value))
+            .get_attribute_local(height_name)
+            .map(|a| a.to_string())
         else {
             return;
         };
@@ -87,27 +86,31 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attr(&local_name!("d"), path.to_string().into());
-        element.remove_attr(&local_name!("x"));
-        element.remove_attr(&local_name!("y"));
-        element.remove_attr(&local_name!("width"));
-        element.remove_attr(&local_name!("height"));
-        element.set_name(local_name!("path"));
+        element.set_attribute_local("d".into(), path.to_string().into());
+        element.remove_attribute_local(x_name);
+        element.remove_attribute_local(y_name);
+        element.remove_attribute_local(width_name);
+        element.remove_attribute_local(height_name);
+        element.set_local_name("path".into());
     }
 
-    fn line_to_path(element: &mut Element, options: &convert::Options) {
+    fn line_to_path(element: &mut impl Element, options: &convert::Options) {
+        let x1_name = &"x1".into();
+        let y1_name = &"y1".into();
+        let x2_name = &"x2".into();
+        let y2_name = &"y2".into();
         let x1 = element
-            .get_attr(&local_name!("x1"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(x1_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let y1 = element
-            .get_attr(&local_name!("y1"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(y1_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let x2 = element
-            .get_attr(&local_name!("x2"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(x2_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let y2 = element
-            .get_attr(&local_name!("y2"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(y2_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
 
         let Ok(x1) = x1.parse::<f64>() else { return };
         let Ok(y1) = y1.parse::<f64>() else { return };
@@ -120,18 +123,19 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attr(&local_name!("d"), path.to_string().into());
-        element.remove_attr(&local_name!("x1"));
-        element.remove_attr(&local_name!("y1"));
-        element.remove_attr(&local_name!("x2"));
-        element.remove_attr(&local_name!("y2"));
-        element.set_name(local_name!("path"));
+        element.set_attribute_local("d".into(), path.to_string().into());
+        element.remove_attribute_local(x1_name);
+        element.remove_attribute_local(y1_name);
+        element.remove_attribute_local(x2_name);
+        element.remove_attribute_local(y2_name);
+        element.set_local_name("path".into());
     }
 
-    fn poly_to_path(element: &mut Element, options: &convert::Options, is_polygon: bool) {
+    fn poly_to_path(element: &mut impl Element, options: &convert::Options, is_polygon: bool) {
+        let points_name = &"points".into();
         let Some(coords) = element
-            .get_attr(&local_name!("points"))
-            .map(|a| String::from(a.value))
+            .get_attribute_local(points_name)
+            .map(|a| a.to_string())
         else {
             return;
         };
@@ -168,21 +172,25 @@ impl ConvertShapeToPath {
         let mut path = Path(data);
         options.round_path(&mut path, options.error());
 
-        element.set_attr(&local_name!("d"), path.to_string().into());
-        element.remove_attr(&local_name!("points"));
-        element.set_name(local_name!("path"));
+        element.set_attribute_local("d".into(), path.to_string().into());
+        element.remove_attribute_local(points_name);
+        element.set_local_name("path".into());
     }
 
-    fn circle_to_path(element: &mut Element, options: &convert::Options) {
+    #[allow(clippy::similar_names)]
+    fn circle_to_path(element: &mut impl Element, options: &convert::Options) {
+        let cx_name = &"cx".into();
+        let cy_name = &"cy".into();
+        let r_name = &"r".into();
         let cx = element
-            .get_attr(&local_name!("cx"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(cx_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let cy = element
-            .get_attr(&local_name!("cy"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(cy_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let r = element
-            .get_attr(&local_name!("r"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(r_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
 
         let Ok(cx) = cx.parse::<f64>() else { return };
         let Ok(cy) = cy.parse::<f64>() else { return };
@@ -196,26 +204,31 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attr(&local_name!("d"), path.to_string().into());
-        element.remove_attr(&local_name!("cx"));
-        element.remove_attr(&local_name!("cy"));
-        element.remove_attr(&local_name!("r"));
-        element.set_name(local_name!("path"));
+        element.set_attribute_local("d".into(), path.to_string().into());
+        element.remove_attribute_local(cx_name);
+        element.remove_attribute_local(cy_name);
+        element.remove_attribute_local(r_name);
+        element.set_local_name("path".into());
     }
 
-    fn ellipse_to_path(element: &mut Element, options: &convert::Options) {
+    #[allow(clippy::similar_names)]
+    fn ellipse_to_path(element: &mut impl Element, options: &convert::Options) {
+        let cx_name = &"cx".into();
+        let cy_name = &"cy".into();
+        let rx_name = &"rx".into();
+        let ry_name = &"ry".into();
         let cx = element
-            .get_attr(&local_name!("cx"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(cx_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let cy = element
-            .get_attr(&local_name!("cy"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(cy_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let rx = element
-            .get_attr(&local_name!("rx"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(rx_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
         let ry = element
-            .get_attr(&local_name!("ry"))
-            .map_or_else(|| String::from("0"), |a| String::from(a.value));
+            .get_attribute_local(ry_name)
+            .map_or_else(|| String::from("0"), |a| a.to_string());
 
         let Ok(cx) = cx.parse::<f64>() else { return };
         let Ok(cy) = cy.parse::<f64>() else { return };
@@ -230,12 +243,12 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attr(&local_name!("d"), path.to_string().into());
-        element.remove_attr(&local_name!("cx"));
-        element.remove_attr(&local_name!("cy"));
-        element.remove_attr(&local_name!("rx"));
-        element.remove_attr(&local_name!("ry"));
-        element.set_name(local_name!("path"));
+        element.set_attribute_local("d".into(), path.to_string().into());
+        element.remove_attribute_local(cx_name);
+        element.remove_attribute_local(cy_name);
+        element.remove_attribute_local(rx_name);
+        element.remove_attribute_local(ry_name);
+        element.set_local_name("path".into());
     }
 }
 
