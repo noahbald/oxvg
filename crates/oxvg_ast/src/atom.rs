@@ -13,6 +13,7 @@ pub trait Atom:
     + AsRef<str>
     + 'static
 {
+    /// Extracts the string slice of the atom
     fn as_str(&self) -> &str {
         self.as_ref()
     }

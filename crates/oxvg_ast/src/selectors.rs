@@ -161,6 +161,7 @@ pub struct Parser<E: crate::element::Element> {
 }
 
 impl<E: crate::element::Element> ElementIterator<E> {
+    /// Returns a depth-first iterator starting at the given element
     pub fn new(element: &E) -> Self {
         Self {
             current: element.to_owned(),

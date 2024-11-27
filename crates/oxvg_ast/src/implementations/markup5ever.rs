@@ -289,6 +289,7 @@ impl Attr for Attribute5Ever<'_> {
 }
 
 impl Attribute5Ever<'_> {
+    /// Returns the associated attribute
     fn inner(&self) -> &Attribute {
         match self {
             Self::Owned(attr) => attr,
@@ -296,6 +297,7 @@ impl Attribute5Ever<'_> {
         }
     }
 
+    /// Mutable returns the associated attribute
     fn inner_mut(&mut self) -> &mut Attribute {
         match self {
             Self::Owned(attr) => attr,
@@ -463,6 +465,11 @@ impl<'a> Iterator for AttributesIterator<'a> {
 }
 
 impl Node5Ever {
+    /// Collects the text content of the node, with the behaviour of
+    /// [textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)'s
+    /// recursive calls.
+    ///
+    /// > returns the concatenation of the textContent of every child node, excluding comments and processing instructions. (This is an empty string if the node has no children.)
     fn node_data_text_content(node: &Rc<rcdom::Node>) -> Option<String> {
         match &node.data {
             NodeData::Text { contents } => Some(contents.borrow().to_string()),
@@ -477,6 +484,45 @@ impl Node5Ever {
                     .filter_map(Node5Ever::node_data_text_content)
                     .fold(String::new(), |acc, item| acc + &item),
             ),
+        }
+    }
+
+    /// Creates a deep clone of the node's data
+    fn clone_node_data(&self) -> NodeData {
+        match &self.0.data {
+            NodeData::Comment { contents } => NodeData::Comment {
+                contents: contents.clone(),
+            },
+            NodeData::Doctype {
+                name,
+                public_id,
+                system_id,
+            } => NodeData::Doctype {
+                name: name.clone(),
+                public_id: public_id.clone(),
+                system_id: system_id.clone(),
+            },
+            NodeData::Document => NodeData::Document,
+            NodeData::ProcessingInstruction { target, contents } => {
+                NodeData::ProcessingInstruction {
+                    target: target.clone(),
+                    contents: contents.clone(),
+                }
+            }
+            NodeData::Text { contents } => NodeData::Text {
+                contents: contents.clone(),
+            },
+            NodeData::Element {
+                name,
+                attrs,
+                template_contents,
+                mathml_annotation_xml_integration_point,
+            } => NodeData::Element {
+                name: name.clone(),
+                attrs: attrs.clone(),
+                template_contents: template_contents.clone(),
+                mathml_annotation_xml_integration_point: *mathml_annotation_xml_integration_point,
+            },
         }
     }
 }
@@ -552,10 +598,12 @@ impl Node for Node5Ever {
     }
 
     fn append_child(&mut self, a_child: Self::Child) {
+        a_child.set_parent_node(self);
         self.0.children.borrow_mut().push(a_child.0);
     }
 
     fn insert(&mut self, index: usize, new_node: Self::Child) {
+        new_node.set_parent_node(self);
         self.0.children.borrow_mut().insert(index, new_node.0);
     }
 
@@ -615,45 +663,10 @@ impl Node for Node5Ever {
     }
 
     fn clone_node(&self) -> Self {
-        let data = match &self.0.data {
-            NodeData::Comment { contents } => NodeData::Comment {
-                contents: contents.clone(),
-            },
-            NodeData::Doctype {
-                name,
-                public_id,
-                system_id,
-            } => NodeData::Doctype {
-                name: name.clone(),
-                public_id: public_id.clone(),
-                system_id: system_id.clone(),
-            },
-            NodeData::Document => NodeData::Document,
-            NodeData::ProcessingInstruction { target, contents } => {
-                NodeData::ProcessingInstruction {
-                    target: target.clone(),
-                    contents: contents.clone(),
-                }
-            }
-            NodeData::Text { contents } => NodeData::Text {
-                contents: contents.clone(),
-            },
-            NodeData::Element {
-                name,
-                attrs,
-                template_contents,
-                mathml_annotation_xml_integration_point,
-            } => NodeData::Element {
-                name: name.clone(),
-                attrs: attrs.clone(),
-                template_contents: template_contents.clone(),
-                mathml_annotation_xml_integration_point: *mathml_annotation_xml_integration_point,
-            },
-        };
         let children = self.child_nodes_iter().map(|c| c.clone_node().0).collect();
         Self(Rc::new(rcdom::Node {
             parent: Cell::new(None),
-            data,
+            data: self.clone_node_data(),
             children: RefCell::new(children),
         }))
     }
@@ -746,28 +759,14 @@ impl Element for Element5Ever {
     }
 
     fn set_local_name(&mut self, new_name: <Self::Name as Name>::LocalName) {
-        let rcdom::NodeData::Element {
-            ref attrs,
-            ref template_contents,
-            mathml_annotation_xml_integration_point,
-            ..
-        } = self.node.0.data
-        else {
-            unreachable!()
+        let mut data = self.node.clone_node_data();
+        if let rcdom::NodeData::Element { name, .. } = &mut data {
+            name.local = new_name.0;
         };
         let clone = Node5Ever(Rc::new(rcdom::Node {
             parent: Cell::new(None),
             children: self.node.0.children.clone(),
-            data: NodeData::Element {
-                name: QualName {
-                    prefix: None,
-                    ns: string_cache::Atom::default(),
-                    local: new_name.0,
-                },
-                attrs: attrs.clone(),
-                template_contents: template_contents.clone(),
-                mathml_annotation_xml_integration_point,
-            },
+            data,
         }));
         self.replace_with(clone);
     }
@@ -923,6 +922,7 @@ struct Element5EverData<'a> {
 }
 
 impl Element5Ever {
+    /// Get's the associated element data.
     fn data(&self) -> Element5EverData {
         let NodeData::Element { name, attrs, .. } = &self.node.0.data else {
             unreachable!("Element contains non-element data. This is a bug!")
@@ -930,6 +930,7 @@ impl Element5Ever {
         Element5EverData { name, attrs }
     }
 
+    /// Runs a breadth-first search to get the first element of a node.
     fn find_element(node: Node5Ever) -> Option<Self> {
         let mut queue = VecDeque::new();
         queue.push_back(node);

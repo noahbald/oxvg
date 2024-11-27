@@ -17,9 +17,12 @@ pub trait Name:
     type Prefix: Atom;
     type Namespace: Atom;
 
+    /// Returns the local part of the qualified name.
     fn local_name(&self) -> Self::LocalName;
 
+    /// Returns the prefix of the qualified name.
     fn prefix(&self) -> Option<Self::Prefix>;
 
+    /// Returns the namespace of the qualified name.
     fn ns(&self) -> Self::Namespace;
 }
