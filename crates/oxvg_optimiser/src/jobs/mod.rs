@@ -56,7 +56,7 @@ pub trait Job {
     fn breakdown<N: Node>(&mut self, _document: &N) {}
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Jobs {
     add_attributes_to_svg_element: Option<Box<AddAttributesToSVGElement>>,
@@ -131,22 +131,47 @@ impl Jobs {
     }
 }
 
+impl Default for Jobs {
+    fn default() -> Self {
+        Self {
+            add_attributes_to_svg_element: None,
+            add_classes_to_svg: None,
+            apply_transforms: Some(Box::new(ApplyTransforms::default())),
+            cleanup_attributes: Some(Box::new(CleanupAttributes::default())),
+            cleanup_enable_background: Some(Box::new(CleanupEnableBackground::default())),
+            cleanup_ids: Some(Box::new(CleanupIds::default())),
+            cleanup_list_of_values: None,
+            cleanup_numeric_values: Some(Box::new(CleanupNumericValues::default())),
+            collapse_groups: Some(Box::new(CollapseGroups::default())),
+            convert_colors: Some(Box::new(ConvertColors::default())),
+            convert_ellipse_to_circle: Some(Box::new(ConvertEllipseToCircle::default())),
+            convert_path_data: Some(Box::new(ConvertPathData::default())),
+            convert_shape_to_path: Some(Box::new(ConvertShapeToPath::default())),
+            convert_transform: Some(Box::new(ConvertTransform::default())),
+        }
+    }
+}
+
 bitflags! {
     #[derive(PartialEq)]
     struct JobFlag: usize {
+        // Non default plugins
         const add_attributes_to_svg_element = 0b0000_0001;
         const add_classes_to_svg = 0b_0000_0000_0000_0010;
-        const apply_transforms = 0b00_0000_0000_0000_0100;
-        const cleanup_attributes = 0b_0000_0000_0000_1000;
-        const cleanup_enable_background = 0b000_0001_0000;
-        const cleanup_ids = 0b00_0000_0000_0000_0010_0000;
         const cleanup_list_of_values = 0b0_0000_0100_0000;
+
+        // Default plugins
+        const cleanup_attributes = 0b_0000_0000_0000_1000;
+        const cleanup_ids = 0b00_0000_0000_0000_0010_0000;
         const cleanup_numeric_values = 0b0_0000_1000_0000;
-        const collapse_groups = 0b000_0000_0001_0000_0000;
         const convert_colors = 0b0000_0000_0010_0000_0000;
-        const convert_ellipse_to_circle = 0b100_0000_0000;
-        const convert_path_data = 0b0_0000_1000_0000_0000;
+        const cleanup_enable_background = 0b000_0001_0000;
         const convert_shape_to_path = 0b01_0000_0000_0000;
+        const convert_ellipse_to_circle = 0b100_0000_0000;
+        const collapse_groups = 0b000_0000_0001_0000_0000;
+        // NOTE: This one should be before `convert_path_data` in case the order is ever changed
+        const apply_transforms = 0b00_0000_0000_0000_0100;
+        const convert_path_data = 0b0_0000_1000_0000_0000;
         const convert_transform = 0b0_0010_0000_0000_0000;
     }
 }
