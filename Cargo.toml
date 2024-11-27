@@ -23,15 +23,12 @@ oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_path = { path = "crates/oxvg_path", version = "0.0.1-beta.4" }
 oxvg_selectors = { path = "crates/oxvg_selectors", version = "0.0.1-alpha.1" }
 oxvg_style = { path = "crates/oxvg_style", version = "0.0.1-alpha.1" }
-oxvg_utils = { path = "crates/oxvg_utils" }
 
 anyhow = "1.0"
 bitflags = { version = "2.6.0" }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.31.0"
-derivative = "2.2"
-downcast-rs = "1.2.1"
 itertools = "0.13.0"
 lazy_static = "1.4"
 lightningcss = "1.0.0-alpha.59"

@@ -18,6 +18,5 @@ oxvg_ast = { workspace = true, features = ["selectors"] }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
-markup5ever = { workspace = true }
 rcdom = { workspace = true }
 regex = { workspace = true }

@@ -514,17 +514,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derivative"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "derive_more"
 version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -578,12 +567,6 @@ checksum = "442039f5147480ba31067cb00ada1adae6892028e40e45fc5de7b7df6dcc1b5f"
 dependencies = [
  "const-random",
 ]
-
-[[package]]
-name = "downcast-rs"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "dtoa"
@@ -1082,11 +1065,9 @@ version = "0.0.1-alpha.1"
 dependencies = [
  "anyhow",
  "cssparser 0.31.2",
- "downcast-rs",
  "log",
  "markup5ever",
  "markup5ever_rcdom",
- "oxvg_diagnostics",
  "selectors",
  "serde",
  "string_cache",
@@ -1127,20 +1108,14 @@ dependencies = [
  "lazy_static",
  "lightningcss",
  "log",
- "markup5ever",
- "markup5ever_rcdom",
- "miette",
  "oxvg_ast",
  "oxvg_path",
  "oxvg_selectors",
  "oxvg_style",
- "oxvg_utils",
  "regex",
  "serde",
  "serde_json",
- "thiserror",
  "urlencoding",
- "xml5ever",
 ]
 
 [[package]]
@@ -1161,17 +1136,10 @@ dependencies = [
 name = "oxvg_selectors"
 version = "0.0.1-alpha.1"
 dependencies = [
- "cssparser 0.31.2",
- "derivative",
  "lazy_static",
  "log",
- "markup5ever",
- "markup5ever_rcdom",
  "oxvg_ast",
  "regex",
- "selectors",
- "traversal",
- "xml5ever",
 ]
 
 [[package]]
@@ -1181,17 +1149,9 @@ dependencies = [
  "lazy_static",
  "lightningcss",
  "log",
- "markup5ever",
  "markup5ever_rcdom",
  "oxvg_ast",
  "regex",
-]
-
-[[package]]
-name = "oxvg_utils"
-version = "0.1.0"
-dependencies = [
- "markup5ever_rcdom",
 ]
 
 [[package]]
@@ -2028,12 +1988,6 @@ dependencies = [
  "toml_datetime",
  "winnow",
 ]
-
-[[package]]
-name = "traversal"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0ec9745d7517c8b8e8c0a65cba2d84e42f95fd348a01693c5e4da1bc6d00c99"
 
 [[package]]
 name = "typenum"
