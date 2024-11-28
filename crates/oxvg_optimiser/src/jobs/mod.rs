@@ -71,6 +71,7 @@ jobs! {
     // Default plugins
     remove_doctype: RemoveDoctype,
     remove_xml_proc_inst: RemoveXMLProcInst,
+    remove_comments: RemoveComments,
     cleanup_attributes: CleanupAttributes,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
