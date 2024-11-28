@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 
@@ -42,6 +42,12 @@ impl Job for CollapseGroups {
 
         move_attributes_to_child(element);
         flatten_when_all_attributes_moved(element);
+    }
+}
+
+impl Default for CollapseGroups {
+    fn default() -> Self {
+        Self(true)
     }
 }
 

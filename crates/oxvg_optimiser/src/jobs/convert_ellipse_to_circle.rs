@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(bool);
 
@@ -40,6 +40,12 @@ impl Job for ConvertEllipseToCircle {
         element.remove_attribute_local(rx_name);
         element.remove_attribute_local(ry_name);
         element.set_attribute_local("r".into(), radius.into());
+    }
+}
+
+impl Default for ConvertEllipseToCircle {
+    fn default() -> Self {
+        Self(true)
     }
 }
 

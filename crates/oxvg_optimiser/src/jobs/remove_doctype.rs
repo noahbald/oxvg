@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 
@@ -22,6 +22,12 @@ impl Job for RemoveDoctype {
             break;
         }
         PrepareOutcome::Skip
+    }
+}
+
+impl Default for RemoveDoctype {
+    fn default() -> Self {
+        Self(true)
     }
 }
 
