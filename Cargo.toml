@@ -34,14 +34,14 @@ itertools = "0.13.0"
 lazy_static = "1.4"
 lightningcss = "1.0.0-alpha.59"
 log = "0.4.20"
-markup5ever = "0.12"
-rcdom = { package = "markup5ever_rcdom", version = "0.3" }
+markup5ever = "0.14"
+rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }
 regex = "1.10"
 serde = "1.0.210"
 serde_json = "1.0.128"
 string_cache = "0.8.7"
 quick-xml = "0.31.0"
-xml5ever = "0.18.0"
+xml5ever = "0.20.0"
 
 # Developer dependencies
 ctor = "0.2.8"
