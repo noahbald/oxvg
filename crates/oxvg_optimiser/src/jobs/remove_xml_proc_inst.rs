@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveXMLProcInst(bool);
 
@@ -24,6 +24,12 @@ impl Job for RemoveXMLProcInst {
             break;
         }
         PrepareOutcome::Skip
+    }
+}
+
+impl Default for RemoveXMLProcInst {
+    fn default() -> Self {
+        Self(true)
     }
 }
 
