@@ -73,6 +73,7 @@ jobs! {
     remove_xml_proc_inst: RemoveXMLProcInst,
     remove_comments: RemoveComments,
     remove_metadata: RemoveMetadata,
+    remove_editors_ns_data: RemoveEditorsNSData,
     cleanup_attributes: CleanupAttributes,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
