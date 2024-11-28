@@ -127,6 +127,12 @@ pub trait Attributes<'a>: Debug + Clone {
 
     fn sort(&self, order: &[String], xmlns_front: bool);
 
+    /// Retains the attributes specified by the predicate.
+    ///
+    /// In other words, removes all attribute where the closure returns false.
+    ///
+    /// The arguments provided to the closure are the optional prefix, followed by the local-name,
+    /// and finally the value.
     fn retain<F>(&self, f: F)
     where
         F: FnMut(Self::Attribute) -> bool;
