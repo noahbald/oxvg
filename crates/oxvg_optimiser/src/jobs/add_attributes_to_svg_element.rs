@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
 use oxvg_ast::element::Element;
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
+#[job_default(is_default = false)]
 pub struct AddAttributesToSVGElement {
     pub attributes: BTreeMap<String, String>,
 }

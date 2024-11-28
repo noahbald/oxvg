@@ -1,8 +1,10 @@
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
+use crate::JobDefault;
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupNumericValues {
     float_precision: Option<usize>,

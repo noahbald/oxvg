@@ -3,7 +3,7 @@ use oxvg_ast::{
     element::Element,
 };
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
 pub struct Options {
     pub float_precision: usize,
@@ -19,7 +19,7 @@ pub enum Mode {
     SingleValue,
 }
 
-pub trait CleanupValues {
+pub trait CleanupValues: JobDefault {
     fn get_options(&self) -> Options;
 
     fn get_mode(&self) -> Mode;

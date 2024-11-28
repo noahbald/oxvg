@@ -1,9 +1,12 @@
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
+use crate::JobDefault;
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
+#[job_default(is_default = false)]
 pub struct CleanupListOfValues {
     float_precision: Option<usize>,
     leading_zero: Option<bool>,

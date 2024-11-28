@@ -2,14 +2,15 @@ use std::f64;
 
 use itertools::peek_nth;
 use oxvg_ast::element::Element;
+use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
 use serde::Deserialize;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
 use super::convert_path_data::Precision;
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertShapeToPath {
     convert_arcs: Option<bool>,

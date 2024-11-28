@@ -1,12 +1,14 @@
 use std::collections::BTreeSet;
 
 use oxvg_ast::element::Element;
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
+#[job_default(is_default = false)]
 /// Adds to the `class` attribute of the root `<svg>` element, omitting duplicates
 ///
 /// <div class="warning">Unlike SVGO, this may change the order of your classes</div>

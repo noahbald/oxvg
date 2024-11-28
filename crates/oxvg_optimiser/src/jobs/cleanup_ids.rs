@@ -9,6 +9,7 @@ use oxvg_ast::{
     name::Name,
     node::{self, Node},
 };
+use oxvg_derive::OptionalDefault;
 use oxvg_selectors::{
     collections::REFERENCES_PROPS,
     regex::{REFERENCES_BEGIN, REFERENCES_HREF, REFERENCES_URL},
@@ -16,7 +17,7 @@ use oxvg_selectors::{
 use regex::CaptureMatches;
 use serde::Deserialize;
 
-use crate::{Context, Job, PrepareOutcome};
+use crate::{Context, Job, JobDefault, PrepareOutcome};
 
 #[derive(Debug)]
 struct ReplaceCounter(String, usize);
@@ -34,7 +35,7 @@ struct RefRename {
     referenced_id: String,
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupIds {
     remove: Option<bool>,
@@ -113,7 +114,6 @@ impl Job for CleanupIds {
         // Generate renames for references
         let mut used_ids = BTreeMap::new();
         let mut generated_id = self.generated_id.borrow_mut();
-        dbg!(&self.ref_renames);
         for RefRename {
             element_ref,
             local_name,

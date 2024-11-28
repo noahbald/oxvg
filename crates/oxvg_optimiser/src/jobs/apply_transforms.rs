@@ -11,14 +11,15 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
 };
+use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
 use oxvg_selectors::{collections, regex::REFERENCES_URL};
 use oxvg_style::{ComputedStyles, SVGPaint, SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
-#[derive(Deserialize, Default, Clone, Debug)]
+#[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 /// Apply transformations to the path data
 pub struct ApplyTransforms {

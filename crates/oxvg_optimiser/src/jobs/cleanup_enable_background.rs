@@ -1,10 +1,11 @@
 use oxvg_ast::{atom::Atom, attribute::Attr, element::Element, node::Node};
+use oxvg_derive::OptionalDefault;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::{Context, Job, PrepareOutcome};
+use crate::{Context, Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
     #[serde(skip_deserializing)]

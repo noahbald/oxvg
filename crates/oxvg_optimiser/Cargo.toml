@@ -11,12 +11,12 @@ workspace = true
 
 [dependencies]
 oxvg_ast = { workspace = true, features = ["selectors"] }
+oxvg_derive = { workspace = true }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_selectors = { workspace = true }
 oxvg_style = { workspace = true }
 
 anyhow = { workspace = true }
-bitflags = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

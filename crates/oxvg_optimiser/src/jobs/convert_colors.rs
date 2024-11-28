@@ -19,9 +19,10 @@ use oxvg_ast::{
     element::Element,
     node::Node,
 };
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, PrepareOutcome};
+use crate::{Context, Job, JobDefault, PrepareOutcome};
 
 #[derive(Deserialize, Clone)]
 pub enum ConvertCase {
@@ -52,7 +53,7 @@ enum Color<'a> {
     None,
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertColors {
     pub method: Option<Method>,

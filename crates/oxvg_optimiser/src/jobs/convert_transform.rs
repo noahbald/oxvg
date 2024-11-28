@@ -4,15 +4,16 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
 };
+use oxvg_derive::OptionalDefault;
 use oxvg_style::{SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
 use crate::{
     utils::transform::{self, Precision},
-    Context, Job,
+    Context, Job, JobDefault,
 };
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertTransform {
     convert_to_shorts: Option<bool>,

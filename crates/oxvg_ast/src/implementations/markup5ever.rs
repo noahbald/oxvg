@@ -25,6 +25,48 @@ use crate::parse;
 #[cfg(feature = "serialize")]
 use crate::serialize;
 
+macro_rules! atom {
+    ($name:ident) => {
+        impl crate::atom::Atom for $name {}
+
+        impl From<&str> for $name {
+            fn from(value: &str) -> Self {
+                Self(value.into())
+            }
+        }
+
+        impl From<$name> for String {
+            fn from(val: $name) -> Self {
+                val.0.to_string()
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(value: String) -> Self {
+                Self(value.into())
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(val: &$name) -> Self {
+                val.0.to_string()
+            }
+        }
+
+        impl AsRef<str> for $name {
+            fn as_ref(&self) -> &str {
+                self.0.as_ref()
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Display::fmt(&self.0, f)
+            }
+        }
+    };
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Atom5Ever(StrTendril);
 
@@ -62,139 +104,10 @@ pub struct Element5Ever {
     selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
 }
 
-impl crate::atom::Atom for Atom5Ever {}
-
-impl From<&str> for Atom5Ever {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<Atom5Ever> for String {
-    fn from(val: Atom5Ever) -> Self {
-        val.0.to_string()
-    }
-}
-
-impl From<String> for Atom5Ever {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<&Atom5Ever> for String {
-    fn from(val: &Atom5Ever) -> Self {
-        val.0.to_string()
-    }
-}
-
-impl AsRef<str> for Atom5Ever {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl Display for Atom5Ever {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl crate::atom::Atom for LocalName5Ever {}
-
-impl From<&str> for LocalName5Ever {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<LocalName5Ever> for String {
-    fn from(val: LocalName5Ever) -> Self {
-        val.0.to_string()
-    }
-}
-
-impl From<String> for LocalName5Ever {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl AsRef<str> for LocalName5Ever {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl Display for LocalName5Ever {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl crate::atom::Atom for Prefix5Ever {}
-
-impl From<&str> for Prefix5Ever {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<Prefix5Ever> for String {
-    fn from(val: Prefix5Ever) -> Self {
-        val.0.to_string()
-    }
-}
-
-impl From<String> for Prefix5Ever {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl AsRef<str> for Prefix5Ever {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl Display for Prefix5Ever {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl crate::atom::Atom for Namespace5Ever {}
-
-impl From<&str> for Namespace5Ever {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<Namespace5Ever> for String {
-    fn from(value: Namespace5Ever) -> Self {
-        value.0.to_string()
-    }
-}
-
-impl From<String> for Namespace5Ever {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl AsRef<str> for Namespace5Ever {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl Display for Namespace5Ever {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
+atom!(Atom5Ever);
+atom!(LocalName5Ever);
+atom!(Prefix5Ever);
+atom!(Namespace5Ever);
 
 impl Name for QualName5Ever {
     type LocalName = LocalName5Ever;

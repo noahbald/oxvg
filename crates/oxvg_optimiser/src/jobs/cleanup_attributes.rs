@@ -2,11 +2,12 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
 };
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupAttributes {
     newlines: Option<bool>,

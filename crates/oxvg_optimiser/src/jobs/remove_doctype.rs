@@ -1,9 +1,10 @@
 use oxvg_ast::node::{self, Node};
+use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
+use crate::{Job, JobDefault, PrepareOutcome};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 

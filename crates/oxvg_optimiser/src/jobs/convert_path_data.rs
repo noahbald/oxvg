@@ -1,11 +1,12 @@
 use oxvg_ast::element::Element;
+use oxvg_derive::OptionalDefault;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::{Context, Job};
+use crate::{Context, Job, JobDefault};
 
-#[derive(Deserialize, Default, Clone, Debug)]
+#[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertPathData {
     remove_useless: Option<bool>,
