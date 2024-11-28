@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{atom::Atom, element::Element};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 /// An enum which specifies the type of node.
 ///
 /// # Notes

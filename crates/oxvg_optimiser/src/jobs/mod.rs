@@ -70,6 +70,7 @@ jobs! {
 
     // Default plugins
     remove_doctype: RemoveDoctype,
+    remove_xml_proc_inst: RemoveXMLProcInst,
     cleanup_attributes: CleanupAttributes,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
@@ -115,6 +116,11 @@ impl Jobs {
     pub fn run<N: Node>(self, root: &N) {
         let mut jobs = self.clone();
         jobs.filter(root);
+        let count = jobs.count();
+        if count == 0 {
+            log::debug!("All jobs were filtered out!");
+            return;
+        }
         #[cfg(test)]
         let mut i = 0;
 
@@ -163,7 +169,7 @@ impl Jobs {
         println!("~~ --- job ending\n\n");
 
         jobs.breakdown(root);
-        log::debug!("completed {} jobs", jobs.count());
+        log::debug!("completed {count} jobs");
     }
 }
 
