@@ -9,7 +9,7 @@ use crate::{Context, Job, JobDefault, PrepareOutcome};
 pub struct ConvertEllipseToCircle(bool);
 
 impl Job for ConvertEllipseToCircle {
-    fn prepare(&mut self, _document: &impl Node) -> PrepareOutcome {
+    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -18,7 +18,7 @@ impl Job for ConvertEllipseToCircle {
     }
 
     #[allow(clippy::similar_names)]
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
             return;

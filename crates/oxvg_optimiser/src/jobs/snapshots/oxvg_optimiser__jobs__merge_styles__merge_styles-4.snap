@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_styles.rs
+expression: "test_config(r#\"{ \"mergeStyles\": true }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- Should handle multiple media attributes -->\n    <style media=\"print\">.st0{ fill:red; padding-top: 1em; padding-right: 1em; padding-bottom: 1em; padding-left: 1em; }</style>\n    <style>.test { background: red; }</style>\n    <rect width=\"100\" height=\"100\" class=\"st0\" style=\"stroke-width:3;margin-top:1em;margin-right:1em;margin-bottom:1em;margin-left:1em\"/>\n    <style media=\"only screen and (min-width: 600px)\">.wrapper { color: blue; }</style>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
+    <!-- Should handle multiple media attributes -->
+    <style>@media print{.st0{ fill:red; padding-top: 1em; padding-right: 1em; padding-bottom: 1em; padding-left: 1em; }}.test { background: red; }@media only screen and (min-width: 600px){.wrapper { color: blue; }}</style>
+    
+    <rect width="100" height="100" class="st0" style="stroke-width:3;margin-top:1em;margin-right:1em;margin-bottom:1em;margin-left:1em"></rect>
+    
+</svg>

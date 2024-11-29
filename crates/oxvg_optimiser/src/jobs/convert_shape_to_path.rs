@@ -18,7 +18,7 @@ pub struct ConvertShapeToPath {
 }
 
 impl Job for ConvertShapeToPath {
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         let element = &mut element.clone();
         let name = element.local_name();
 

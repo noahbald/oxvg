@@ -14,7 +14,7 @@ pub struct AddAttributesToSVGElement {
 }
 
 impl Job for AddAttributesToSVGElement {
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {

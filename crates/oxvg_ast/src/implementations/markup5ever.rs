@@ -457,6 +457,17 @@ impl Node for Node5Ever {
         Box::new(Node5EverRef(Rc::new(self.clone())))
     }
 
+    fn c_data(&self, contents: Self::Atom) -> Self::Child {
+        Node5Ever(Rc::new(rcdom::Node {
+            parent: Cell::new(None),
+            children: RefCell::new(vec![]),
+            // WARN: rcdom doesn't support CData
+            data: NodeData::Text {
+                contents: RefCell::new(contents.0),
+            },
+        }))
+    }
+
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         let children = self.0.children.borrow().clone();
         children.into_iter().map(Self)
@@ -554,6 +565,16 @@ impl Node for Node5Ever {
             NodeData::Text { contents } => Some(contents.borrow().to_string()),
             NodeData::Element { .. } => Some(String::new()),
         }
+    }
+
+    fn text(&self, content: Self::Atom) -> Self {
+        Node5Ever(Rc::new(rcdom::Node {
+            parent: Cell::new(None),
+            children: RefCell::new(vec![]),
+            data: NodeData::Text {
+                contents: RefCell::new(content.0),
+            },
+        }))
     }
 
     fn remove(&self) {
@@ -748,6 +769,10 @@ impl Node for Element5Ever {
         self.node.as_ref()
     }
 
+    fn c_data(&self, contents: Self::Atom) -> Self::Child {
+        self.node.c_data(contents)
+    }
+
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
         self.node.child_nodes_iter()
     }
@@ -802,6 +827,10 @@ impl Node for Element5Ever {
 
     fn text_content(&self) -> Option<String> {
         self.node.text_content()
+    }
+
+    fn text(&self, content: Self::Atom) -> Self::Child {
+        self.node.text(content)
     }
 
     fn remove(&self) {

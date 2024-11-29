@@ -20,7 +20,7 @@ use crate::{Context, Job, JobDefault, PrepareOutcome};
 pub struct CollapseGroups(bool);
 
 impl Job for CollapseGroups {
-    fn prepare(&mut self, _document: &impl Node) -> crate::PrepareOutcome {
+    fn prepare<N: Node>(&mut self, _document: &N) -> crate::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -28,7 +28,7 @@ impl Job for CollapseGroups {
         }
     }
 
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         let Some(parent) = Element::parent_element(element) else {
             return;
         };

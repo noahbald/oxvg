@@ -18,7 +18,7 @@ pub struct AddClassesToSVG {
 }
 
 impl Job for AddClassesToSVG {
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         if !element.is_root() || element.local_name() != "svg".into() {
             return;
         }

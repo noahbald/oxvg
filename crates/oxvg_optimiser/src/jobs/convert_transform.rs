@@ -43,7 +43,7 @@ struct Inner {
 }
 
 impl Job for ConvertTransform {
-    fn use_style(&self, element: &impl Element) -> bool {
+    fn use_style<E: Element>(&self, element: &E) -> bool {
         element.attributes().iter().any(|attr| {
             matches!(
                 attr.local_name().as_ref(),
@@ -52,7 +52,7 @@ impl Job for ConvertTransform {
         })
     }
 
-    fn run(&self, element: &impl Element, context: &Context) {
+    fn run<E: Element>(&self, element: &E, context: &Context) {
         if let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) {
             self.transform_attr(transform, "transform", element);
         }

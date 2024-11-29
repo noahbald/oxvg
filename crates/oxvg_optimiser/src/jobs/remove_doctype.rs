@@ -9,7 +9,7 @@ use crate::{Job, JobDefault, PrepareOutcome};
 pub struct RemoveDoctype(bool);
 
 impl Job for RemoveDoctype {
-    fn prepare(&mut self, document: &impl Node) -> PrepareOutcome {
+    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
         if !self.0 {
             return PrepareOutcome::Skip;
         }

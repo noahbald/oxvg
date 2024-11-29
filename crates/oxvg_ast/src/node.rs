@@ -77,6 +77,9 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// Get the node wrapped in an opaque reference
     fn as_ref(&self) -> Box<dyn Ref>;
 
+    /// Creates a CData node with the given content
+    fn c_data(&self, contents: Self::Atom) -> Self::Child;
+
     /// Returns an node list containing all the children of this node
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
 
@@ -145,6 +148,17 @@ pub trait Node: Clone + Debug + 'static + Features {
     ///
     /// [MDN | textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)
     fn text_content(&self) -> Option<String>;
+
+    fn set_text_content(&mut self, content: Self::Atom) {
+        let text = self.text(content);
+        for child in self.child_nodes_iter() {
+            child.remove();
+        }
+        self.append_child(text);
+    }
+
+    /// Creates a text node with the given content
+    fn text(&self, content: Self::Atom) -> Self::Child;
 
     /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
     /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]

@@ -18,8 +18,7 @@ An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is in the works 
 
 Please be aware that this isn't an exact clone of SVGO and certain differences may be found. If you rely on stability, for the time being we recommend sticking to SVGO.
 
-- **Configuration Structure**: To improve the simplicity of oxvg as a Rust program, the configuration structure is somewhat different. A migration tool will eventually be made to make switching over easier.
-- **Doesn't support valueless attributes**: Attributes formatted alike `<svg attr />` is valid HTML but not XML. Because of oxvg's dependencies, invalid XML syntax is not supported and will be converted to `<svg attr="" />`. This may change in the future as we experiment with different parsers.
+You can read more about these differences and why in [this wiki page](https://github.com/noahbald/oxvg/wiki/Optimiser#svgo-parity).
 
 ### 🤖 Transformer (Planned)
 

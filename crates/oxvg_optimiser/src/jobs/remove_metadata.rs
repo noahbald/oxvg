@@ -1,4 +1,4 @@
-use oxvg_ast::name::Name;
+use oxvg_ast::{element::Element, name::Name, node::Node};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
@@ -11,7 +11,7 @@ use super::PrepareOutcome;
 pub struct RemoveMetadata(bool);
 
 impl Job for RemoveMetadata {
-    fn prepare(&mut self, _document: &impl oxvg_ast::node::Node) -> super::PrepareOutcome {
+    fn prepare<N: Node>(&mut self, _document: &N) -> super::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -19,7 +19,7 @@ impl Job for RemoveMetadata {
         }
     }
 
-    fn run(&self, element: &impl oxvg_ast::element::Element, _context: &super::Context) {
+    fn run<E: Element>(&self, element: &E, _context: &super::Context) {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return;
