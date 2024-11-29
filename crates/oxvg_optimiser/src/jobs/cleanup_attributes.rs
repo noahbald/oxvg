@@ -16,7 +16,7 @@ pub struct CleanupAttributes {
 }
 
 impl Job for CleanupAttributes {
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         for mut attr in element.attributes().iter() {
             if matches!(self.newlines, Some(true)) {
                 attr.set_value(attr.value().as_ref().replace('\n', " ").into());

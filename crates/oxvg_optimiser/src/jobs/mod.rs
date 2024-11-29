@@ -74,6 +74,7 @@ jobs! {
     remove_comments: RemoveComments,
     remove_metadata: RemoveMetadata,
     cleanup_attributes: CleanupAttributes,
+    merge_styles: MergeStyles,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
@@ -101,15 +102,15 @@ pub trait JobDefault {
 }
 
 pub trait Job: JobDefault {
-    fn prepare(&mut self, _document: &impl Node) -> PrepareOutcome {
+    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
         PrepareOutcome::None
     }
 
-    fn use_style(&self, _element: &impl Element) -> bool {
+    fn use_style<E: Element>(&self, _element: &E) -> bool {
         false
     }
 
-    fn run(&self, _element: &impl Element, _context: &Context) {}
+    fn run<E: Element>(&self, _element: &E, _context: &Context) {}
 
     fn breakdown<N: Node>(&mut self, _document: &N) {}
 }

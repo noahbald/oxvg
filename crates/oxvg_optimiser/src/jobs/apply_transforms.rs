@@ -28,11 +28,11 @@ pub struct ApplyTransforms {
 }
 
 impl Job for ApplyTransforms {
-    fn use_style(&self, element: &impl Element) -> bool {
+    fn use_style<E: Element>(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn run(&self, element: &impl Element, context: &Context) {
+    fn run<E: Element>(&self, element: &E, context: &Context) {
         let d_localname = "d".into();
         let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");

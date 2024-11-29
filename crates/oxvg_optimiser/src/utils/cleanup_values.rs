@@ -84,7 +84,7 @@ pub trait CleanupValues: JobDefault {
 }
 
 impl<T: CleanupValues> Job for T {
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         for mut attr in element.attributes().iter() {
             if !self.get_mode().allowed_attribute(&attr) {
                 continue;

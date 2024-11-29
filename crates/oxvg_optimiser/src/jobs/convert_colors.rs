@@ -60,7 +60,7 @@ pub struct ConvertColors {
 }
 
 impl Job for ConvertColors {
-    fn prepare(&mut self, _document: &impl Node) -> PrepareOutcome {
+    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,
@@ -80,7 +80,7 @@ impl Job for ConvertColors {
         }
     }
 
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         let mask_localname = &"mask".into();
         let is_masked = &element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();

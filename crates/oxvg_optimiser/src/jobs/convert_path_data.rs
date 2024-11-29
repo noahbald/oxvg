@@ -33,11 +33,11 @@ pub struct ConvertPathData {
 pub struct Precision(pub oxvg_path::convert::Precision);
 
 impl Job for ConvertPathData {
-    fn use_style(&self, element: &impl Element) -> bool {
+    fn use_style<E: Element>(&self, element: &E) -> bool {
         element.has_attribute(&"d".into())
     }
 
-    fn run(&self, element: &impl Element, context: &Context) {
+    fn run<E: Element>(&self, element: &E, context: &Context) {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
             return;

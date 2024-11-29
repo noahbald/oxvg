@@ -56,7 +56,7 @@ pub struct CleanupIds {
 }
 
 impl Job for CleanupIds {
-    fn prepare(&mut self, document: &impl Node) -> PrepareOutcome {
+    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
@@ -71,7 +71,7 @@ impl Job for CleanupIds {
         PrepareOutcome::None
     }
 
-    fn run(&self, element: &impl Element, _context: &Context) {
+    fn run<E: Element>(&self, element: &E, _context: &Context) {
         if self.ignore_document {
             return;
         }

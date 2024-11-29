@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_styles.rs
+expression: "test_config(r#\"{ \"mergeStyles\": true }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- Should remove empty syles -->\n    <style>\n\t  </style>\n    <rect width=\"100\" height=\"100\" class=\"st0\" style=\"stroke-width:3;margin-top:1em;margin-right:1em;margin-bottom:1em;margin-left:1em\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
+    <!-- Should remove empty syles -->
+    
+    <rect width="100" height="100" class="st0" style="stroke-width:3;margin-top:1em;margin-right:1em;margin-bottom:1em;margin-left:1em"></rect>
+</svg>
