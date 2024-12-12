@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 50\">\n  <style>\n    .a {\n      stroke: red;\n    }\n\n    [stroke] + path {\n      stroke: purple;\n    }\n  </style>\n  <path class=\"a\" d=\"M10 10h20\" stroke=\"red\"/>\n  <path d=\"M10 20h20\"/>\n  <path d=\"M10 30h20\" stroke=\"yellow\"/>\n  <path d=\"M10 40h20\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+  <style>[stroke]+path{stroke:purple}</style>
+  <path d="M10 10h20" stroke="red" style="stroke:red"></path>
+  <path d="M10 20h20"></path>
+  <path d="M10 30h20" stroke="yellow"></path>
+  <path d="M10 40h20"></path>
+</svg>

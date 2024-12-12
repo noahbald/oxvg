@@ -26,24 +26,23 @@ struct OptionalDefaultOpts {
 pub fn derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
     let opts = OptionalDefaultOpts::from_derive_input(&input).expect("Invalid options");
-    let DeriveInput { ident, .. } = input;
+    let DeriveInput {
+        ident, generics, ..
+    } = input;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let optional_default = opts.is_default.unwrap_or(true);
 
-    let output = if optional_default {
-        quote! {
-            impl JobDefault for #ident {
-                fn optional_default() -> Option<Box<#ident>> {
-                    Some(Box::new(Default::default()))
-                }
-            }
-        }
+    let default = if optional_default {
+        quote! { Some(Box::new(Default::default())) }
     } else {
-        quote! {
-            impl JobDefault for #ident {
-                fn optional_default() -> Option<Box<#ident>> {
-                    None
-                }
+        quote! { None }
+    };
+
+    let output = quote! {
+        impl #impl_generics JobDefault for #ident #ty_generics #where_clause {
+            fn optional_default() -> Option<Box<#ident #ty_generics>> {
+                #default
             }
         }
     };

@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 45 35\">\n    <!-- empty selectors are dropped -->\n    <style>\n        .a {}\n    </style>\n    <g class=\"a\">\n        <circle class=\"b\" cx=\"42.97\" cy=\"24.92\" r=\"1.14\"/>\n    </g>\n</svg>\n\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 35">
+    <!-- empty selectors are dropped -->
+    
+    <g>
+        <circle class="b" cx="42.97" cy="24.92" r="1.14"></circle>
+    </g>
+</svg>

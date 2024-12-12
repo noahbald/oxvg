@@ -17,8 +17,8 @@ pub struct AddClassesToSVG {
     pub class_name: Option<String>,
 }
 
-impl Job for AddClassesToSVG {
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+impl<E: Element> Job<E> for AddClassesToSVG {
+    fn run(&self, element: &E, _context: &Context<E>) {
         if !element.is_root() || element.local_name() != "svg".into() {
             return;
         }

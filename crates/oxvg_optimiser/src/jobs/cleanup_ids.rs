@@ -55,8 +55,8 @@ pub struct CleanupIds {
     generated_id: RefCell<GeneratedId>,
 }
 
-impl Job for CleanupIds {
-    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for CleanupIds {
+    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
@@ -71,7 +71,7 @@ impl Job for CleanupIds {
         PrepareOutcome::None
     }
 
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         if self.ignore_document {
             return;
         }
@@ -105,7 +105,7 @@ impl Job for CleanupIds {
         }
     }
 
-    fn breakdown<N: Node>(&mut self, document: &N) {
+    fn breakdown(&mut self, document: &E::ParentChild) {
         let remove = self.remove.unwrap_or(REMOVE_DEFAULT);
 
         let Some(root) = &document.find_element() else {
@@ -122,7 +122,7 @@ impl Job for CleanupIds {
         {
             let element = element_ref
                 .inner_as_any()
-                .downcast_ref::<N>()
+                .downcast_ref::<E::ParentChild>()
                 .expect("cleanup ids used with inconsistent types");
             let element = element.element().expect("memoised invalid node type");
             let Some(ref mut attr) = element.get_attribute(&local_name.as_str().into()) else {

@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" id=\"dark\" viewBox=\"0 0 258.12 225.88\">\n    <!-- for https://github.com/svg/svgo/pull/592#issuecomment-266327016 -->\n    <style>\n        .cls-7 {\n            only-cls-7: 1;\n        }\n        .cls-7,\n        .cls-8 {\n            cls-7-and-8: 1;\n        }\n    </style>\n\n    <path class=\"cls-7\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="dark" viewBox="0 0 258.12 225.88">
+    <!-- for https://github.com/svg/svgo/pull/592#issuecomment-266327016 -->
+    <style>.cls-8{cls-7-and-8:1}</style>
+
+    <path style="only-cls-7:1;cls-7-and-8:1"></path>
+</svg>

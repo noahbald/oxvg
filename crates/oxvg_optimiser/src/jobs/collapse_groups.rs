@@ -7,7 +7,6 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    node::Node,
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
@@ -19,8 +18,8 @@ use crate::{Context, Job, JobDefault, PrepareOutcome};
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 
-impl Job for CollapseGroups {
-    fn prepare<N: Node>(&mut self, _document: &N) -> crate::PrepareOutcome {
+impl<E: Element> Job<E> for CollapseGroups {
+    fn prepare(&mut self, _document: &E::ParentChild) -> crate::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -28,7 +27,7 @@ impl Job for CollapseGroups {
         }
     }
 
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let Some(parent) = Element::parent_element(element) else {
             return;
         };

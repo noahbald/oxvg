@@ -14,6 +14,7 @@ use rcdom::NodeData;
 
 use crate::{
     attribute::{Attr, Attributes},
+    class_list::ClassList,
     element::{self, Element},
     name::Name,
     node::{self, Node, Ref},
@@ -90,6 +91,12 @@ pub enum Attribute5Ever<'a> {
 
 #[derive(Clone)]
 pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
+
+pub struct ClassList5Ever<'a> {
+    attrs: Attributes5Ever<'a>,
+    class_index_memo: Cell<usize>,
+    tokens: Vec<Atom5Ever>,
+}
 
 #[derive(Clone)]
 pub struct Node5Ever(Rc<rcdom::Node>);
@@ -354,9 +361,10 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
 
 impl Debug for Attributes5Ever<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Attribute5Ever { ")?;
         self.iter()
             .try_for_each(|a| f.write_fmt(format_args!(r#"{}="{}" "#, a.name(), a.value())))?;
-        f.write_str("(Attribute5Ever)")
+        f.write_str("} ")
     }
 }
 
@@ -374,6 +382,184 @@ impl<'a> Iterator for AttributesIterator<'a> {
         let result = Attribute5Ever::Borrowed(result);
         self.index += 1;
         Some(result)
+    }
+}
+
+impl<'a> ClassList for ClassList5Ever<'a> {
+    type Attribute = Attribute5Ever<'a>;
+
+    fn length(&self) -> usize {
+        self.tokens.len()
+    }
+
+    fn value(&self) -> <Self::Attribute as Attr>::Atom {
+        self.attr()
+            .map(|a| Atom5Ever(a.value.clone()))
+            .unwrap_or_default()
+    }
+
+    fn add(&mut self, token: <Self::Attribute as Attr>::Atom) {
+        if self.contains(&token) {
+            return;
+        };
+        let Some(mut attr) = self.attr() else {
+            self.attrs.set_named_item(Attribute5Ever::Owned(Attribute {
+                name: QualName {
+                    prefix: None,
+                    local: local_name!("class"),
+                    ns: Namespace::default(),
+                },
+                value: token.0.clone(),
+            }));
+            self.tokens.push(token);
+            return;
+        };
+
+        attr.value.push_tendril(&token.0);
+    }
+
+    fn contains(&self, token: &<Self::Attribute as Attr>::Atom) -> bool {
+        self.tokens.contains(token)
+    }
+
+    fn item(&self, index: usize) -> Option<&<Self::Attribute as Attr>::Atom> {
+        self.tokens.get(index)
+    }
+
+    fn remove(&mut self, token: &<Self::Attribute as Attr>::Atom) {
+        let Some(index) = self.tokens.iter().position(|t| t == token) else {
+            log::debug!("class not removed, not present in token memo");
+            return;
+        };
+        self.tokens.remove(index);
+
+        let Some((start, end)) = self.get_token_range(token) else {
+            log::debug!("class not removed, not present in actual attrubute");
+            return;
+        };
+
+        let attr = self.attr().expect("had token");
+        let mut new_value = attr.value.subtendril(0, start as u32);
+        new_value.push_tendril(&attr.value.subtendril(end, attr.value.len() as u32 - end));
+        drop(attr);
+        if new_value.trim().is_empty() {
+            self.attrs
+                .remove_named_item_local(&LocalName5Ever(local_name!("class")));
+        } else {
+            self.attrs.set_named_item_qual(
+                QualName5Ever(QualName {
+                    prefix: None,
+                    local: local_name!("class"),
+                    ns: Namespace::default(),
+                }),
+                Atom5Ever(new_value),
+            );
+        }
+    }
+
+    fn replace(
+        &mut self,
+        old_token: <Self::Attribute as Attr>::Atom,
+        new_token: <Self::Attribute as Attr>::Atom,
+    ) -> bool {
+        let Some(index) = self.tokens.iter().position(|t| t == &old_token) else {
+            return false;
+        };
+
+        let Some((start, end)) = self.get_token_range(&old_token) else {
+            return false;
+        };
+
+        let token_tendril = new_token.0.clone();
+        self.tokens[index] = new_token;
+        let attr = self.attr().expect("had token");
+        let mut new_value = attr.value.subtendril(0, start);
+        new_value.push_tendril(&token_tendril);
+        new_value.push_tendril(&attr.value.subtendril(end, attr.value.len() as u32 - end));
+
+        self.attrs.set_named_item_qual(
+            QualName5Ever(QualName {
+                prefix: None,
+                local: local_name!("class"),
+                ns: Namespace::default(),
+            }),
+            Atom5Ever(new_value),
+        );
+        true
+    }
+
+    fn iter(&self) -> impl DoubleEndedIterator<Item = &<Self::Attribute as Attr>::Atom> {
+        self.tokens.iter()
+    }
+}
+
+impl<'a> ClassList5Ever<'a> {
+    fn get_token_range(
+        &self,
+        token: &<<Self as ClassList>::Attribute as Attr>::Atom,
+    ) -> Option<(u32, u32)> {
+        let attr = self.attr()?;
+
+        let mut start = 0;
+        let mut end = 0;
+        let mut skip_to_next_word = false;
+        let mut saw_whitespace = false;
+        for (i, char) in attr.value.chars().enumerate() {
+            if saw_whitespace && !char.is_whitespace() {
+                skip_to_next_word = false;
+                saw_whitespace = false;
+                start = i;
+                end = i;
+            } else if char.is_whitespace() {
+                if end - start == token.0.len() {
+                    break;
+                }
+                saw_whitespace = true;
+                continue;
+            }
+            if skip_to_next_word {
+                continue;
+            }
+            if token.0.chars().nth(end - start).is_some_and(|c| c == char) {
+                end = i + 1;
+                continue;
+            }
+            skip_to_next_word = true;
+        }
+        if end - start < token.0.len() || skip_to_next_word {
+            return None;
+        }
+        Some((start as u32, end as u32))
+    }
+
+    fn attr(&'a self) -> Option<RefMut<'a, Attribute>> {
+        self.attr_by_memo().or_else(|| self.attr_by_search())
+    }
+
+    fn attr_by_memo(&self) -> Option<RefMut<'a, Attribute>> {
+        let attrs = self.attrs.0.borrow_mut();
+        let index = self.class_index_memo.get();
+        let option = RefMut::filter_map(attrs, |a| a.get_mut(index)).ok();
+        if option
+            .as_ref()
+            .is_some_and(|a| a.name.prefix.is_none() && a.name.local == local_name!("class"))
+        {
+            return option;
+        }
+        None
+    }
+
+    fn attr_by_search(&self) -> Option<RefMut<'a, Attribute>> {
+        let attrs = self.attrs.0.borrow_mut();
+        RefMut::filter_map(attrs, |a| {
+            let (i, attr) = a
+                .iter_mut()
+                .enumerate()
+                .find(|(_, a)| a.name.prefix.is_none() && a.name.local == local_name!("class"))?;
+            self.class_index_memo.set(i);
+            Some(attr)
+        })
+        .ok()
     }
 }
 
@@ -487,7 +673,7 @@ impl Node for Node5Ever {
 
     #[allow(refining_impl_trait)]
     fn find_element(&self) -> Option<Element5Ever> {
-        Element5Ever::find_element(Node::to_owned(self))
+        <Element5Ever as Element>::find_element(Node::to_owned(self))
     }
 
     fn node_type(&self) -> node::Type {
@@ -732,6 +918,26 @@ impl Element for Element5Ever {
         }
     }
 
+    #[allow(refining_impl_trait)]
+    fn class_list(&self) -> ClassList5Ever {
+        let attrs = self.attributes();
+        let attr = attrs.get_named_item_local(&LocalName5Ever(local_name!("class")));
+        let tokens = attr
+            .as_ref()
+            .map(|a| a.value().0.split_whitespace().map(Into::into).collect())
+            .unwrap_or_default();
+        ClassList5Ever {
+            attrs,
+            class_index_memo: Cell::new(0),
+            tokens,
+        }
+    }
+
+    fn has_class(&self, token: &Self::Atom) -> bool {
+        let token = Atom5Ever(token.0.trim_start_matches('.').into());
+        self.class_list().contains(&token)
+    }
+
     fn document(&self) -> Option<Self> {
         let parent: Node5Ever = self.parent_node()?;
         match parent.0.data {
@@ -749,6 +955,24 @@ impl Element for Element5Ever {
             self.after(child);
         }
         self.remove();
+    }
+
+    /// Runs a breadth-first search to get the first element of a node.
+    fn find_element(node: <Self as Node>::ParentChild) -> Option<Self> {
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
+
+        while let Some(current) = queue.pop_front() {
+            let maybe_element = current.element();
+            if maybe_element.is_some() {
+                return maybe_element;
+            }
+
+            for child in current.child_nodes() {
+                queue.push_back(child);
+            }
+        }
+        None
     }
 }
 
@@ -872,24 +1096,6 @@ impl Element5Ever {
         Element5EverData { name, attrs }
     }
 
-    /// Runs a breadth-first search to get the first element of a node.
-    fn find_element(node: Node5Ever) -> Option<Self> {
-        let mut queue = VecDeque::new();
-        queue.push_back(node);
-
-        while let Some(current) = queue.pop_front() {
-            let maybe_element = current.element();
-            if maybe_element.is_some() {
-                return maybe_element;
-            }
-
-            for child in current.child_nodes() {
-                queue.push_back(child);
-            }
-        }
-        None
-    }
-
     #[cfg(feature = "selectors")]
     pub fn set_selector_flags(&self, selector_flags: selectors::matching::ElementSelectorFlags) {
         if selector_flags.is_empty() {
@@ -921,7 +1127,7 @@ impl node::Features for Element5Ever {}
 impl parse::Node for Element5Ever {
     fn parse(source: &str) -> anyhow::Result<Self> {
         let root = Node5Ever::parse(source)?;
-        match Self::find_element(root) {
+        match Node5Ever::find_element(&root) {
             Some(element) => Ok(element),
             None => Err(anyhow::Error::new(parse::Error::NoElementInDocument)),
         }
@@ -1102,7 +1308,11 @@ impl selectors::Element for Element5Ever {
         else {
             return false;
         };
-        case_sensitivity.eq(name.0 .0.as_bytes(), self_class.0.as_bytes())
+        let name = name.0 .0.as_bytes();
+        self_class
+            .0
+            .split_whitespace()
+            .any(|c| case_sensitivity.eq(name, c.as_bytes()))
     }
 
     fn imported_part(

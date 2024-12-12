@@ -1,0 +1,20 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": true } }\"#,\nSome(r#\"<svg id=\"icon_time\" data-name=\"icon time\" xmlns=\"http://www.w3.org/2000/svg\" width=\"51\" height=\"51\" viewBox=\"0 0 51 51\">\n    <!-- only single matches are moved (i.e. .cls-1) -->\n    <defs>\n        <style>\n            .cls-1, .cls-2, .cls-3 {\n                fill: #f5f5f5;\n                stroke: gray;\n            }\n\n            .cls-1, .cls-2 {\n                stroke-width: 1px;\n            }\n\n            .cls-2 {\n                fill-rule: evenodd;\n            }\n\n            .cls-3 {\n                stroke-width: 2px;\n            }\n        </style>\n    </defs>\n    <circle class=\"cls-1\" cx=\"25.5\" cy=\"25.5\" r=\"25\"/>\n    <g>\n        <path class=\"cls-2\" d=\"M1098,2415a8,8,0,0,1,8,8v2h-16v-2A8,8,0,0,1,1098,2415Z\" transform=\"translate(-1072.5 -2389.5)\"/>\n        <path id=\"Ellipse_14_copy\" data-name=\"Ellipse 14 copy\" class=\"cls-2\" d=\"M1098,2415a8,8,0,0,0,8-8v-2h-16v2A8,8,0,0,0,1098,2415Z\" transform=\"translate(-1072.5 -2389.5)\"/>\n        <path class=\"cls-2\" d=\"M1089,2427v-1h18v1h-18Z\" transform=\"translate(-1072.5 -2389.5)\"/>\n        <path id=\"Shape_10_copy\" data-name=\"Shape 10 copy\" class=\"cls-2\" d=\"M1089,2404v-1h18v1h-18Z\" transform=\"translate(-1072.5 -2389.5)\"/>\n        <circle id=\"Ellipse_13_copy\" data-name=\"Ellipse 13 copy\" class=\"cls-3\" cx=\"25.5\" cy=\"31.5\" r=\"1\"/>\n        <circle id=\"Ellipse_13_copy_3\" data-name=\"Ellipse 13 copy 3\" class=\"cls-3\" cx=\"28.5\" cy=\"31.5\" r=\"1\"/>\n        <circle id=\"Ellipse_13_copy_2\" data-name=\"Ellipse 13 copy 2\" class=\"cls-3\" cx=\"22.5\" cy=\"31.5\" r=\"1\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="icon_time" data-name="icon time" width="51" height="51" viewBox="0 0 51 51">
+    <!-- only single matches are moved (i.e. .cls-1) -->
+    <defs>
+        <style>.cls-2,.cls-3{fill:#f5f5f5;stroke:gray}.cls-2{stroke-width:1px}.cls-2{fill-rule:evenodd}.cls-3{stroke-width:2px}</style>
+    </defs>
+    <circle cx="25.5" cy="25.5" r="25" style="fill:#f5f5f5;stroke:gray;stroke-width:1px"></circle>
+    <g>
+        <path class="cls-2" d="M1098,2415a8,8,0,0,1,8,8v2h-16v-2A8,8,0,0,1,1098,2415Z" transform="translate(-1072.5 -2389.5)"></path>
+        <path id="Ellipse_14_copy" data-name="Ellipse 14 copy" class="cls-2" d="M1098,2415a8,8,0,0,0,8-8v-2h-16v2A8,8,0,0,0,1098,2415Z" transform="translate(-1072.5 -2389.5)"></path>
+        <path class="cls-2" d="M1089,2427v-1h18v1h-18Z" transform="translate(-1072.5 -2389.5)"></path>
+        <path id="Shape_10_copy" data-name="Shape 10 copy" class="cls-2" d="M1089,2404v-1h18v1h-18Z" transform="translate(-1072.5 -2389.5)"></path>
+        <circle id="Ellipse_13_copy" data-name="Ellipse 13 copy" class="cls-3" cx="25.5" cy="31.5" r="1"></circle>
+        <circle id="Ellipse_13_copy_3" data-name="Ellipse 13 copy 3" class="cls-3" cx="28.5" cy="31.5" r="1"></circle>
+        <circle id="Ellipse_13_copy_2" data-name="Ellipse 13 copy 2" class="cls-3" cx="22.5" cy="31.5" r="1"></circle>
+    </g>
+</svg>

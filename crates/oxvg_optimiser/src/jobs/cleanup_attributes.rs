@@ -15,8 +15,8 @@ pub struct CleanupAttributes {
     spaces: Option<bool>,
 }
 
-impl Job for CleanupAttributes {
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+impl<E: Element> Job<E> for CleanupAttributes {
+    fn run(&self, element: &E, _context: &Context<E>) {
         for mut attr in element.attributes().iter() {
             if matches!(self.newlines, Some(true)) {
                 attr.set_value(attr.value().as_ref().replace('\n', " ").into());

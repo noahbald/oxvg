@@ -1,5 +1,6 @@
 pub mod atom;
 pub mod attribute;
+pub mod class_list;
 pub mod element;
 pub mod implementations;
 pub mod name;

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::{
     atom::Atom,
     attribute::{Attr, Attributes},
+    class_list::ClassList,
     name::Name,
     node::{Node, Type},
 };
@@ -57,6 +58,13 @@ pub trait Element: Node + Features + Debug {
             .filter(|n| matches!(n.node_type(), Type::Element))
             .filter_map(|n| Self::new(n))
     }
+
+    fn class_list(
+        &self,
+    ) -> impl ClassList<Attribute = <Self::Attributes<'_> as Attributes>::Attribute>;
+
+    /// Returns whether a class (e.g. `.my-class` or `my-class`) is in the class attribute
+    fn has_class(&self, token: &Self::Atom) -> bool;
 
     /// Traverses the element and it's parents until it finds an element that matches the specified
     /// local-name
@@ -188,6 +196,8 @@ pub trait Element: Node + Features + Debug {
         parent.insert_before(node, self.as_parent_child());
         Some(())
     }
+
+    fn find_element(node: <Self as Node>::ParentChild) -> Option<Self>;
 
     /// Returns the value of an attribute of the element specified by it's qualified name.
     ///

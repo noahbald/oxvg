@@ -17,6 +17,7 @@ oxvg_selectors = { workspace = true }
 oxvg_style = { workspace = true }
 
 anyhow = { workspace = true }
+derive-where = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": { \"useMqs\": [\"only screen and (device-width >= 320px) and (device-width <= 480px) and (-webkit-device-pixel-ratio >= 2)\"] } }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 81.285 81.285\">\n    <!-- allow movement of matching useMqs -->\n    <defs>\n        <style>\n            @media only screen\n            and (min-device-width: 320px)\n            and (max-device-width: 480px)\n            and (-webkit-min-device-pixel-ratio: 2) {\n\n                .blue { fill: blue; }\n\n            }\n        </style>\n    </defs>\n    <rect width=\"100\" height=\"100\" class=\"blue\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 81.285 81.285">
+    <!-- allow movement of matching useMqs -->
+    <defs>
+        
+    </defs>
+    <rect width="100" height="100" style="fill:#00f"></rect>
+</svg>
