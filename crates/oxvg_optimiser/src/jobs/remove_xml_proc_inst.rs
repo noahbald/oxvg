@@ -1,4 +1,7 @@
-use oxvg_ast::node::{self, Node};
+use oxvg_ast::{
+    element::Element,
+    node::{self, Node},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
@@ -8,8 +11,8 @@ use crate::{Job, JobDefault, PrepareOutcome};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveXMLProcInst(bool);
 
-impl Job for RemoveXMLProcInst {
-    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for RemoveXMLProcInst {
+    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
         if !self.0 {
             return PrepareOutcome::Skip;
         }

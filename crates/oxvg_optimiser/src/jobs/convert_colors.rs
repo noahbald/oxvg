@@ -17,7 +17,6 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
-    node::Node,
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -59,8 +58,8 @@ pub struct ConvertColors {
     pub method: Option<Method>,
 }
 
-impl Job for ConvertColors {
-    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for ConvertColors {
+    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,
@@ -80,7 +79,7 @@ impl Job for ConvertColors {
         }
     }
 
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let mask_localname = &"mask".into();
         let is_masked = &element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();

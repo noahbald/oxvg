@@ -1,4 +1,4 @@
-use oxvg_ast::{element::Element, node::Node};
+use oxvg_ast::element::Element;
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
@@ -8,8 +8,8 @@ use crate::{Context, Job, JobDefault, PrepareOutcome};
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(bool);
 
-impl Job for ConvertEllipseToCircle {
-    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for ConvertEllipseToCircle {
+    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
@@ -18,7 +18,7 @@ impl Job for ConvertEllipseToCircle {
     }
 
     #[allow(clippy::similar_names)]
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
             return;

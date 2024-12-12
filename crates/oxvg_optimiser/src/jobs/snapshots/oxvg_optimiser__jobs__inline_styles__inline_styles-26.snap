@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 45 35\">\n    <!-- don't remove the wrapping class if it's the parent of another selector -->\n    <style>\n        .a {}\n\n        .a .b {\n            fill: none;\n            stroke: #000;\n        }\n    </style>\n    <g class=\"a\">\n        <circle class=\"b\" cx=\"42.97\" cy=\"24.92\" r=\"1.14\"/>\n        <path class=\"b\" d=\"M26,31s11.91-1.31,15.86-5.64\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 35">
+    <!-- don't remove the wrapping class if it's the parent of another selector -->
+    <style>.a .b{fill:none;stroke:#000}</style>
+    <g class="a">
+        <circle class="b" cx="42.97" cy="24.92" r="1.14"></circle>
+        <path class="b" d="M26,31s11.91-1.31,15.86-5.64"></path>
+    </g>
+</svg>

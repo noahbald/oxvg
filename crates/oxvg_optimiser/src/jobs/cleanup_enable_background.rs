@@ -17,8 +17,8 @@ struct EnableBackgroundDimensions<'a> {
     height: &'a str,
 }
 
-impl Job for CleanupEnableBackground {
-    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for CleanupEnableBackground {
+    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
@@ -35,7 +35,7 @@ impl Job for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local(style_name) {
             let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")

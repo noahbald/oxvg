@@ -1,21 +1,20 @@
 use lightningcss::stylesheet;
 use oxvg_ast::element::Element;
-use oxvg_ast::node::Node;
 use serde::Deserialize;
 
 macro_rules! jobs {
-    ($($name:ident: $job:ident,)+) => {
+    ($($name:ident: $job:ident$(< $($t:ty),* >)?,)+) => {
         $(mod $name;)+
 
         $(pub use self::$name::$job;)+
 
         #[derive(Deserialize, Clone)]
-        #[serde(rename_all = "camelCase")]
-        pub struct Jobs {
-            $($name: Option<Box<$job>>),+
+        #[serde(rename_all = "camelCase", bound = "E: Element")]
+        pub struct Jobs<E: Element> {
+            $($name: Option<Box<$job $( < $($t),* >)?>>),+
         }
 
-        impl Default for Jobs {
+        impl<E: Element> Default for Jobs<E> {
             fn default() -> Self {
                 Self {
                     $($name: $job::optional_default()),+
@@ -23,20 +22,20 @@ macro_rules! jobs {
             }
         }
 
-        impl Jobs {
-            fn filter(&mut self, node: &impl Node) {
-                $(if self.$name.as_mut().is_some_and(|j| j.prepare(node).can_skip()) {
+        impl<E: Element> Jobs<E> {
+            fn filter(&mut self, node: &E::ParentChild) {
+                $(if self.$name.as_mut().is_some_and(|j| <$job $( < $($t),* >)? as Job<E>>::prepare(j, node).can_skip()) {
                     self.$name = None;
                 })+
             }
 
-            fn run_jobs(&self, element: &impl Element, context: &Context) {
+            fn run_jobs(&self, element: &E, context: &Context<E>) {
                 $(if let Some(job) = self.$name.as_ref() {
                     job.run(element, context);
                 })+
             }
 
-            fn use_style(&self, element: &impl Element) -> bool {
+            fn use_style(&self, element: &E) -> bool {
                 $(if let Some(job) = self.$name.as_ref() {
                     if job.use_style(element) {
                         return true;
@@ -45,9 +44,9 @@ macro_rules! jobs {
                 false
             }
 
-            fn breakdown(&mut self, node: &impl Node) {
+            fn breakdown(&mut self, node: &E::ParentChild) {
                 $(if let Some(job) = self.$name.as_mut() {
-                    job.breakdown(node)
+                    <$job $( < $($t),* >)? as Job<E>>::breakdown(job, node)
                 })+
             }
 
@@ -75,6 +74,7 @@ jobs! {
     remove_metadata: RemoveMetadata,
     cleanup_attributes: CleanupAttributes,
     merge_styles: MergeStyles,
+    inline_styles: InlineStyles<E>,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
@@ -93,30 +93,31 @@ pub enum PrepareOutcome {
     Skip,
 }
 
-pub struct Context {
+pub struct Context<E: Element> {
     style: oxvg_style::ComputedStyles,
+    root: E,
 }
 
 pub trait JobDefault {
     fn optional_default() -> Option<Box<Self>>;
 }
 
-pub trait Job: JobDefault {
-    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
+pub trait Job<E: Element>: JobDefault {
+    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
         PrepareOutcome::None
     }
 
-    fn use_style<E: Element>(&self, _element: &E) -> bool {
+    fn use_style(&self, _element: &E) -> bool {
         false
     }
 
-    fn run<E: Element>(&self, _element: &E, _context: &Context) {}
+    fn run(&self, _element: &E, _context: &Context<E>) {}
 
-    fn breakdown<N: Node>(&mut self, _document: &N) {}
+    fn breakdown(&mut self, _document: &E::ParentChild) {}
 }
 
-impl Jobs {
-    pub fn run<N: Node>(self, root: &N) {
+impl<E: Element> Jobs<E> {
+    pub fn run(self, root: &E::ParentChild) {
         let mut jobs = self.clone();
         jobs.filter(root);
         let count = jobs.count();
@@ -129,7 +130,7 @@ impl Jobs {
 
         #[cfg(test)]
         println!("~~ --- starting job");
-        let Some(root_element) = root.find_element() else {
+        let Some(root_element) = <E as Element>::find_element(root.clone()) else {
             log::warn!("No elements found in the document, skipping");
             return;
         };
@@ -159,6 +160,7 @@ impl Jobs {
 
                 let context = Context {
                     style: computed_style,
+                    root: root_element.clone(),
                 };
                 jobs.run_jobs(&child, &context);
                 #[cfg(test)]
@@ -200,9 +202,12 @@ pub(crate) fn test_config_default_svg_comment(
 
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
-    use oxvg_ast::{implementations::markup5ever::Node5Ever, parse::Node};
+    use oxvg_ast::{
+        implementations::markup5ever::{Element5Ever, Node5Ever},
+        parse::Node,
+    };
 
-    let jobs: Jobs = serde_json::from_str(config_json)?;
+    let jobs: Jobs<Element5Ever> = serde_json::from_str(config_json)?;
     let dom: Node5Ever = Node::parse(svg.unwrap_or(
         r#"<svg xmlns="http://www.w3.org/2000/svg">
     test
@@ -213,7 +218,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
 }
 
 #[cfg(test)]
-pub(crate) fn node_to_string(node: &impl Node) -> anyhow::Result<String> {
+pub(crate) fn node_to_string(node: &impl oxvg_ast::node::Node) -> anyhow::Result<String> {
     use oxvg_ast::serialize::Node;
 
     Node::serialize(node)

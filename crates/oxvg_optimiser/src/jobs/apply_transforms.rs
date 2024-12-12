@@ -27,12 +27,12 @@ pub struct ApplyTransforms {
     apply_transforms_stroked: Option<bool>,
 }
 
-impl Job for ApplyTransforms {
-    fn use_style<E: Element>(&self, element: &E) -> bool {
+impl<E: Element> Job<E> for ApplyTransforms {
+    fn use_style(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn run<E: Element>(&self, element: &E, context: &Context) {
+    fn run(&self, element: &E, context: &Context<E>) {
         let d_localname = "d".into();
         let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");

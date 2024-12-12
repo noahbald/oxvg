@@ -17,8 +17,8 @@ pub struct RemoveComments {
 #[derive(Debug, Clone)]
 pub struct PreservePattern(regex::Regex);
 
-impl Job for RemoveComments {
-    fn prepare<N: Node>(&mut self, document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for RemoveComments {
+    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
         dbg!(&self.preserve_patterns);
         for child in document.child_nodes_iter() {
             if child.node_type() != node::Type::Comment {
@@ -29,7 +29,7 @@ impl Job for RemoveComments {
         PrepareOutcome::None
     }
 
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+    fn run(&self, element: &E, _context: &Context<E>) {
         for child in element.child_nodes_iter() {
             if child.node_type() != node::Type::Comment {
                 continue;

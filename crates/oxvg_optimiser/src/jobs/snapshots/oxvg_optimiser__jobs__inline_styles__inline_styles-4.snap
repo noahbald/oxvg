@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- Should apply a single style based on specificity and cascade -->\n    <style>\n        .st0{fill:blue;}\n        .st1{fill:red; }\n    </style>\n    <rect width=\"100\" height=\"100\" class=\"st0 st1\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
+    <!-- Should apply a single style based on specificity and cascade -->
+    
+    <rect width="100" height="100" style="fill:#00f;fill:red"></rect>
+</svg>

@@ -17,8 +17,8 @@ pub struct ConvertShapeToPath {
     float_precision: Option<Precision>,
 }
 
-impl Job for ConvertShapeToPath {
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+impl<E: Element> Job<E> for ConvertShapeToPath {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let element = &mut element.clone();
         let name = element.local_name();
 

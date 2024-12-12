@@ -17,8 +17,8 @@ pub struct MergeStyles {
     is_cdata: RefCell<bool>,
 }
 
-impl Job for MergeStyles {
-    fn prepare<N: Node>(&mut self, _document: &N) -> PrepareOutcome {
+impl<E: Element> Job<E> for MergeStyles {
+    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
         if self.enabled {
             PrepareOutcome::None
         } else {
@@ -26,7 +26,7 @@ impl Job for MergeStyles {
         }
     }
 
-    fn run<E: Element>(&self, element: &E, _context: &super::Context) {
+    fn run(&self, element: &E, _context: &super::Context<E>) {
         if element.prefix().is_none() && element.local_name() != "style".into() {
             return;
         }
@@ -91,7 +91,7 @@ impl Job for MergeStyles {
         }
     }
 
-    fn breakdown<N: Node>(&mut self, _document: &N) {
+    fn breakdown(&mut self, _document: &E::ParentChild) {
         if !&*self.is_cdata.borrow() {
             return;
         }
@@ -102,7 +102,7 @@ impl Job for MergeStyles {
         let style = &mut *style.borrow_mut();
         let mut style = dbg!(style)
             .inner_as_any()
-            .downcast_ref::<N>()
+            .downcast_ref::<E::ParentChild>()
             .unwrap()
             .clone();
         let Some(text) = style.text_content() else {

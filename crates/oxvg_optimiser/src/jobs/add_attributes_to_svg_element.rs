@@ -13,8 +13,8 @@ pub struct AddAttributesToSVGElement {
     pub attributes: BTreeMap<String, String>,
 }
 
-impl Job for AddAttributesToSVGElement {
-    fn run<E: Element>(&self, element: &E, _context: &Context) {
+impl<E: Element> Job<E> for AddAttributesToSVGElement {
+    fn run(&self, element: &E, _context: &Context<E>) {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {

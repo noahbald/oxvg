@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 50\">\n    <!-- unmatched pseudo-classes should do nothing -->\n    <style>\n        path:not([fill=red]) {\n            stroke: purple;\n        }\n    </style>\n    <path fill=\"red\" d=\"M5 5H10\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- unmatched pseudo-classes should do nothing -->
+    <style>path:not([fill=red]){stroke:purple}</style>
+    <path fill="red" d="M5 5H10"></path>
+</svg>

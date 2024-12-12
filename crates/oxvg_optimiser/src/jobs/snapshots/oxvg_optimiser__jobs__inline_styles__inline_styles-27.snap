@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 50\">\n  <style>\n    path:not([fill=blue]) {\n      stroke: purple;\n    }\n  </style>\n  <path fill=\"red\" d=\"M5 5H10\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+  
+  <path fill="red" d="M5 5H10" style="stroke:purple"></path>
+</svg>
