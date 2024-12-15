@@ -2,6 +2,8 @@ use lightningcss::stylesheet;
 use oxvg_ast::element::Element;
 use serde::Deserialize;
 
+use crate::utils::has_scripts;
+
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)?,)+) => {
         $(mod $name;)+
@@ -23,8 +25,8 @@ macro_rules! jobs {
         }
 
         impl<E: Element> Jobs<E> {
-            fn filter(&mut self, node: &E::ParentChild) {
-                $(if self.$name.as_mut().is_some_and(|j| <$job $( < $($t),* >)? as Job<E>>::prepare(j, node).can_skip()) {
+            fn filter(&mut self, node: &E::ParentChild, context_flags: &ContextFlags) {
+                $(if self.$name.as_mut().is_some_and(|j| <$job $( < $($t),* >)? as Job<E>>::prepare(j, node, context_flags).can_skip()) {
                     self.$name = None;
                 })+
             }
@@ -75,6 +77,7 @@ jobs! {
     cleanup_attributes: CleanupAttributes,
     merge_styles: MergeStyles,
     inline_styles: InlineStyles<E>,
+    minify_styles: MinifyStyles,
     cleanup_ids: CleanupIds,
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
@@ -96,6 +99,17 @@ pub enum PrepareOutcome {
 pub struct Context<E: Element> {
     style: oxvg_style::ComputedStyles,
     root: E,
+    flags: ContextFlags,
+}
+
+bitflags! {
+    #[derive(Debug, Clone)]
+    pub struct ContextFlags: usize {
+        /// Whether the document has a script element, script href, or on-* attrs
+        const has_script_ref = 0b0001;
+        /// Whether the document has a non-empty stylesheet
+        const has_stylesheet = 0b0010;
+    }
 }
 
 pub trait JobDefault {
@@ -103,7 +117,11 @@ pub trait JobDefault {
 }
 
 pub trait Job<E: Element>: JobDefault {
-    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         PrepareOutcome::None
     }
 
@@ -118,8 +136,18 @@ pub trait Job<E: Element>: JobDefault {
 
 impl<E: Element> Jobs<E> {
     pub fn run(self, root: &E::ParentChild) {
+        let Some(root_element) = <E as Element>::find_element(root.clone()) else {
+            log::warn!("No elements found in the document, skipping");
+            return;
+        };
+
+        let mut context_flags = ContextFlags::empty();
+        let stylesheet = oxvg_style::root_style(&root_element);
+        context_flags.set(ContextFlags::has_stylesheet, !stylesheet.is_empty());
+        context_flags.set(ContextFlags::has_script_ref, has_scripts(&root_element));
+
         let mut jobs = self.clone();
-        jobs.filter(root);
+        jobs.filter(root, &context_flags);
         let count = jobs.count();
         if count == 0 {
             log::debug!("All jobs were filtered out!");
@@ -130,14 +158,10 @@ impl<E: Element> Jobs<E> {
 
         #[cfg(test)]
         println!("~~ --- starting job");
-        let Some(root_element) = <E as Element>::find_element(root.clone()) else {
-            log::warn!("No elements found in the document, skipping");
-            return;
-        };
 
-        let stylesheet = &oxvg_style::root_style(&root_element);
         let stylesheet =
-            stylesheet::StyleSheet::parse(stylesheet, stylesheet::ParserOptions::default()).ok();
+            stylesheet::StyleSheet::parse(&stylesheet, stylesheet::ParserOptions::default()).ok();
+
         std::iter::once(root_element.clone())
             .chain(root_element.depth_first())
             .collect::<Vec<_>>()
@@ -161,6 +185,7 @@ impl<E: Element> Jobs<E> {
                 let context = Context {
                     style: computed_style,
                     root: root_element.clone(),
+                    flags: context_flags.clone(),
                 };
                 jobs.run_jobs(&child, &context);
                 #[cfg(test)]

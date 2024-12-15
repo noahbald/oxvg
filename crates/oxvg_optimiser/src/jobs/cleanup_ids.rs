@@ -19,6 +19,8 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Debug)]
 struct ReplaceCounter(String, usize);
 
@@ -56,12 +58,16 @@ pub struct CleanupIds {
 }
 
 impl<E: Element> Job<E> for CleanupIds {
-    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        document: &E::ParentChild,
+        context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
 
-        self.prepare_ignore_document(&root);
+        self.prepare_ignore_document(&root, context_flags);
         if self.ignore_document {
             log::debug!("CleanupIds::prepare: skipping");
             return PrepareOutcome::Skip;
@@ -174,17 +180,15 @@ impl<E: Element> Job<E> for CleanupIds {
 }
 
 impl CleanupIds {
-    fn prepare_ignore_document(&mut self, root: &impl Element) {
+    fn prepare_ignore_document(&mut self, root: &impl Element, context_flags: &ContextFlags) {
         if self.force == Some(true) {
             // Then we don't care, just pretend we don't have a script or style
             self.ignore_document = false;
             return;
         }
 
-        let mut unpredictable_refs = root.select("script, style").unwrap();
-        let contains_unpredictable_refs = unpredictable_refs.next().is_some_and(|element| {
-            !Self::is_ref_okay(&element) || !unpredictable_refs.all(|e| Self::is_ref_okay(&e))
-        });
+        let contains_unpredictable_refs = context_flags.contains(ContextFlags::has_stylesheet)
+            || context_flags.contains(ContextFlags::has_script_ref);
         let Some(document) = root.document() else {
             self.ignore_document = true;
             return;
@@ -195,10 +199,6 @@ impl CleanupIds {
             .next()
             .is_none();
         self.ignore_document = contains_unpredictable_refs || contains_only_defs;
-    }
-
-    fn is_ref_okay(element: &impl Element) -> bool {
-        element.child_nodes_iter().next().is_none()
     }
 
     /// Prepares tracking of ids for removal/renaming

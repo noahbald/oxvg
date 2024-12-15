@@ -7,12 +7,18 @@ use serde::Deserialize;
 
 use crate::{Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 
 impl<E: Element> Job<E> for RemoveDoctype {
-    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         if !self.0 {
             return PrepareOutcome::Skip;
         }

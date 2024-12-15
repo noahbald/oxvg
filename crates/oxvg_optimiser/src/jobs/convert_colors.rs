@@ -23,6 +23,8 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Deserialize, Clone)]
 pub enum ConvertCase {
     Upper,
@@ -59,7 +61,11 @@ pub struct ConvertColors {
 }
 
 impl<E: Element> Job<E> for ConvertColors {
-    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,

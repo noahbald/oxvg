@@ -10,6 +10,8 @@ use serde::Deserialize;
 
 use crate::{Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(OptionalDefault)]
 pub struct MergeStyles {
     enabled: bool,
@@ -18,7 +20,11 @@ pub struct MergeStyles {
 }
 
 impl<E: Element> Job<E> for MergeStyles {
-    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         if self.enabled {
             PrepareOutcome::None
         } else {

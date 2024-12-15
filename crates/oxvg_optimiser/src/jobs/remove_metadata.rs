@@ -4,14 +4,18 @@ use serde::Deserialize;
 
 use crate::{Job, JobDefault};
 
-use super::PrepareOutcome;
+use super::{ContextFlags, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveMetadata(bool);
 
 impl<E: Element> Job<E> for RemoveMetadata {
-    fn prepare(&mut self, _document: &E::ParentChild) -> super::PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> super::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {

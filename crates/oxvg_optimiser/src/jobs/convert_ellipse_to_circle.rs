@@ -4,12 +4,18 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(bool);
 
 impl<E: Element> Job<E> for ConvertEllipseToCircle {
-    fn prepare(&mut self, _document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {
