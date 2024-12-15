@@ -12,14 +12,18 @@ use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Context, ContextFlags, Job, JobDefault, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 
 impl<E: Element> Job<E> for CollapseGroups {
-    fn prepare(&mut self, _document: &E::ParentChild) -> crate::PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> crate::PrepareOutcome {
         if self.0 {
             PrepareOutcome::None
         } else {

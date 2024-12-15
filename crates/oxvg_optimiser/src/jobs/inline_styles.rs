@@ -34,7 +34,7 @@ struct RemovedTokens<E: Element> {
 }
 
 #[derive(Default, Debug, Clone)]
-struct ParentTokens {
+pub struct ParentTokens {
     presentation_attrs: BTreeSet<String>,
     classes: BTreeSet<String>,
     ids: BTreeSet<String>,
@@ -43,10 +43,24 @@ struct ParentTokens {
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
-    only_matched_once: Option<bool>,
-    remove_matched_selectors: Option<bool>,
-    use_mqs: Option<Vec<String>>,
-    use_pseudos: Option<Vec<String>>,
+    /// If to only inline styles if the selector matches one element.
+    pub only_matched_once: Option<bool>,
+    /// If to remove the selector and styles from the stylesheet while inlining the styles. This
+    /// does not remove the selectors that did not match any elements.
+    pub remove_matched_selectors: Option<bool>,
+    /// An array of media query conditions to use, such as `screen`. An empty string signifies all
+    /// selectors outside of a media query.
+    /// Using `["*"]` will match all media-queries
+    pub use_mqs: Option<Vec<String>>,
+    /// What pseudo-classes and pseudo-elements to use. An empty string signifies all non-pseudo
+    /// classes and non-pseudo elements.
+    /// Using `["*"]` will match all pseudo-elements
+    pub use_pseudos: Option<Vec<String>>,
+    #[serde(skip_deserializing)]
+    /// After running, a record of matching tokens in a selector that are an ancestor of a matching
+    /// element.
+    /// e.g. `.foo .bar` would record `.foo` as a parent token.
+    pub parent_tokens: RefCell<ParentTokens>,
 }
 
 #[derive(Clone, OptionalDefault)]
@@ -55,7 +69,6 @@ pub struct InlineStyles<E: Element> {
     options: Options,
     styles: RefCell<Vec<CapturedStyles<E>>>,
     removed_tokens: RefCell<RemovedTokens<E>>,
-    parent_tokens: RefCell<ParentTokens>,
 }
 
 enum Token {
@@ -109,7 +122,9 @@ impl<E: Element> Job<E> for InlineStyles<E> {
             return;
         }
 
-        let matches_styles = self.take_matching_selectors(&mut css.rules, context);
+        let matches_styles = self
+            .options
+            .take_matching_selectors(&mut css.rules, context);
         if let Ok(css_string) = css
             .rules
             .to_css_string(stylesheet::PrinterOptions::default())
@@ -123,6 +138,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
             log::debug!("no styles moved");
             return;
         };
+        let removed_styles = flatten_media(removed_styles);
 
         let new_removed_tokens = self.gather_removed_tokens(&removed_styles, context);
         let mut removed_tokens = self.removed_tokens.borrow_mut();
@@ -148,7 +164,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
 
     fn breakdown(&mut self, _document: &<E>::ParentChild) {
         let removed_tokens = self.removed_tokens.borrow();
-        let parent_tokens = self.parent_tokens.borrow();
+        let parent_tokens = self.options.parent_tokens.borrow();
         removed_tokens
             .classes
             .iter()
@@ -247,218 +263,6 @@ impl<E: Element> Job<E> for InlineStyles<E> {
 }
 
 impl<E: Element> InlineStyles<E> {
-    fn strip_allowed_pseudos(&self, selector: String) -> String {
-        let mut new_selector = None;
-        for pseudo in self
-            .options
-            .use_pseudos
-            .as_ref()
-            .unwrap_or(&DEFAULT_USE_PSEUDOS)
-        {
-            let Some(stripped) = new_selector
-                .unwrap_or(selector.as_str())
-                .strip_suffix(pseudo)
-            else {
-                continue;
-            };
-            new_selector = Some(stripped);
-        }
-        match new_selector {
-            Some(s) => s.to_string(),
-            None => selector,
-        }
-    }
-
-    fn take_matching_selectors<'a>(
-        &self,
-        css: &mut rules::CssRuleList<'a>,
-        context: &Context<E>,
-    ) -> Option<rules::CssRuleList<'a>> {
-        let mut removed = rules::CssRuleList(vec![]);
-        let mut matching_elements = vec![];
-
-        css.0.retain_mut(|rule| match rule {
-            rules::CssRule::Media(media_rule) => {
-                let query = &media_rule.query;
-                let debug_query = query.to_css_string(printer::PrinterOptions::default());
-                if !self.is_media_query_useable(query) {
-                    log::debug!("media query not useable: {debug_query:?}");
-                    return true;
-                }
-                let Some(removed_media) =
-                    self.take_matching_selectors(&mut media_rule.rules, context)
-                else {
-                    log::debug!("nothing removed from query: {debug_query:?}");
-                    return true;
-                };
-                removed.0.extend_from_slice(&removed_media.0);
-                !media_rule.rules.0.is_empty()
-            }
-            #[allow(clippy::default_trait_access)]
-            rules::CssRule::Style(style_rule) => {
-                let mut removed_selector = style_rule.clone();
-                let mut selector = format!("{}", style_rule.selectors);
-                selector = self.strip_allowed_pseudos(selector);
-                let matches = match context
-                    .root
-                    .select(selector.as_str())
-                    .map(std::iter::Iterator::collect::<Vec<_>>)
-                {
-                    Ok(matches) => matches,
-                    Err(e) => {
-                        log::debug!("{e:?}: {selector}");
-                        return true;
-                    }
-                };
-                let mut parent_tokens = self.parent_tokens.borrow_mut();
-                let new_parent_tokens = Self::find_parent_attrs(style_rule);
-                parent_tokens.classes.extend(new_parent_tokens.classes);
-                parent_tokens.ids.extend(new_parent_tokens.ids);
-                if !new_parent_tokens.presentation_attrs.is_empty() {
-                    parent_tokens
-                        .presentation_attrs
-                        .extend(new_parent_tokens.presentation_attrs);
-                    log::debug!("selector has presentation attr");
-                    return true;
-                }
-
-                removed_selector.selectors.0 = Default::default();
-                style_rule.selectors.0.retain_mut(|s| {
-                    if self.is_selector_removeable(s, &mut removed_selector, &matches) {
-                        !self
-                            .options
-                            .remove_matched_selectors
-                            .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
-                    } else {
-                        true
-                    }
-                });
-                removed.0.push(rules::CssRule::Style(removed_selector));
-                matching_elements.extend(matches);
-                if style_rule.selectors.0.is_empty() {
-                    !self
-                        .options
-                        .remove_matched_selectors
-                        .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
-                } else {
-                    true
-                }
-            }
-            _ => true,
-        });
-        if removed.0.is_empty() {
-            None
-        } else {
-            Some(removed)
-        }
-    }
-
-    fn is_selector_removeable<'a>(
-        &self,
-        selector: &mut selector::Selector<'a>,
-        removed_selector: &mut rules::style::StyleRule<'a>,
-        matches: &[E],
-    ) -> bool {
-        let use_pseudos = self
-            .options
-            .use_pseudos
-            .as_ref()
-            .unwrap_or(&DEFAULT_USE_PSEUDOS);
-
-        if selector.has_pseudo_element() {
-            log::debug!("selector has pseudo-element: {selector:?}");
-            return true;
-        }
-        if selector
-            .iter()
-            .filter(|p| !matches!(p, selector::Component::NonTSPseudoClass(_)))
-            .map(|p| format!("{p:?}"))
-            .filter(|p| use_pseudos.contains(p))
-            .any(|p| PRESERVED_PSEUDOS.contains(p.as_str()))
-        {
-            log::debug!("selector has pseudo-class: {selector:?}");
-            return true;
-        }
-
-        let Some(mut token) = selector
-            .iter()
-            .map(|p| format!("{p:?}"))
-            .filter(|p| !use_pseudos.contains(p))
-            .last()
-        else {
-            log::debug!("selector doesn't end with a static token: {selector:?}");
-            return true;
-        };
-        let token_type = match token.chars().next() {
-            Some('.') => {
-                token.remove(0);
-                Token::Class
-            }
-            Some('#') => {
-                token.remove(0);
-                Token::ID
-            }
-            Some('[') => {
-                token.pop();
-                token.remove(0);
-                Token::Attr
-            }
-            _ => Token::Other,
-        };
-        let token = &token.into();
-        let id_name = &"id".into();
-        let match_count = matches
-            .iter()
-            .filter(|m| match token_type {
-                Token::Class => Element::has_class(*m, token),
-                Token::ID => m.get_attribute(id_name).is_some_and(|id| &id == token),
-                Token::Attr => {
-                    let Some((name, value)) = token.as_str().split_once('=') else {
-                        return false;
-                    };
-                    let Some(attr) = m.get_attribute_local(&name.into()) else {
-                        return false;
-                    };
-                    attr.as_str() == value
-                }
-                Token::Other => {
-                    m.local_name().as_str() == token.as_str()
-                        || !PRESERVED_PSEUDOS.contains(token.as_str())
-                }
-            })
-            .count();
-        log::debug!("selector {token:?} has matches: {match_count:?}");
-
-        let removeable = if self
-            .options
-            .only_matched_once
-            .unwrap_or(DEFAULT_ONLY_MATCHED_ONCE)
-        {
-            match_count == 1
-        } else {
-            match_count > 0
-        };
-        if removeable {
-            removed_selector.selectors.0.push(selector.clone());
-        }
-        removeable
-    }
-
-    fn is_media_query_useable(&self, media_rule: &media_query::MediaList) -> bool {
-        let use_mqs = self.options.use_mqs.as_ref().unwrap_or(&DEFAULT_USE_MQS);
-        if use_mqs.is_empty() {
-            return false;
-        }
-        let media_query = match media_rule.to_css_string(printer::PrinterOptions::default()) {
-            Ok(media_query) => media_query,
-            Err(e) => {
-                log::debug!("failed to parse media_rule: {e}");
-                return false;
-            }
-        };
-        use_mqs.contains(&media_query)
-    }
-
     fn gather_removed_tokens(
         &self,
         styles: &rules::CssRuleList,
@@ -474,7 +278,7 @@ impl<E: Element> InlineStyles<E> {
             }
             rules::CssRule::Style(style_rule) => {
                 let mut selector = format!("{}", style_rule.selectors);
-                selector = self.strip_allowed_pseudos(selector);
+                selector = self.options.strip_allowed_pseudos(selector);
                 let declarations = match style_rule
                     .declarations
                     .to_css_string(printer::PrinterOptions::default())
@@ -639,86 +443,308 @@ impl<E: Element> InlineStyles<E> {
             Some(output)
         }
     }
+}
 
-    fn find_parent_attrs(style_rule: &rules::style::StyleRule) -> ParentTokens {
-        macro_rules! get_selector_presentation_attrs {
-            ($iter:ident) => {
-                $iter
-                    .filter_map(|item| match item {
-                        selector::Component::AttributeOther(a) => match a.namespace {
-                            None => Some(&a.local_name_lower),
-                            Some(_) => None,
-                        },
-                        selector::Component::AttributeInNoNamespace { local_name, .. } => {
-                            Some(local_name)
-                        }
-                        selector::Component::AttributeInNoNamespaceExists {
-                            local_name_lower,
-                            ..
-                        } => Some(local_name_lower),
-                        _ => None,
-                    })
-                    .filter_map(|s| s.to_css_string(printer::PrinterOptions::default()).ok())
-                    .filter(|s| PRESENTATION.contains(s.as_str()))
+fn flatten_media(css: rules::CssRuleList) -> rules::CssRuleList {
+    rules::CssRuleList(
+        css.0
+            .into_iter()
+            .flat_map(|rule| {
+                let rules::CssRule::Media(rules::media::MediaRule { rules, .. }) = rule else {
+                    return vec![rule];
+                };
+                rules.0
+            })
+            .collect(),
+    )
+}
+
+impl Options {
+    pub(crate) fn take_matching_selectors<'a, E: Element>(
+        &self,
+        css: &mut rules::CssRuleList<'a>,
+        context: &Context<E>,
+    ) -> Option<rules::CssRuleList<'a>> {
+        let mut removed = rules::CssRuleList(vec![]);
+        let mut matching_elements = vec![];
+
+        css.0.retain_mut(|rule| match rule {
+            rules::CssRule::Media(media_rule) => {
+                let query = &media_rule.query;
+                let debug_query = query.to_css_string(printer::PrinterOptions::default());
+                if !self.is_media_query_useable(query) {
+                    log::debug!("media query not useable: {debug_query:?}");
+                    return true;
+                }
+                let Some(removed_media) =
+                    self.take_matching_selectors(&mut media_rule.rules, context)
+                else {
+                    log::debug!("nothing removed from query: {debug_query:?}");
+                    return true;
+                };
+                removed
+                    .0
+                    .push(rules::CssRule::Media(rules::media::MediaRule {
+                        query: query.clone(),
+                        rules: removed_media,
+                        loc: media_rule.loc,
+                    }));
+                !media_rule.rules.0.is_empty()
+            }
+            #[allow(clippy::default_trait_access)]
+            rules::CssRule::Style(style_rule) => {
+                let mut removed_selector = style_rule.clone();
+                let mut selector = format!("{}", style_rule.selectors);
+                selector = self.strip_allowed_pseudos(selector);
+                let matches = match context
+                    .root
+                    .select(selector.as_str())
+                    .map(std::iter::Iterator::collect::<Vec<_>>)
+                {
+                    Ok(matches) => matches,
+                    Err(e) => {
+                        log::debug!("{e:?}: {selector}");
+                        return true;
+                    }
+                };
+                let mut parent_tokens = self.parent_tokens.borrow_mut();
+                let new_parent_tokens = find_parent_attrs(style_rule);
+                parent_tokens.classes.extend(new_parent_tokens.classes);
+                parent_tokens.ids.extend(new_parent_tokens.ids);
+                if !new_parent_tokens.presentation_attrs.is_empty() {
+                    parent_tokens
+                        .presentation_attrs
+                        .extend(new_parent_tokens.presentation_attrs);
+                    log::debug!("selector has presentation attr");
+                    return true;
+                }
+
+                removed_selector.selectors.0 = Default::default();
+                style_rule.selectors.0.retain_mut(|s| {
+                    if self.is_selector_removeable(s, &mut removed_selector, &matches) {
+                        !self
+                            .remove_matched_selectors
+                            .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
+                    } else {
+                        true
+                    }
+                });
+                removed.0.push(rules::CssRule::Style(removed_selector));
+                matching_elements.extend(matches);
+                if style_rule.selectors.0.is_empty() {
+                    !self
+                        .remove_matched_selectors
+                        .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
+                } else {
+                    true
+                }
+            }
+            _ => true,
+        });
+        if removed.0.is_empty() {
+            None
+        } else {
+            Some(removed)
+        }
+    }
+
+    fn is_media_query_useable(&self, media_rule: &media_query::MediaList) -> bool {
+        let use_mqs = self.use_mqs.as_ref().unwrap_or(&DEFAULT_USE_MQS);
+        if use_mqs.is_empty() {
+            return false;
+        }
+        if use_mqs.first().expect("previously checked is_empty") == "*" {
+            return true;
+        }
+        let media_query = match media_rule.to_css_string(printer::PrinterOptions::default()) {
+            Ok(media_query) => media_query,
+            Err(e) => {
+                log::debug!("failed to parse media_rule: {e}");
+                return false;
+            }
+        };
+        use_mqs.contains(&media_query)
+    }
+
+    fn is_selector_removeable<'a, E: Element>(
+        &self,
+        selector: &mut selector::Selector<'a>,
+        removed_selector: &mut rules::style::StyleRule<'a>,
+        matches: &[E],
+    ) -> bool {
+        let use_pseudos = self.use_pseudos.as_ref().unwrap_or(&DEFAULT_USE_PSEUDOS);
+        let use_any_pseudo = use_pseudos.first().is_some_and(|s| s == "*");
+
+        if selector.has_pseudo_element() {
+            log::debug!("selector has pseudo-element: {selector:?}");
+            return true;
+        }
+        if selector
+            .iter()
+            .filter(|p| !matches!(p, selector::Component::NonTSPseudoClass(_)))
+            .map(|p| format!("{p:?}"))
+            .filter(|p| use_any_pseudo || use_pseudos.contains(p))
+            .any(|p| PRESERVED_PSEUDOS.contains(p.as_str()))
+        {
+            log::debug!("selector has pseudo-class: {selector:?}");
+            return true;
+        }
+
+        let Some(mut token) = selector
+            .iter()
+            .map(|p| format!("{p:?}"))
+            .filter(|p| !use_any_pseudo || !use_pseudos.contains(p))
+            .last()
+        else {
+            log::debug!("selector doesn't end with a static token: {selector:?}");
+            return true;
+        };
+        let token_type = match token.chars().next() {
+            Some('.') => {
+                token.remove(0);
+                Token::Class
+            }
+            Some('#') => {
+                token.remove(0);
+                Token::ID
+            }
+            Some('[') => {
+                token.pop();
+                token.remove(0);
+                Token::Attr
+            }
+            _ => Token::Other,
+        };
+        let token = &token.into();
+        let id_name = &"id".into();
+        let match_count = matches
+            .iter()
+            .filter(|m| match token_type {
+                Token::Class => Element::has_class(*m, token),
+                Token::ID => m.get_attribute(id_name).is_some_and(|id| &id == token),
+                Token::Attr => {
+                    let Some((name, value)) = token.as_str().split_once('=') else {
+                        return false;
+                    };
+                    let Some(attr) = m.get_attribute_local(&name.into()) else {
+                        return false;
+                    };
+                    attr.as_str() == value
+                }
+                Token::Other => {
+                    m.local_name().as_str() == token.as_str()
+                        || !PRESERVED_PSEUDOS.contains(token.as_str())
+                }
+            })
+            .count();
+        log::debug!("selector {token:?} has matches: {match_count:?}");
+
+        let removeable = if self.only_matched_once.unwrap_or(DEFAULT_ONLY_MATCHED_ONCE) {
+            match_count == 1
+        } else {
+            match_count > 0
+        };
+        if removeable {
+            removed_selector.selectors.0.push(selector.clone());
+        }
+        removeable
+    }
+
+    fn strip_allowed_pseudos(&self, selector: String) -> String {
+        let mut new_selector = None;
+        for pseudo in self.use_pseudos.as_ref().unwrap_or(&DEFAULT_USE_PSEUDOS) {
+            let Some(stripped) = new_selector
+                .unwrap_or(selector.as_str())
+                .strip_suffix(pseudo)
+            else {
+                continue;
             };
+            new_selector = Some(stripped);
         }
+        match new_selector {
+            Some(s) => s.to_string(),
+            None => selector,
+        }
+    }
+}
 
-        ParentTokens {
-            presentation_attrs: style_rule
-                .selectors
-                .0
-                .iter()
-                .flat_map(|s| {
-                    let iter = &mut s.iter();
-                    let mut attrs = vec![];
+fn find_parent_attrs(style_rule: &rules::style::StyleRule) -> ParentTokens {
+    macro_rules! get_selector_presentation_attrs {
+        ($iter:ident) => {
+            $iter
+                .filter_map(|item| match item {
+                    selector::Component::AttributeOther(a) => match a.namespace {
+                        None => Some(&a.local_name_lower),
+                        Some(_) => None,
+                    },
+                    selector::Component::AttributeInNoNamespace { local_name, .. } => {
+                        Some(local_name)
+                    }
+                    selector::Component::AttributeInNoNamespaceExists {
+                        local_name_lower, ..
+                    } => Some(local_name_lower),
+                    _ => None,
+                })
+                .filter_map(|s| s.to_css_string(printer::PrinterOptions::default()).ok())
+                .filter(|s| PRESENTATION.contains(s.as_str()))
+        };
+    }
+
+    ParentTokens {
+        presentation_attrs: style_rule
+            .selectors
+            .0
+            .iter()
+            .flat_map(|s| {
+                let iter = &mut s.iter();
+                let mut attrs = vec![];
+                attrs.extend(get_selector_presentation_attrs!(iter));
+                while iter.next_sequence().is_some() {
                     attrs.extend(get_selector_presentation_attrs!(iter));
-                    while iter.next_sequence().is_some() {
-                        attrs.extend(get_selector_presentation_attrs!(iter));
-                    }
-                    attrs
-                })
-                .collect(),
-            classes: style_rule
-                .selectors
-                .0
-                .iter()
-                .flat_map(|s| {
-                    let iter = &mut s.iter();
-                    let mut classes = vec![];
-                    iter.for_each(|_| ());
-                    while iter.next_sequence().is_some() {
-                        classes.extend(
-                            iter.filter_map(|t| match t {
-                                selector::Component::Class(class) => Some(class),
-                                _ => None,
-                            })
-                            .map(|t| format!("{t}")),
-                        );
-                    }
-                    classes
-                })
-                .collect(),
-            ids: style_rule
-                .selectors
-                .0
-                .iter()
-                .flat_map(|s| {
-                    let iter = &mut s.iter();
-                    let mut ids = vec![];
-                    iter.for_each(|_| ());
-                    while iter.next_sequence().is_some() {
-                        ids.extend(
-                            iter.filter_map(|t| match t {
-                                selector::Component::ID(id) => Some(id),
-                                _ => None,
-                            })
-                            .map(|t| format!("{t}")),
-                        );
-                    }
-                    ids
-                })
-                .collect(),
-        }
+                }
+                attrs
+            })
+            .collect(),
+        classes: style_rule
+            .selectors
+            .0
+            .iter()
+            .flat_map(|s| {
+                let iter = &mut s.iter();
+                let mut classes = vec![];
+                iter.for_each(|_| ());
+                while iter.next_sequence().is_some() {
+                    classes.extend(
+                        iter.filter_map(|t| match t {
+                            selector::Component::Class(class) => Some(class),
+                            _ => None,
+                        })
+                        .map(|t| format!("{t}")),
+                    );
+                }
+                classes
+            })
+            .collect(),
+        ids: style_rule
+            .selectors
+            .0
+            .iter()
+            .flat_map(|s| {
+                let iter = &mut s.iter();
+                let mut ids = vec![];
+                iter.for_each(|_| ());
+                while iter.next_sequence().is_some() {
+                    ids.extend(
+                        iter.filter_map(|t| match t {
+                            selector::Component::ID(id) => Some(id),
+                            _ => None,
+                        })
+                        .map(|t| format!("{t}")),
+                    );
+                }
+                ids
+            })
+            .collect(),
     }
 }
 
@@ -732,7 +758,6 @@ impl<'de, E: Element> Deserialize<'de> for InlineStyles<E> {
             options,
             styles: RefCell::new(vec![]),
             removed_tokens: RefCell::new(RemovedTokens::default()),
-            parent_tokens: RefCell::new(ParentTokens::default()),
         })
     }
 }

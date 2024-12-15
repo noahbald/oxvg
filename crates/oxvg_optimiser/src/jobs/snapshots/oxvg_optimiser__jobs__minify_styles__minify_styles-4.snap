@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
+expression: "test_config(r#\"{ \"minifyStyles\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <style>\n        .used { p: 1 }\n        .unused { p: 2 }\n        #used { p: 3 }\n        #unused { p: 4 }\n        g { p: 5 }\n        unused { p: 6 }\n    </style>\n    <g id=\"used\" class=\"used\">\n        test\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <style>.used{p:1}#used{p:3}g{p:5}</style>
+    <g id="used" class="used">
+        test
+    </g>
+</svg>

@@ -8,6 +8,8 @@ use serde_json::Value;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Deserialize, Clone, Default, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveComments {
@@ -18,7 +20,11 @@ pub struct RemoveComments {
 pub struct PreservePattern(regex::Regex);
 
 impl<E: Element> Job<E> for RemoveComments {
-    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         dbg!(&self.preserve_patterns);
         for child in document.child_nodes_iter() {
             if child.node_type() != node::Type::Comment {

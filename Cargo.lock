@@ -1180,6 +1180,7 @@ name = "oxvg_optimiser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags",
  "ctor",
  "derive-where",
  "divan",

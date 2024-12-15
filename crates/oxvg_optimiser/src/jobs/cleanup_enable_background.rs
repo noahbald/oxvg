@@ -5,6 +5,8 @@ use serde::Deserialize;
 
 use crate::{Context, Job, JobDefault, PrepareOutcome};
 
+use super::ContextFlags;
+
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
@@ -18,7 +20,11 @@ struct EnableBackgroundDimensions<'a> {
 }
 
 impl<E: Element> Job<E> for CleanupEnableBackground {
-    fn prepare(&mut self, document: &E::ParentChild) -> PrepareOutcome {
+    fn prepare(
+        &mut self,
+        document: &E::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::None;
         };
