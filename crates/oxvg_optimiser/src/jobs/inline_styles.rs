@@ -219,7 +219,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
                 .map(|a| a.to_string())
                 .unwrap_or_default();
             style.push_str(&original_inline_styles);
-            let css = match stylesheet::StyleAttribute::parse(
+            let mut css = match stylesheet::StyleAttribute::parse(
                 &style,
                 stylesheet::ParserOptions::default(),
             ) {
@@ -229,6 +229,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
                     continue;
                 }
             };
+            css.minify(stylesheet::MinifyOptions::default());
             let printer_options = printer::PrinterOptions {
                 minify: true,
                 ..printer::PrinterOptions::default()
