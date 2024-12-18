@@ -1,9 +1,8 @@
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    visitor::Context,
 };
-
-use crate::{Context, Job, JobDefault};
 
 pub struct Options {
     pub float_precision: usize,
@@ -19,7 +18,7 @@ pub enum Mode {
     SingleValue,
 }
 
-pub trait CleanupValues: JobDefault {
+pub trait CleanupValues {
     fn get_options(&self) -> Options;
 
     fn get_mode(&self) -> Mode;
@@ -81,10 +80,8 @@ pub trait CleanupValues: JobDefault {
         }
         Ok(rounded_list.join(" ").into())
     }
-}
 
-impl<T: CleanupValues, E: Element> Job<E> for T {
-    fn run(&self, element: &E, _context: &Context<E>) {
+    fn element<E: Element>(&self, element: &E, _context: &Context<E>) -> Result<(), String> {
         for mut attr in element.attributes().iter() {
             if !self.get_mode().allowed_attribute(&attr) {
                 continue;
@@ -104,6 +101,7 @@ impl<T: CleanupValues, E: Element> Job<E> for T {
                 }
             };
         }
+        Ok(())
     }
 }
 

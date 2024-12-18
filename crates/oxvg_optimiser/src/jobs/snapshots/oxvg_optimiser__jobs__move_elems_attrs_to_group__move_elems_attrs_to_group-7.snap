@@ -1,0 +1,16 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\">\n    <!-- don't move if there is a filter attr on a group -->\n    <defs>\n        <filter id=\"a\" x=\"17\" y=\"13\" width=\"12\" height=\"10\" filterUnits=\"userSpaceOnUse\">\n            <feGaussianBlur stdDeviation=\".01\"/>\n        </filter>\n    </defs>\n    <g filter=\"url(#a)\">\n        <rect x=\"19\" y=\"12\" width=\"14\" height=\"6\" rx=\"3\" transform=\"rotate(31 19 12.79)\"/>\n        <rect x=\"19\" y=\"12\" width=\"14\" height=\"6\" rx=\"3\" transform=\"rotate(31 19 12.79)\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <!-- don't move if there is a filter attr on a group -->
+    <defs>
+        <filter id="a" x="17" y="13" width="12" height="10" filterUnits="userSpaceOnUse">
+            <feGaussianBlur stdDeviation=".01"></feGaussianBlur>
+        </filter>
+    </defs>
+    <g filter="url(#a)">
+        <rect x="19" y="12" width="14" height="6" rx="3" transform="rotate(31 19 12.79)"></rect>
+        <rect x="19" y="12" width="14" height="6" rx="3" transform="rotate(31 19 12.79)"></rect>
+    </g>
+</svg>

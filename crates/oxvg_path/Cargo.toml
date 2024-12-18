@@ -16,14 +16,14 @@ workspace = true
 [features]
 default = ["parse", "format", "optimise"]
 jsonschema = ["schemars", "serde"]
-oxvg = ["dep:lightningcss", "dep:oxvg_style"]
+oxvg = ["dep:lightningcss", "dep:oxvg_ast"]
 serde = ["dep:serde"]
 parse = ["bitflags"]
 format = ["ryu"]
 optimise = ["format", "bitflags"]
 
 [dependencies]
-oxvg_style = { workspace = true, optional = true }
+oxvg_ast = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 lightningcss = { workspace = true, optional = true }
 log = { workspace = true }

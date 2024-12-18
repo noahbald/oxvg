@@ -1,5 +1,11 @@
 use std::collections::BTreeMap;
 
+use crate::{
+    atom::Atom,
+    attribute::{Attr, Attributes},
+    element::Element,
+    selectors::Selector,
+};
 use lazy_static::lazy_static;
 use lightningcss::{
     declaration,
@@ -10,12 +16,6 @@ use lightningcss::{
     traits::ToCss,
     values,
     vendor_prefix::{self, VendorPrefix},
-};
-use oxvg_ast::{
-    atom::Atom,
-    attribute::{Attr, Attributes},
-    element::Element,
-    selectors::Selector,
 };
 
 #[derive(Debug)]

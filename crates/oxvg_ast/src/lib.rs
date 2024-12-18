@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitflags;
+
 pub mod atom;
 pub mod attribute;
 pub mod class_list;
@@ -5,6 +8,9 @@ pub mod element;
 pub mod implementations;
 pub mod name;
 pub mod node;
+
+#[cfg(feature = "visitor")]
+pub mod visitor;
 
 #[cfg(feature = "parse")]
 pub mod parse;
@@ -14,3 +20,6 @@ pub mod serialize;
 
 #[cfg(feature = "selectors")]
 pub mod selectors;
+
+#[cfg(feature = "style")]
+pub mod style;

@@ -10,14 +10,15 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    style::{ComputedStyles, SVGPaint, SVGStyle, SVGStyleID, Style},
+    visitor::{Context, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
 use oxvg_selectors::{collections, regex::REFERENCES_URL};
-use oxvg_style::{ComputedStyles, SVGPaint, SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -27,52 +28,56 @@ pub struct ApplyTransforms {
     apply_transforms_stroked: Option<bool>,
 }
 
-impl<E: Element> Job<E> for ApplyTransforms {
+impl<E: Element> Job<E> for ApplyTransforms {}
+
+impl<E: Element> Visitor<E> for ApplyTransforms {
+    type Error = String;
+
     fn use_style(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn run(&self, element: &E, context: &Context<E>) {
+    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");
-            return;
+            return Ok(());
         };
         let Ok(mut path) = Path::parse(path.into()) else {
             log::debug!("run: failed to parse path");
-            return;
+            return Ok(());
         };
 
         for attr in element.attributes().iter() {
             if attr.local_name() == "id".into() || attr.local_name() == "style".into() {
                 log::debug!("run: element has id");
-                return;
+                return Ok(());
             }
 
             let is_reference_prop =
                 collections::REFERENCES_PROPS.contains(attr.local_name().as_ref());
             if is_reference_prop && REFERENCES_URL.captures(attr.value().as_ref()).is_some() {
                 log::debug!("run: element has reference");
-                return;
+                return Ok(());
             }
         }
 
         let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) else {
             log::debug!("run: element has no transform");
-            return;
+            return Ok(());
         };
         let transform = transform.inner();
         match transform {
             SVGStyle::Transform(l, _) if l.0.is_empty() => {
                 log::debug!("run: cannot handle empty transform");
-                return;
+                return Ok(());
             }
             _ => {}
         }
         if let Some((mode, string)) = context.style.get_string(&SVGStyleID::Transform) {
             if mode.is_static() && transform.to_css_string(false).is_some_and(|s| s != string) {
                 log::debug!("run: another transform is applied to this element");
-                return;
+                return Ok(());
             }
         };
 
@@ -83,7 +88,7 @@ impl<E: Element> Job<E> for ApplyTransforms {
             Some(Style::Static(value)) => Some(value),
             Some(Style::Dyanmic(_)) => {
                 log::debug!("run: cannot handle dynamic stroke");
-                return;
+                return Ok(());
             }
             None => None,
         };
@@ -91,24 +96,24 @@ impl<E: Element> Job<E> for ApplyTransforms {
             Some(Style::Static(SVGStyle::StrokeWidth(p))) => Some(p),
             Some(Style::Dyanmic(_)) => {
                 log::debug!("run: cannot handle dynamic stroke_width");
-                return;
+                return Ok(());
             }
             None => None,
             _ => unreachable!(),
         };
         let Some(matrix) = transform_list.to_matrix() else {
             log::debug!("run: cannot get matrix");
-            return;
+            return Ok(());
         };
         let Some(matrix) = matrix.to_matrix2d() else {
             log::debug!("run: cannot handle matrix");
-            return;
+            return Ok(());
         };
         let matrix = matrix32_to_slice(&matrix);
 
         if let Some(SVGStyle::Stroke(stroke)) = stroke {
             if self.apply_stroked(&matrix, &context.style, stroke, stroke_width, element) {
-                return;
+                return Ok(());
             }
         }
 
@@ -119,6 +124,7 @@ impl<E: Element> Job<E> for ApplyTransforms {
         );
         log::debug!("new d <- {path}");
         element.remove_attribute_local(&"transform".into());
+        Ok(())
     }
 }
 
@@ -174,7 +180,7 @@ impl ApplyTransforms {
         if let Some(SVGStyle::StrokeDashoffset(l)) = style
             .attr
             .get(&SVGStyleID::StrokeDashoffset)
-            .map(oxvg_style::Style::inner)
+            .map(Style::inner)
         {
             if let Ok(value) = l
                 .clone()
@@ -188,7 +194,7 @@ impl ApplyTransforms {
         if let Some(SVGStyle::StrokeDasharray(svg::StrokeDasharray::Values(v))) = style
             .attr
             .get(&SVGStyleID::StrokeDasharray)
-            .map(oxvg_style::Style::inner)
+            .map(Style::inner)
         {
             let value = v
                 .clone()

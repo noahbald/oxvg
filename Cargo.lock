@@ -1135,10 +1135,15 @@ name = "oxvg_ast"
 version = "0.0.1-alpha.1"
 dependencies = [
  "anyhow",
+ "bitflags",
  "cssparser 0.31.2",
+ "derive-where",
+ "lazy_static",
+ "lightningcss",
  "log",
  "markup5ever",
  "markup5ever_rcdom",
+ "regex",
  "selectors",
  "serde",
  "string_cache",
@@ -1180,7 +1185,6 @@ name = "oxvg_optimiser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitflags",
  "ctor",
  "derive-where",
  "divan",
@@ -1194,7 +1198,6 @@ dependencies = [
  "oxvg_derive",
  "oxvg_path",
  "oxvg_selectors",
- "oxvg_style",
  "regex",
  "serde",
  "serde_json",
@@ -1209,7 +1212,7 @@ dependencies = [
  "insta",
  "lightningcss",
  "log",
- "oxvg_style",
+ "oxvg_ast",
  "ryu",
  "schemars",
  "serde",
@@ -1221,18 +1224,6 @@ version = "0.0.1-alpha.1"
 dependencies = [
  "lazy_static",
  "log",
- "oxvg_ast",
- "regex",
-]
-
-[[package]]
-name = "oxvg_style"
-version = "0.0.1-alpha.1"
-dependencies = [
- "lazy_static",
- "lightningcss",
- "log",
- "markup5ever_rcdom",
  "oxvg_ast",
  "regex",
 ]

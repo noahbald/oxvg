@@ -1,11 +1,12 @@
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    visitor::{Context, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -15,8 +16,12 @@ pub struct CleanupAttributes {
     spaces: Option<bool>,
 }
 
-impl<E: Element> Job<E> for CleanupAttributes {
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Job<E> for CleanupAttributes {}
+
+impl<E: Element> Visitor<E> for CleanupAttributes {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         for mut attr in element.attributes().iter() {
             if matches!(self.newlines, Some(true)) {
                 attr.set_value(attr.value().as_ref().replace('\n', " ").into());
@@ -35,6 +40,7 @@ impl<E: Element> Job<E> for CleanupAttributes {
                 );
             }
         }
+        Ok(())
     }
 }
 

@@ -1,12 +1,15 @@
 use std::f64;
 
 use itertools::peek_nth;
-use oxvg_ast::element::Element;
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 use super::convert_path_data::Precision;
 
@@ -17,8 +20,12 @@ pub struct ConvertShapeToPath {
     float_precision: Option<Precision>,
 }
 
-impl<E: Element> Job<E> for ConvertShapeToPath {
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Job<E> for ConvertShapeToPath {}
+
+impl<E: Element> Visitor<E> for ConvertShapeToPath {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let element = &mut element.clone();
         let name = element.local_name();
 
@@ -37,6 +44,7 @@ impl<E: Element> Job<E> for ConvertShapeToPath {
             "ellipse" if convert_arcs => Self::ellipse_to_path(element, path_options),
             _ => {}
         }
+        Ok(())
     }
 }
 

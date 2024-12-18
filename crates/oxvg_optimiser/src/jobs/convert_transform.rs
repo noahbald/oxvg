@@ -3,14 +3,15 @@ use lightningcss::properties::transform::{Matrix, Matrix3d, Transform, Transform
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    style::{SVGStyle, SVGStyleID, Style},
+    visitor::{Context, Visitor},
 };
 use oxvg_derive::OptionalDefault;
-use oxvg_style::{SVGStyle, SVGStyleID, Style};
 use serde::Deserialize;
 
 use crate::{
     utils::transform::{self, Precision},
-    Context, Job, JobDefault,
+    Job,
 };
 
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
@@ -42,7 +43,11 @@ struct Inner {
     collapse_into_one: bool,
 }
 
-impl<E: Element> Job<E> for ConvertTransform {
+impl<E: Element> Job<E> for ConvertTransform {}
+
+impl<E: Element> Visitor<E> for ConvertTransform {
+    type Error = String;
+
     fn use_style(&self, element: &E) -> bool {
         element.attributes().iter().any(|attr| {
             matches!(
@@ -52,7 +57,7 @@ impl<E: Element> Job<E> for ConvertTransform {
         })
     }
 
-    fn run(&self, element: &E, context: &Context<E>) {
+    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
         if let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) {
             self.transform_attr(transform, "transform", element);
         }
@@ -64,6 +69,7 @@ impl<E: Element> Job<E> for ConvertTransform {
         if let Some(pattern_transform) = context.style.attr.get(&SVGStyleID::PatternTransform) {
             self.transform_attr(pattern_transform, "patternTransform", element);
         }
+        Ok(())
     }
 }
 

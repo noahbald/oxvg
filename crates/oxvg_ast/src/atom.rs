@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
 pub trait Atom:
     Eq
@@ -11,6 +11,7 @@ pub trait Atom:
     + Into<String>
     + From<String>
     + AsRef<str>
+    + Hash
     + 'static
 {
     /// Extracts the string slice of the atom

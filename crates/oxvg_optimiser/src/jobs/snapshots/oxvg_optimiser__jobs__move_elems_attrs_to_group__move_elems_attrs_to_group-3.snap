@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- move only common attributes -->\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            text\n        </g>\n        <circle attr2=\"val2\" attr3=\"val3\"/>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- move only common attributes -->
+    <g attr1="val1">
+        <g attr2="val2">
+            text
+        </g>
+        <circle attr2="val2" attr3="val3"></circle>
+        <path d="..."></path>
+    </g>
+</svg>

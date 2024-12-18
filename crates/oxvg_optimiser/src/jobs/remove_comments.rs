@@ -1,12 +1,13 @@
 use oxvg_ast::{
     element::Element,
     node::{self, Node},
+    visitor::Visitor,
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -34,14 +35,14 @@ impl<E: Element> Job<E> for RemoveComments {
         }
         PrepareOutcome::None
     }
+}
 
-    fn run(&self, element: &E, _context: &Context<E>) {
-        for child in element.child_nodes_iter() {
-            if child.node_type() != node::Type::Comment {
-                continue;
-            }
-            self.remove_comment(&child);
-        }
+impl<E: Element> Visitor<E> for RemoveComments {
+    type Error = String;
+
+    fn comment(&mut self, comment: &mut <E as Node>::Child) -> Result<(), Self::Error> {
+        self.remove_comment(comment);
+        Ok(())
     }
 }
 

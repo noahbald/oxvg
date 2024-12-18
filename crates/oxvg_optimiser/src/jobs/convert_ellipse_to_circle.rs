@@ -1,8 +1,11 @@
-use oxvg_ast::element::Element;
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -22,12 +25,16 @@ impl<E: Element> Job<E> for ConvertEllipseToCircle {
             PrepareOutcome::Skip
         }
     }
+}
+
+impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
+    type Error = String;
 
     #[allow(clippy::similar_names)]
-    fn run(&self, element: &E, _context: &Context<E>) {
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
-            return;
+            return Ok(());
         }
 
         let rx_name = &"rx".into();
@@ -40,12 +47,13 @@ impl<E: Element> Job<E> for ConvertEllipseToCircle {
             .map_or(String::from("0"), |attr| attr.to_string());
 
         if rx != ry && rx != "auto" && ry != "auto" {
-            return;
+            return Ok(());
         }
         let radius = if rx == "auto" { ry } else { rx };
         element.remove_attribute_local(rx_name);
         element.remove_attribute_local(ry_name);
         element.set_attribute_local("r".into(), radius.into());
+        Ok(())
     }
 }
 

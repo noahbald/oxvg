@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r##\"<svg>\n    <!-- overwrite with child attributes -->\n    <g fill=\"red\">\n        <rect fill=\"blue\" />\n        <circle fill=\"blue\" />\n    </g>\n</svg>\"##),)?"
+---
+<svg>
+    <!-- overwrite with child attributes -->
+    <g fill="blue">
+        <rect></rect>
+        <circle></circle>
+    </g>
+</svg>
