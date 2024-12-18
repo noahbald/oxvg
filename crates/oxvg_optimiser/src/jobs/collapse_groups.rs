@@ -137,7 +137,7 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
         if element.depth_first().any(|child| {
             let local_name = child.local_name();
             let name: &str = local_name.as_ref();
-            dbg!(animation_group.contains(dbg!(name)))
+            animation_group.contains(name)
         }) {
             log::debug!("skipping flatten: has animating child");
             return;

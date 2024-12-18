@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_useless_defs.rs
+expression: "test_config(r#\"{ \"removeUselessDefs\": true }\"#,\nSome(r#\"<svg>\n    <defs>\n        <path d=\"...\"/>\n        <g>\n            <path d=\"...\" id=\"a\"/>\n        </g>\n    </defs>\n</svg>\"#),)?"
+---
+<svg>
+    <defs><path d="..." id="a"></path></defs>
+</svg>

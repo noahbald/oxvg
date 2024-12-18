@@ -239,11 +239,6 @@ impl CleanupIds {
                 .preserve
                 .as_ref()
                 .is_some_and(|preserve| preserve.contains(&value));
-            dbg!(
-                "CleanupIds: prepare_id: will preserve if true: {:#?} <-> {:#?}",
-                &is_preserved_prefix,
-                &is_preserve,
-            );
             if is_preserved_prefix || is_preserve {
                 preserved_ids.push(value);
                 continue;

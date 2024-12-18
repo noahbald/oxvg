@@ -361,6 +361,8 @@ pub trait Element: Node + Features + Debug {
         attrs.remove_named_item_local(attr_name);
     }
 
+    fn replace_children(&self, children: Vec<Self::Child>);
+
     /// Replaces this element in the children list of it's parent with another.
     ///
     /// [MDN | replaceWith](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceWith)

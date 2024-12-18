@@ -85,7 +85,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
         let first_style = self.first_style.borrow();
         if let Some(first_style) = &*first_style {
             let node = &mut *first_style.borrow_mut();
-            let mut node = dbg!(node)
+            let mut node = node
                 .inner_as_any()
                 .downcast_ref::<E::Child>()
                 .unwrap()
@@ -112,7 +112,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
             return Ok(());
         };
         let style = &mut *style.borrow_mut();
-        let mut style = dbg!(style)
+        let mut style = style
             .inner_as_any()
             .downcast_ref::<E::ParentChild>()
             .unwrap()
