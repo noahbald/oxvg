@@ -24,7 +24,7 @@ use crate::math::to_fixed;
 use crate::{command, Path};
 
 #[cfg(feature = "oxvg")]
-use oxvg_style;
+use oxvg_ast;
 #[cfg(feature = "oxvg")]
 use std::collections::BTreeMap;
 
@@ -159,44 +159,44 @@ impl StyleInfo {
     #[cfg(feature = "oxvg")]
     /// Determine the path optimisations that are allowed based on relevant context
     pub fn gather(
-        computed_styles: &BTreeMap<oxvg_style::SVGStyleID, &oxvg_style::Style>,
+        computed_styles: &BTreeMap<oxvg_ast::style::SVGStyleID, &oxvg_ast::style::Style>,
         has_marker: bool,
     ) -> Self {
         use lightningcss::properties::svg::{StrokeLinecap, StrokeLinejoin};
 
-        let has_marker_mid = computed_styles.contains_key(&oxvg_style::SVGStyleID::MarkerMid);
+        let has_marker_mid = computed_styles.contains_key(&oxvg_ast::style::SVGStyleID::MarkerMid);
 
-        let stroke = computed_styles.get(&oxvg_style::SVGStyleID::Stroke);
+        let stroke = computed_styles.get(&oxvg_ast::style::SVGStyleID::Stroke);
         let maybe_has_stroke = stroke.is_some_and(|property| {
             property.is_dynamic()
                 || !matches!(
                     property.inner(),
-                    oxvg_style::SVGStyle::Stroke(oxvg_style::SVGPaint::None)
+                    oxvg_ast::style::SVGStyle::Stroke(oxvg_ast::style::SVGPaint::None)
                 )
         });
 
-        let linecap = computed_styles.get(&oxvg_style::SVGStyleID::StrokeLinecap);
+        let linecap = computed_styles.get(&oxvg_ast::style::SVGStyleID::StrokeLinecap);
         let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
             property.is_dynamic()
                 || !matches!(
                     property.inner(),
-                    oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
+                    oxvg_ast::style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
                 )
         });
 
-        let linejoin = computed_styles.get(&oxvg_style::SVGStyleID::StrokeLinejoin);
+        let linejoin = computed_styles.get(&oxvg_ast::style::SVGStyleID::StrokeLinejoin);
         let is_safe_to_use_z = if maybe_has_stroke {
             linecap.is_some_and(|property| {
                 property.is_static()
                     && matches!(
                         property.inner(),
-                        oxvg_style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
+                        oxvg_ast::style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
                     )
             }) && linejoin.is_some_and(|property| {
                 property.is_static()
                     && matches!(
                         property.inner(),
-                        oxvg_style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
+                        oxvg_ast::style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
                     )
             })
         } else {

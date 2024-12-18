@@ -3,6 +3,7 @@ use std::{
     cell::{Cell, RefCell, RefMut},
     collections::VecDeque,
     fmt::{Debug, Display},
+    hash::Hash,
     rc::Rc,
 };
 
@@ -68,19 +69,19 @@ macro_rules! atom {
     };
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Atom5Ever(StrTendril);
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Prefix5Ever(Prefix);
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LocalName5Ever(LocalName);
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct QualName5Ever(QualName);
 
 #[derive(Debug)]
@@ -177,6 +178,18 @@ impl Display for QualName5Ever {
             Some(prefix) => f.write_fmt(format_args!("{prefix}:{local}")),
             None => Display::fmt(&local, f),
         }
+    }
+}
+
+impl Ord for QualName5Ever {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl PartialOrd for QualName5Ever {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -870,6 +883,10 @@ impl Element for Element5Ever {
         })
     }
 
+    fn from_parent(node: Node5Ever) -> Option<Self> {
+        Self::new(node)
+    }
+
     fn tag_name(&self) -> Self::Atom {
         self.node.node_name()
     }
@@ -1109,14 +1126,18 @@ impl Element5Ever {
 
 impl Debug for Element5Ever {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.node_type() != node::Type::Element {
+            return self.node.fmt(f);
+        }
         let name = self.qual_name();
         let attributes = self.attributes();
+        let text = self.text_content().map(|s| s.trim().to_string());
         let child_count = match self.node.0.children.borrow().len() {
             0 => String::from("/>"),
             len => format!(">{len} child nodes</{name}>"),
         };
         f.write_fmt(format_args!(
-            r"Element5Ever {{ <{name} {attributes:?}{child_count} }}"
+            r"Element5Ever {{ <{name} {attributes:?}{child_count} {text:?} }}"
         ))
     }
 }

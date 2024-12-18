@@ -1,10 +1,13 @@
 use std::collections::BTreeSet;
 
-use oxvg_ast::element::Element;
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -17,10 +20,14 @@ pub struct AddClassesToSVG {
     pub class_name: Option<String>,
 }
 
-impl<E: Element> Job<E> for AddClassesToSVG {
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Job<E> for AddClassesToSVG {}
+
+impl<E: Element> Visitor<E> for AddClassesToSVG {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         if !element.is_root() || element.local_name() != "svg".into() {
-            return;
+            return Ok(());
         }
 
         let class_localname = "class".into();
@@ -30,16 +37,17 @@ impl<E: Element> Job<E> for AddClassesToSVG {
 
         let class_names: BTreeSet<_> = match &self.class_names {
             Some(names) => class
-                .chain(names.into_iter().flat_map(|s| s.split_whitespace()))
+                .chain(names.iter().flat_map(|s| s.split_whitespace()))
                 .collect(),
             None => match &self.class_name {
                 Some(name) => class.chain(name.split_whitespace()).collect(),
-                None => return,
+                None => return Ok(()),
             },
         };
         let class_names = class_names.into_iter().collect::<Vec<_>>().join(" ");
 
         element.set_attribute(class_localname, class_names.into());
+        Ok(())
     }
 }
 

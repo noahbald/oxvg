@@ -40,7 +40,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl #impl_generics JobDefault for #ident #ty_generics #where_clause {
+        impl #impl_generics crate::JobDefault for #ident #ty_generics #where_clause {
             fn optional_default() -> Option<Box<#ident #ty_generics>> {
                 #default
             }

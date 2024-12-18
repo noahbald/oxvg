@@ -17,11 +17,12 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    visitor::{Context, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -84,8 +85,12 @@ impl<E: Element> Job<E> for ConvertColors {
             _ => PrepareOutcome::None,
         }
     }
+}
 
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Visitor<E> for ConvertColors {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let mask_localname = &"mask".into();
         let is_masked = &element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();
@@ -119,6 +124,7 @@ impl<E: Element> Job<E> for ConvertColors {
             }
             attr.set_value(minified_style.into());
         }
+        Ok(())
     }
 }
 

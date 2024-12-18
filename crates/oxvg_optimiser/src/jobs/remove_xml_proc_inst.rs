@@ -1,13 +1,14 @@
 use oxvg_ast::{
     element::Element,
-    node::{self, Node},
+    node::Node,
+    visitor::{ContextFlags, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Job, JobDefault, PrepareOutcome};
+use crate::Job;
 
-use super::ContextFlags;
+use super::PrepareOutcome;
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -16,23 +17,28 @@ pub struct RemoveXMLProcInst(bool);
 impl<E: Element> Job<E> for RemoveXMLProcInst {
     fn prepare(
         &mut self,
-        document: &E::ParentChild,
+        _document: &E::ParentChild,
         _context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
-        if !self.0 {
-            return PrepareOutcome::Skip;
+    ) -> super::PrepareOutcome {
+        if self.0 {
+            PrepareOutcome::None
+        } else {
+            PrepareOutcome::Skip
         }
+    }
+}
 
-        for node in document.child_nodes_iter() {
-            if node.node_type() != node::Type::ProcessingInstruction
-                || node.node_name() != "xml".into()
-            {
-                continue;
-            }
-            node.remove();
-            break;
+impl<E: Element> Visitor<E> for RemoveXMLProcInst {
+    type Error = String;
+
+    fn processing_instruction(
+        &mut self,
+        processing_instruction: &mut <E as Node>::Child,
+    ) -> Result<(), Self::Error> {
+        if processing_instruction.node_name() == "xml".into() {
+            processing_instruction.remove();
         }
-        PrepareOutcome::Skip
+        Ok(())
     }
 }
 

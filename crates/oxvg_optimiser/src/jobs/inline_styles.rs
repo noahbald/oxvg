@@ -3,12 +3,17 @@ use std::{cell::RefCell, collections::BTreeSet};
 use derive_where::derive_where;
 use itertools::Itertools;
 use lightningcss::{media_query, printer, rules, selector, stylesheet, traits::ToCss};
-use oxvg_ast::{atom::Atom, class_list::ClassList, element::Element};
+use oxvg_ast::{
+    atom::Atom,
+    class_list::ClassList,
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use super::Job;
 
 #[derive(Debug)]
 struct CapturedStyles<E: Element> {
@@ -78,10 +83,18 @@ enum Token {
     Other,
 }
 
-impl<E: Element> Job<E> for InlineStyles<E> {
-    fn run(&self, element: &E, context: &Context<E>) {
+impl<E: Element> Job<E> for InlineStyles<E> {}
+
+impl<E: Element> Visitor<E> for InlineStyles<E> {
+    type Error = String;
+
+    fn exit_element(
+        &mut self,
+        element: &mut E,
+        context: &oxvg_ast::visitor::Context<E>,
+    ) -> Result<(), Self::Error> {
         if element.prefix().is_some() || element.local_name() != "style".into() {
-            return;
+            return Ok(());
         }
 
         if let Some(style_type) = element
@@ -91,13 +104,13 @@ impl<E: Element> Job<E> for InlineStyles<E> {
         {
             if !style_type.is_empty() && style_type != "text/css" {
                 log::debug!("Not merging style: unsupported type");
-                return;
+                return Ok(());
             }
         }
 
         let Some(css) = element.text_content() else {
             log::debug!("Not merging style: empty");
-            return;
+            return Ok(());
         };
         let parse_options = stylesheet::ParserOptions {
             flags: stylesheet::ParserFlags::all(),
@@ -107,7 +120,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
             Ok(css) => css,
             Err(e) => {
                 log::debug!("Not merging style: {e}");
-                return;
+                return Ok(());
             }
         };
 
@@ -119,7 +132,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
                 element.clone().set_text_content(css.into());
             }
             log::debug!("Not merging style: foreign-object");
-            return;
+            return Ok(());
         }
 
         let matches_styles = self
@@ -136,7 +149,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
         }
         let Some(removed_styles) = matches_styles else {
             log::debug!("no styles moved");
-            return;
+            return Ok(());
         };
         let removed_styles = flatten_media(removed_styles);
 
@@ -159,10 +172,11 @@ impl<E: Element> Job<E> for InlineStyles<E> {
             element.remove();
         } else {
             element.clone().set_text_content(css.into());
-        }
+        };
+        Ok(())
     }
 
-    fn breakdown(&mut self, _document: &<E>::ParentChild) {
+    fn exit_document(&mut self, _root: &mut E) -> Result<(), Self::Error> {
         let removed_tokens = self.removed_tokens.borrow();
         let parent_tokens = self.options.parent_tokens.borrow();
         removed_tokens
@@ -260,6 +274,7 @@ impl<E: Element> Job<E> for InlineStyles<E> {
                     group_element.remove_attribute(&name.into());
                 });
         }
+        Ok(())
     }
 }
 

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
 use crate::atom::Atom;
 
@@ -12,6 +12,9 @@ pub trait Name:
     + From<String>
     + 'static
     + Display
+    + Hash
+    + Ord
+    + PartialOrd
 {
     type LocalName: Atom;
     type Prefix: Atom;

@@ -7,12 +7,13 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
+    visitor::{Context, ContextFlags, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::Deserialize;
 
-use crate::{Context, ContextFlags, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -30,21 +31,26 @@ impl<E: Element> Job<E> for CollapseGroups {
             PrepareOutcome::Skip
         }
     }
+}
 
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Visitor<E> for CollapseGroups {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let Some(parent) = Element::parent_element(element) else {
-            return;
+            return Ok(());
         };
 
         if element.is_root() || parent.local_name().as_ref() == "switch" {
-            return;
+            return Ok(());
         }
         if element.local_name().as_ref() != "g" || !element.has_child_elements() {
-            return;
+            return Ok(());
         }
 
         move_attributes_to_child(element);
         flatten_when_all_attributes_moved(element);
+        Ok(())
     }
 }
 

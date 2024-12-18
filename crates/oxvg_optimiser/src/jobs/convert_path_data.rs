@@ -1,10 +1,13 @@
-use oxvg_ast::element::Element;
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -32,15 +35,19 @@ pub struct ConvertPathData {
 #[derive(Clone, Default, Copy, Debug)]
 pub struct Precision(pub oxvg_path::convert::Precision);
 
-impl<E: Element> Job<E> for ConvertPathData {
+impl<E: Element> Job<E> for ConvertPathData {}
+
+impl<E: Element> Visitor<E> for ConvertPathData {
+    type Error = String;
+
     fn use_style(&self, element: &E) -> bool {
         element.has_attribute(&"d".into())
     }
 
-    fn run(&self, element: &E, context: &Context<E>) {
+    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
-            return;
+            return Ok(());
         };
 
         let style_info = convert::StyleInfo::gather(
@@ -54,11 +61,11 @@ impl<E: Element> Job<E> for ConvertPathData {
             Ok(path) => path,
             Err(e) => {
                 log::error!("failed to parse path: {e}\n{d}");
-                return;
+                return Ok(());
             }
         };
         if path.0.is_empty() {
-            return;
+            return Ok(());
         }
 
         let path = convert::run(
@@ -72,11 +79,12 @@ impl<E: Element> Job<E> for ConvertPathData {
         );
 
         element.set_attribute_local(d_localname, String::from(path).into());
+        Ok(())
     }
 }
 
-impl From<&ConvertPathData> for convert::Flags {
-    fn from(val: &ConvertPathData) -> Self {
+impl From<&mut ConvertPathData> for convert::Flags {
+    fn from(val: &mut ConvertPathData) -> Self {
         use convert::Flags;
 
         let mut output = convert::Flags::default();

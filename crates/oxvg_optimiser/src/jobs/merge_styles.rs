@@ -4,11 +4,12 @@ use oxvg_ast::{
     atom::Atom,
     element::Element,
     node::{self, Node},
+    visitor::Visitor,
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -31,10 +32,14 @@ impl<E: Element> Job<E> for MergeStyles {
             PrepareOutcome::Skip
         }
     }
+}
 
-    fn run(&self, element: &E, _context: &super::Context<E>) {
+impl<E: Element> Visitor<E> for MergeStyles {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name() != "style".into() {
-            return;
+            return Ok(());
         }
 
         if let Some(style_type) = element
@@ -44,13 +49,13 @@ impl<E: Element> Job<E> for MergeStyles {
         {
             if !style_type.is_empty() && style_type != "text/css" {
                 log::debug!("Not merging style: unsupported type");
-                return;
+                return Ok(());
             }
         }
 
         if element.closest_local(&"foreignObject".into()).is_some() {
             log::debug!("Not merging style: foreign-object");
-            return;
+            return Ok(());
         }
 
         let mut css = String::new();
@@ -66,7 +71,7 @@ impl<E: Element> Job<E> for MergeStyles {
         if css.is_empty() {
             log::debug!("Removed empty style");
             element.remove();
-            return;
+            return Ok(());
         }
 
         let media_name = &"media".into();
@@ -95,15 +100,16 @@ impl<E: Element> Job<E> for MergeStyles {
                 .replace_with(|_| Some(RefCell::new(element.as_ref())));
             log::debug!("Assigned first style");
         }
+        Ok(())
     }
 
-    fn breakdown(&mut self, _document: &E::ParentChild) {
+    fn exit_document(&mut self, _document: &mut E) -> Result<(), String> {
         if !&*self.is_cdata.borrow() {
-            return;
+            return Ok(());
         }
 
         let Some(style) = &*self.first_style.borrow() else {
-            return;
+            return Ok(());
         };
         let style = &mut *style.borrow_mut();
         let mut style = dbg!(style)
@@ -113,12 +119,13 @@ impl<E: Element> Job<E> for MergeStyles {
             .clone();
         let Some(text) = style.text_content() else {
             style.remove();
-            return;
+            return Ok(());
         };
         for child in style.child_nodes_iter() {
             child.remove();
         }
         style.append_child(style.c_data(text.into()));
+        Ok(())
     }
 }
 

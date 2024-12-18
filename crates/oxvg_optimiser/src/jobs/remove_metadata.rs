@@ -1,8 +1,8 @@
-use oxvg_ast::{element::Element, name::Name};
+use oxvg_ast::{element::Element, name::Name, visitor::Visitor};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Job, JobDefault};
+use crate::Job;
 
 use super::{ContextFlags, PrepareOutcome};
 
@@ -22,16 +22,21 @@ impl<E: Element> Job<E> for RemoveMetadata {
             PrepareOutcome::Skip
         }
     }
+}
 
-    fn run(&self, element: &E, _context: &super::Context<E>) {
+impl<E: Element> Visitor<E> for RemoveMetadata {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
-            return;
+            return Ok(());
         }
 
         if name.local_name() == "metadata".into() {
             element.remove();
         }
+        Ok(())
     }
 }
 

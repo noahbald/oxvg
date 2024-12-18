@@ -23,7 +23,6 @@ oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = "0.0.1-alpha.1"
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
 oxvg_path = { path = "crates/oxvg_path", version = "0.0.1-beta.4" }
 oxvg_selectors = { path = "crates/oxvg_selectors", version = "0.0.1-alpha.1" }
-oxvg_style = { path = "crates/oxvg_style", version = "0.0.1-alpha.1" }
 
 anyhow = "1.0"
 bitflags = { version = "2.6.0" }

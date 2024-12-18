@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
-use oxvg_ast::element::Element;
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -13,12 +16,16 @@ pub struct AddAttributesToSVGElement {
     pub attributes: BTreeMap<String, String>,
 }
 
-impl<E: Element> Job<E> for AddAttributesToSVGElement {
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Job<E> for AddAttributesToSVGElement {}
+
+impl<E: Element> Visitor<E> for AddAttributesToSVGElement {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {
-            return;
+            return Ok(());
         };
 
         for (name, value) in &self.attributes {
@@ -30,6 +37,7 @@ impl<E: Element> Job<E> for AddAttributesToSVGElement {
 
             element.set_attribute(name, value);
         }
+        Ok(())
     }
 }
 

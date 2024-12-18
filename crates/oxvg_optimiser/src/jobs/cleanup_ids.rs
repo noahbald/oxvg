@@ -8,6 +8,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
+    visitor::{Context, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::{
@@ -17,7 +18,7 @@ use oxvg_selectors::{
 use regex::CaptureMatches;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -76,10 +77,14 @@ impl<E: Element> Job<E> for CleanupIds {
         self.prepare_id_rename(&root);
         PrepareOutcome::None
     }
+}
 
-    fn run(&self, element: &E, _context: &Context<E>) {
+impl<E: Element> Visitor<E> for CleanupIds {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         if self.ignore_document {
-            return;
+            return Ok(());
         }
 
         let mut generated_id = self.generated_id.borrow_mut();
@@ -109,13 +114,14 @@ impl<E: Element> Job<E> for CleanupIds {
                     }
                 });
         }
+        Ok(())
     }
 
-    fn breakdown(&mut self, document: &E::ParentChild) {
+    fn exit_document(&mut self, document: &mut E) -> Result<(), String> {
         let remove = self.remove.unwrap_or(REMOVE_DEFAULT);
 
         let Some(root) = &document.find_element() else {
-            return;
+            return Ok(());
         };
         // Generate renames for references
         let mut used_ids = BTreeMap::new();
@@ -176,6 +182,7 @@ impl<E: Element> Job<E> for CleanupIds {
                 element.remove_attribute_local(&id_localname);
             };
         }
+        Ok(())
     }
 }
 

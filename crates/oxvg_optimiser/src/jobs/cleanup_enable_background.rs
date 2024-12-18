@@ -1,9 +1,15 @@
-use oxvg_ast::{atom::Atom, attribute::Attr, element::Element, node::Node};
+use oxvg_ast::{
+    atom::Atom,
+    attribute::Attr,
+    element::Element,
+    node::Node,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -31,6 +37,10 @@ impl<E: Element> Job<E> for CleanupEnableBackground {
         self.prepare_contains_filter(&root);
         PrepareOutcome::None
     }
+}
+
+impl<E: Element> Visitor<E> for CleanupEnableBackground {
+    type Error = String;
 
     /// Cleans up `enable-background`, unless document uses `<filter>` elements.
     ///
@@ -41,7 +51,7 @@ impl<E: Element> Job<E> for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
-    fn run(&self, element: &E, _context: &Context<E>) {
+    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local(style_name) {
             let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
@@ -59,12 +69,12 @@ impl<E: Element> Job<E> for CleanupEnableBackground {
         let enable_background_localname = "enable-background".into();
         if !self.contains_filter {
             element.remove_attribute_local(&enable_background_localname);
-            return;
+            return Ok(());
         };
 
         let Some(enable_background) = element.get_attribute_local(&"enable-background".into())
         else {
-            return;
+            return Ok(());
         };
         let name = element.local_name();
 
@@ -77,6 +87,7 @@ impl<E: Element> Job<E> for CleanupEnableBackground {
         } else if matches_dimensions && (name == "mask".into() || name == "pattern".into()) {
             element.set_attribute_local(enable_background_localname, "new".into());
         }
+        Ok(())
     }
 }
 

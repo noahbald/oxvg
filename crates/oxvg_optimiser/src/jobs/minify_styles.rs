@@ -3,11 +3,16 @@ use lightningcss::{
     rules::CssRuleList,
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleAttribute, StyleSheet},
 };
-use oxvg_ast::{atom::Atom, element::Element, name::Name};
+use oxvg_ast::{
+    atom::Atom,
+    element::Element,
+    name::Name,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{Context, Job, JobDefault, PrepareOutcome};
+use crate::{Job, PrepareOutcome};
 
 use super::{inline_styles, ContextFlags};
 
@@ -38,10 +43,15 @@ impl<E: Element> Job<E> for MinifyStyles {
 
         PrepareOutcome::None
     }
+}
 
-    fn run(&self, element: &E, context: &Context<E>) {
+impl<E: Element> Visitor<E> for MinifyStyles {
+    type Error = String;
+
+    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
         self.content(element, context);
         Self::attr(element);
+        Ok(())
     }
 }
 

@@ -21,8 +21,10 @@ pub trait Element: Node + Features + Debug {
         Attribute: Attr<Name = Self::Name, Atom = <Self as Node>::Atom>,
     >;
 
-    /// Converts the provided node into an element, if the node type matches
+    /// Converts the provided node into an element, if the node type matches an element or document
     fn new(node: Self::Child) -> Option<Self>;
+
+    fn from_parent(node: Self::ParentChild) -> Option<Self>;
 
     /// Returns a collection of the attributes assigned to the element.
     ///

@@ -133,6 +133,8 @@ lazy_static! {
         "feTile",
         "feTurbulence"
     ]);
+    pub static ref PATH_ELEMS: BTreeSet<&'static str> =
+        BTreeSet::from(["glyph", "missing-glyph", "path"]);
     pub static ref INHERITABLE_ATTRS: BTreeSet<&'static str> = BTreeSet::from([
         "clip-rule",
         "color-interpolation-filters",
