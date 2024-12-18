@@ -86,6 +86,7 @@ pub struct QualName5Ever(QualName);
 
 #[derive(Debug)]
 pub enum Attribute5Ever<'a> {
+    BorrowedPtr(&'a mut Attribute),
     Borrowed(RefMut<'a, Attribute>),
     Owned(Attribute),
 }
@@ -217,6 +218,7 @@ impl Attr for Attribute5Ever<'_> {
         match self {
             Self::Owned(_) => self,
             Self::Borrowed(attr) => Self::Owned(attr.clone()),
+            Self::BorrowedPtr(attr) => Self::Owned(attr.clone()),
         }
     }
 }
@@ -227,6 +229,7 @@ impl Attribute5Ever<'_> {
         match self {
             Self::Owned(attr) => attr,
             Self::Borrowed(attr) => attr,
+            Self::BorrowedPtr(attr) => attr,
         }
     }
 
@@ -235,6 +238,7 @@ impl Attribute5Ever<'_> {
         match self {
             Self::Owned(attr) => attr,
             Self::Borrowed(attr) => attr,
+            Self::BorrowedPtr(attr) => attr,
         }
     }
 }
@@ -331,6 +335,20 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         let mut attrs = self.0.borrow_mut();
         let index = attrs.iter().position(|a| a.name.local == name.0)?;
         Some(Attribute5Ever::Owned(attrs.remove(index)))
+    }
+
+    fn retain<F>(&self, mut f: F)
+    where
+        F: FnMut((Option<&str>, &str, &str)) -> bool,
+    {
+        let mut attrs = self.0.borrow_mut();
+        attrs.retain(|a| {
+            f((
+                a.name.prefix.as_ref().map(AsRef::as_ref),
+                a.name.local.as_ref(),
+                a.value.as_ref(),
+            ))
+        });
     }
 
     fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute> {
