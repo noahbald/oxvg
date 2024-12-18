@@ -1,0 +1,30 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_useless_defs.rs
+expression: "test_config(r#\"{ \"removeUselessDefs\": true }\"#,\nSome(r#\"<svg>\n    <linearGradient id=\"linear\">\n        <stop/>\n        <stop/>\n    </linearGradient>\n    <radialGradient id=\"radial\">\n        <stop/>\n        <stop/>\n    </radialGradient>\n    <pattern id=\"pattern\">\n        <rect/>\n    </pattern>\n    <clipPath id=\"clip\">\n        <path/>\n    </clipPath>\n    <mask id=\"mask\">\n        <rect/>\n    </mask>\n    <marker id=\"marker\">\n        <path/>\n    </marker>\n    <symbol id=\"symbol\">\n        <rect/>\n    </symbol>\n    <solidColor id=\"color\"/>\n</svg>\"#),)?"
+---
+<svg>
+    <linearGradient id="linear">
+        <stop></stop>
+        <stop></stop>
+    </linearGradient>
+    <radialGradient id="radial">
+        <stop></stop>
+        <stop></stop>
+    </radialGradient>
+    <pattern id="pattern">
+        <rect></rect>
+    </pattern>
+    <clipPath id="clip">
+        <path></path>
+    </clipPath>
+    <mask id="mask">
+        <rect></rect>
+    </mask>
+    <marker id="marker">
+        <path></path>
+    </marker>
+    <symbol id="symbol">
+        <rect></rect>
+    </symbol>
+    <solidColor id="color"></solidColor>
+</svg>

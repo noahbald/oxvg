@@ -26,7 +26,6 @@ impl<E: Element> Job<E> for RemoveComments {
         document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> PrepareOutcome {
-        dbg!(&self.preserve_patterns);
         for child in document.child_nodes_iter() {
             if child.node_type() != node::Type::Comment {
                 continue;

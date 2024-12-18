@@ -714,6 +714,7 @@ impl Node for Node5Ever {
         let parent = new_parent as &dyn std::any::Any;
         let parent = parent
             .downcast_ref::<Node5Ever>()
+            .or_else(|| parent.downcast_ref::<Element5Ever>().map(|e| &e.node))
             .expect("Incorrect implementation passed as new parent");
         let parent = Rc::downgrade(&parent.0);
         let old_parent = self.0.parent.replace(Some(parent))?;
@@ -808,6 +809,10 @@ impl Node for Node5Ever {
         self.clone()
     }
 
+    fn as_child(&self) -> Self::Child {
+        self.clone()
+    }
+
     fn as_impl(&self) -> impl Node {
         self.clone()
     }
@@ -893,6 +898,20 @@ impl Element for Element5Ever {
 
     fn qual_name(&self) -> Self::Name {
         QualName5Ever(self.data().name.clone())
+    }
+
+    fn replace_children(&self, children: Vec<Self::Child>) {
+        let mut old_children = self.node.0.children.borrow_mut();
+        for child in old_children.iter() {
+            child.parent.replace(None);
+        }
+        old_children.iter().for_each(|c| {
+            c.parent.replace(None);
+        });
+        for child in &children {
+            child.set_parent_node(&self.node);
+        }
+        *old_children = children.into_iter().map(|c| c.0).collect();
     }
 
     fn set_local_name(&mut self, new_name: <Self::Name as Name>::LocalName) {
@@ -1092,6 +1111,10 @@ impl Node for Element5Ever {
 
     fn as_impl(&self) -> impl Node {
         self.node.as_impl()
+    }
+
+    fn as_child(&self) -> Self::Child {
+        self.node.clone()
     }
 
     fn as_parent_child(&self) -> Self::ParentChild {

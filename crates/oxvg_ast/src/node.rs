@@ -285,6 +285,8 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// Upcast the node as an `impl Node`
     fn as_impl(&self) -> impl Node;
 
+    fn as_child(&self) -> Self::Child;
+
     /// Upcast the node as the specified `ParentChild`
     fn as_parent_child(&self) -> Self::ParentChild;
 }
