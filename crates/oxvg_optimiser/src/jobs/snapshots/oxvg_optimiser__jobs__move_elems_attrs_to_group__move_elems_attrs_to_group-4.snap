@@ -1,0 +1,24 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- preserve transform for masked/clipped groups -->\n    <mask id=\"mask\">\n        <path/>\n    </mask>\n    <g transform=\"rotate(45)\">\n        <g transform=\"scale(2)\" fill=\"red\">\n            <path d=\"...\"/>\n        </g>\n        <circle fill=\"red\" transform=\"scale(2)\"/>\n    </g>\n    <g clip-path=\"url(#clipPath)\">\n        <g transform=\"translate(10 10)\"/>\n        <g transform=\"translate(10 10)\"/>\n    </g>\n    <g mask=\"url(#mask)\">\n        <g transform=\"translate(10 10)\"/>\n        <g transform=\"translate(10 10)\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- preserve transform for masked/clipped groups -->
+    <mask id="mask">
+        <path></path>
+    </mask>
+    <g transform="rotate(45) scale(2)" fill="red">
+        <g>
+            <path d="..."></path>
+        </g>
+        <circle></circle>
+    </g>
+    <g clip-path="url(#clipPath)">
+        <g transform="translate(10 10)"></g>
+        <g transform="translate(10 10)"></g>
+    </g>
+    <g mask="url(#mask)">
+        <g transform="translate(10 10)"></g>
+        <g transform="translate(10 10)"></g>
+    </g>
+</svg>

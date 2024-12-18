@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- don't run when style is present -->\n    <style id=\"current-color-scheme\">\n        .ColorScheme-Highlight{color:#3daee9}\n    </style>\n    <g>\n        <path transform=\"matrix(-1 0 0 1 72 51)\" class=\"ColorScheme-Highlight\" fill=\"currentColor\" d=\"M5-28h26v2H5z\"/>\n        <path transform=\"matrix(-1 0 0 1 72 51)\" class=\"ColorScheme-Highlight\" fill=\"currentColor\" d=\"M5-29h26v1H5z\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- don't run when style is present -->
+    <style id="current-color-scheme">
+        .ColorScheme-Highlight{color:#3daee9}
+    </style>
+    <g>
+        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-28h26v2H5z"></path>
+        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-29h26v1H5z"></path>
+    </g>
+</svg>
