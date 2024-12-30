@@ -1,32 +1,31 @@
-use oxvg_ast::{atom::Atom, element::Element, name::Name, visitor::Visitor};
+use oxvg_ast::{
+    atom::Atom,
+    element::Element,
+    name::Name,
+    visitor::{ContextFlags, PrepareOutcome, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{ElementGroup, Group};
 use serde::Deserialize;
-
-use crate::Job;
-
-use super::{ContextFlags, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessDefs(bool);
 
-impl<E: Element> Job<E> for RemoveUselessDefs {
+impl<E: Element> Visitor<E> for RemoveUselessDefs {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> super::PrepareOutcome {
         if self.0 {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
-
-impl<E: Element> Visitor<E> for RemoveUselessDefs {
-    type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
         let name = element.qual_name();
@@ -55,13 +54,13 @@ impl<E: Element> Visitor<E> for RemoveUselessDefs {
 }
 
 fn collect_useful_nodes<E: Element>(element: &E, useful_nodes: &mut Vec<E::Child>) {
-    for child in element.children_iter() {
+    element.for_each_element_child(|child| {
         if child.qual_name() == "style".into() || child.get_attribute(&"id".into()).is_some() {
             useful_nodes.push(child.as_child());
         } else {
             collect_useful_nodes(&child, useful_nodes);
         }
-    }
+    });
 }
 
 impl Default for RemoveUselessDefs {

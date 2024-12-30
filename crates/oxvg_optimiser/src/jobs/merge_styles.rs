@@ -2,14 +2,13 @@ use std::cell::RefCell;
 
 use oxvg_ast::{
     atom::Atom,
+    document::Document,
     element::Element,
     node::{self, Node},
-    visitor::Visitor,
+    visitor::{PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -20,24 +19,22 @@ pub struct MergeStyles {
     is_cdata: RefCell<bool>,
 }
 
-impl<E: Element> Job<E> for MergeStyles {
+impl<E: Element> Visitor<E> for MergeStyles {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> PrepareOutcome {
         if self.enabled {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
 
-impl<E: Element> Visitor<E> for MergeStyles {
-    type Error = String;
-
-    fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &super::Context<E>) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name() != "style".into() {
             return Ok(());
         }
@@ -53,20 +50,20 @@ impl<E: Element> Visitor<E> for MergeStyles {
             }
         }
 
-        if element.closest_local(&"foreignObject".into()).is_some() {
+        if context.flags.contains(ContextFlags::within_foreign_object) {
             log::debug!("Not merging style: foreign-object");
             return Ok(());
         }
 
         let mut css = String::new();
-        for node in element.child_nodes_iter() {
+        element.for_each_child(|node| {
             if let Some(text) = node.text_content() {
                 css.push_str(&text);
             }
             if node.node_type() == node::Type::CDataSection {
                 self.is_cdata.replace_with(|_| true);
             }
-        }
+        });
         let css = css.trim();
         if css.is_empty() {
             log::debug!("Removed empty style");
@@ -103,7 +100,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
         Ok(())
     }
 
-    fn exit_document(&mut self, _document: &mut E) -> Result<(), String> {
+    fn exit_document(&mut self, document: &mut E) -> Result<(), String> {
         if !&*self.is_cdata.borrow() {
             return Ok(());
         }
@@ -121,10 +118,9 @@ impl<E: Element> Visitor<E> for MergeStyles {
             style.remove();
             return Ok(());
         };
-        for child in style.child_nodes_iter() {
-            child.remove();
-        }
-        style.append_child(style.c_data(text.into()));
+        style.for_each_child(|child| child.remove());
+        let c_data = document.as_document().create_c_data_section(text.into());
+        style.append_child(c_data);
         Ok(())
     }
 }

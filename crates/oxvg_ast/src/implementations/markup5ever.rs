@@ -14,8 +14,10 @@ use markup5ever::{
 use rcdom::NodeData;
 
 use crate::{
+    atom::Atom,
     attribute::{Attr, Attributes},
     class_list::ClassList,
+    document::Document,
     element::{self, Element},
     name::Name,
     node::{self, Node, Ref},
@@ -29,7 +31,7 @@ use crate::serialize;
 
 macro_rules! atom {
     ($name:ident) => {
-        impl crate::atom::Atom for $name {}
+        impl Atom for $name {}
 
         impl From<&str> for $name {
             fn from(value: &str) -> Self {
@@ -111,6 +113,8 @@ pub struct Element5Ever {
     #[cfg(feature = "selectors")]
     selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
 }
+
+pub struct Document5Ever(Element5Ever);
 
 atom!(Atom5Ever);
 atom!(LocalName5Ever);
@@ -217,6 +221,31 @@ impl Attr for Attribute5Ever<'_> {
         match self {
             Self::Owned(_) => self,
             Self::Borrowed(attr) => Self::Owned(attr.clone()),
+        }
+    }
+
+    fn presentation(&self) -> Option<crate::style::PresentationAttr> {
+        match self {
+            Self::Borrowed(attr) => {
+                attr.name.prefix.as_ref()?;
+                let id = crate::style::PresentationAttrId::from(attr.name.local.as_ref());
+                crate::style::PresentationAttr::parse_string(
+                    id,
+                    attr.name.local.as_ref(),
+                    lightningcss::stylesheet::ParserOptions::default(),
+                )
+                .ok()
+            }
+            Self::Owned(attr) => {
+                attr.name.prefix.as_ref()?;
+                let id = crate::style::PresentationAttrId::from(attr.name.local.as_ref());
+                crate::style::PresentationAttr::parse_string(
+                    id,
+                    attr.name.local.as_ref(),
+                    lightningcss::stylesheet::ParserOptions::default(),
+                )
+                .ok()
+            }
         }
     }
 }
@@ -656,24 +685,18 @@ impl Node for Node5Ever {
         Box::new(Node5EverRef(Rc::new(self.clone())))
     }
 
-    fn c_data(&self, contents: Self::Atom) -> Self::Child {
-        Node5Ever(Rc::new(rcdom::Node {
-            parent: Cell::new(None),
-            children: RefCell::new(vec![]),
-            // WARN: rcdom doesn't support CData
-            data: NodeData::Text {
-                contents: RefCell::new(contents.0),
-            },
-        }))
-    }
-
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         let children = self.0.children.borrow().clone();
         children.into_iter().map(Self)
     }
 
     fn child_nodes(&self) -> Vec<Self::Child> {
-        self.child_nodes_iter().collect()
+        self.0
+            .children
+            .borrow()
+            .iter()
+            .map(|node| Self(node.clone()))
+            .collect()
     }
 
     #[allow(refining_impl_trait)]
@@ -684,9 +707,57 @@ impl Node for Node5Ever {
         }
     }
 
+    fn empty(&self) {
+        self.0.children.take();
+    }
+
     #[allow(refining_impl_trait)]
     fn find_element(&self) -> Option<Element5Ever> {
         <Element5Ever as Element>::find_element(Node::to_owned(self))
+    }
+
+    fn for_each_child<F>(&self, mut f: F)
+    where
+        F: FnMut(Self),
+    {
+        self.0
+            .children
+            .borrow()
+            .iter()
+            .for_each(|node| f(Self(node.clone())));
+    }
+
+    fn try_for_each_child<F, E>(&self, mut f: F) -> Result<(), E>
+    where
+        F: FnMut(Self) -> Result<(), E>,
+    {
+        self.0
+            .children
+            .borrow()
+            .iter()
+            .try_for_each(|node| f(Self(node.clone())))
+    }
+
+    fn any_child<F>(&self, mut f: F) -> bool
+    where
+        F: FnMut(Self) -> bool,
+    {
+        self.0
+            .children
+            .borrow()
+            .iter()
+            .any(|node| f(Self(node.clone())))
+    }
+
+    fn all_children<F>(&self, mut f: F) -> bool
+    where
+        F: FnMut(Self) -> bool,
+    {
+        self.0
+            .children
+            .borrow()
+            .iter()
+            .all(|node| f(Self(node.clone())))
     }
 
     fn node_type(&self) -> node::Type {
@@ -752,6 +823,25 @@ impl Node for Node5Ever {
         })
     }
 
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
+        match &self.0.data {
+            NodeData::ProcessingInstruction { target, contents } => {
+                Some((Atom5Ever(target.clone()), Atom5Ever(contents.clone())))
+            }
+            _ => None,
+        }
+    }
+
+    fn try_set_node_value(&self, value: Self::Atom) -> Option<()> {
+        match &self.0.data {
+            NodeData::Text { contents } => {
+                contents.replace(value.0);
+                Some(())
+            }
+            _ => None,
+        }
+    }
+
     fn text_content(&self) -> Option<String> {
         if self.0.children.borrow().len() > 0 {
             return Node5Ever::node_data_text_content(&self.0);
@@ -797,7 +887,7 @@ impl Node for Node5Ever {
     }
 
     fn clone_node(&self) -> Self {
-        let children = self.child_nodes_iter().map(|c| c.clone_node().0).collect();
+        let children = self.0.children.borrow().iter().cloned().collect();
         Self(Rc::new(rcdom::Node {
             parent: Cell::new(None),
             data: self.clone_node_data(),
@@ -888,6 +978,10 @@ impl Element for Element5Ever {
         })
     }
 
+    fn as_document(&self) -> impl crate::document::Document<Root = Self> {
+        Document5Ever(self.clone())
+    }
+
     fn from_parent(node: Node5Ever) -> Option<Self> {
         Self::new(node)
     }
@@ -943,15 +1037,8 @@ impl Element for Element5Ever {
     }
 
     fn parent_element(&self) -> Option<Self> {
-        let parent: &dyn std::any::Any = &self.parent_node()?;
-        let downcast = parent
-            .downcast_ref::<Node5Ever>()
-            .expect("Parent node of element should be a node type")
-            .clone();
-        match downcast.node_type() {
-            node::Type::Element => Self::new(downcast),
-            _ => None,
-        }
+        let parent_node: Node5Ever = self.parent_node()?;
+        Self::new(parent_node)
     }
 
     #[allow(refining_impl_trait)]
@@ -987,10 +1074,25 @@ impl Element for Element5Ever {
     }
 
     fn flatten(&self) {
-        for child in self.child_nodes_iter() {
-            self.after(child);
+        let children = self.node.0.children.take();
+
+        let parent = self.parent_element();
+        let Some(parent) = parent else {
+            return;
+        };
+        self.node.0.parent.replace(None);
+
+        let index = parent.child_index(&self.node);
+        let Some(index) = index else {
+            return;
+        };
+
+        for child in &children {
+            child.parent.replace(Some(Rc::downgrade(&parent.node.0)));
         }
-        self.remove();
+
+        let mut siblings = parent.node.0.children.borrow_mut();
+        siblings.splice(index..=index, children);
     }
 
     /// Runs a breadth-first search to get the first element of a node.
@@ -1009,6 +1111,34 @@ impl Element for Element5Ever {
             }
         }
         None
+    }
+
+    fn for_each_element_child<F>(&self, mut f: F)
+    where
+        F: FnMut(Self),
+    {
+        self.node.0.children.borrow().iter().for_each(|n| {
+            if let NodeData::Element { .. } = &n.data {
+                f(Self {
+                    node: Node5Ever(n.clone()),
+                    selector_flags: Cell::new(None),
+                });
+            }
+        });
+    }
+}
+
+impl std::hash::Hash for Element5Ever {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.node.0).hash(state);
+    }
+}
+
+impl Eq for Element5Ever {}
+
+impl PartialEq for Element5Ever {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::as_ptr(&self.node.0).eq(&Rc::as_ptr(&other.node.0))
     }
 }
 
@@ -1029,20 +1159,48 @@ impl Node for Element5Ever {
         self.node.as_ref()
     }
 
-    fn c_data(&self, contents: Self::Atom) -> Self::Child {
-        self.node.c_data(contents)
-    }
-
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
-        self.node.child_nodes_iter()
+        self.node.child_nodes().into_iter()
     }
 
     fn child_nodes(&self) -> Vec<Self::Child> {
         self.node.child_nodes()
     }
 
+    fn for_each_child<F>(&self, f: F)
+    where
+        F: FnMut(Self::Child),
+    {
+        self.node.for_each_child(f);
+    }
+
+    fn try_for_each_child<F, E>(&self, f: F) -> Result<(), E>
+    where
+        F: FnMut(Self::Child) -> Result<(), E>,
+    {
+        self.node.try_for_each_child(f)
+    }
+
+    fn any_child<F>(&self, f: F) -> bool
+    where
+        F: FnMut(Self::Child) -> bool,
+    {
+        self.node.any_child(f)
+    }
+
+    fn all_children<F>(&self, f: F) -> bool
+    where
+        F: FnMut(Self::Child) -> bool,
+    {
+        self.node.all_children(f)
+    }
+
     fn element(&self) -> Option<impl Element> {
         Some(Node::to_owned(self))
+    }
+
+    fn empty(&self) {
+        self.node.empty();
     }
 
     fn find_element(&self) -> Option<impl Element> {
@@ -1051,6 +1209,10 @@ impl Node for Element5Ever {
 
     fn node_type(&self) -> node::Type {
         self.node.node_type()
+    }
+
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
+        None
     }
 
     #[allow(refining_impl_trait)]
@@ -1082,7 +1244,11 @@ impl Node for Element5Ever {
     }
 
     fn node_value(&self) -> Option<Self::Atom> {
-        self.node.node_value()
+        None
+    }
+
+    fn try_set_node_value(&self, _value: Self::Atom) -> Option<()> {
+        None
     }
 
     fn text_content(&self) -> Option<String> {
@@ -1130,10 +1296,14 @@ struct Element5EverData<'a> {
 impl Element5Ever {
     /// Get's the associated element data.
     fn data(&self) -> Element5EverData {
-        let NodeData::Element { name, attrs, .. } = &self.node.0.data else {
+        if let NodeData::Element { name, attrs, .. } = &self.node.0.data {
+            Element5EverData { name, attrs }
+        } else {
+            log::debug!(
+                "You probably tried getting something element related from a document element. Check the stack trace."
+            );
             unreachable!("Element contains non-element data. This is a bug!")
-        };
-        Element5EverData { name, attrs }
+        }
     }
 
     #[cfg(feature = "selectors")]
@@ -1348,6 +1518,10 @@ impl selectors::Element for Element5Ever {
         name: &<Self::Impl as selectors::SelectorImpl>::Identifier,
         case_sensitivity: selectors::attr::CaseSensitivity,
     ) -> bool {
+        if self.node_type() == node::Type::Document {
+            return false;
+        }
+
         let Some(self_class) = self.get_attribute_local(&LocalName5Ever(local_name!("class")))
         else {
             return false;
@@ -1371,12 +1545,11 @@ impl selectors::Element for Element5Ever {
     }
 
     fn is_empty(&self) -> bool {
-        self.child_nodes_iter()
-            .all(|child| match child.node_type() {
-                node::Type::Element => false,
-                node::Type::Text => child.node_value().is_some(),
-                _ => true,
-            })
+        self.all_children(|child| match child.node_type() {
+            node::Type::Element => false,
+            node::Type::Text => child.node_value().is_some(),
+            _ => true,
+        })
     }
 
     fn is_root(&self) -> bool {
@@ -1384,5 +1557,65 @@ impl selectors::Element for Element5Ever {
             return true;
         };
         parent.node_type() == node::Type::Document
+    }
+}
+
+impl Document for Document5Ever {
+    type Root = Element5Ever;
+
+    fn document_element(&self) -> &Self::Root {
+        &self.0
+    }
+
+    fn create_attribute<'a>(&self, name: QualName5Ever) -> Attribute5Ever<'a> {
+        Attribute5Ever::Owned(Attribute {
+            name: name.0,
+            value: StrTendril::default(),
+        })
+    }
+
+    fn create_c_data_section(&self, data: <Self::Root as Node>::Atom) -> Node5Ever {
+        Self::create_node(rcdom::NodeData::Text {
+            contents: RefCell::new(data.0),
+        })
+    }
+
+    fn create_element(&self, tag_name: <Self::Root as Element>::Name) -> Self::Root {
+        Element5Ever {
+            node: Self::create_node(rcdom::NodeData::Element {
+                name: tag_name.0,
+                attrs: RefCell::new(vec![]),
+                template_contents: RefCell::new(None),
+                mathml_annotation_xml_integration_point: false,
+            }),
+            selector_flags: Cell::new(None),
+        }
+    }
+
+    fn create_processing_instruction(
+        &self,
+        target: <Self::Root as Node>::Atom,
+        data: <Self::Root as Node>::Atom,
+    ) -> <Self::Root as Node>::Child {
+        Self::create_node(rcdom::NodeData::ProcessingInstruction {
+            target: target.0,
+            contents: data.0,
+        })
+    }
+
+    fn create_text_node(&self, data: <Self::Root as Node>::Atom) -> <Self::Root as Node>::Child {
+        Self::create_node(rcdom::NodeData::Text {
+            contents: RefCell::new(data.0),
+        })
+    }
+}
+
+impl Document5Ever {
+    fn create_node(data: rcdom::NodeData) -> Node5Ever {
+        Node5Ever(Rc::new(rcdom::Node {
+            parent: Cell::new(None),
+            children: RefCell::new(vec![]),
+            data,
+        }))
     }
 }

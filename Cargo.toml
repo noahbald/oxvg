@@ -32,7 +32,7 @@ cssparser = "0.31.0"
 derive-where = "1.2"
 itertools = "0.13.0"
 lazy_static = "1.4"
-lightningcss = "1.0.0-alpha.61"
+lightningcss = { version = "1.0.0-alpha.61" }
 log = "0.4.20"
 markup5ever = "0.12"
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }

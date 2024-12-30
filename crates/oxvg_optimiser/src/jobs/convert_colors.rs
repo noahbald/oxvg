@@ -17,12 +17,10 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -61,7 +59,9 @@ pub struct ConvertColors {
     pub method: Option<Method>,
 }
 
-impl<E: Element> Job<E> for ConvertColors {
+impl<E: Element> Visitor<E> for ConvertColors {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
@@ -76,19 +76,15 @@ impl<E: Element> Job<E> for ConvertColors {
                 short_name,
             }) => {
                 if names_2_hex || rgb_2_hex || convert_case.is_some() || short_hex || short_name {
-                    PrepareOutcome::None
+                    PrepareOutcome::none
                 } else {
                     log::debug!("ConvertColors::prepare: skipping useless config");
-                    PrepareOutcome::Skip
+                    PrepareOutcome::skip
                 }
             }
-            _ => PrepareOutcome::None,
+            _ => PrepareOutcome::none,
         }
     }
-}
-
-impl<E: Element> Visitor<E> for ConvertColors {
-    type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let mask_localname = &"mask".into();

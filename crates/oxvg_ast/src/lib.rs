@@ -1,9 +1,14 @@
 #[macro_use]
 extern crate bitflags;
 
+#[cfg(feature = "style")]
+#[macro_use]
+extern crate smallvec;
+
 pub mod atom;
 pub mod attribute;
 pub mod class_list;
+pub mod document;
 pub mod element;
 pub mod implementations;
 pub mod name;

@@ -7,36 +7,32 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::Deserialize;
 
-use crate::{Job, PrepareOutcome};
-
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 
-impl<E: Element> Job<E> for CollapseGroups {
+impl<E: Element> Visitor<E> for CollapseGroups {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
-    ) -> crate::PrepareOutcome {
+    ) -> PrepareOutcome {
         if self.0 {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
 
-impl<E: Element> Visitor<E> for CollapseGroups {
-    type Error = String;
-
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn exit_element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
@@ -63,7 +59,8 @@ impl Default for CollapseGroups {
 fn move_attributes_to_child(element: &impl Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
-    let mut children = element.children_iter();
+    let children = element.children();
+    let mut children = children.iter();
     let Some(first_child) = children.next() else {
         log::debug!("collapse_groups: not moving attrs: no children");
         return;
@@ -79,8 +76,8 @@ fn move_attributes_to_child(element: &impl Element) {
         return;
     }
 
-    if dbg!(is_group_identifiable(element, &first_child))
-        || dbg!(is_position_visually_unstable(element, &first_child))
+    if dbg!(is_group_identifiable(element, first_child))
+        || dbg!(is_position_visually_unstable(element, first_child))
         || dbg!(is_node_with_filter(element))
     {
         log::debug!("collapse_groups: not moving attrs: see true condition");
@@ -96,7 +93,7 @@ fn move_attributes_to_child(element: &impl Element) {
         let value = attr.value();
 
         let child_attr = first_child_attrs.get_named_item(&name);
-        if has_animated_attr(&first_child, &name) {
+        if has_animated_attr(first_child, &name) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }

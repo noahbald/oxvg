@@ -7,7 +7,7 @@ use oxvg_ast::{
     atom::Atom,
     class_list::ClassList,
     element::Element,
-    visitor::{Context, Visitor},
+    visitor::{Context, ContextFlags, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
@@ -124,7 +124,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             }
         };
 
-        if element.closest_local(&"foreignObject".into()).is_some() {
+        if context.flags.contains(ContextFlags::within_foreign_object) {
             if let Ok(css) = css.rules.to_css_string(printer::PrinterOptions {
                 minify: true,
                 ..printer::PrinterOptions::default()

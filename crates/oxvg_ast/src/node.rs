@@ -77,10 +77,8 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// Get the node wrapped in an opaque reference
     fn as_ref(&self) -> Box<dyn Ref>;
 
-    /// Creates a CData node with the given content
-    fn c_data(&self, contents: Self::Atom) -> Self::Child;
-
     /// Returns an node list containing all the children of this node
+    #[deprecated(note = "try use for_each_child, map_each_child, fold_each_child, etc, instead")]
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
 
     /// Returns a read-only node list containing all the children of this node.
@@ -90,11 +88,13 @@ pub trait Node: Clone + Debug + 'static + Features {
 
     /// Returns whether the node's list of children is empty or not
     fn has_child_nodes(&self) -> bool {
-        self.child_nodes_iter().next().is_some()
+        self.any_child(|_| true)
     }
 
     /// Upcasts self as an element
     fn element(&self) -> Option<impl Element>;
+
+    fn empty(&self);
 
     /// Does a breadth-first search to find an element from the current node, returning this node
     /// if it is an element.
@@ -106,6 +106,24 @@ pub trait Node: Clone + Debug + 'static + Features {
     fn first_child(&self) -> Option<impl Node> {
         self.child_nodes().first().map(Node::to_owned)
     }
+
+    fn for_each_child<F>(&self, f: F)
+    where
+        F: FnMut(Self::Child);
+
+    /// # Errors
+    /// Stops and returns the error for the first failed child.
+    fn try_for_each_child<F, E>(&self, f: F) -> Result<(), E>
+    where
+        F: FnMut(Self::Child) -> Result<(), E>;
+
+    fn any_child<F>(&self, f: F) -> bool
+    where
+        F: FnMut(Self::Child) -> bool;
+
+    fn all_children<F>(&self, f: F) -> bool
+    where
+        F: FnMut(Self::Child) -> bool;
 
     /// Returns the last child in the node's tree
     ///
@@ -144,6 +162,21 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// [MDN | nodeValue](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeValue)
     fn node_value(&self) -> Option<Self::Atom>;
 
+    /// Returns the processing instruction's target and data, if the node is a processing
+    /// instruction
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)>;
+
+    /// Tries settings the value of the node if possible. If not possible, returns [None].
+    ///
+    /// Setting a node's value is only possible for node types which can return a node value:
+    /// - `CDataSection`
+    /// - `Comment`
+    /// - `ProcessingInstruction`
+    /// - `Text`
+    ///
+    /// However, depending on implementation details these types may be read-only
+    fn try_set_node_value(&self, value: Self::Atom) -> Option<()>;
+
     /// Returns a string representing the text content of a node and it's descendants
     ///
     /// [MDN | textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)
@@ -151,9 +184,7 @@ pub trait Node: Clone + Debug + 'static + Features {
 
     fn set_text_content(&mut self, content: Self::Atom) {
         let text = self.text(content);
-        for child in self.child_nodes_iter() {
-            child.remove();
-        }
+        self.empty();
         self.append_child(text);
     }
 
@@ -166,7 +197,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// [MDN | parentNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentNode)
     fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>>;
 
-    /// Changes the return value of [Node::parent_node] to the given node
+    /// Changes the return value of [`Node::parent_node`] to the given node
     ///
     /// # Warning
     /// This method only updated what parent it referenced, it doesn't change the child list of
@@ -175,9 +206,9 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// and add it to the new parent's child list.
     ///
     /// This is intentional for a [Node] which may not need a reference to parent, but if you're
-    /// using [Element], you may want to try using [Node::insert], [Node::insert_before],
-    /// [Node::insert_after], [Element::after], [Element::before], or
-    /// [Element::prepend]
+    /// using [Element], you may want to try using [`Node::insert`], [`Node::insert_before`],
+    /// [`Node::insert_after`], [`Element::after`], [`Element::before`], or
+    /// [`Element::prepend`]
     fn set_parent_node(
         &self,
         new_parent: &impl Node<Atom = Self::Atom>,
@@ -199,7 +230,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     ///
     /// [MDN | contains](https://developer.mozilla.org/en-US/docs/Web/API/Node/contains)
     fn contains(&self, other_node: &impl Node) -> bool {
-        self.child_nodes_iter().any(|c| {
+        self.any_child(|c| {
             if c.ptr_eq(other_node) {
                 return true;
             }
@@ -214,7 +245,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// Inserts a node before the reference node as a child of the current node.
     ///
     /// [MDN | insertBefore](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertBefore)
-    fn insert_before(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
         let len = self.child_nodes().len();
         let reference_index = self.child_index(reference_node).unwrap_or(len);
         self.insert(reference_index - 1, new_node);
@@ -223,7 +254,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// Inserts a node after the reference node as a child of the current node.
     ///
     /// [MDN | insertAfter](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertAfter)
-    fn insert_after(&mut self, new_node: Self::Child, reference_node: Self::Child) {
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
         let len = self.child_nodes().len();
         let reference_index = self.child_index(reference_node).unwrap_or(len - 2);
         self.insert(reference_index + 1, new_node);
@@ -245,7 +276,8 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// [MDN | removeChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/removeChild)
     fn remove_child(&mut self, child: Self::Child) -> Option<Self::Child> {
         let child_index = self
-            .child_nodes_iter()
+            .child_nodes()
+            .iter()
             .enumerate()
             .find(|(_, n)| n.ptr_eq(&child))
             .map(|(i, _)| i)?;
@@ -254,14 +286,14 @@ pub trait Node: Clone + Debug + 'static + Features {
 
     /// Replaces a child node with the given one
     ///
-    /// Note that the argument order in the spec is unusual, [Element::replace_with] may be easier
+    /// Note that the argument order in the spec is unusual, [`Element::replace_with`] may be easier
     /// to follow
     ///
     /// [MDN | replaceChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/replaceChild)
     fn replace_child(
         &mut self,
         new_child: Self::Child,
-        old_child: Self::Child,
+        old_child: &Self::Child,
     ) -> Option<Self::Child> {
         let mut children = self.child_nodes();
         Some(std::mem::replace(
@@ -271,11 +303,11 @@ pub trait Node: Clone + Debug + 'static + Features {
     }
 
     /// Returns the index of the child within the current node's child list
-    fn child_index(&self, child: Self::Child) -> Option<usize> {
+    fn child_index(&self, child: &Self::Child) -> Option<usize> {
         self.child_nodes()
             .iter()
             .enumerate()
-            .find(|(_, n)| n.ptr_eq(&child))
+            .find(|(_, n)| n.ptr_eq(child))
             .map(|(i, _)| i)
     }
 

@@ -1,13 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should remove group with equal attribute values to child -->\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path attr2=\"val2\" d=\"...\"/>\n        </g>\n        <g attr2=\"val2\">\n            <path attr2=\"val3\" d=\"...\"/>\n        </g>\n    </g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should remove group with equal attribute values to child -->\n    <g attr1=\"val1\">\n        <g attr2=\"val2\">\n            <path attr2=\"val2\" d=\"...\"/>\n        </g>\n        <g attr2=\"val2\">\n            <path attr2=\"val3\" d=\"...\"/>\n        </g>\n    </g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should remove group with equal attribute values to child -->
     <g attr1="val1">
         
-        <path attr2="val2" d="..."></path>
-            
+            <path attr2="val2" d="..."></path>
+        
         <g attr2="val2">
             <path attr2="val3" d="..."></path>
         </g>

@@ -1,13 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should replace inheritable value -->\n\t<g color=\"red\">\n\t\t<g color=\"inherit\" fill=\"none\" stroke=\"none\">\n\t\t\t<circle cx=\"130\" cy=\"80\" r=\"60\" fill=\"currentColor\"/>\n\t\t\t<circle cx=\"350\" cy=\"80\" r=\"60\" stroke=\"currentColor\" stroke-width=\"4\"/>\n\t\t</g>\n\t</g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should replace inheritable value -->\n\t<g color=\"red\">\n\t\t<g color=\"inherit\" fill=\"none\" stroke=\"none\">\n\t\t\t<circle cx=\"130\" cy=\"80\" r=\"60\" fill=\"currentColor\"/>\n\t\t\t<circle cx=\"350\" cy=\"80\" r=\"60\" stroke=\"currentColor\" stroke-width=\"4\"/>\n\t\t</g>\n\t</g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should replace inheritable value -->
 	
-	<g color="red" fill="none" stroke="none">
+		<g color="red" fill="none" stroke="none">
 			<circle cx="130" cy="80" r="60" fill="currentColor"></circle>
 			<circle cx="350" cy="80" r="60" stroke="currentColor" stroke-width="4"></circle>
 		</g>
-		
+	
 </svg>

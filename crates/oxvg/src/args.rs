@@ -56,7 +56,7 @@ impl RunCommand for Optimise {
         let config = config.optimisation.unwrap_or_default();
         for (path, file) in &files {
             let dom: Node5Ever = Node::parse(&String::from_utf8_lossy(file))?;
-            config.clone().run(&dom);
+            config.clone().run(&dom)?;
             write_file(&self.output, path, &dom);
         }
         Ok(())

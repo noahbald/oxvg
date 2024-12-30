@@ -25,8 +25,6 @@ use crate::{command, Path};
 
 #[cfg(feature = "oxvg")]
 use oxvg_ast;
-#[cfg(feature = "oxvg")]
-use std::collections::BTreeMap;
 
 bitflags! {
     /// External style information that may be relevant when optimising a path
@@ -158,45 +156,76 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
 impl StyleInfo {
     #[cfg(feature = "oxvg")]
     /// Determine the path optimisations that are allowed based on relevant context
-    pub fn gather(
-        computed_styles: &BTreeMap<oxvg_ast::style::SVGStyleID, &oxvg_ast::style::Style>,
-        has_marker: bool,
-    ) -> Self {
-        use lightningcss::properties::svg::{StrokeLinecap, StrokeLinejoin};
+    pub fn gather(computed_styles: &oxvg_ast::style::ComputedStyles) -> Self {
+        use lightningcss::properties::{
+            svg::{StrokeLinecap, StrokeLinejoin},
+            PropertyId,
+        };
+        use oxvg_ast::{
+            get_computed_styles_factory,
+            style::{Id, PresentationAttrId},
+        };
 
-        let has_marker_mid = computed_styles.contains_key(&oxvg_ast::style::SVGStyleID::MarkerMid);
+        let has_marker = computed_styles
+            .attr
+            .contains_key(&PresentationAttrId::MarkerStart)
+            || computed_styles
+                .attr
+                .contains_key(&PresentationAttrId::MarkerEnd);
+        get_computed_styles_factory!(computed_styles);
+        let has_marker_mid = get_computed_styles!(MarkerMid).is_some();
+        let stroke = get_computed_styles!(Stroke);
 
-        let stroke = computed_styles.get(&oxvg_ast::style::SVGStyleID::Stroke);
         let maybe_has_stroke = stroke.is_some_and(|property| {
             property.is_dynamic()
                 || !matches!(
                     property.inner(),
-                    oxvg_ast::style::SVGStyle::Stroke(oxvg_ast::style::SVGPaint::None)
+                    oxvg_ast::style::Static::Attr(oxvg_ast::style::PresentationAttr::Stroke(
+                        lightningcss::properties::svg::SVGPaint::None
+                    )) | oxvg_ast::style::Static::Css(lightningcss::properties::Property::Stroke(
+                        lightningcss::properties::svg::SVGPaint::None
+                    ))
                 )
         });
 
-        let linecap = computed_styles.get(&oxvg_ast::style::SVGStyleID::StrokeLinecap);
+        let linecap = get_computed_styles!(StrokeLinecap);
         let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
             property.is_dynamic()
                 || !matches!(
                     property.inner(),
-                    oxvg_ast::style::SVGStyle::StrokeLinecap(StrokeLinecap::Butt)
+                    oxvg_ast::style::Static::Attr(
+                        oxvg_ast::style::PresentationAttr::StrokeLinecap(StrokeLinecap::Butt)
+                    ) | oxvg_ast::style::Static::Css(
+                        lightningcss::properties::Property::StrokeLinecap(StrokeLinecap::Butt)
+                    )
                 )
         });
 
-        let linejoin = computed_styles.get(&oxvg_ast::style::SVGStyleID::StrokeLinejoin);
+        let linejoin = get_computed_styles!(StrokeLinejoin);
         let is_safe_to_use_z = if maybe_has_stroke {
             linecap.is_some_and(|property| {
                 property.is_static()
                     && matches!(
                         property.inner(),
-                        oxvg_ast::style::SVGStyle::StrokeLinecap(StrokeLinecap::Round)
+                        oxvg_ast::style::Static::Attr(
+                            oxvg_ast::style::PresentationAttr::StrokeLinecap(StrokeLinecap::Round)
+                        ) | oxvg_ast::style::Static::Css(
+                            lightningcss::properties::Property::StrokeLinecap(StrokeLinecap::Round)
+                        )
                     )
             }) && linejoin.is_some_and(|property| {
                 property.is_static()
                     && matches!(
                         property.inner(),
-                        oxvg_ast::style::SVGStyle::StrokeLinejoin(StrokeLinejoin::Round)
+                        oxvg_ast::style::Static::Attr(
+                            oxvg_ast::style::PresentationAttr::StrokeLinejoin(
+                                StrokeLinejoin::Round
+                            )
+                        ) | oxvg_ast::style::Static::Css(
+                            lightningcss::properties::Property::StrokeLinejoin(
+                                StrokeLinejoin::Round
+                            )
+                        )
                     )
             })
         } else {

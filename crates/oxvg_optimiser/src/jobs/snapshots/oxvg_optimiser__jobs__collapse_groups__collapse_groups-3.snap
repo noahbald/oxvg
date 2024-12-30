@@ -6,8 +6,8 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
     <!-- Should remove inheritable overridden attributes -->
     <g attr1="val1">
         
-        <path fill="green" d="..."></path>
-            
+            <path fill="green" d="..."></path>
+        
         <path d="..."></path>
     </g>
 </svg>

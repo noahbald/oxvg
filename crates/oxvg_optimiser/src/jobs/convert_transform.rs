@@ -1,29 +1,31 @@
-use itertools::Itertools;
-use lightningcss::properties::transform::{Matrix, Matrix3d, Transform, TransformList};
+use lightningcss::{
+    printer::PrinterOptions,
+    properties::transform::{Matrix, TransformList},
+    traits::ToCss,
+};
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
-    style::{SVGStyle, SVGStyleID, Style},
-    visitor::{Context, Visitor},
+    style::{
+        Id, Precision, PresentationAttr, PresentationAttrId, SVGTransform, SVGTransformList,
+        Static, Style,
+    },
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::{
-    utils::transform::{self, Precision},
-    Job,
-};
+use crate::Job;
 
 #[derive(Deserialize, Default, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertTransform {
     convert_to_shorts: Option<bool>,
+    // NOTE: Some of the precision will be thrown out by lightningcss' serialization
     deg_precision: Option<i32>,
     float_precision: Option<i32>,
     transform_precision: Option<i32>,
     matrix_to_transform: Option<bool>,
-    short_translate: Option<bool>,
-    short_scale: Option<bool>,
     short_rotate: Option<bool>,
     remove_useless: Option<bool>,
     collapse_into_one: Option<bool>,
@@ -36,8 +38,6 @@ struct Inner {
     float_precision: i32,
     transform_precision: i32,
     matrix_to_transform: bool,
-    short_translate: bool,
-    short_scale: bool,
     short_rotate: bool,
     remove_useless: bool,
     collapse_into_one: bool,
@@ -47,6 +47,14 @@ impl<E: Element> Job<E> for ConvertTransform {}
 
 impl<E: Element> Visitor<E> for ConvertTransform {
     type Error = String;
+
+    fn prepare(
+        &mut self,
+        _document: &<E>::ParentChild,
+        _context_flags: &oxvg_ast::visitor::ContextFlags,
+    ) -> PrepareOutcome {
+        PrepareOutcome::use_style
+    }
 
     fn use_style(&self, element: &E) -> bool {
         element.attributes().iter().any(|attr| {
@@ -58,15 +66,27 @@ impl<E: Element> Visitor<E> for ConvertTransform {
     }
 
     fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
-        if let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) {
+        if let Some(transform) = context
+            .computed_styles
+            .attr
+            .get(&PresentationAttrId::Transform)
+        {
             self.transform_attr(transform, "transform", element);
         }
 
-        if let Some(gradient_transform) = context.style.attr.get(&SVGStyleID::GradientTransform) {
+        if let Some(gradient_transform) = context
+            .computed_styles
+            .attr
+            .get(&PresentationAttrId::GradientTransform)
+        {
             self.transform_attr(gradient_transform, "patternTransform", element);
         }
 
-        if let Some(pattern_transform) = context.style.attr.get(&SVGStyleID::PatternTransform) {
+        if let Some(pattern_transform) = context
+            .computed_styles
+            .attr
+            .get(&PresentationAttrId::PatternTransform)
+        {
             self.transform_attr(pattern_transform, "patternTransform", element);
         }
         Ok(())
@@ -81,8 +101,6 @@ impl ConvertTransform {
             float_precision: self.float_precision.unwrap_or(3),
             transform_precision: self.transform_precision.unwrap_or(5),
             matrix_to_transform: self.matrix_to_transform.unwrap_or(true),
-            short_translate: self.short_translate.unwrap_or(true),
-            short_scale: self.short_scale.unwrap_or(true),
             short_rotate: self.short_rotate.unwrap_or(true),
             remove_useless: self.remove_useless.unwrap_or(true),
             collapse_into_one: self.collapse_into_one.unwrap_or(true),
@@ -90,58 +108,60 @@ impl ConvertTransform {
     }
 
     fn transform_attr(&self, value: &Style, name: &str, element: &impl Element) {
-        if let Some(value) = self.transform(value) {
-            if value.is_empty() {
+        log::debug!("transform_attr: found {name} to transform");
+        if value.is_unparsed() {
+            element.remove_attribute_local(&name.into());
+            return;
+        }
+        if let Some(transform) = self.transform(value) {
+            if transform.0.is_empty() {
                 log::debug!("transform_attr: removing {name}");
                 element.remove_attribute_local(&name.into());
             } else {
                 log::debug!("transform_attr: updating {name}");
+                let value = match value.inner().id() {
+                    Id::Attr(PresentationAttrId::Transform) => {
+                        transform.to_css_string(PrinterOptions::default())
+                    }
+                    Id::Attr(
+                        PresentationAttrId::GradientTransform
+                        | PresentationAttrId::PatternTransform,
+                    ) => Into::<TransformList>::into(transform)
+                        .to_css_string(PrinterOptions::default()),
+                    _ => return,
+                }
+                .unwrap_or_default();
                 element.set_attribute_local(name.into(), value.into());
             }
         }
     }
 
-    fn to_matrix(list: &TransformList) -> Option<Matrix<f32>> {
-        let mut matrix = Matrix3d::identity();
-        for transform in &list.0 {
-            let transform = if let Transform::Rotate(angle) = transform {
-                &Transform::Matrix3d(Matrix3d::rotate(0.0, 0.0, 1.0, angle.to_radians()))
-            } else {
-                transform
-            };
-            if let Some(m) = transform.to_matrix() {
-                matrix = m.multiply(&matrix);
-            } else {
-                return None;
+    fn transform(&self, value: &Style) -> Option<SVGTransformList> {
+        let transform = match value {
+            Style::Static(Static::Attr(PresentationAttr::Transform(transform))) => {
+                transform.clone()
             }
-        }
-        matrix.to_matrix2d()
-    }
-
-    fn transform(&self, value: &Style) -> Option<String> {
-        let Style::Static(SVGStyle::Transform(transform, _)) = value else {
-            unreachable!("dynamic or non-transform style provided");
+            Style::Static(Static::Attr(
+                PresentationAttr::GradientTransform(transform)
+                | PresentationAttr::PatternTransform(transform),
+            )) => match transform.try_into() {
+                Ok(transform) => transform,
+                Err(()) => return None,
+            },
+            Style::Static(Static::Attr(PresentationAttr::Unparsed(_))) => return None,
+            _ => unreachable!("dynamic or non-transform style provided"),
         };
-        let inner = self.inner().define_precision(transform, self);
+        let inner = self.inner().define_precision(&transform, self);
 
-        let data = if inner.collapse_into_one && transform.0.len() > 1 {
-            if let Some(matrix) = Self::to_matrix(transform) {
+        let mut data = if inner.collapse_into_one && transform.0.len() > 1 {
+            if let Some(matrix) = transform.to_matrix_2d() {
                 log::debug!("collapsing transform to matrix");
-                &TransformList(vec![Transform::Matrix(matrix)])
+                SVGTransformList(vec![SVGTransform::Matrix(matrix)])
             } else {
                 transform
             }
         } else {
             transform
-        };
-        let Ok(mut data) = data
-            .0
-            .iter()
-            .map(transform::Transform::try_from)
-            .collect::<Result<Vec<_>, ()>>()
-        else {
-            log::debug!("failed to convert lightningcss transform to our transform");
-            return None;
         };
         log::debug!(r#"working with data "{:?}""#, data);
 
@@ -149,21 +169,17 @@ impl ConvertTransform {
         log::debug!(r#"converted transforms to short "{:?}""#, data);
         let data = inner.remove_useless(data);
         log::debug!(r#"removed useless transform "{:?}""#, data);
-        Some(
-            data.into_iter()
-                .map(|transform| transform.to_string())
-                .join(""),
-        )
+        Some(SVGTransformList(data))
     }
 }
 
 impl Inner {
-    fn define_precision(mut self, data: &TransformList, outer: &ConvertTransform) -> Self {
+    fn define_precision(mut self, data: &SVGTransformList, outer: &ConvertTransform) -> Self {
         let matrix_data = data
             .0
             .iter()
             .filter_map(|t| match t {
-                Transform::Matrix(matrix) => Some(matrix),
+                SVGTransform::Matrix(matrix) => Some(matrix),
                 _ => None,
             })
             .flat_map(|m| [m.a, m.b, m.c, m.d, m.e, m.f]);
@@ -210,7 +226,7 @@ impl Inner {
         self
     }
 
-    fn convert_to_shorts(&self, data: &mut [transform::Transform]) -> Vec<transform::Transform> {
+    fn convert_to_shorts(&self, data: &mut SVGTransformList) -> Vec<SVGTransform> {
         let precision = Precision {
             float: self.float_precision,
             deg: self.deg_precision,
@@ -218,38 +234,30 @@ impl Inner {
         };
         log::debug!("converting with precision: {:?}", precision);
         if !self.convert_to_shorts {
-            data.iter_mut()
+            data.0
+                .iter_mut()
                 .for_each(|transform| transform.round(&precision));
         }
 
-        let shorts: Vec<_> = data
-            .iter()
-            .flat_map(|transform| {
-                if self.matrix_to_transform {
-                    if let transform::Transform::Matrix(matrix) = transform {
-                        return matrix.to_transform(&precision);
-                    }
-                }
-                vec![transform.clone()]
-            })
-            .map(|mut transform| {
-                transform.round(&precision);
-                match &mut transform {
-                    transform::Transform::Translate((_, y))
-                        if self.short_translate && *y == Some(0.0) =>
-                    {
-                        log::debug!(r#"shortened translate"#);
-                        *y = None;
-                    }
-                    transform::Transform::Scale((x, y)) if self.short_scale && *y == Some(*x) => {
-                        log::debug!(r#"shortened scale"#);
-                        *y = None;
-                    }
-                    _ => {}
-                }
-                transform
-            })
-            .collect();
+        let shorts: Vec<_> = if self.matrix_to_transform {
+            data.0
+                .iter()
+                .flat_map(|transform| transform.matrix_to_transform(&precision))
+                .map(|mut transform| {
+                    transform.round(&precision);
+                    transform
+                })
+                .collect()
+        } else {
+            data.0
+                .clone()
+                .into_iter()
+                .map(|mut transform| {
+                    transform.round(&precision);
+                    transform
+                })
+                .collect()
+        };
         if self.short_rotate && shorts.len() >= 3 {
             let mut result = vec![];
             let mut skip = 0;
@@ -263,27 +271,24 @@ impl Inner {
                     result.push(start.clone());
                     continue;
                 }
-                let transform::Transform::Translate((start_x, Some(start_y))) = shorts[i] else {
+                let SVGTransform::Translate(start_x, start_y) = shorts[i] else {
                     result.push(start.clone());
                     continue;
                 };
-                let transform::Transform::Rotate((deg, None)) = shorts[i + 1] else {
+                let SVGTransform::Rotate(deg, 0.0, 0.0) = shorts[i + 1] else {
                     result.push(start.clone());
                     continue;
                 };
-                let transform::Transform::Translate((x, Some(y))) = shorts[i + 2] else {
+                let SVGTransform::Translate(end_x, end_y) = shorts[i + 2] else {
                     result.push(start.clone());
                     continue;
                 };
-                if -start_x != x || start_y != y {
+                if start_x != -end_x || start_y != -end_y {
                     log::debug!("start and end not equivalent");
                     result.push(start.clone());
                     continue;
                 }
-                result.push(transform::Transform::Rotate((
-                    deg,
-                    Some((start_x, start_y)),
-                )));
+                result.push(SVGTransform::Rotate(deg, start_x, start_y));
                 skip = 2;
             }
             log::debug!(r#"shortened rotates: "{:?}""#, result);
@@ -293,7 +298,7 @@ impl Inner {
         }
     }
 
-    fn remove_useless(&self, data: Vec<transform::Transform>) -> Vec<transform::Transform> {
+    fn remove_useless(&self, data: Vec<SVGTransform>) -> Vec<SVGTransform> {
         if !self.remove_useless {
             return data;
         }
@@ -302,19 +307,19 @@ impl Inner {
             .filter(|item| {
                 !matches!(
                     item,
-                    transform::Transform::Translate((0.0, None | Some(0.0)))
-                        | transform::Transform::Rotate((0.0, _))
-                        | transform::Transform::SkewX(0.0)
-                        | transform::Transform::SkewY(0.0)
-                        | transform::Transform::Scale((1.0, None))
-                        | transform::Transform::Matrix(transform::Matrix(Matrix {
+                    SVGTransform::Translate(0.0, 0.0)
+                        | SVGTransform::Rotate(0.0, _, _)
+                        | SVGTransform::SkewX(0.0)
+                        | SVGTransform::SkewY(0.0)
+                        | SVGTransform::Scale(1.0, 1.0)
+                        | SVGTransform::Matrix(Matrix {
                             a: 1.0,
                             b: 0.0,
                             c: 0.0,
                             d: 1.0,
                             e: 0.0,
                             f: 0.0
-                        }))
+                        })
                 )
             })
             .collect()
@@ -323,7 +328,7 @@ impl Inner {
 
 #[test]
 #[allow(clippy::too_many_lines)]
-fn add_attributes_to_svg_element() -> anyhow::Result<()> {
+fn convert_transform() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(

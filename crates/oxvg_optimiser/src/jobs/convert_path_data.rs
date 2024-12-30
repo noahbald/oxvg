@@ -1,6 +1,6 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
@@ -40,21 +40,25 @@ impl<E: Element> Job<E> for ConvertPathData {}
 impl<E: Element> Visitor<E> for ConvertPathData {
     type Error = String;
 
+    fn prepare(
+        &mut self,
+        _document: &<E>::ParentChild,
+        _context_flags: &oxvg_ast::visitor::ContextFlags,
+    ) -> PrepareOutcome {
+        PrepareOutcome::use_style
+    }
+
     fn use_style(&self, element: &E) -> bool {
         element.has_attribute(&"d".into())
     }
 
-    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &Context<'_, '_, E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
             return Ok(());
         };
 
-        let style_info = convert::StyleInfo::gather(
-            &context.style.computed(),
-            element.has_attribute_local(&"marker-start".into())
-                || element.has_attribute_local(&"marker-end".into()),
-        );
+        let style_info = convert::StyleInfo::gather(&context.computed_styles);
         log::debug!("ConvertPathData::run: gained style info {style_info:?}");
 
         let path = match Path::parse(d.as_ref()) {

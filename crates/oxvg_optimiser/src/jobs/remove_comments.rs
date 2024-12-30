@@ -1,15 +1,7 @@
-use oxvg_ast::{
-    element::Element,
-    node::{self, Node},
-    visitor::Visitor,
-};
+use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 use serde_json::Value;
-
-use crate::{Job, PrepareOutcome};
-
-use super::ContextFlags;
 
 #[derive(Deserialize, Clone, Default, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -19,22 +11,6 @@ pub struct RemoveComments {
 
 #[derive(Debug, Clone)]
 pub struct PreservePattern(regex::Regex);
-
-impl<E: Element> Job<E> for RemoveComments {
-    fn prepare(
-        &mut self,
-        document: &E::ParentChild,
-        _context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
-        for child in document.child_nodes_iter() {
-            if child.node_type() != node::Type::Comment {
-                continue;
-            }
-            self.remove_comment(&child);
-        }
-        PrepareOutcome::None
-    }
-}
 
 impl<E: Element> Visitor<E> for RemoveComments {
     type Error = String;

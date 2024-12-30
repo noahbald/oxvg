@@ -4,34 +4,30 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_selectors::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::Deserialize;
 
-use super::{ContextFlags, Job, PrepareOutcome};
-
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveElemsAttrsToGroup(bool);
 
-impl<E: Element> Job<E> for MoveElemsAttrsToGroup {
+impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &<E>::ParentChild,
         context_flags: &ContextFlags,
     ) -> PrepareOutcome {
         if self.0 && !context_flags.contains(ContextFlags::has_stylesheet) {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
-
-impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
-    type Error = String;
 
     fn exit_element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         let name = element.qual_name();

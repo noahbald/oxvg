@@ -1,31 +1,29 @@
-use oxvg_ast::{element::Element, name::Name, visitor::Visitor};
+use oxvg_ast::{
+    element::Element,
+    name::Name,
+    visitor::{ContextFlags, PrepareOutcome, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::Job;
-
-use super::{ContextFlags, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveMetadata(bool);
 
-impl<E: Element> Job<E> for RemoveMetadata {
+impl<E: Element> Visitor<E> for RemoveMetadata {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> super::PrepareOutcome {
         if self.0 {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
-
-impl<E: Element> Visitor<E> for RemoveMetadata {
-    type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
         let name = element.qual_name();
