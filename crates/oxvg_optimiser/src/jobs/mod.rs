@@ -62,6 +62,7 @@ jobs! {
     convert_colors: ConvertColors,
     remove_unknowns_and_defaults: RemoveUnknownsAndDefaults,
     remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs,
+    remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill,
     cleanup_enable_background: CleanupEnableBackground,
     convert_shape_to_path: ConvertShapeToPath,
     convert_ellipse_to_circle: ConvertEllipseToCircle,
