@@ -1449,7 +1449,11 @@ impl selectors::Element for Element5Ever {
         &self,
         local_name: &<Self::Impl as selectors::SelectorImpl>::BorrowedLocalName,
     ) -> bool {
-        self.local_name() == local_name.0
+        if self.node_type() == node::Type::Document {
+            false
+        } else {
+            self.local_name() == local_name.0
+        }
     }
 
     fn has_namespace(
