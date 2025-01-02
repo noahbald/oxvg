@@ -275,12 +275,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     ///
     /// [MDN | removeChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/removeChild)
     fn remove_child(&mut self, child: Self::Child) -> Option<Self::Child> {
-        let child_index = self
-            .child_nodes()
-            .iter()
-            .enumerate()
-            .find(|(_, n)| n.ptr_eq(&child))
-            .map(|(i, _)| i)?;
+        let child_index = self.child_index(&child)?;
         self.remove_child_at(child_index)
     }
 
@@ -294,21 +289,22 @@ pub trait Node: Clone + Debug + 'static + Features {
         &mut self,
         new_child: Self::Child,
         old_child: &Self::Child,
-    ) -> Option<Self::Child> {
-        let mut children = self.child_nodes();
-        Some(std::mem::replace(
-            &mut children[self.child_index(old_child)?],
-            new_child,
-        ))
-    }
+    ) -> Option<Self::Child>;
 
     /// Returns the index of the child within the current node's child list
     fn child_index(&self, child: &Self::Child) -> Option<usize> {
-        self.child_nodes()
-            .iter()
-            .enumerate()
-            .find(|(_, n)| n.ptr_eq(child))
-            .map(|(i, _)| i)
+        let mut result = None;
+        let mut index = 0;
+        self.any_child(|sibling| {
+            if sibling.ptr_eq(child) {
+                result = Some(index);
+                true
+            } else {
+                index += 1;
+                false
+            }
+        });
+        result
     }
 
     /// Create a cloned refcell without copying the underlying data

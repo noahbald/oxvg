@@ -17,11 +17,7 @@ pub struct MoveElemsAttrsToGroup(bool);
 impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &<E>::ParentChild,
-        context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
         if self.0 && !context_flags.contains(ContextFlags::has_stylesheet) {
             PrepareOutcome::none
         } else {

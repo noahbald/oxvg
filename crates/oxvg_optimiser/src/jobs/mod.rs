@@ -60,6 +60,7 @@ jobs! {
     remove_useless_defs: RemoveUselessDefs,
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
+    remove_unknowns_and_defaults: RemoveUnknownsAndDefaults,
     cleanup_enable_background: CleanupEnableBackground,
     convert_shape_to_path: ConvertShapeToPath,
     convert_ellipse_to_circle: ConvertEllipseToCircle,

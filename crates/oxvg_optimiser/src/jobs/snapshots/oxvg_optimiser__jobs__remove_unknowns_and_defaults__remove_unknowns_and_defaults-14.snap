@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": { \"keepRoleAttr\": true } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" role=\"img\">\n    <!-- retain default role -->\n    <g/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" role="img">
+    <!-- retain default role -->
+    <g></g>
+</svg>

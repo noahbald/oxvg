@@ -59,22 +59,14 @@ pub struct CleanupIds {
 impl<E: Element> Visitor<E> for CleanupIds {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        document: &E::ParentChild,
-        context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
-        let Some(root) = document.find_element() else {
-            return PrepareOutcome::none;
-        };
-
-        self.prepare_ignore_document(&root, context_flags);
+    fn prepare(&mut self, document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
+        self.prepare_ignore_document(document, context_flags);
         if self.ignore_document {
             log::debug!("CleanupIds::prepare: skipping");
             return PrepareOutcome::skip;
         }
 
-        self.prepare_id_rename(&root);
+        self.prepare_id_rename(document);
         PrepareOutcome::none
     }
 

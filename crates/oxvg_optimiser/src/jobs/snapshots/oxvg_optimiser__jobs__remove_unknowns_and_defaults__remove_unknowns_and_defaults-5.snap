@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove attributes equal to inherited value, excluding those with id -->\n    <g fill=\"red\">\n        <g fill=\"red\">\n            <g fill=\"green\">\n                <g fill=\"green\">\n                    <path fill=\"red\" d=\"M18.8 86.9l39.2\"/>\n                </g>\n            </g>\n            <path fill=\"red\" d=\"M118.8 186.9l79.2\"/>\n            <path id=\"red\" fill=\"red\" d=\"M118.8 186.9l79.2\"/>\n        </g>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove attributes equal to inherited value, excluding those with id -->
+    <g fill="red">
+        <g>
+            <g fill="green">
+                <g>
+                    <path fill="red" d="M18.8 86.9l39.2"></path>
+                </g>
+            </g>
+            <path d="M118.8 186.9l79.2"></path>
+            <path id="red" fill="red" d="M118.8 186.9l79.2"></path>
+        </g>
+    </g>
+</svg>
