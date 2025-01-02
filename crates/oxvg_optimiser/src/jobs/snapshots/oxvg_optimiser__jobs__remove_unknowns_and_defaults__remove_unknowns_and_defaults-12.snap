@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": { \"keepAriaAttrs\": false } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" aria-labelledby=\"title\">\n    <!-- remove aria attrs -->\n    <title id=\"title\">\n        Title\n    </title>\n    <g aria-label=\"foo\">\n        test\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove aria attrs -->
+    <title id="title">
+        Title
+    </title>
+    <g>
+        test
+    </g>
+</svg>

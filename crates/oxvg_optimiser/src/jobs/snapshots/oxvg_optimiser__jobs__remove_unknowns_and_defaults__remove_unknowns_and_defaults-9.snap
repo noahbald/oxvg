@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove unknown elements -->\n    <metadata>\n        <sfw>\n            <slices></slices>\n            <sliceSourceBounds height=\"67.3\" width=\"85.9\" y=\"-40.8\" x=\"-42.5\" bottomLeftOrigin=\"true\"></sliceSourceBounds>\n        </sfw>\n        <ellipse/>\n    </metadata>\n    <ellipse>\n        <font-face/>\n    </ellipse>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove unknown elements -->
+    <metadata>
+        
+        <ellipse></ellipse>
+    </metadata>
+    <ellipse>
+        
+    </ellipse>
+</svg>

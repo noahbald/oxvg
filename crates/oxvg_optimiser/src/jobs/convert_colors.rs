@@ -62,11 +62,7 @@ pub struct ConvertColors {
 impl<E: Element> Visitor<E> for ConvertColors {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &E::ParentChild,
-        _context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,

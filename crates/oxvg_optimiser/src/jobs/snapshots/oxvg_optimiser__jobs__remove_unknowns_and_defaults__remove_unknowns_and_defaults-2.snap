@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:test=\"http://\">\n    <!-- unknown elements are removed -->\n    <test>\n        test\n    </test>\n    <test:test>\n        test\n    </test:test>\n    <g>\n        test\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- unknown elements are removed -->
+    
+    <test:test xmlns:test="http://">
+        test
+    </test:test>
+    <g>
+        test
+    </g>
+</svg>

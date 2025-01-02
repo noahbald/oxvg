@@ -399,6 +399,15 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
             attrs_ref: self.0,
         }
     }
+
+    fn retain<F>(&self, mut f: F)
+    where
+        F: FnMut(Self::Attribute) -> bool,
+    {
+        self.0
+            .borrow_mut()
+            .retain(|attr| f(Attribute5Ever::Owned(attr.clone())));
+    }
 }
 
 impl Debug for Attributes5Ever<'_> {
@@ -895,6 +904,18 @@ impl Node for Node5Ever {
         }))
     }
 
+    fn replace_child(
+        &mut self,
+        new_child: Self::Child,
+        old_child: &Self::Child,
+    ) -> Option<Self::Child> {
+        let index = self.child_index(old_child)?;
+        Some(Node5Ever(std::mem::replace(
+            &mut self.0.children.borrow_mut()[index],
+            new_child.0,
+        )))
+    }
+
     fn to_owned(&self) -> Self {
         self.clone()
     }
@@ -1269,6 +1290,14 @@ impl Node for Element5Ever {
 
     fn clone_node(&self) -> Self {
         Self::new(self.node.clone_node()).unwrap()
+    }
+
+    fn replace_child(
+        &mut self,
+        new_child: Self::Child,
+        old_child: &Self::Child,
+    ) -> Option<Self::Child> {
+        self.node.replace_child(new_child, old_child)
     }
 
     fn to_owned(&self) -> Self {

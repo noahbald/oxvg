@@ -1,0 +1,15 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" aria-labelledby=\"title\">\n    <!-- retain aria attributes -->\n    <title id=\"title\">\n        Title\n    </title>\n    <g aria-label=\"foo\">\n        test\n    </g>\n    <path id=\"t\" d=\"M10 10h10L10 20\"/>\n    <use href=\"#t\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" aria-labelledby="title">
+    <!-- retain aria attributes -->
+    <title id="title">
+        Title
+    </title>
+    <g aria-label="foo">
+        test
+    </g>
+    <path id="t" d="M10 10h10L10 20"></path>
+    <use href="#t"></use>
+</svg>

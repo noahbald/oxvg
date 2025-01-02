@@ -135,11 +135,7 @@ pub trait Visitor<E: Element> {
         false
     }
 
-    fn prepare(
-        &mut self,
-        document: &E::ParentChild,
-        context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
         PrepareOutcome::none
     }
 
@@ -153,7 +149,7 @@ pub trait Visitor<E: Element> {
         let mut flags = ContextFlags::empty();
         flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
         flags.set(ContextFlags::has_script_ref, has_scripts(root));
-        let prepare_outcome = self.prepare(&root.as_parent_child(), &flags);
+        let prepare_outcome = self.prepare(root, &flags);
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }

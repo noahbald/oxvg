@@ -42,7 +42,7 @@ impl<E: Element> Visitor<E> for ConvertPathData {
 
     fn prepare(
         &mut self,
-        _document: &<E>::ParentChild,
+        _document: &E,
         _context_flags: &oxvg_ast::visitor::ContextFlags,
     ) -> PrepareOutcome {
         PrepareOutcome::use_style
