@@ -15,11 +15,7 @@ pub struct RemoveUselessDefs(bool);
 impl<E: Element> Visitor<E> for RemoveUselessDefs {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &E::ParentChild,
-        _context_flags: &ContextFlags,
-    ) -> super::PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> super::PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {

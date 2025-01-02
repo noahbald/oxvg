@@ -30,11 +30,7 @@ pub struct MinifyStyles {
 impl<E: Element> Visitor<E> for MinifyStyles {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &<E>::ParentChild,
-        context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
         if self.remove_unused != Some(RemoveUnused::Force)
             && context_flags.contains(ContextFlags::has_script_ref)
         {

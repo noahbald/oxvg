@@ -9,7 +9,7 @@ use lightningcss::{
         custom::{CustomProperty, CustomPropertyName, TokenList},
         display::{Display, Visibility},
         effects::FilterList,
-        font::{FontFamily, FontSize, FontStretch, FontStyle, FontWeight},
+        font::{Font, FontFamily, FontSize, FontStretch, FontStyle, FontWeight},
         masking::{ClipPath, Mask},
         overflow::{Overflow, TextOverflow},
         position::Position,
@@ -101,7 +101,7 @@ impl<'i> UnknownPresentationAttr<'i> {
 macro_rules! define_presentation_attrs {
     (
         $(
-            $name:literal: $attr:ident($type:ty $(, $vp:ty)?) $(/ $is_matching_property_id:ident)?,
+            $name:literal: $attr:ident($type:ty $(, $vp:ty)?) $((inheritable: $inherit:ident))? $(/ $is_matching_property_id:ident)?,
         )+
     ) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -115,12 +115,25 @@ macro_rules! define_presentation_attrs {
         }
 
         impl<'i> PresentationAttrId<'i> {
-            fn name(&self) -> &str {
+            pub fn name(&self) -> &str {
                 match self {
                     $(
                         PresentationAttrId::$attr => $name,
                     )+
                     PresentationAttrId::Unknown(name) => name.as_ref(),
+                }
+            }
+
+            pub fn inheritable(&self) -> bool {
+                macro_rules! inherit {
+                    ($_inherit:ident) => { $_inherit };
+                    () => { false };
+                }
+                match self {
+                    $(
+                        PresentationAttrId::$attr => inherit!($($inherit)?),
+                    )+
+                    _ => false,
                 }
             }
         }
@@ -294,66 +307,68 @@ define_presentation_attrs! {
     "alignment-baseline": AlignmentBaseline(AlignmentBaseline) / false,
     "baseline-shift": BaselineShift(BaselineShift) / false,
     "clip-path": ClipPath(ClipPath<'i>, VendorPrefix),
-    "clip-rule": ClipRule(FillRule),
+    "clip-rule": ClipRule(FillRule) (inheritable: true),
     // DEPRECATED: "clip"
-    "color-interpolation-filters": ColorInterpolationFilters(ColorInterpolation),
-    "color-interpolation": ColorInterpolation(ColorInterpolation),
+    "color-interpolation-filters": ColorInterpolationFilters(ColorInterpolation) (inheritable: true),
+    "color-interpolation": ColorInterpolation(ColorInterpolation) (inheritable: true),
     // DEPRECATED: "color-profile"
     // OBSOLETE: "color-rendering"
-    "color": Color(CssColor),
-    "cursor": Cursor(Cursor<'i>),
-    "direction": Direction(Direction),
+    "color": Color(CssColor) (inheritable: true),
+    "cursor": Cursor(Cursor<'i>) (inheritable: true),
+    "direction": Direction(Direction) (inheritable: true),
     "display": Display(Display),
-    "dominant-baseline": DominantBaseline(DominantBaseline) / false,
+    "dominant-baseline": DominantBaseline(DominantBaseline) (inheritable: true) / false,
     // DEPRECATED: "enable-background"
-    "fill-opacity": FillOpacity(AlphaValue),
-    "fill-rule": FillRule(FillRule),
-    "fill": Fill(SVGPaint<'i>),
+    "fill-opacity": FillOpacity(AlphaValue) (inheritable: true),
+    "fill-rule": FillRule(FillRule) (inheritable: true),
+    "fill": Fill(SVGPaint<'i>) (inheritable: true),
     "filter": Filter(FilterList<'i>, VendorPrefix),
     "flood-color": FloodColor(CssColor) / false,
     "flood-opacity": FloodOpacity(AlphaValue) / false,
-    "font-family": FontFamily(Vec<FontFamily<'i>>),
-    "font-size-adjust": FontSizeAdjust(CSSNumber) / false,
-    "font-size": FontSize(FontSize),
-    "font-stretch": FontStretch(FontStretch),
-    "font-style": FontStyle(FontStyle),
-    "font-variant": FontVariant(FontVariant<'i>) / false,
-    "font-weight": FontWeight(FontWeight),
+    "font-family": FontFamily(Vec<FontFamily<'i>>) (inheritable: true),
+    "font-size-adjust": FontSizeAdjust(CSSNumber) (inheritable: true) / false,
+    "font-size": FontSize(FontSize) (inheritable: true),
+    "font-stretch": FontStretch(FontStretch) (inheritable: true),
+    "font-style": FontStyle(FontStyle) (inheritable: true),
+    "font-variant": FontVariant(FontVariant<'i>) (inheritable: true) / false,
+    "font-weight": FontWeight(FontWeight) (inheritable: true),
+    "font": Font(Font<'i>),
     // DEPRECATED: "glyph-orientation-horizontal"
     // DEPRECATED: "glyph-orientation-vertical"
-    "image-rendering": ImageRendering(ImageRendering),
-    "letter-spacing": LetterSpacing(Spacing),
+    "image-rendering": ImageRendering(ImageRendering) (inheritable: true),
+    "letter-spacing": LetterSpacing(Spacing) (inheritable: true),
     "lighting-color": LightingColor(CssColor) / false,
-    "marker-end": MarkerEnd(Marker<'i>),
-    "marker-mid": MarkerMid(Marker<'i>),
-    "marker-start": MarkerStart(Marker<'i>),
+    "marker-end": MarkerEnd(Marker<'i>) (inheritable: true),
+    "marker-mid": MarkerMid(Marker<'i>) (inheritable: true),
+    "marker-start": MarkerStart(Marker<'i>) (inheritable: true),
+    "marker": Marker(Marker<'i>) (inheritable: true),
     "mask": Mask(SmallVec<[Mask<'i>; 1]>, VendorPrefix),
     "opacity": Opacity(AlphaValue),
     "overflow": Overflow(Overflow),
-    "paint-order": PaintOrder(PaintOrder) / false,
-    "pointer-events": PointerEvents(PointerEvents) / false,
-    "shape-rendering": ShapeRendering(ShapeRendering),
+    "paint-order": PaintOrder(PaintOrder) (inheritable: true) / false,
+    "pointer-events": PointerEvents(PointerEvents) (inheritable: true) / false,
+    "shape-rendering": ShapeRendering(ShapeRendering) (inheritable: true),
     "stop-color": StopColor(CssColor) / false,
     "stop-opacity": StopOpacity(AlphaValue) / false,
-    "stroke-dasharray": StrokeDasharray(StrokeDasharray),
-    "stroke-dashoffset": StrokeDashoffset(LengthPercentage),
-    "stroke-linecap": StrokeLinecap(StrokeLinecap),
-    "stroke-linejoin": StrokeLinejoin(StrokeLinejoin),
-    "stroke-miterlimit": StrokeMiterlimit(CSSNumber),
-    "stroke-opacity": StrokeOpacity(AlphaValue),
-    "stroke-width": StrokeWidth(LengthPercentage),
-    "stroke": Stroke(SVGPaint<'i>),
-    "text-anchor": TextAnchor(TextAnchor) / false,
+    "stroke-dasharray": StrokeDasharray(StrokeDasharray) (inheritable: true),
+    "stroke-dashoffset": StrokeDashoffset(LengthPercentage) (inheritable: true),
+    "stroke-linecap": StrokeLinecap(StrokeLinecap) (inheritable: true),
+    "stroke-linejoin": StrokeLinejoin(StrokeLinejoin) (inheritable: true),
+    "stroke-miterlimit": StrokeMiterlimit(CSSNumber) (inheritable: true),
+    "stroke-opacity": StrokeOpacity(AlphaValue) (inheritable: true),
+    "stroke-width": StrokeWidth(LengthPercentage) (inheritable: true),
+    "stroke": Stroke(SVGPaint<'i>) (inheritable: true),
+    "text-anchor": TextAnchor(TextAnchor) (inheritable: true) / false,
     "text-decoration": TextDecoration(TextDecoration, VendorPrefix),
     "text-overflow": TextOverflow(TextOverflow, VendorPrefix),
-    "text-rendering": TextRendering(TextRendering),
+    "text-rendering": TextRendering(TextRendering) (inheritable: true),
     "transform-origin": TransformOrigin(Position, VendorPrefix),
-    "transform": Transform(SVGTransformList, VendorPrefix),
+    "transform": Transform(SVGTransformList, VendorPrefix) (inheritable: true),
     "unicode-bidi": UnicodeBidi(UnicodeBidi),
     "vector-effect": VectorEffect(VectorEffect) / false,
-    "visibility": Visibility(Visibility),
-    "word-spacing": WordSpacing(Spacing),
-    "writing-mode": WritingMode(WritingMode) / false,
+    "visibility": Visibility(Visibility) (inheritable: true),
+    "word-spacing": WordSpacing(Spacing) (inheritable: true),
+    "writing-mode": WritingMode(WritingMode) (inheritable: true) / false,
 
     // NOTE: I think these may technically may not be presentation attrs, but they contain css so
     // may be worth considering
