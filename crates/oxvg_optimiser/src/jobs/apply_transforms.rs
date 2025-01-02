@@ -19,9 +19,9 @@ use oxvg_ast::{
     style::{self, ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
-use oxvg_selectors::{collections, regex::REFERENCES_URL};
 use serde::Deserialize;
 
 #[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]

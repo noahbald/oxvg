@@ -4,8 +4,8 @@ use oxvg_ast::{
     name::Name,
     visitor::{ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::collections::{ElementGroup, Group};
 use oxvg_derive::OptionalDefault;
-use oxvg_selectors::collections::{ElementGroup, Group};
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, OptionalDefault)]

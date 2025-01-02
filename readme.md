@@ -47,6 +47,13 @@ There's currently an implementation with markup5ever's rcdom which can do the fo
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
 - An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
 
+#### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast/src/style.rs) (alpha)
+
+This crate uses lightningcss to provide some shortcuts for using CSS with our AST.
+
+- Parsing presentation attributes as CSS (hopefully this can be ported to lightningcss)
+- Collecting the computed styles of a HTML element
+
 ### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser) (alpha)
 
 This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
@@ -56,15 +63,6 @@ This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also b
 This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
 
 It's mostly complete and good to use in your application, though expect some changes as we may include feature to enable simple manipulations for paths in the future.
-
-### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_style/src) (alpha)
-
-This crate uses lightningcss to provide some shortcuts for using CSS with our AST.
-
-- Parsing presentation attributes as CSS
-- Collecting the computed styles of a HTML element
-
-This crate could probably do with some improvement for now, but I hope to clean it up and hopefully get the presentation attributes added to lightningcss instead.
 
 ## 💭 Other future ideas
 

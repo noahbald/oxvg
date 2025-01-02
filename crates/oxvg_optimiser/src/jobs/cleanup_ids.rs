@@ -10,11 +10,11 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
-use oxvg_selectors::{
+use oxvg_collections::{
     collections::REFERENCES_PROPS,
     regex::{REFERENCES_BEGIN, REFERENCES_HREF, REFERENCES_URL},
 };
+use oxvg_derive::OptionalDefault;
 use regex::CaptureMatches;
 use serde::Deserialize;
 

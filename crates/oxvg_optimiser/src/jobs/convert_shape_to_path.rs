@@ -149,7 +149,7 @@ impl ConvertShapeToPath {
             return;
         };
 
-        let coords = oxvg_selectors::regex::NUMERIC_VALUES
+        let coords = oxvg_collections::regex::NUMERIC_VALUES
             .find_iter(&coords)
             .map(|item| item.as_str().parse::<f64>());
         let mut coords = peek_nth(coords);

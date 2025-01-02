@@ -9,8 +9,8 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use oxvg_derive::OptionalDefault;
-use oxvg_selectors::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, OptionalDefault)]
@@ -129,7 +129,7 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
         return;
     }
 
-    let animation_group = oxvg_selectors::collections::Group::set(&ElementGroup::Animation);
+    let animation_group = oxvg_collections::collections::Group::set(&ElementGroup::Animation);
     {
         if element.depth_first().any(|child| {
             let local_name = child.local_name();

@@ -6,8 +6,8 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use oxvg_derive::OptionalDefault;
-use oxvg_selectors::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, OptionalDefault)]

@@ -9,8 +9,8 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, ContextFlags, Visitor},
 };
+use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
 use oxvg_derive::OptionalDefault;
-use oxvg_selectors::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
 use serde::Deserialize;
 
 use super::Job;
