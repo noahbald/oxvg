@@ -1,8 +1,6 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/remove_non_inheritable_group_attrs.rs
-assertion_line: 75
 expression: "test_config(r#\"{ \"removeNonInheritableGroupAttrs\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- removes non-inheritable attrs -->\n    <g vector-effect=\"non-scaling-stroke\" stroke=\"blue\">\n        <path d=\"M0 0 L 10 20\"/>\n    </g>\n</svg>\"#),)?"
-snapshot_kind: text
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- removes non-inheritable attrs -->

@@ -33,13 +33,17 @@ impl PrepareOutcome {
 }
 
 impl<'i, 'o, E: Element> Context<'i, 'o, E> {
-    pub fn new(root: E, element_styles: &'i HashMap<E, ElementData<E>>) -> Self {
+    pub fn new(
+        root: E,
+        flags: ContextFlags,
+        element_styles: &'i HashMap<E, ElementData<E>>,
+    ) -> Self {
         Self {
             computed_styles: crate::style::ComputedStyles::default(),
             stylesheet: None,
             element_styles,
             root,
-            flags: ContextFlags::empty(),
+            flags,
         }
     }
 }
@@ -52,7 +56,7 @@ bitflags! {
         /// Whether the document has a non-empty stylesheet
         const has_stylesheet = 0b0010;
         /// Whether the computed styles will be used for each element
-        const use_computed_styles = 0b0100;
+        const use_style = 0b0100;
         /// Whether this element is a `foreignObject` or a child of one
         const within_foreign_object = 0b1000;
     }
@@ -154,17 +158,18 @@ pub trait Visitor<E: Element> {
             return Ok(prepare_outcome);
         }
         if prepare_outcome.contains(PrepareOutcome::use_style) {
+            flags.set(ContextFlags::use_style, true);
             let stylesheet = stylesheet::StyleSheet::parse(
                 style_source.as_str(),
                 stylesheet::ParserOptions::default(),
             )
             .ok();
             *element_styles = ElementData::new(root);
-            let mut context = Context::new(root.clone(), element_styles);
+            let mut context = Context::new(root.clone(), flags, element_styles);
             context.stylesheet = stylesheet;
             self.visit(root, &mut context)?;
         } else {
-            self.visit(root, &mut Context::new(root.clone(), element_styles))?;
+            self.visit(root, &mut Context::new(root.clone(), flags, element_styles))?;
         };
         Ok(prepare_outcome)
     }
@@ -186,12 +191,15 @@ pub trait Visitor<E: Element> {
             }
             node::Type::Element => {
                 log::debug!("visiting {element:?}");
-                if self.use_style(element) {
+                let use_style = context.flags.contains(ContextFlags::use_style);
+                if use_style && self.use_style(element) {
                     context.computed_styles = ComputedStyles::<'i>::default().with_all(
                         element,
                         &context.stylesheet,
                         context.element_styles,
                     );
+                } else {
+                    context.flags.set(ContextFlags::use_style, false);
                 }
                 let is_root_foreign_object =
                     !context.flags.contains(ContextFlags::within_foreign_object)
@@ -201,6 +209,7 @@ pub trait Visitor<E: Element> {
                     context.flags.set(ContextFlags::within_foreign_object, true);
                 }
                 self.element(element, context)?;
+                context.flags.set(ContextFlags::use_style, use_style);
                 self.visit_children(element, context)?;
                 log::debug!("left the {element:?}");
                 self.exit_element(element, context)?;
