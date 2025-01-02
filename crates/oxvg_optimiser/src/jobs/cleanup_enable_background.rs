@@ -3,13 +3,11 @@ use oxvg_ast::{
     attribute::Attr,
     element::Element,
     node::Node,
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use regex::Regex;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -25,22 +23,20 @@ struct EnableBackgroundDimensions<'a> {
     height: &'a str,
 }
 
-impl<E: Element> Job<E> for CleanupEnableBackground {
+impl<E: Element> Visitor<E> for CleanupEnableBackground {
+    type Error = String;
+
     fn prepare(
         &mut self,
         document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
-            return PrepareOutcome::None;
+            return PrepareOutcome::none;
         };
         self.prepare_contains_filter(&root);
-        PrepareOutcome::None
+        PrepareOutcome::none
     }
-}
-
-impl<E: Element> Visitor<E> for CleanupEnableBackground {
-    type Error = String;
 
     /// Cleans up `enable-background`, unless document uses `<filter>` elements.
     ///

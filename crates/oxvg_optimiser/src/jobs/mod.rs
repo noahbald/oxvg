@@ -1,11 +1,10 @@
-use lightningcss::stylesheet;
+use std::fmt::Display;
+
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use serde::Deserialize;
-
-use crate::utils::has_scripts;
 
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)?,)+) => {
@@ -28,25 +27,15 @@ macro_rules! jobs {
         }
 
         impl<E: Element> Jobs<E> {
-            fn filter(&mut self, node: &E::ParentChild, context_flags: &ContextFlags) {
-                $(if self.$name.as_mut().is_some_and(|j| <$job $( < $($t),* >)? as Job<E>>::prepare(j, node, context_flags).can_skip()) {
-                    self.$name = None;
-                })+
-            }
-
-            fn run_jobs(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+            /// Runs each job in the config, returning the number of non-skipped jobs
+            fn run_jobs(&mut self, element: &mut E) -> Result<usize, String> {
+                let mut count = 0;
                 $(if let Some(job) = self.$name.as_mut() {
-                    job.visit(element, context)?;
+                    if !job.start(element)?.contains(PrepareOutcome::skip) {
+                        count += 1;
+                    }
                 })+
-                Ok(())
-            }
-
-            fn count(&self) -> usize {
-                let mut i = 0;
-                $(if self.$name.is_some() {
-                    i += 1;
-                })+
-                i
+                Ok(count)
             }
         }
     };
@@ -67,8 +56,8 @@ jobs! {
     merge_styles: MergeStyles,
     inline_styles: InlineStyles<E>,
     minify_styles: MinifyStyles,
-    remove_useless_defs: RemoveUselessDefs,
     cleanup_ids: CleanupIds,
+    remove_useless_defs: RemoveUselessDefs,
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
     cleanup_enable_background: CleanupEnableBackground,
@@ -82,65 +71,41 @@ jobs! {
     convert_transform: ConvertTransform,
 }
 
-pub enum PrepareOutcome {
-    None,
-    Skip,
-}
-
 pub trait JobDefault {
     fn optional_default() -> Option<Box<Self>>;
 }
 
 #[allow(unused_variables)]
-pub trait Job<E: Element>: JobDefault + Visitor<E, Error = String> {
-    fn prepare(
-        &mut self,
-        document: &E::ParentChild,
-        context_flags: &ContextFlags,
-    ) -> PrepareOutcome {
-        PrepareOutcome::None
+pub trait Job<E: Element>: JobDefault + Visitor<E, Error = String> {}
+
+#[derive(Debug)]
+pub enum Error {
+    Generic(String),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Generic(s) => s.fmt(f),
+        }
     }
 }
+
+impl std::error::Error for Error {}
 
 impl<E: Element> Jobs<E> {
-    pub fn run(self, root: &E::ParentChild) {
+    /// # Errors
+    /// When any job fails for the first time
+    pub fn run(self, root: &E::ParentChild) -> Result<(), Error> {
         let Some(mut root_element) = <E as Element>::from_parent(root.clone()) else {
             log::warn!("No elements found in the document, skipping");
-            return;
+            return Ok(());
         };
 
-        let style_source = oxvg_ast::style::root_style(&root_element);
-        let mut context: Context<'_, '_, E> = Context::new(root_element.clone());
-        context
-            .flags
-            .set(ContextFlags::has_stylesheet, !style_source.is_empty());
-        context
-            .flags
-            .set(ContextFlags::has_script_ref, has_scripts(&root_element));
-
         let mut jobs = self.clone();
-        jobs.filter(root, &context.flags);
-        let count = jobs.count();
-        if count == 0 {
-            log::debug!("All jobs were filtered out!");
-            return;
-        }
-
-        let stylesheet = stylesheet::StyleSheet::parse(
-            style_source.as_str(),
-            stylesheet::ParserOptions::default(),
-        )
-        .ok();
-        context.stylesheet = stylesheet;
-
-        let _ = jobs.run_jobs(&mut root_element, &mut context);
+        let count = jobs.run_jobs(&mut root_element).map_err(Error::Generic)?;
         log::debug!("completed {count} jobs");
-    }
-}
-
-impl PrepareOutcome {
-    fn can_skip(&self) -> bool {
-        matches!(self, Self::Skip)
+        Ok(())
     }
 }
 
@@ -174,7 +139,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
     test
 </svg>"#,
     ))?;
-    jobs.run(&dom);
+    jobs.run(&dom)?;
     serialize::Node::serialize(&dom)
 }
 

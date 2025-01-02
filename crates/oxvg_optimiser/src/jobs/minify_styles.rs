@@ -7,12 +7,10 @@ use oxvg_ast::{
     atom::Atom,
     element::Element,
     name::Name,
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::{inline_styles, ContextFlags};
 
@@ -29,7 +27,9 @@ pub struct MinifyStyles {
     remove_unused: Option<RemoveUnused>,
 }
 
-impl<E: Element> Job<E> for MinifyStyles {
+impl<E: Element> Visitor<E> for MinifyStyles {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &<E>::ParentChild,
@@ -41,12 +41,8 @@ impl<E: Element> Job<E> for MinifyStyles {
             self.remove_unused = Some(RemoveUnused::False);
         }
 
-        PrepareOutcome::None
+        PrepareOutcome::none
     }
-}
-
-impl<E: Element> Visitor<E> for MinifyStyles {
-    type Error = String;
 
     fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
         self.content(element, context);

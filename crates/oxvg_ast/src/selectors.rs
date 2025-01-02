@@ -177,8 +177,9 @@ impl<E: crate::element::Element> ElementIterator<E> {
 
     fn get_next_sibling(&mut self) -> Option<<Self as Iterator>::Item> {
         let self_index = self.index_cache.pop()?;
-        let parent = crate::element::Element::parent_element(&self.current)?;
-        let mut siblings = parent.children_iter().skip(self_index);
+        let current = self.current.clone();
+        let parent = crate::element::Element::parent_element(&current)?;
+        let mut siblings = parent.children().into_iter().skip(self_index);
         debug_assert!(
             siblings
                 .next()
@@ -222,12 +223,16 @@ impl<E: crate::element::Element> Select<E> {
         selector: &'a str,
     ) -> Result<Select<E>, cssparser::ParseError<'a, selectors::parser::SelectorParseErrorKind<'a>>>
     {
-        Ok(crate::selectors::Select {
+        Ok(Self::new_with_selector(element, Selector::new(selector)?))
+    }
+
+    pub fn new_with_selector(element: &E, selector: Selector<E>) -> Select<E> {
+        crate::selectors::Select {
             inner: element.depth_first(),
             scope: Some(element.clone()),
-            selector: Selector::new(selector)?,
+            selector,
             nth_index_cache: NthIndexCache::default(),
-        })
+        }
     }
 }
 

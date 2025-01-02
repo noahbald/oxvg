@@ -6,8 +6,8 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
     <!-- Should join transform attributes into `transform="rotate(45) scale(2)"` -->
     <g attr1="val1">
         
-        <path transform="rotate(45) scale(2)" d="..."></path>
-            
+            <path transform="rotate(45) scale(2)" d="..."></path>
+        
         <path d="..."></path>
     </g>
 </svg>

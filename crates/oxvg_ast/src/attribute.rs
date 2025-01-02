@@ -47,6 +47,8 @@ pub trait Attr:
 
     /// Converts a reference to an attribute to an owned one, usually by cloning
     fn into_owned(self) -> Self;
+
+    fn presentation(&self) -> Option<crate::style::PresentationAttr>;
 }
 
 /// A representation of a collection of [Attr] objects.

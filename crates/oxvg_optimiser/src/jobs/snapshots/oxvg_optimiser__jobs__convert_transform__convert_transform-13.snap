@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_transform.rs
+expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-10 -10 100 150\">\n    <rect x=\"0\" y=\"10\" width=\"5\" height=\"8\" fill=\"red\" transform=\"translate(5,70) scale(.4 0)\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 100 150">
+    <rect x="0" y="10" width="5" height="8" fill="red" transform="matrix(.4 0 0 0 5 70)"></rect>
+</svg>

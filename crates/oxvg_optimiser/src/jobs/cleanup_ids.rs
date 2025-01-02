@@ -8,17 +8,15 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
-use oxvg_selectors::{
+use oxvg_collections::{
     collections::REFERENCES_PROPS,
     regex::{REFERENCES_BEGIN, REFERENCES_HREF, REFERENCES_URL},
 };
+use oxvg_derive::OptionalDefault;
 use regex::CaptureMatches;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -58,29 +56,27 @@ pub struct CleanupIds {
     generated_id: RefCell<GeneratedId>,
 }
 
-impl<E: Element> Job<E> for CleanupIds {
+impl<E: Element> Visitor<E> for CleanupIds {
+    type Error = String;
+
     fn prepare(
         &mut self,
         document: &E::ParentChild,
         context_flags: &ContextFlags,
     ) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
-            return PrepareOutcome::None;
+            return PrepareOutcome::none;
         };
 
         self.prepare_ignore_document(&root, context_flags);
         if self.ignore_document {
             log::debug!("CleanupIds::prepare: skipping");
-            return PrepareOutcome::Skip;
+            return PrepareOutcome::skip;
         }
 
         self.prepare_id_rename(&root);
-        PrepareOutcome::None
+        PrepareOutcome::none
     }
-}
-
-impl<E: Element> Visitor<E> for CleanupIds {
-    type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
         if self.ignore_document {
@@ -196,15 +192,7 @@ impl CleanupIds {
 
         let contains_unpredictable_refs = context_flags.contains(ContextFlags::has_stylesheet)
             || context_flags.contains(ContextFlags::has_script_ref);
-        let Some(document) = root.document() else {
-            self.ignore_document = true;
-            return;
-        };
-        let contains_only_defs = document
-            .select("svg > :not(defs)")
-            .unwrap()
-            .next()
-            .is_none();
+        let contains_only_defs = root.select("svg > :not(defs)").unwrap().next().is_none();
         self.ignore_document = contains_unpredictable_refs || contains_only_defs;
     }
 

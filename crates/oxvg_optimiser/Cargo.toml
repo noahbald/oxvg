@@ -13,7 +13,7 @@ workspace = true
 oxvg_ast = { workspace = true, features = ["selectors", "visitor", "style"] }
 oxvg_derive = { workspace = true }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
-oxvg_selectors = { workspace = true }
+oxvg_collections = { workspace = true }
 
 anyhow = { workspace = true }
 derive-where = { workspace = true }

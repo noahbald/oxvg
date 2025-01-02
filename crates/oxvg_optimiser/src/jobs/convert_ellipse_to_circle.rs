@@ -1,11 +1,9 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 use super::ContextFlags;
 
@@ -13,22 +11,20 @@ use super::ContextFlags;
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(bool);
 
-impl<E: Element> Job<E> for ConvertEllipseToCircle {
+impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
     ) -> PrepareOutcome {
         if self.0 {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
-
-impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
-    type Error = String;
 
     #[allow(clippy::similar_names)]
     fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {

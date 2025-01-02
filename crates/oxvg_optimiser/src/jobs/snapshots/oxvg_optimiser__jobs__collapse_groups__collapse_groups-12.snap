@@ -1,12 +1,12 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should remove useless group -->\n    <g filter=\"url(#...)\">\n        <g>\n            <path d=\"...\"/>\n        </g>\n    </g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should remove useless group -->\n    <g filter=\"url(#...)\">\n        <g>\n            <path d=\"...\"/>\n        </g>\n    </g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should remove useless group -->
     <g filter="url(#...)">
         
-        <path d="..."></path>
-            
+            <path d="..."></path>
+        
     </g>
 </svg>

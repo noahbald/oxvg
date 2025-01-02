@@ -4,8 +4,9 @@ use crate::{
     atom::Atom,
     attribute::{Attr, Attributes},
     class_list::ClassList,
+    document::Document,
     name::Name,
-    node::{Node, Type},
+    node::{self, Node, Type},
 };
 
 #[cfg(not(feature = "selectors"))]
@@ -14,7 +15,7 @@ pub trait Features {}
 #[cfg(feature = "selectors")]
 pub trait Features: selectors::Element {}
 
-pub trait Element: Node + Features + Debug {
+pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     type Name: Name;
     type Attributes<'a>: Attributes<
         'a,
@@ -23,6 +24,14 @@ pub trait Element: Node + Features + Debug {
 
     /// Converts the provided node into an element, if the node type matches an element or document
     fn new(node: Self::Child) -> Option<Self>;
+
+    /// Returns this element as [Document], even if it's not a document node.
+    ///
+    /// Only use this as a shortcut to constructors such as `create_element`; other methods may
+    /// end up being invalid.
+    ///
+    /// For other cases, try `element.document()?.as_document()`
+    fn as_document(&self) -> impl Document<Root = Self>;
 
     fn from_parent(node: Self::ParentChild) -> Option<Self>;
 
@@ -51,14 +60,17 @@ pub trait Element: Node + Features + Debug {
     ///
     /// [MDN | children](https://developer.mozilla.org/en-US/docs/Web/API/Element/children)
     fn children(&self) -> Vec<Self> {
-        self.children_iter().collect()
+        self.child_nodes()
+            .into_iter()
+            .filter(|n| matches!(n.node_type(), Type::Element))
+            .filter_map(|n| Self::new(n))
+            .collect()
     }
 
     /// Returns an iterator that covers each of the child elements of this element.
+    #[deprecated]
     fn children_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
-        self.child_nodes_iter()
-            .filter(|n| matches!(n.node_type(), Type::Element))
-            .filter_map(|n| Self::new(n))
+        self.children().into_iter()
     }
 
     fn class_list(
@@ -74,6 +86,9 @@ pub trait Element: Node + Features + Debug {
     /// Enable the "selectors" feature if you need to use a css string.
     fn closest_local(&self, name: &<Self::Name as Name>::LocalName) -> Option<Self> {
         let parent = Element::parent_element(self)?;
+        if parent.node_type() == node::Type::Document {
+            return None;
+        }
         if &parent.local_name() == name {
             Some(parent)
         } else {
@@ -94,8 +109,12 @@ pub trait Element: Node + Features + Debug {
     ///
     /// [MDN | firstElementChild](https://developer.mozilla.org/en-US/docs/Web/API/Element/firstElementChild)
     fn first_element_child(&self) -> Option<Self> {
-        self.children_iter().next()
+        self.children().into_iter().next()
     }
+
+    fn for_each_element_child<F>(&self, f: F)
+    where
+        F: FnMut(Self);
 
     /// Replaces the element in the DOM with each of it's child nodes, removing the element in the
     /// process.
@@ -105,7 +124,7 @@ pub trait Element: Node + Features + Debug {
     ///
     /// [MDN | lastElementChild](https://developer.mozilla.org/en-US/docs/Web/API/Element/lastElementChild)
     fn last_element_child(&self) -> Option<Self> {
-        self.children_iter().next_back()
+        self.children().into_iter().next_back()
     }
 
     /// Returns the element's name as a qualified name.
@@ -129,7 +148,7 @@ pub trait Element: Node + Features + Debug {
     /// [MDN | nextElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/nextElementSibling)
     fn next_element_sibling(&self) -> Option<Self> {
         let mut saw_self = false;
-        for sibling in Element::parent_element(self)?.children_iter() {
+        for sibling in Element::parent_element(self)?.children() {
             if saw_self {
                 return Some(sibling);
             } else if sibling.ptr_eq(self) {
@@ -151,7 +170,7 @@ pub trait Element: Node + Features + Debug {
     /// [MDN | previousElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/previousElementSibling)
     fn previous_element_sibling(&self) -> Option<Self> {
         let mut previous = None;
-        for sibling in Element::parent_element(self)?.children_iter() {
+        for sibling in Element::parent_element(self)?.children() {
             if sibling.ptr_eq(self) {
                 return previous;
             }
@@ -180,7 +199,7 @@ pub trait Element: Node + Features + Debug {
         };
         node.remove();
         node.set_parent_node(&parent);
-        parent.insert_after(node, self.as_parent_child());
+        parent.insert_after(node, &self.as_parent_child());
     }
 
     /// Inserts a node after the last child of the element.
@@ -195,7 +214,7 @@ pub trait Element: Node + Features + Debug {
         let mut parent = self.parent_node()?;
         node.remove();
         node.set_parent_node(&parent);
-        parent.insert_before(node, self.as_parent_child());
+        parent.insert_before(node, &self.as_parent_child());
         Some(())
     }
 
@@ -336,7 +355,7 @@ pub trait Element: Node + Features + Debug {
         };
         other.remove();
         other.set_parent_node(&parent);
-        parent.insert_before(other, self.as_parent_child());
+        parent.insert_before(other, &self.as_parent_child());
     }
 
     /// Removes the attribute with the specified name from the element.
@@ -413,6 +432,14 @@ pub trait Element: Node + Features + Debug {
         cssparser::ParseError<'_, selectors::parser::SelectorParseErrorKind<'_>>,
     > {
         crate::selectors::Select::new(self, selector)
+    }
+
+    #[cfg(feature = "selectors")]
+    fn select_with_selector(
+        &self,
+        selector: crate::selectors::Selector<Self>,
+    ) -> crate::selectors::Select<Self> {
+        crate::selectors::Select::new_with_selector(self, selector)
     }
 
     #[cfg(feature = "selectors")]

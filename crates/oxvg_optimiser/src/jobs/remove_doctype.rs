@@ -1,33 +1,29 @@
 use oxvg_ast::{
     element::Element,
     node::Node,
-    visitor::{ContextFlags, Visitor},
+    visitor::{ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use crate::{Job, PrepareOutcome};
 
 #[derive(Deserialize, Clone, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 
-impl<E: Element> Job<E> for RemoveDoctype {
+impl<E: Element> Visitor<E> for RemoveDoctype {
+    type Error = String;
+
     fn prepare(
         &mut self,
         _document: &E::ParentChild,
         _context_flags: &ContextFlags,
-    ) -> super::PrepareOutcome {
+    ) -> PrepareOutcome {
         if self.0 {
-            PrepareOutcome::None
+            PrepareOutcome::none
         } else {
-            PrepareOutcome::Skip
+            PrepareOutcome::skip
         }
     }
-}
-
-impl<E: Element> Visitor<E> for RemoveDoctype {
-    type Error = String;
 
     fn doctype(&mut self, doctype: &mut <E as Node>::Child) -> Result<(), Self::Error> {
         doctype.remove();

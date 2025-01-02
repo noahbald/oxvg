@@ -3,22 +3,26 @@ use std::f64;
 
 use lightningcss::{
     printer::PrinterOptions,
-    properties::{svg, transform::Matrix},
+    properties::{
+        svg::{self, SVGPaint},
+        transform::{Matrix, TransformList},
+        Property, PropertyId,
+    },
     traits::ToCss,
     values::{length::LengthValue, percentage::DimensionPercentage},
+    vendor_prefix::VendorPrefix,
 };
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
-    style::{ComputedStyles, SVGPaint, SVGStyle, SVGStyleID, Style},
-    visitor::{Context, Visitor},
+    get_computed_styles_factory,
+    style::{self, ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
-use oxvg_selectors::{collections, regex::REFERENCES_URL};
 use serde::Deserialize;
-
-use crate::Job;
 
 #[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
 #[serde(rename_all = "camelCase")]
@@ -28,10 +32,16 @@ pub struct ApplyTransforms {
     apply_transforms_stroked: Option<bool>,
 }
 
-impl<E: Element> Job<E> for ApplyTransforms {}
-
 impl<E: Element> Visitor<E> for ApplyTransforms {
     type Error = String;
+
+    fn prepare(
+        &mut self,
+        _document: &<E>::ParentChild,
+        _context_flags: &ContextFlags,
+    ) -> PrepareOutcome {
+        PrepareOutcome::use_style
+    }
 
     fn use_style(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
@@ -62,46 +72,49 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
             }
         }
 
-        let Some(transform) = context.style.attr.get(&SVGStyleID::Transform) else {
+        let Some(Style::Static(Static::Attr(PresentationAttr::Transform(transform)))) = context
+            .computed_styles
+            .attr
+            .get(&PresentationAttrId::Transform)
+        else {
             log::debug!("run: element has no transform");
             return Ok(());
         };
-        let transform = transform.inner();
-        match transform {
-            SVGStyle::Transform(l, _) if l.0.is_empty() => {
-                log::debug!("run: cannot handle empty transform");
-                return Ok(());
-            }
-            _ => {}
+        if transform.0.is_empty() {
+            log::debug!("run: cannot handle empty transform");
+            return Ok(());
         }
-        if let Some((mode, string)) = context.style.get_string(&SVGStyleID::Transform) {
-            if mode.is_static() && transform.to_css_string(false).is_some_and(|s| s != string) {
+        let computed_styles = &context.computed_styles;
+        get_computed_styles_factory!(computed_styles);
+        if let Some(css_transform) = get_computed_styles!(Transform(VendorPrefix::None)) {
+            if css_transform.is_static()
+                && css_transform.to_css_string(false)
+                    != transform.to_css_string(PrinterOptions::default()).ok()
+            {
                 log::debug!("run: another transform is applied to this element");
                 return Ok(());
             }
         };
 
-        let SVGStyle::Transform(transform_list, _) = transform else {
-            unreachable!();
-        };
-        let stroke = match context.style.get(&SVGStyleID::Stroke) {
-            Some(Style::Static(value)) => Some(value),
-            Some(Style::Dyanmic(_)) => {
-                log::debug!("run: cannot handle dynamic stroke");
-                return Ok(());
-            }
-            None => None,
-        };
-        let stroke_width = match context.style.get(&SVGStyleID::StrokeWidth) {
-            Some(Style::Static(SVGStyle::StrokeWidth(p))) => Some(p),
-            Some(Style::Dyanmic(_)) => {
-                log::debug!("run: cannot handle dynamic stroke_width");
-                return Ok(());
-            }
-            None => None,
+        let stroke = get_computed_styles!(Stroke);
+        if stroke.is_some_and(Style::is_dynamic) {
+            log::debug!("run: cannot handle dynamic stroke");
+            return Ok(());
+        }
+        let stroke = stroke.map(Style::inner);
+
+        let stroke_width = get_computed_styles!(StrokeWidth);
+        if stroke_width.is_some_and(Style::is_dynamic) {
+            log::debug!("run: cannot handle dynamic stroke_width");
+            return Ok(());
+        }
+        let stroke_width = stroke_width.map(|s| match s.inner() {
+            Static::Attr(PresentationAttr::StrokeWidth(p))
+            | Static::Css(Property::StrokeWidth(p)) => p,
             _ => unreachable!(),
-        };
-        let Some(matrix) = transform_list.to_matrix() else {
+        });
+        let css_transform: TransformList = transform.clone().into();
+        let Some(matrix) = css_transform.to_matrix() else {
             log::debug!("run: cannot get matrix");
             return Ok(());
         };
@@ -111,8 +124,17 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         };
         let matrix = matrix32_to_slice(&matrix);
 
-        if let Some(SVGStyle::Stroke(stroke)) = stroke {
-            if self.apply_stroked(&matrix, &context.style, stroke, stroke_width, element) {
+        if let Some(
+            Static::Attr(PresentationAttr::Stroke(stroke)) | Static::Css(Property::Stroke(stroke)),
+        ) = stroke
+        {
+            if self.apply_stroked(
+                &matrix,
+                &context.computed_styles,
+                &stroke,
+                stroke_width.as_ref(),
+                element,
+            ) {
                 return Ok(());
             }
         }
@@ -177,9 +199,12 @@ impl ApplyTransforms {
             element.set_attribute_local("stroke-width".into(), value.trim_end_matches("px").into());
         }
 
-        if let Some(SVGStyle::StrokeDashoffset(l)) = style
+        if let Some(
+            Static::Attr(PresentationAttr::StrokeDashoffset(l))
+            | Static::Css(Property::StrokeDashoffset(l)),
+        ) = style
             .attr
-            .get(&SVGStyleID::StrokeDashoffset)
+            .get(&PresentationAttrId::StrokeDashoffset)
             .map(Style::inner)
         {
             if let Ok(value) = l
@@ -191,9 +216,12 @@ impl ApplyTransforms {
             };
         };
 
-        if let Some(SVGStyle::StrokeDasharray(svg::StrokeDasharray::Values(v))) = style
+        if let Some(
+            Static::Attr(PresentationAttr::StrokeDasharray(svg::StrokeDasharray::Values(v)))
+            | Static::Css(Property::StrokeDasharray(svg::StrokeDasharray::Values(v))),
+        ) = style
             .attr
-            .get(&SVGStyleID::StrokeDasharray)
+            .get(&PresentationAttrId::StrokeDasharray)
             .map(Style::inner)
         {
             let value = v
@@ -423,6 +451,10 @@ fn multiply_transform_matrices(matrix: &[f64; 6], ellipse: [f64; 6]) -> [f64; 6]
         matrix[0] * ellipse[4] + matrix[2] * ellipse[5] + matrix[4],
         matrix[1] * ellipse[4] + matrix[3] * ellipse[5] + matrix[5],
     ]
+}
+
+lazy_static! {
+    static ref TRANSFORM_ID: style::Id<'static> = style::Id::Attr(PresentationAttrId::Transform);
 }
 
 #[test]
