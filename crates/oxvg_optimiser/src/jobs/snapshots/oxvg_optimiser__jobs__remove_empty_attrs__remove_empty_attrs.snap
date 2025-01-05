@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_attrs.rs
+expression: "test_config(r#\"{ \"removeEmptyAttrs\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove empty attrs -->\n    <g attr1=\"\" attr2=\"\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove empty attrs -->
+    <g></g>
+</svg>

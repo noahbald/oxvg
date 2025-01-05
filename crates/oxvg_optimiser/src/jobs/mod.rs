@@ -76,6 +76,7 @@ jobs! {
     apply_transforms: ApplyTransforms,
     convert_path_data: ConvertPathData,
     convert_transform: ConvertTransform,
+    remove_empty_attrs: RemoveEmptyAttrs,
 }
 
 pub trait JobDefault {
