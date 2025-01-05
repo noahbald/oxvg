@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_attrs.rs
+expression: "test_config(r#\"{ \"removeEmptyAttrs\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- retain conditional processing attrs -->\n    <g requiredFeatures=\"\"/>\n    <g requiredExtensions=\"\"/>\n    <g systemLanguage=\"\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- retain conditional processing attrs -->
+    <g requiredFeatures=""></g>
+    <g requiredExtensions=""></g>
+    <g systemLanguage=""></g>
+</svg>
