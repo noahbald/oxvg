@@ -1,0 +1,17 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
+expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:x=\"http://www.w3.org/1999/xlink\">\n    <!-- preserve non-empty containers -->\n    <defs>\n        <pattern id=\"a\">\n            <rect/>\n        </pattern>\n        <pattern x:href=\"url(#a)\" id=\"b\"/>\n    </defs>\n    <g>\n        <marker>\n            <a/>\n        </marker>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- preserve non-empty containers -->
+    <defs>
+        <pattern id="a">
+            <rect></rect>
+        </pattern>
+        <pattern x:href="url(#a)" id="b"></pattern>
+    </defs>
+    <g>
+        
+        <path d="..."></path>
+    </g>
+</svg>

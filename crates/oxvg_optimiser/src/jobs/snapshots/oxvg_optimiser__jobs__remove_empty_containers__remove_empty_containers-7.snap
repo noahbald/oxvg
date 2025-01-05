@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
+expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r##\"<svg viewBox=\"0 0 50 50\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- preserve filtered `g`s -->\n    <filter id=\"a\" x=\"0\" y=\"0\" width=\"50\" height=\"50\" filterUnits=\"userSpaceOnUse\">\n        <feFlood flood-color=\"#aaa\"/>\n    </filter>\n    <mask id=\"b\" x=\"0\" y=\"0\" width=\"50\" height=\"50\">\n        <g style=\"filter: url(#a)\"/>\n    </mask>\n    <text x=\"16\" y=\"16\" style=\"mask: url(#b)\">•ᴗ•</text>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- preserve filtered `g`s -->
+    <filter id="a" x="0" y="0" width="50" height="50" filterUnits="userSpaceOnUse">
+        <feFlood flood-color="#aaa"></feFlood>
+    </filter>
+    <mask id="b" x="0" y="0" width="50" height="50">
+        <g style="filter: url(#a)"></g>
+    </mask>
+    <text x="16" y="16" style="mask: url(#b)">•ᴗ•</text>
+</svg>
