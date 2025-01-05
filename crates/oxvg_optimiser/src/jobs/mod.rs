@@ -70,6 +70,7 @@ jobs! {
     convert_shape_to_path: ConvertShapeToPath,
     convert_ellipse_to_circle: ConvertEllipseToCircle,
     move_elems_attrs_to_group: MoveElemsAttrsToGroup,
+    move_group_attrs_to_elems: MoveGroupAttrsToElems,
     collapse_groups: CollapseGroups,
     // NOTE: This one should be before `convert_path_data` in case the order is ever changed
     apply_transforms: ApplyTransforms,

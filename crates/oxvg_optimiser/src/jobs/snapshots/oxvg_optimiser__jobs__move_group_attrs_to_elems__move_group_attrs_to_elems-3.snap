@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/move_group_attrs_to_elems.rs
+expression: "test_config(r#\"{ \"moveGroupAttrsToElems\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- move transform through multiple `g`s -->\n    <g transform=\"rotate(30)\">\n        <g transform=\"scale(2)\">\n            <path d=\"M0,0 L10,20\"/>\n            <path d=\"M0,10 L20,30\"/>\n        </g>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- move transform through multiple `g`s -->
+    <g>
+        <g>
+            <path d="M0,0 L10,20" transform="rotate(30) scale(2)"></path>
+            <path d="M0,10 L20,30" transform="rotate(30) scale(2)"></path>
+        </g>
+    </g>
+</svg>
