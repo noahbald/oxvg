@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_view_box.rs
+expression: "test_config(r#\"{ \"removeViewBox\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"50\" height=\"50\" viewBox=\"-25 -25 50 50\">\n    test\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="-25 -25 50 50">
+    test
+</svg>
