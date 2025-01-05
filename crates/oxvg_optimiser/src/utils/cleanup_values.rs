@@ -81,7 +81,7 @@ pub trait CleanupValues {
         Ok(rounded_list.join(" ").into())
     }
 
-    fn element<E: Element>(&self, element: &E, _context: &Context<E>) -> Result<(), String> {
+    fn element<E: Element>(&self, element: &E, _context: & mut Context<E>) -> Result<(), String> {
         for mut attr in element.attributes().iter() {
             if !self.get_mode().allowed_attribute(&attr) {
                 continue;

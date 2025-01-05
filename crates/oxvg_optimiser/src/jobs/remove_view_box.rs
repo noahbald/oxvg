@@ -2,7 +2,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
-    visitor::{ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -26,7 +26,7 @@ impl<E: Element> Visitor<E> for RemoveViewBox {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());

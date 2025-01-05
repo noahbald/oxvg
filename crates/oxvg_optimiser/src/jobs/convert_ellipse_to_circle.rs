@@ -23,7 +23,7 @@ impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
     }
 
     #[allow(clippy::similar_names)]
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
             return Ok(());

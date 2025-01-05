@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg width=\"480\" height=\"360\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- preserve transparent rect inside clip-path -->\n    <clipPath id=\"opacityclip\">\n        <rect width=\"100\" height=\"100\" opacity=\"0\"/>\n    </clipPath>\n    <rect x=\"0.5\" y=\"0.5\" width=\"99\" height=\"99\" fill=\"red\"/>\n    <rect width=\"100\" height=\"100\" fill=\"lime\" clip-path=\"url(#opacityclip)\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">
+    <!-- preserve transparent rect inside clip-path -->
+    <clipPath id="opacityclip">
+        <rect width="100" height="100" opacity="0"></rect>
+    </clipPath>
+    <rect x="0.5" y="0.5" width="99" height="99" fill="red"></rect>
+    <rect width="100" height="100" fill="lime" clip-path="url(#opacityclip)"></rect>
+</svg>

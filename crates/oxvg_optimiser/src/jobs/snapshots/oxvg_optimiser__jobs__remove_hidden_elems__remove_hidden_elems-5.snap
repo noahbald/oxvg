@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove rect with zero size -->\n    <g>\n        <rect width=\"0\"/>\n        <rect height=\"0\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove rect with zero size -->
+    <g>
+        
+        
+    </g>
+</svg>

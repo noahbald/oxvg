@@ -21,7 +21,7 @@ impl<E: Element> Job<E> for AddAttributesToSVGElement {}
 impl<E: Element> Visitor<E> for AddAttributesToSVGElement {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {

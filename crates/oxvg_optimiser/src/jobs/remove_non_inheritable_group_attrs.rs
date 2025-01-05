@@ -3,7 +3,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     style::PresentationAttrId,
-    visitor::{ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{AttrsGroups, Group, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS};
 use oxvg_derive::OptionalDefault;
@@ -16,7 +16,7 @@ pub struct RemoveNonInheritableGroupAttrs(bool);
 impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {
@@ -24,11 +24,7 @@ impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
         }
     }
 
-    fn element(
-        &mut self,
-        element: &mut E,
-        _context: &oxvg_ast::visitor::Context<E>,
-    ) -> Result<(), Self::Error> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
         let name = element.qual_name();
         if name.prefix().is_some() || name.local_name().as_ref() != "g" {
             return Ok(());

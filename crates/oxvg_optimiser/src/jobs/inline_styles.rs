@@ -176,7 +176,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         Ok(())
     }
 
-    fn exit_document(&mut self, _root: &mut E) -> Result<(), Self::Error> {
+    fn exit_document(&mut self, _root: &mut E, _context: &Context<E>) -> Result<(), Self::Error> {
         let removed_tokens = self.removed_tokens.borrow();
         let parent_tokens = self.options.parent_tokens.borrow();
         removed_tokens

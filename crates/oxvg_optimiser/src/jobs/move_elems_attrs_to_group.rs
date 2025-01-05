@@ -86,7 +86,7 @@ fn get_common_attributes<E: Element>(children: &[E]) -> BTreeMap<E::Name, E::Ato
         .next()
         .expect("element should have >1 child")
         .iter()
-        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().to_string().as_str()))
+        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().to_string()))
         .map(|a| (a.name(), a.value()))
         .collect();
     child_iter.for_each(|attrs| {

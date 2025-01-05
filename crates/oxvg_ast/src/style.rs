@@ -1874,8 +1874,8 @@ macro_rules! get_computed_styles_factory {
                     .map(|p| &p.1)
                     .or_else(|| $item.inline_important.get(&PropertyId::$ident))
                     .or_else(|| $item.inline.get(&PropertyId::$ident))
-                    .or_else(|| $item.attr.get(&PresentationAttrId::$ident))
                     .or_else(|| $item.declarations.get(&PropertyId::$ident).map(|p| &p.1))
+                    .or_else(|| $item.attr.get(&PresentationAttrId::$ident))
                     .or_else(|| $item.inherited.get(&Id::CSS(PropertyId::$ident)))
                     .or_else(|| $item.inherited.get(&Id::Attr(PresentationAttrId::$ident)))
             };

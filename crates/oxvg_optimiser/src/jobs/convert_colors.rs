@@ -82,7 +82,7 @@ impl<E: Element> Visitor<E> for ConvertColors {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         let mask_localname = &"mask".into();
         let is_masked = &element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();

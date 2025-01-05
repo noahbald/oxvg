@@ -1,7 +1,7 @@
 use oxvg_ast::{
     element::Element,
     name::Name,
-    visitor::{ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -13,7 +13,11 @@ pub struct RemoveMetadata(bool);
 impl<E: Element> Visitor<E> for RemoveMetadata {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> super::PrepareOutcome {
+    fn prepare(
+        &mut self,
+        _document: &E,
+        _context_flags: &mut ContextFlags,
+    ) -> super::PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {
@@ -21,7 +25,7 @@ impl<E: Element> Visitor<E> for RemoveMetadata {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &super::Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());

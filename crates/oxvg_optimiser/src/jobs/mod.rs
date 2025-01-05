@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{ContextFlags, PrepareOutcome, Visitor},
 };
 use serde::Deserialize;
 
@@ -61,10 +61,11 @@ jobs! {
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
     remove_unknowns_and_defaults: RemoveUnknownsAndDefaults,
-    remove_view_box: RemoveViewBox,
     remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs,
     remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill,
+    remove_view_box: RemoveViewBox,
     cleanup_enable_background: CleanupEnableBackground,
+    remove_hidden_elems: RemoveHiddenElems<E>,
     convert_shape_to_path: ConvertShapeToPath,
     convert_ellipse_to_circle: ConvertEllipseToCircle,
     move_elems_attrs_to_group: MoveElemsAttrsToGroup,

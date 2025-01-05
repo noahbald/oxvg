@@ -1,4 +1,7 @@
-use oxvg_ast::{element::Element, visitor::Visitor};
+use oxvg_ast::{
+    element::Element,
+    visitor::{Context, Visitor},
+};
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
@@ -21,11 +24,7 @@ impl<E: Element> Job<E> for CleanupListOfValues {}
 impl<E: Element> Visitor<E> for CleanupListOfValues {
     type Error = String;
 
-    fn element(
-        &mut self,
-        element: &mut E,
-        context: &oxvg_ast::visitor::Context<E>,
-    ) -> Result<(), Self::Error> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
         CleanupValues::element(self, element, context)
     }
 }

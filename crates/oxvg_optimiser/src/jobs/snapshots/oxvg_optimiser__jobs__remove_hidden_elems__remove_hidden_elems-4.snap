@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove ellipse with zero radius -->\n    <g>\n        <ellipse rx=\"0\"/>\n        <ellipse ry=\"0\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove ellipse with zero radius -->
+    <g>
+        
+        
+    </g>
+</svg>

@@ -48,7 +48,7 @@ impl<E: Element> Visitor<E> for ConvertPathData {
         element.has_attribute(&"d".into())
     }
 
-    fn element(&mut self, element: &mut E, context: &Context<'_, '_, E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: & mut Context<'_, '_, E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
             return Ok(());

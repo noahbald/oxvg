@@ -25,7 +25,7 @@ impl<E: Element> Job<E> for ConvertShapeToPath {}
 impl<E: Element> Visitor<E> for ConvertShapeToPath {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         let element = &mut element.clone();
         let name = element.local_name();
 

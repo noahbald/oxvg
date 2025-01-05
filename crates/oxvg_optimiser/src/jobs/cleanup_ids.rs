@@ -10,13 +10,10 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{
-    collections::REFERENCES_PROPS,
-    regex::{REFERENCES_BEGIN, REFERENCES_HREF, REFERENCES_URL},
-};
 use oxvg_derive::OptionalDefault;
-use regex::CaptureMatches;
 use serde::Deserialize;
+
+use crate::utils::find_references;
 
 use super::ContextFlags;
 
@@ -72,7 +69,7 @@ impl<E: Element> Visitor<E> for CleanupIds {
         PrepareOutcome::none
     }
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         if self.ignore_document {
             return Ok(());
         }
@@ -107,7 +104,7 @@ impl<E: Element> Visitor<E> for CleanupIds {
         Ok(())
     }
 
-    fn exit_document(&mut self, document: &mut E) -> Result<(), String> {
+    fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
         let remove = self.remove.unwrap_or(REMOVE_DEFAULT);
 
         let Some(root) = &document.find_element() else {
@@ -358,16 +355,6 @@ impl Clone for RefRename {
 
 static REMOVE_DEFAULT: bool = true;
 static MINIFY_DEFAULT: bool = true;
-
-fn find_references<'a>(name: &str, value: &'a str) -> Option<CaptureMatches<'static, 'a>> {
-    let matches = match name {
-        "href" => REFERENCES_HREF.captures_iter(value),
-        "begin" => REFERENCES_BEGIN.captures_iter(value),
-        name if REFERENCES_PROPS.contains(name) => REFERENCES_URL.captures_iter(value),
-        _ => return None,
-    };
-    Some(matches)
-}
 
 #[test]
 #[allow(clippy::too_many_lines)]
