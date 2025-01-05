@@ -25,7 +25,7 @@ struct EnableBackgroundDimensions<'a> {
 impl<E: Element> Visitor<E> for CleanupEnableBackground {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::none;
         };

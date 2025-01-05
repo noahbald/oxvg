@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use oxvg_ast::{document::Document, element::Element, name::Name, node::Node, visitor::Visitor};
 use oxvg_collections::{
     allowed_content::ELEMS,
-    collections::{Group, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS},
+    collections::{AttrsGroups, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -32,7 +32,7 @@ pub struct RemoveUnknownsAndDefaults {
 impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 
@@ -230,14 +230,14 @@ struct AllowedPerElement {
 impl AllowedPerElement {
     fn new() -> Self {
         let mut output = Self::default();
-        for (key, value) in ELEMS.iter() {
+        for (key, value) in ELEMS.entries() {
             let mut allowed_children = HashSet::<&str>::new();
             if let Some(content) = &value.content {
                 allowed_children.extend(content);
             }
-            if let Some(content_groups) = &value.content_groups {
+            if let Some(content_groups) = value.content_groups {
                 for group in content_groups {
-                    allowed_children.extend(group.set());
+                    allowed_children.extend(group.iter());
                 }
             }
 
@@ -251,9 +251,9 @@ impl AllowedPerElement {
                 allowed_attr_defaults.extend(defaults);
             }
 
-            for attrs_group in &value.attrs_groups {
-                allowed_attrs.extend(attrs_group.set());
-                if let Some(attrs_group_defaults) = attrs_group.defaults() {
+            for attrs_group in value.attrs_groups {
+                allowed_attrs.extend(attrs_group.iter());
+                if let Some(attrs_group_defaults) = AttrsGroups::defaults_from_static(attrs_group) {
                     allowed_attr_defaults.extend(attrs_group_defaults);
                 }
             }

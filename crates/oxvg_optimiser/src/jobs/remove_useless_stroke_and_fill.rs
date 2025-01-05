@@ -30,7 +30,9 @@ pub struct RemoveUselessStrokeAndFill {
 impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+        context_flags.query_has_script(document);
+        context_flags.query_has_stylesheet(document);
         if context_flags.intersects(ContextFlags::has_stylesheet | ContextFlags::has_script_ref) {
             PrepareOutcome::skip
         } else {

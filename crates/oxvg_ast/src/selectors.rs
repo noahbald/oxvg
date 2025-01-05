@@ -7,7 +7,10 @@ use selectors::{
     NthIndexCache, SelectorList,
 };
 
-use crate::atom::Atom;
+use crate::{
+    atom::Atom,
+    element::{self},
+};
 
 #[derive(Debug, Clone)]
 pub struct SelectorImpl<A: Atom, N: Atom, NS: Atom> {
@@ -142,77 +145,18 @@ impl<A: Atom, N: Atom, NS: Atom> selectors::SelectorImpl for SelectorImpl<A, N, 
     type ExtraMatchingData<'a> = ();
 }
 
-pub struct ElementIterator<E: crate::element::Element> {
-    current: E,
-    index_cache: Vec<usize>,
-}
-
 pub struct Select<E: crate::element::Element> {
-    inner: ElementIterator<E>,
+    inner: element::Iterator<E>,
     scope: Option<E>,
     selector: Selector<E>,
     nth_index_cache: selectors::NthIndexCache,
 }
 
+#[derive(Debug)]
 pub struct Selector<E: crate::element::Element>(selectors::parser::SelectorList<E::Impl>);
 
 pub struct Parser<E: crate::element::Element> {
     element: PhantomData<E>,
-}
-
-impl<E: crate::element::Element> ElementIterator<E> {
-    /// Returns a depth-first iterator starting at the given element
-    pub fn new(element: &E) -> Self {
-        Self {
-            current: element.to_owned(),
-            index_cache: Vec::default(),
-        }
-    }
-
-    fn get_first_child(&mut self) -> Option<<Self as Iterator>::Item> {
-        let child = crate::element::Element::first_element_child(&self.current)?;
-        self.index_cache.push(0);
-        Some(child)
-    }
-
-    fn get_next_sibling(&mut self) -> Option<<Self as Iterator>::Item> {
-        let self_index = self.index_cache.pop()?;
-        let current = self.current.clone();
-        let parent = crate::element::Element::parent_element(&current)?;
-        let mut siblings = parent.children().into_iter().skip(self_index);
-        debug_assert!(
-            siblings
-                .next()
-                .expect("Parent children no longer fits node")
-                .ptr_eq(&self.current),
-            "Parent children no longer holds node in place"
-        );
-        let next_element = siblings.next();
-        if let Some(next_element) = next_element {
-            self.index_cache.push(self_index + 1);
-            self.current = next_element.clone();
-            Some(next_element)
-        } else {
-            self.current = parent.clone();
-            self.get_next_sibling()
-        }
-    }
-}
-
-impl<E: crate::element::Element> Iterator for ElementIterator<E> {
-    type Item = E;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = self.get_first_child();
-        if let Some(result) = result {
-            self.current = result.clone();
-            return Some(result);
-        }
-
-        let result = self.get_next_sibling()?;
-        self.current = result.clone();
-        Some(result)
-    }
 }
 
 impl<E: crate::element::Element> Select<E> {
@@ -228,7 +172,7 @@ impl<E: crate::element::Element> Select<E> {
 
     pub fn new_with_selector(element: &E, selector: Selector<E>) -> Select<E> {
         crate::selectors::Select {
-            inner: element.depth_first(),
+            inner: element.breadth_first(),
             scope: Some(element.clone()),
             selector,
             nth_index_cache: NthIndexCache::default(),

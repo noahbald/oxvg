@@ -10,7 +10,7 @@ use oxvg_ast::{
         Id, Precision, PresentationAttr, PresentationAttrId, SVGTransform, SVGTransformList,
         Static, Style,
     },
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -48,11 +48,7 @@ impl<E: Element> Job<E> for ConvertTransform {}
 impl<E: Element> Visitor<E> for ConvertTransform {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &E,
-        _context_flags: &oxvg_ast::visitor::ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 

@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::VecDeque, fmt::Debug};
 
 use crate::{
     atom::Atom,
@@ -421,6 +421,10 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
     fn parent_element(&self) -> Option<Self>;
 
+    fn breadth_first(&self) -> Iterator<Self> {
+        Iterator::new(self)
+    }
+
     #[cfg(feature = "selectors")]
     /// # Errors
     /// If the selector is invalid
@@ -441,10 +445,33 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     ) -> crate::selectors::Select<Self> {
         crate::selectors::Select::new_with_selector(self, selector)
     }
+}
 
-    #[cfg(feature = "selectors")]
-    /// Creates an iterator which traverses the elements in a depth-first fashion.
-    fn depth_first(&self) -> crate::selectors::ElementIterator<Self> {
-        crate::selectors::ElementIterator::new(self)
+#[derive(Debug)]
+pub struct Iterator<E: crate::element::Element> {
+    queue: VecDeque<E>,
+}
+
+impl<E: crate::element::Element> Iterator<E> {
+    /// Returns a depth-first iterator starting at the given element
+    pub fn new(element: &E) -> Self {
+        let mut queue = VecDeque::new();
+        element.for_each_element_child(|e| {
+            queue.push_back(e);
+        });
+
+        Self { queue }
+    }
+}
+
+impl<E: crate::element::Element> std::iter::Iterator for Iterator<E> {
+    type Item = E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.queue.pop_front()?;
+        current.for_each_element_child(|e| {
+            self.queue.push_back(e);
+        });
+        Some(current)
     }
 }

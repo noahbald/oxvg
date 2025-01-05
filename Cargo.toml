@@ -35,6 +35,7 @@ lazy_static = "1.4"
 lightningcss = { version = "1.0.0-alpha.61" }
 log = "0.4.20"
 markup5ever = "0.12"
+phf = { version = "0.11", features = ["macros"] }
 rcdom = { package = "markup5ever_rcdom", version = "0.3" }
 regex = "1.10"
 serde = "1.0.210"
@@ -51,3 +52,7 @@ insta = "1.36.1"
 
 [profile.bench]
 debug-assertions = false
+
+[profile.profiling]
+inherits = "release"
+debug = true

@@ -1,6 +1,6 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
@@ -40,11 +40,7 @@ impl<E: Element> Job<E> for ConvertPathData {}
 impl<E: Element> Visitor<E> for ConvertPathData {
     type Error = String;
 
-    fn prepare(
-        &mut self,
-        _document: &E,
-        _context_flags: &oxvg_ast::visitor::ContextFlags,
-    ) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 

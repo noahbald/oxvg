@@ -30,7 +30,8 @@ pub struct MinifyStyles {
 impl<E: Element> Visitor<E> for MinifyStyles {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+        context_flags.query_has_script(document);
         if self.remove_unused != Some(RemoveUnused::Force)
             && context_flags.contains(ContextFlags::has_script_ref)
         {
@@ -54,7 +55,7 @@ impl MinifyStyles {
             return;
         }
 
-        if name.local_name() != "style".into() {
+        if name.local_name().as_ref() != "style" {
             return;
         }
 
@@ -77,8 +78,8 @@ impl MinifyStyles {
                 return;
             }
         };
-        if let Some(used_selectors) = self.remove_unused_selectors(&mut css.rules, context) {
-            css.rules = used_selectors;
+        if let Some(matched_selectors) = self.remove_unused_selectors(&mut css.rules, context) {
+            css.rules = matched_selectors;
         };
         let _ = css.minify(MinifyOptions::default());
         let css = match css.to_css(PrinterOptions {
@@ -93,6 +94,7 @@ impl MinifyStyles {
         };
 
         if css.code.is_empty() {
+            log::debug!("removing element: all styles removed");
             element.remove();
         } else {
             element.clone().set_text_content(css.code.into());

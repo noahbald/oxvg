@@ -10,7 +10,13 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_ast = { workspace = true, features = ["selectors", "visitor", "style"] }
+oxvg_ast = { workspace = true, features = [
+  "selectors",
+  "visitor",
+  "style",
+  "parse",
+  "serialize",
+] }
 oxvg_derive = { workspace = true }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }

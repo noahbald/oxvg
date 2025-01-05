@@ -1515,7 +1515,7 @@ impl<E: Element> Default for ElementData<E> {
 impl<E: Element> ElementData<E> {
     pub fn new(root: &E) -> HashMap<E, Self> {
         let mut styles = HashMap::new();
-        for element in root.depth_first() {
+        for element in root.breadth_first() {
             styles.insert(
                 element.clone(),
                 ElementData {

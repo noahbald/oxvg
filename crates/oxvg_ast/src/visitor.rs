@@ -18,20 +18,6 @@ pub struct Context<'i, 'o, E: Element> {
     pub flags: ContextFlags,
 }
 
-bitflags! {
-    pub struct PrepareOutcome: usize {
-        const none = 0b0;
-        const skip = 0b1;
-        const use_style = 0b10;
-    }
-}
-
-impl PrepareOutcome {
-    pub fn can_skip(&self) -> bool {
-        self.contains(Self::skip)
-    }
-}
-
 impl<'i, 'o, E: Element> Context<'i, 'o, E> {
     pub fn new(
         root: E,
@@ -48,6 +34,20 @@ impl<'i, 'o, E: Element> Context<'i, 'o, E> {
     }
 }
 
+impl PrepareOutcome {
+    pub fn can_skip(&self) -> bool {
+        self.contains(Self::skip)
+    }
+}
+
+bitflags! {
+    pub struct PrepareOutcome: usize {
+        const none = 0b000_0000_0000;
+        const skip = 0b000_0000_0001;
+        const use_style = 0b000_0010;
+    }
+}
+
 bitflags! {
     #[derive(Debug, Clone, Default)]
     pub struct ContextFlags: usize {
@@ -59,6 +59,16 @@ bitflags! {
         const use_style = 0b0100;
         /// Whether this element is a `foreignObject` or a child of one
         const within_foreign_object = 0b1000;
+    }
+}
+
+impl ContextFlags {
+    pub fn query_has_script<E: Element>(&mut self, root: &E) {
+        self.set(Self::has_script_ref, has_scripts(root));
+    }
+
+    pub fn query_has_stylesheet<E: Element>(&mut self, root: &E) {
+        self.set(Self::has_stylesheet, !style::root(root).is_empty());
     }
 }
 
@@ -139,7 +149,7 @@ pub trait Visitor<E: Element> {
         false
     }
 
-    fn prepare(&mut self, document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::none
     }
 
@@ -148,17 +158,16 @@ pub trait Visitor<E: Element> {
     /// # Errors
     /// If any of the visitor's methods fail
     fn start(&mut self, root: &mut E) -> Result<PrepareOutcome, Self::Error> {
-        let style_source = style::root(root);
         let element_styles = &mut HashMap::new();
         let mut flags = ContextFlags::empty();
-        flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
-        flags.set(ContextFlags::has_script_ref, has_scripts(root));
-        let prepare_outcome = self.prepare(root, &flags);
+        let prepare_outcome = self.prepare(root, &mut flags);
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }
         if prepare_outcome.contains(PrepareOutcome::use_style) {
+            let style_source = style::root(root);
             flags.set(ContextFlags::use_style, true);
+            flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
             let stylesheet = stylesheet::StyleSheet::parse(
                 style_source.as_str(),
                 stylesheet::ParserOptions::default(),

@@ -16,7 +16,7 @@ pub struct RemoveNonInheritableGroupAttrs(bool);
 impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {

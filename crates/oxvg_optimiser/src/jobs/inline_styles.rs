@@ -661,6 +661,7 @@ impl Options {
             match_count > 0
         };
         if removeable {
+            log::debug!("selector {token:?} removed");
             removed_selector.selectors.0.push(selector.clone());
         }
         removeable
@@ -794,9 +795,11 @@ lazy_static! {
     static ref DEFAULT_USE_MQS: Vec<String> = vec![String::new(), String::from("screen")];
     static ref DEFAULT_USE_PSEUDOS: Vec<String> = vec![String::new()];
     static ref PRESERVED_PSEUDOS: BTreeSet<&'static str> = {
-        let mut result = PSEUDO_FUNCTIONAL.clone();
-        result.extend(&*PSEUDO_TREE_STRUCTURAL);
-        result
+        PSEUDO_FUNCTIONAL
+            .iter()
+            .chain(PSEUDO_TREE_STRUCTURAL.iter())
+            .map(AsRef::as_ref)
+            .collect()
     };
 }
 

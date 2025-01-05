@@ -22,7 +22,7 @@ pub struct MergeStyles {
 impl<E: Element> Visitor<E> for MergeStyles {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.enabled {
             PrepareOutcome::none
         } else {

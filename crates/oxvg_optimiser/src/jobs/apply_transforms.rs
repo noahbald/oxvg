@@ -35,7 +35,7 @@ pub struct ApplyTransforms {
 impl<E: Element> Visitor<E> for ApplyTransforms {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 

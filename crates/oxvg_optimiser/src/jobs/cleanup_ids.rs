@@ -59,7 +59,9 @@ pub struct CleanupIds {
 impl<E: Element> Visitor<E> for CleanupIds {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+        context_flags.query_has_stylesheet(document);
+        context_flags.query_has_script(document);
         self.prepare_ignore_document(document, context_flags);
         if self.ignore_document {
             log::debug!("CleanupIds::prepare: skipping");

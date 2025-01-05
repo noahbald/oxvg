@@ -20,7 +20,7 @@ pub struct CollapseGroups(bool);
 impl<E: Element> Visitor<E> for CollapseGroups {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {
@@ -127,7 +127,7 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
 
     let animation_group = oxvg_collections::collections::Group::set(&ElementGroup::Animation);
     {
-        if element.depth_first().any(|child| {
+        if element.breadth_first().any(|child| {
             let local_name = child.local_name();
             let name: &str = local_name.as_ref();
             animation_group.contains(name)
@@ -143,7 +143,7 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
 fn has_animated_attr(element: &impl Element, name: &impl Name) -> bool {
     let local_name = name.local_name();
     let node_name: &str = local_name.as_ref();
-    for child in std::iter::once(element.clone()).chain(element.depth_first()) {
+    for child in std::iter::once(element.clone()).chain(element.breadth_first()) {
         let child_name_local = child.local_name();
         let child_name: &str = child_name_local.as_ref();
         if Group::set(&ElementGroup::Animation).contains(child_name)

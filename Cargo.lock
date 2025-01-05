@@ -1159,6 +1159,7 @@ dependencies = [
  "lazy_static",
  "log",
  "oxvg_ast",
+ "phf 0.11.2",
  "regex",
 ]
 
