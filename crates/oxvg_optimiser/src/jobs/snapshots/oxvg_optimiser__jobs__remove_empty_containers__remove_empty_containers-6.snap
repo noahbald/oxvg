@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
+expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 462 352\">\n    <!-- preserve children of `switch` -->\n    <switch>\n        <g requiredFeatures=\"http://www.w3.org/TR/SVG11/feature#Extensibility\"/>\n        <a transform=\"translate(0,-5)\" href=\"https://www.diagrams.net/doc/faq/svg-export-text-problems\" target=\"_blank\">\n            <text text-anchor=\"middle\" font-size=\"10px\" x=\"50%\" y=\"100%\">Viewer does not support full SVG 1.1</text>\n        </a>\n    </switch>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 462 352">
+    <!-- preserve children of `switch` -->
+    <switch>
+        <g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"></g>
+        <a transform="translate(0,-5)" href="https://www.diagrams.net/doc/faq/svg-export-text-problems" target="_blank">
+            <text text-anchor="middle" font-size="10px" x="50%" y="100%">Viewer does not support full SVG 1.1</text>
+        </a>
+    </switch>
+</svg>

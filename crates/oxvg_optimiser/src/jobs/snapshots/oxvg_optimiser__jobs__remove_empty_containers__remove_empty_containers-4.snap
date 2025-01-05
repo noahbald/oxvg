@@ -1,0 +1,15 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
+expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<svg>\n    <!-- preserve non-empty containers -->\n    <defs>\n        <filter id=\"feTileFilter\" filterUnits=\"userSpaceOnUse\" primitiveUnits=\"userSpaceOnUse\" x=\"115\" y=\"40\" width=\"250\" height=\"250\">\n            <feFlood x=\"115\" y=\"40\" width=\"54\" height=\"19\" flood-color=\"lime\"/>\n            <feOffset x=\"115\" y=\"40\" width=\"50\" height=\"25\" dx=\"6\" dy=\"6\" result=\"offset\"/>\n            <feTile/>\n        </filter>\n    </defs>\n    <g filter=\"url(#feTileFilter)\"/>\n</svg>\"#),)?"
+---
+<svg>
+    <!-- preserve non-empty containers -->
+    <defs>
+        <filter id="feTileFilter" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="115" y="40" width="250" height="250">
+            <feFlood x="115" y="40" width="54" height="19" flood-color="lime"></feFlood>
+            <feOffset x="115" y="40" width="50" height="25" dx="6" dy="6" result="offset"></feOffset>
+            <feTile></feTile>
+        </filter>
+    </defs>
+    <g filter="url(#feTileFilter)"></g>
+</svg>
