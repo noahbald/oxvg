@@ -61,6 +61,7 @@ jobs! {
     cleanup_numeric_values: CleanupNumericValues,
     convert_colors: ConvertColors,
     remove_unknowns_and_defaults: RemoveUnknownsAndDefaults,
+    remove_view_box: RemoveViewBox,
     remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs,
     remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill,
     cleanup_enable_background: CleanupEnableBackground,
