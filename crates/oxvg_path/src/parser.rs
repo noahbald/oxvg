@@ -194,7 +194,9 @@ impl Parser {
         if !self.current_number.is_empty() {
             self.process_number()?;
         }
-        self.flush_args(&command::ID::None)?;
+        if !self.current_command.is_none() {
+            self.flush_args(&command::ID::None)?;
+        }
         Ok(self.done())
     }
 }

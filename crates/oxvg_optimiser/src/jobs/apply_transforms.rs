@@ -43,7 +43,7 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: & mut Context<E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");

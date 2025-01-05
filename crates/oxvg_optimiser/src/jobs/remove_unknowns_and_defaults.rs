@@ -62,7 +62,7 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
         Ok(())
     }
 
-    fn element(&mut self, element: &mut E, context: &super::Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         if context.flags.contains(ContextFlags::within_foreign_object) {
             return Ok(());
         }

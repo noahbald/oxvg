@@ -25,7 +25,7 @@ impl<E: Element> Job<E> for AddClassesToSVG {}
 impl<E: Element> Visitor<E> for AddClassesToSVG {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         if !element.is_root() || element.local_name() != "svg".into() {
             return Ok(());
         }

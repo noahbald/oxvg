@@ -59,11 +59,7 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
                 .contains(name.local_name().as_ref())
     }
 
-    fn element(
-        &mut self,
-        element: &mut E,
-        context: &oxvg_ast::visitor::Context<E>,
-    ) -> Result<(), Self::Error> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
         if !context.flags.contains(ContextFlags::use_style) {
             log::debug!("use_style indicated non-removable context");
             return Ok(());
@@ -94,7 +90,7 @@ impl RemoveUselessStrokeAndFill {
     const DEFAULT_FILL: bool = true;
     const DEFAULT_REMOVE_NONE: bool = false;
 
-    fn remove_stroke<E: Element>(&self, element: &E, context: &Context<E>) {
+    fn remove_stroke<E: Element>(&self, element: &E, context: &mut Context<E>) {
         if !self.stroke.unwrap_or(Self::DEFAULT_STROKE) {
             return;
         }
@@ -195,7 +191,7 @@ impl RemoveUselessStrokeAndFill {
         }
     }
 
-    fn remove_fill<E: Element>(&self, element: &E, context: &Context<E>) {
+    fn remove_fill<E: Element>(&self, element: &E, context: &mut Context<E>) {
         if !self.fill.unwrap_or(Self::DEFAULT_FILL) {
             return;
         }

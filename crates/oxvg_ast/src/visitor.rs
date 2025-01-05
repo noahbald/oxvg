@@ -59,6 +59,8 @@ bitflags! {
         const use_style = 0b0100;
         /// Whether this element is a `foreignObject` or a child of one
         const within_foreign_object = 0b1000;
+        /// Whether to skip over the element's children or not
+        const skip_children = 0b1_0000;
     }
 }
 
@@ -69,6 +71,11 @@ impl ContextFlags {
 
     pub fn query_has_stylesheet<E: Element>(&mut self, root: &E) {
         self.set(Self::has_stylesheet, !style::root(root).is_empty());
+    }
+
+    pub fn visit_skip(&mut self) {
+        log::debug!("skipping children");
+        self.set(Self::skip_children, true);
     }
 }
 
@@ -89,7 +96,7 @@ pub trait Visitor<E: Element> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn exit_document(&mut self, document: &mut E) -> Result<(), Self::Error> {
+    fn exit_document(&mut self, document: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -97,7 +104,7 @@ pub trait Visitor<E: Element> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -196,7 +203,7 @@ pub trait Visitor<E: Element> {
             node::Type::Document => {
                 self.document(element)?;
                 self.visit_children(element, context)?;
-                self.exit_document(element)
+                self.exit_document(element, context)
             }
             node::Type::Element => {
                 log::debug!("visiting {element:?}");
@@ -219,7 +226,11 @@ pub trait Visitor<E: Element> {
                 }
                 self.element(element, context)?;
                 context.flags.set(ContextFlags::use_style, use_style);
-                self.visit_children(element, context)?;
+                if context.flags.contains(ContextFlags::skip_children) {
+                    context.flags.set(ContextFlags::skip_children, false);
+                } else {
+                    self.visit_children(element, context)?;
+                }
                 log::debug!("left the {element:?}");
                 self.exit_element(element, context)?;
                 if is_root_foreign_object {

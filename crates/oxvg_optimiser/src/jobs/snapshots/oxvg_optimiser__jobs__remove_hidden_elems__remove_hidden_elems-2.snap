@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove element with `opacity` of `0` -->\n    <style>\n      .a { opacity: 0.5; }\n    </style>\n    <g>\n        <rect opacity=\"0\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" />\n        <rect opacity=\"0\" class=\"a\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" />\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove element with `opacity` of `0` -->
+    <style>
+      .a { opacity: 0.5; }
+    </style>
+    <g>
+        
+        <rect opacity="0" class="a" x="0" y="0" width="20" height="20"></rect>
+    </g>
+</svg>

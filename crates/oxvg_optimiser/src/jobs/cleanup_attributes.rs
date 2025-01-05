@@ -21,7 +21,7 @@ impl<E: Element> Job<E> for CleanupAttributes {}
 impl<E: Element> Visitor<E> for CleanupAttributes {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         for mut attr in element.attributes().iter() {
             if matches!(self.newlines, Some(true)) {
                 attr.set_value(attr.value().as_ref().replace('\n', " ").into());

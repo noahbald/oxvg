@@ -1,0 +1,24 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove empty or single points without markers -->\n    <g>\n        <path/>\n        <path d=\"z\"/>\n        <path d=\"M 50 50\"/>\n        <path d=\"M 50 50 L 0\"/>\n        <path d=\"M1.25.75\"/>\n        <path d=\"M 50 50 20 20\"/>\n        <path d=\"M 50,50 20,20\"/>\n        <path d=\"M 50 50 H 10\"/>\n        <path d=\"M4.1.5.5.1\"/>\n        <path d=\"M10.77.45c-.19-.2-.51-.2-.7 0\"/>\n        <path d=\"M 6.39441613e-11,8.00287799 C2.85816855e-11,3.58301052 3.5797863,0 8.00005106,0\"/>\n        <path d=\"\" marker-start=\"url(#id)\"/>\n        <path d=\"\" marker-end=\"url(#id)\"/>\n        <path d=\"M 50 50\" marker-start=\"url(#id)\"/>\n        <path d=\"M 50 50\" marker-end=\"url(#id)\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove empty or single points without markers -->
+    <g>
+        
+        
+        
+        
+        
+        <path d="M 50 50 20 20"></path>
+        <path d="M 50,50 20,20"></path>
+        <path d="M 50 50 H 10"></path>
+        <path d="M4.1.5.5.1"></path>
+        <path d="M10.77.45c-.19-.2-.51-.2-.7 0"></path>
+        <path d="M 6.39441613e-11,8.00287799 C2.85816855e-11,3.58301052 3.5797863,0 8.00005106,0"></path>
+        
+        
+        <path d="M 50 50" marker-start="url(#id)"></path>
+        <path d="M 50 50" marker-end="url(#id)"></path>
+    </g>
+</svg>

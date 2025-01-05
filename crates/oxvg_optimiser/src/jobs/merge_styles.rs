@@ -5,7 +5,7 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     node::{self, Node},
-    visitor::{PrepareOutcome, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
@@ -22,7 +22,7 @@ pub struct MergeStyles {
 impl<E: Element> Visitor<E> for MergeStyles {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.enabled {
             PrepareOutcome::none
         } else {
@@ -30,7 +30,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
         }
     }
 
-    fn element(&mut self, element: &mut E, context: &super::Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name() != "style".into() {
             return Ok(());
         }
@@ -96,7 +96,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
         Ok(())
     }
 
-    fn exit_document(&mut self, document: &mut E) -> Result<(), String> {
+    fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
         if !&*self.is_cdata.borrow() {
             return Ok(());
         }

@@ -41,7 +41,7 @@ impl<E: Element> Visitor<E> for MinifyStyles {
         PrepareOutcome::none
     }
 
-    fn element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: & mut Context<E>) -> Result<(), String> {
         self.content(element, context);
         Self::attr(element);
         Ok(())
@@ -49,7 +49,7 @@ impl<E: Element> Visitor<E> for MinifyStyles {
 }
 
 impl MinifyStyles {
-    fn content<E: Element>(&self, element: &E, context: &Context<E>) {
+    fn content<E: Element>(&self, element: &E, context: & mut Context<E>) {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return;

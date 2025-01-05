@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove unused defs -->\n    <defs>\n        <linearGradient id=\"a\">\n        </linearGradient>\n    </defs>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove unused defs -->
+    
+</svg>

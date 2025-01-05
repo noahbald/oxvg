@@ -42,7 +42,7 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
-    fn element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local(style_name) {
             let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")

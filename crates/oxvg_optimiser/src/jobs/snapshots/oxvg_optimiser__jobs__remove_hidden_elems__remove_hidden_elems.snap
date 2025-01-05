@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove element with `display` of `none` -->\n    <style>\n      .a { display: block; }\n    </style>\n    <g>\n        <rect display=\"none\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" />\n        <rect display=\"none\" class=\"a\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" />\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove element with `display` of `none` -->
+    <style>
+      .a { display: block; }
+    </style>
+    <g>
+        
+        <rect display="none" class="a" x="0" y="0" width="20" height="20"></rect>
+    </g>
+</svg>
