@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_text.rs
+expression: "test_config(r#\"{ \"removeEmptyText\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove non-linking tref -->\n    <g>\n        <tref>...</tref>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- remove non-linking tref -->
+    <g>
+        
+    </g>
+</svg>

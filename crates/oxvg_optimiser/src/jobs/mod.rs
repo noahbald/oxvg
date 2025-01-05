@@ -66,6 +66,7 @@ jobs! {
     remove_view_box: RemoveViewBox,
     cleanup_enable_background: CleanupEnableBackground,
     remove_hidden_elems: RemoveHiddenElems<E>,
+    remove_empty_text: RemoveEmptyText,
     convert_shape_to_path: ConvertShapeToPath,
     convert_ellipse_to_circle: ConvertEllipseToCircle,
     move_elems_attrs_to_group: MoveElemsAttrsToGroup,
