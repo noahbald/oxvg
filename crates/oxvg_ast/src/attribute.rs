@@ -125,6 +125,8 @@ pub trait Attributes<'a>: Debug + Clone {
     /// Returns an new iterator that goes over each attribute in the collection.
     fn iter(&self) -> impl Iterator<Item = Self::Attribute>;
 
+    fn sort(&self, order: &[String], xmlns_front: bool);
+
     fn retain<F>(&self, f: F)
     where
         F: FnMut(Self::Attribute) -> bool;

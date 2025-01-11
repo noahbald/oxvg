@@ -79,6 +79,7 @@ jobs! {
     remove_empty_attrs: RemoveEmptyAttrs,
     remove_empty_containers: RemoveEmptyContainers,
     merge_paths: MergePaths,
+    sort_attrs: SortAttrs,
 }
 
 pub trait JobDefault {

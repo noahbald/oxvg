@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/sort_attrs.rs
+expression: "test_config(r#\"{ \"sortAttrs\": {} }\"#,\nSome(r#\"<svg a=\"\" fill-opacity=\"\" stroke=\"\" fill=\"\" stroke-opacity=\"\">\n    <!-- sort derived attributes like fill and fill-opacity -->\n</svg>\"#),)?"
+---
+<svg fill="" fill-opacity="" stroke="" stroke-opacity="" a="">
+    <!-- sort derived attributes like fill and fill-opacity -->
+</svg>
