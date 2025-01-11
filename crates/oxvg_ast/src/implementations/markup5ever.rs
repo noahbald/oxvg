@@ -137,6 +137,20 @@ impl Name for QualName5Ever {
     fn ns(&self) -> Self::Namespace {
         Namespace5Ever(self.0.ns.clone())
     }
+
+    fn len(&self) -> usize {
+        match &self.0.prefix {
+            Some(prefix) => prefix.len() + 1 + self.0.local.len(),
+            None => self.0.local.len(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self.0.prefix {
+            Some(_) => false,
+            None => self.0.local.is_empty(),
+        }
+    }
 }
 
 impl From<&str> for QualName5Ever {
@@ -448,23 +462,7 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
                 }
             }
 
-            match &a.name.prefix {
-                Some(a_p) => {
-                    let a_p = format!("{a_p}:{}", a.name.local);
-                    match &b.name.prefix {
-                        Some(b_p) => a_p.cmp(&format!("{b_p}:{}", b.name.local)),
-                        None => a_p.as_str().cmp(b.name.local.as_ref()),
-                    }
-                }
-                None => match &b.name.prefix {
-                    Some(b_p) => a
-                        .name
-                        .local
-                        .as_ref()
-                        .cmp(format!("{b_p}:{}", b.name.local).as_str()),
-                    None => a.name.local.cmp(&b.name.local),
-                },
-            }
+            a.name.cmp(&b.name)
         });
     }
 
@@ -1213,6 +1211,21 @@ impl Element for Element5Ever {
                     selector_flags: Cell::new(None),
                 });
             }
+        });
+    }
+
+    fn sort_child_elements<F>(&self, mut f: F)
+    where
+        F: FnMut(Self, Self) -> std::cmp::Ordering,
+    {
+        self.node.0.children.borrow_mut().sort_by(|a, b| {
+            let Some(a) = Element::new(Node5Ever(a.clone())) else {
+                return std::cmp::Ordering::Less;
+            };
+            let Some(b) = Element::new(Node5Ever(b.clone())) else {
+                return std::cmp::Ordering::Greater;
+            };
+            f(a, b)
         });
     }
 }
