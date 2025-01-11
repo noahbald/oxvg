@@ -82,6 +82,7 @@ jobs! {
     sort_attrs: SortAttrs,
     sort_defs_children: SortDefsChildren,
     remove_title: RemoveTitle,
+    remove_desc: RemoveDesc,
 }
 
 pub trait JobDefault {
