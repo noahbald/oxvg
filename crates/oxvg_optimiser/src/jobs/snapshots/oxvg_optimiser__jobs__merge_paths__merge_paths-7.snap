@@ -1,0 +1,19 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_paths.rs
+expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg width=\"100\" height=\"100\">\n    <!-- don't merge where paths lose their ends and markers are rendered incorrectly -->\n    <defs>\n        <style>\n            .a {marker-end: url(#arrowhead_end);}\n        </style>\n        <marker id=\"arrowhead_end\" markerWidth=\"10\" markerHeight=\"10\" refX=\"6\" refY=\"3\">\n            <path d=\"M 0,0 l 6,3 l -6,3\" stroke=\"black\" />\n        </marker>\n    </defs>\n    <path d=\"M 10,10 h50\" stroke=\"black\" marker-end=\"url(#arrowhead_end)\" />\n    <path d=\"M 10,50 h50\" stroke=\"black\" marker-end=\"url(#arrowhead_end)\" />\n    <path d=\"M 10,60 h60\" stroke=\"black\" class=\"a\" />\n    <path d=\"M 10,70 h60\" stroke=\"black\" class=\"a\"/>\n</svg>\"#),)?"
+---
+<svg width="100" height="100">
+    <!-- don't merge where paths lose their ends and markers are rendered incorrectly -->
+    <defs>
+        <style>
+            .a {marker-end: url(#arrowhead_end);}
+        </style>
+        <marker id="arrowhead_end" markerWidth="10" markerHeight="10" refX="6" refY="3">
+            <path d="M 0,0 l 6,3 l -6,3" stroke="black"></path>
+        </marker>
+    </defs>
+    <path d="M 10,10 h50" stroke="black" marker-end="url(#arrowhead_end)"></path>
+    <path d="M 10,50 h50" stroke="black" marker-end="url(#arrowhead_end)"></path>
+    <path d="M 10,60 h60" stroke="black" class="a"></path>
+    <path d="M 10,70 h60" stroke="black" class="a"></path>
+</svg>

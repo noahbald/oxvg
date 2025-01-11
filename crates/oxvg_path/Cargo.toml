@@ -33,3 +33,4 @@ ryu = { version = "1.0.18", optional = true }
 
 [dev-dependencies]
 insta = { workspace = true }
+pretty_assertions = { workspace = true }

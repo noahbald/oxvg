@@ -1,0 +1,25 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_paths.rs
+expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- merge sequence of paths with same attributes -->\n    <path d=\"M 0,0 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M 10,10 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M 20,20\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M 30,30 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M 30,30 z\" fill=\"#f00\"/>\n    <path d=\"M 40,40 z\"/>\n    <path d=\"m 50,50 z\"/>\n    <path d=\"M 40,40\"/>\n    <path d=\"m 50,50\"/>\n    <path d=\"M 40,40 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"m 50,50 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M 40,40\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"m 50,50\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"m 50,50 z\" fill=\"#fff\" stroke=\"#333\"/>\n    <path d=\"M0 0v100h100V0z\" fill=\"red\"/>\n    <path d=\"M200 0v100h100V0z\" fill=\"red\"/>\n    <path d=\"M0 0v100h100V0z\" fill=\"blue\"/>\n    <path d=\"M200 0v100h100V0zM0 200h100v100H0z\" fill=\"blue\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- merge sequence of paths with same attributes -->
+    
+    
+    
+    <path d="M0 0ZM10 10ZM30 30Z" fill="#fff" stroke="#333"></path>
+    <path d="M 30,30 z" fill="#f00"></path>
+    
+    
+    
+    <path d="M40 40Zm50 50Zm50 50"></path>
+    
+    
+    
+    
+    <path d="M40 40Zm50 50Zm50 50Z" fill="#fff" stroke="#333"></path>
+    
+    <path d="M0 0v100h100V0ZM200 0v100h100V0Z" fill="red"></path>
+    
+    <path d="M0 0v100h100V0ZM200 0v100h100V0ZM0 200h100v100H0Z" fill="blue"></path>
+</svg>

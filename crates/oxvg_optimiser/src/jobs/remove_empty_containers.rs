@@ -3,7 +3,7 @@ use oxvg_ast::{
     attribute::Attributes,
     element::Element,
     get_computed_styles_factory,
-    style::PresentationAttrId,
+    style::{Id, PresentationAttrId},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::CONTAINER;
