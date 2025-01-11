@@ -12,12 +12,9 @@ use oxvg_ast::{
     },
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::Job;
-
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertTransform {
     convert_to_shorts: Option<bool>,
@@ -43,8 +40,6 @@ struct Inner {
     collapse_into_one: bool,
 }
 
-impl<E: Element> Job<E> for ConvertTransform {}
-
 impl<E: Element> Visitor<E> for ConvertTransform {
     type Error = String;
 
@@ -61,7 +56,7 @@ impl<E: Element> Visitor<E> for ConvertTransform {
         })
     }
 
-    fn element(&mut self, element: &mut E, context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         if let Some(transform) = context
             .computed_styles
             .attr

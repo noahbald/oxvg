@@ -7,10 +7,9 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveElemsAttrsToGroup(bool);
 

@@ -9,7 +9,6 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use super::{inline_styles, ContextFlags};
@@ -21,7 +20,7 @@ pub enum RemoveUnused {
     Force,
 }
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinifyStyles {
     remove_unused: Option<RemoveUnused>,
@@ -41,7 +40,7 @@ impl<E: Element> Visitor<E> for MinifyStyles {
         PrepareOutcome::none
     }
 
-    fn element(&mut self, element: &mut E, context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         self.content(element, context);
         Self::attr(element);
         Ok(())
@@ -49,7 +48,7 @@ impl<E: Element> Visitor<E> for MinifyStyles {
 }
 
 impl MinifyStyles {
-    fn content<E: Element>(&self, element: &E, context: & mut Context<E>) {
+    fn content<E: Element>(&self, element: &E, context: &mut Context<E>) {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return;

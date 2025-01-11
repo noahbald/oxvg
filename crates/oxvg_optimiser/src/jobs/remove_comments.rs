@@ -1,9 +1,8 @@
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 use serde_json::Value;
 
-#[derive(Deserialize, Clone, Default, OptionalDefault)]
+#[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveComments {
     preserve_patterns: Option<Vec<PreservePattern>>,

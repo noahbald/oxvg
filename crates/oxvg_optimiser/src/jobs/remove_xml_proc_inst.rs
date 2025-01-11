@@ -3,17 +3,16 @@ use oxvg_ast::{
     node::Node,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveXMLProcInst(bool);
 
 impl<E: Element> Visitor<E> for RemoveXMLProcInst {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {

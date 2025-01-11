@@ -20,11 +20,10 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{collections, regex::REFERENCES_URL};
-use oxvg_derive::OptionalDefault;
 use oxvg_path::{command::Data, convert, Path};
 use serde::Deserialize;
 
-#[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
+#[derive(Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Apply transformations to the path data
 pub struct ApplyTransforms {
@@ -35,7 +34,7 @@ pub struct ApplyTransforms {
 impl<E: Element> Visitor<E> for ApplyTransforms {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 
@@ -43,7 +42,7 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn element(&mut self, element: &mut E, context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(path) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");

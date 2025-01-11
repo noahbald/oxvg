@@ -19,7 +19,6 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use super::ContextFlags;
@@ -53,7 +52,7 @@ enum Color<'a> {
     None,
 }
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertColors {
     pub method: Option<Method>,
@@ -62,7 +61,7 @@ pub struct ConvertColors {
 impl<E: Element> Visitor<E> for ConvertColors {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         match self.method {
             Some(Method::Value {
                 names_2_hex,
@@ -82,7 +81,7 @@ impl<E: Element> Visitor<E> for ConvertColors {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let mask_localname = &"mask".into();
         let is_masked = &element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();

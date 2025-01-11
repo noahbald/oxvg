@@ -2,14 +2,11 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::Job;
-
-#[derive(Deserialize, Default, Clone, Debug, OptionalDefault)]
+#[derive(Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertPathData {
     remove_useless: Option<bool>,
@@ -35,8 +32,6 @@ pub struct ConvertPathData {
 #[derive(Clone, Default, Copy, Debug)]
 pub struct Precision(pub oxvg_path::convert::Precision);
 
-impl<E: Element> Job<E> for ConvertPathData {}
-
 impl<E: Element> Visitor<E> for ConvertPathData {
     type Error = String;
 
@@ -48,7 +43,7 @@ impl<E: Element> Visitor<E> for ConvertPathData {
         element.has_attribute(&"d".into())
     }
 
-    fn element(&mut self, element: &mut E, context: & mut Context<'_, '_, E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, context: &mut Context<'_, '_, E>) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
             return Ok(());

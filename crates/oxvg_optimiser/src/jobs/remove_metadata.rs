@@ -3,10 +3,9 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveMetadata(bool);
 

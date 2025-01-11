@@ -10,7 +10,6 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use crate::utils::find_references;
@@ -33,7 +32,7 @@ struct RefRename {
     referenced_id: String,
 }
 
-#[derive(Debug, Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupIds {
     remove: Option<bool>,

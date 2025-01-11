@@ -7,12 +7,10 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use super::ContextFlags;
 
-#[derive(OptionalDefault)]
 pub struct MergeStyles {
     enabled: bool,
     first_style: RefCell<Option<RefCell<Box<dyn node::Ref>>>>,

@@ -5,10 +5,9 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 pub struct SortDefsChildren(bool);
 
 impl<E: Element> Visitor<E> for SortDefsChildren {

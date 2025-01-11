@@ -6,10 +6,9 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{AttrsGroups, Group, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveNonInheritableGroupAttrs(bool);
 

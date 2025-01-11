@@ -17,7 +17,6 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::NON_RENDERING;
-use oxvg_derive::OptionalDefault;
 use oxvg_path::Path;
 use serde::Deserialize;
 
@@ -42,7 +41,7 @@ pub struct Options {
     polygon_empty_points: Option<bool>,
 }
 
-#[derive(Clone, OptionalDefault)]
+#[derive(Clone)]
 #[derive_where(Default)]
 pub struct RemoveHiddenElems<E: Element> {
     options: Options,

@@ -2,19 +2,18 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use super::ContextFlags;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(bool);
 
 impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {
@@ -23,7 +22,7 @@ impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
     }
 
     #[allow(clippy::similar_names)]
-    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
             return Ok(());

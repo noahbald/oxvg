@@ -7,7 +7,7 @@ use oxvg_ast::{
 use serde::Deserialize;
 
 macro_rules! jobs {
-    ($($name:ident: $job:ident$(< $($t:ty),* >)?,)+) => {
+    ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
         $(mod $name;)+
 
         $(pub use self::$name::$job;)+
@@ -15,13 +15,21 @@ macro_rules! jobs {
         #[derive(Deserialize, Clone)]
         #[serde(rename_all = "camelCase", bound = "E: Element")]
         pub struct Jobs<E: Element> {
-            $($name: Option<Box<$job $( < $($t),* >)?>>),+
+            $($name: Option<$job $( < $($t),* >)?>),+
         }
 
         impl<E: Element> Default for Jobs<E> {
             fn default() -> Self {
+                macro_rules! is_default {
+                    ($_default:ident) => { $_default };
+                    () => { false };
+                }
                 Self {
-                    $($name: $job::optional_default()),+
+                    $($name: if is_default!($($default)?) {
+                        Some($job::default())
+                    } else {
+                        None
+                    }),+
                 }
             }
         }
@@ -48,49 +56,42 @@ jobs! {
     cleanup_list_of_values: CleanupListOfValues,
 
     // Default plugins
-    remove_doctype: RemoveDoctype,
-    remove_xml_proc_inst: RemoveXMLProcInst,
-    remove_comments: RemoveComments,
-    remove_metadata: RemoveMetadata,
-    cleanup_attributes: CleanupAttributes,
-    merge_styles: MergeStyles,
-    inline_styles: InlineStyles<E>,
-    minify_styles: MinifyStyles,
-    cleanup_ids: CleanupIds,
-    remove_useless_defs: RemoveUselessDefs,
-    cleanup_numeric_values: CleanupNumericValues,
-    convert_colors: ConvertColors,
-    remove_unknowns_and_defaults: RemoveUnknownsAndDefaults,
-    remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs,
-    remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill,
-    remove_view_box: RemoveViewBox,
-    cleanup_enable_background: CleanupEnableBackground,
-    remove_hidden_elems: RemoveHiddenElems<E>,
-    remove_empty_text: RemoveEmptyText,
-    convert_shape_to_path: ConvertShapeToPath,
-    convert_ellipse_to_circle: ConvertEllipseToCircle,
-    move_elems_attrs_to_group: MoveElemsAttrsToGroup,
-    move_group_attrs_to_elems: MoveGroupAttrsToElems,
-    collapse_groups: CollapseGroups,
-    // NOTE: This one should be before `convert_path_data` in case the order is ever changed
-    apply_transforms: ApplyTransforms,
-    convert_path_data: ConvertPathData,
-    convert_transform: ConvertTransform,
-    remove_empty_attrs: RemoveEmptyAttrs,
-    remove_empty_containers: RemoveEmptyContainers,
-    merge_paths: MergePaths,
-    sort_attrs: SortAttrs,
-    sort_defs_children: SortDefsChildren,
-    remove_title: RemoveTitle,
-    remove_desc: RemoveDesc,
+    remove_doctype: RemoveDoctype (is_default: true),
+    remove_xml_proc_inst: RemoveXMLProcInst (is_default: true),
+    remove_comments: RemoveComments (is_default: true),
+    remove_metadata: RemoveMetadata (is_default: true),
+    cleanup_attributes: CleanupAttributes (is_default: true),
+    merge_styles: MergeStyles (is_default: true),
+    inline_styles: InlineStyles<E> (is_default: true),
+    minify_styles: MinifyStyles (is_default: true),
+    cleanup_ids: CleanupIds (is_default: true),
+    remove_useless_defs: RemoveUselessDefs (is_default: true),
+    cleanup_numeric_values: CleanupNumericValues (is_default: true),
+    convert_colors: ConvertColors (is_default: true),
+    remove_unknowns_and_defaults: RemoveUnknownsAndDefaults (is_default: true),
+    remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs (is_default: true),
+    remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill (is_default: true),
+    remove_view_box: RemoveViewBox (is_default: true),
+    cleanup_enable_background: CleanupEnableBackground (is_default: true),
+    remove_hidden_elems: RemoveHiddenElems<E> (is_default: true),
+    remove_empty_text: RemoveEmptyText (is_default: true),
+    convert_shape_to_path: ConvertShapeToPath (is_default: true),
+    convert_ellipse_to_circle: ConvertEllipseToCircle (is_default: true),
+    move_elems_attrs_to_group: MoveElemsAttrsToGroup (is_default: true),
+    move_group_attrs_to_elems: MoveGroupAttrsToElems (is_default: true),
+    collapse_groups: CollapseGroups (is_default: true),
+    // NOTE: `apply_transforms` should be before `convert_path_data` in case the order is ever changed
+    apply_transforms: ApplyTransforms (is_default: true),
+    convert_path_data: ConvertPathData (is_default: true),
+    convert_transform: ConvertTransform (is_default: true),
+    remove_empty_attrs: RemoveEmptyAttrs (is_default: true),
+    remove_empty_containers: RemoveEmptyContainers (is_default: true),
+    merge_paths: MergePaths (is_default: true),
+    sort_attrs: SortAttrs (is_default: true),
+    sort_defs_children: SortDefsChildren (is_default: true),
+    remove_title: RemoveTitle (is_default: true),
+    remove_desc: RemoveDesc (is_default: true),
 }
-
-pub trait JobDefault {
-    fn optional_default() -> Option<Box<Self>>;
-}
-
-#[allow(unused_variables)]
-pub trait Job<E: Element>: JobDefault + Visitor<E, Error = String> {}
 
 #[derive(Debug)]
 pub enum Error {

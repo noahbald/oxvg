@@ -3,17 +3,16 @@ use oxvg_ast::{
     node::Node,
     visitor::{ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 
 impl<E: Element> Visitor<E> for RemoveDoctype {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         if self.0 {
             PrepareOutcome::none
         } else {

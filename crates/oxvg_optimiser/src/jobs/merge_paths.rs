@@ -13,11 +13,10 @@ use oxvg_ast::{
     style::{ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use oxvg_path::{command, Path};
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, Default, OptionalDefault)]
+#[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MergePaths {
     force: Option<bool>,

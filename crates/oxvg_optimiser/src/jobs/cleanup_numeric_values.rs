@@ -2,14 +2,11 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
-use super::Job;
-
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupNumericValues {
     float_precision: Option<usize>,
@@ -17,8 +14,6 @@ pub struct CleanupNumericValues {
     default_px: Option<bool>,
     convert_to_px: Option<bool>,
 }
-
-impl<E: Element> Job<E> for CleanupNumericValues {}
 
 impl<E: Element> Visitor<E> for CleanupNumericValues {
     type Error = String;

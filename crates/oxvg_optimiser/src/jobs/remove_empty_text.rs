@@ -2,10 +2,9 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, Default, OptionalDefault)]
+#[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyText {
     text: Option<bool>,

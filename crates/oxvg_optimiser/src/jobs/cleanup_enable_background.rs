@@ -4,13 +4,12 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use regex::Regex;
 use serde::Deserialize;
 
 use super::ContextFlags;
 
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
     #[serde(skip_deserializing)]
@@ -25,7 +24,7 @@ struct EnableBackgroundDimensions<'a> {
 impl<E: Element> Visitor<E> for CleanupEnableBackground {
     type Error = String;
 
-    fn prepare(&mut self, document: &E,  _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(&mut self, document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         let Some(root) = document.find_element() else {
             return PrepareOutcome::none;
         };
@@ -42,7 +41,7 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
-    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local(style_name) {
             let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")

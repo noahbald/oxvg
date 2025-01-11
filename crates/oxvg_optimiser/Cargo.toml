@@ -17,7 +17,6 @@ oxvg_ast = { workspace = true, features = [
   "parse",
   "serialize",
 ] }
-oxvg_derive = { workspace = true }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }
 

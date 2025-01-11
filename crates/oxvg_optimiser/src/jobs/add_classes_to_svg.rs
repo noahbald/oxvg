@@ -4,14 +4,10 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::Job;
-
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-#[job_default(is_default = false)]
 /// Adds to the `class` attribute of the root `<svg>` element, omitting duplicates
 ///
 /// <div class="warning">Unlike SVGO, this may change the order of your classes</div>
@@ -20,12 +16,10 @@ pub struct AddClassesToSVG {
     pub class_name: Option<String>,
 }
 
-impl<E: Element> Job<E> for AddClassesToSVG {}
-
 impl<E: Element> Visitor<E> for AddClassesToSVG {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         if !element.is_root() || element.local_name() != "svg".into() {
             return Ok(());
         }

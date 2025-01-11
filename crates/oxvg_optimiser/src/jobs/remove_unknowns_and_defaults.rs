@@ -13,10 +13,9 @@ use oxvg_collections::{
     allowed_content::ELEMS,
     collections::{AttrsGroups, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, Default, OptionalDefault)]
+#[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUnknownsAndDefaults {
     unknown_content: Option<bool>,

@@ -10,10 +10,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, Visitor},
 };
 use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
-
-use super::Job;
 
 #[derive(Debug)]
 struct CapturedStyles<E: Element> {
@@ -68,7 +65,7 @@ pub struct Options {
     pub parent_tokens: RefCell<ParentTokens>,
 }
 
-#[derive(Clone, OptionalDefault)]
+#[derive(Clone)]
 #[derive_where(Default)]
 pub struct InlineStyles<E: Element> {
     options: Options,
@@ -82,8 +79,6 @@ enum Token {
     Attr,
     Other,
 }
-
-impl<E: Element> Job<E> for InlineStyles<E> {}
 
 impl<E: Element> Visitor<E> for InlineStyles<E> {
     type Error = String;

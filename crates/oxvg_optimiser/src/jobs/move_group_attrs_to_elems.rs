@@ -8,10 +8,9 @@ use oxvg_collections::{
     collections::{PATH_ELEMS, REFERENCES_PROPS},
     regex::REFERENCES_URL,
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveGroupAttrsToElems(bool);
 

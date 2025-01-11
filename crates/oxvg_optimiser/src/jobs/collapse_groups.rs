@@ -10,10 +10,9 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 

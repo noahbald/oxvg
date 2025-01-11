@@ -4,24 +4,18 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-use crate::Job;
-
-#[derive(Deserialize, Default, Clone, OptionalDefault)]
+#[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-#[job_default(is_default = false)]
 pub struct AddAttributesToSVGElement {
     pub attributes: BTreeMap<String, String>,
 }
 
-impl<E: Element> Job<E> for AddAttributesToSVGElement {}
-
 impl<E: Element> Visitor<E> for AddAttributesToSVGElement {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: & mut Context<E>) -> Result<(), String> {
+    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {

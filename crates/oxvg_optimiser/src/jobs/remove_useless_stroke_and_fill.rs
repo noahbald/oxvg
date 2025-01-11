@@ -14,10 +14,9 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{ElementGroup, Group};
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, Default, OptionalDefault)]
+#[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
     stroke: Option<bool>,

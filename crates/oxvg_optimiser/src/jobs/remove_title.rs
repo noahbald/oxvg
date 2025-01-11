@@ -2,10 +2,9 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_derive::OptionalDefault;
 use serde::Deserialize;
 
-#[derive(Deserialize, Clone, OptionalDefault)]
+#[derive(Deserialize, Clone)]
 pub struct RemoveTitle(bool);
 
 impl<E: Element> Visitor<E> for RemoveTitle {
