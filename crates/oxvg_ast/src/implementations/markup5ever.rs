@@ -400,6 +400,74 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         }
     }
 
+    fn sort(&self, order: &[String], xmlns_front: bool) {
+        fn get_ns_priority(name: &QualName, xmlns_front: bool) -> usize {
+            if xmlns_front {
+                if name.prefix.is_none() && name.local == local_name!("xmlns") {
+                    return 3;
+                }
+                if name.prefix.as_ref().is_some_and(|p| p == "xmlns") {
+                    return 2;
+                }
+            }
+            if name.prefix.is_some() {
+                return 1;
+            }
+            0
+        }
+
+        self.0.borrow_mut().sort_by(|a, b| {
+            let a_priority = get_ns_priority(&a.name, xmlns_front);
+            let b_priority = get_ns_priority(&b.name, xmlns_front);
+            let priority_ord = b_priority.cmp(&a_priority);
+            if priority_ord != std::cmp::Ordering::Equal {
+                return priority_ord;
+            }
+
+            let a_part = a
+                .name
+                .local
+                .split_once('-')
+                .map_or_else(|| a.name.local.as_ref(), |p| p.0);
+            let b_part = b
+                .name
+                .local
+                .split_once('-')
+                .map_or_else(|| b.name.local.as_ref(), |p| p.0);
+            if a_part != b_part {
+                let a_in_order = order.iter().position(|x| x == a_part);
+                let b_in_order = order.iter().position(|x| x == b_part);
+                if a_in_order.is_some() && b_in_order.is_some() {
+                    return a_in_order.cmp(&b_in_order);
+                }
+                if a_in_order.is_some() {
+                    return std::cmp::Ordering::Less;
+                }
+                if b_in_order.is_some() {
+                    return std::cmp::Ordering::Greater;
+                }
+            }
+
+            match &a.name.prefix {
+                Some(a_p) => {
+                    let a_p = format!("{a_p}:{}", a.name.local);
+                    match &b.name.prefix {
+                        Some(b_p) => a_p.cmp(&format!("{b_p}:{}", b.name.local)),
+                        None => a_p.as_str().cmp(b.name.local.as_ref()),
+                    }
+                }
+                None => match &b.name.prefix {
+                    Some(b_p) => a
+                        .name
+                        .local
+                        .as_ref()
+                        .cmp(format!("{b_p}:{}", b.name.local).as_str()),
+                    None => a.name.local.cmp(&b.name.local),
+                },
+            }
+        });
+    }
+
     fn retain<F>(&self, mut f: F)
     where
         F: FnMut(Self::Attribute) -> bool,

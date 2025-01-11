@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/sort_attrs.rs
+expression: "test_config(r#\"{ \"sortAttrs\": {} }\"#,\nSome(r#\"<svg r=\"\" b=\"\" x2=\"\" cx=\"\" y1=\"\" a=\"\" y=\"\" y2=\"\" x1=\"\" cy=\"\" x=\"\">\n    <!-- sort according to default list alphabetically -->\n</svg>\"#),)?"
+---
+<svg x="" x1="" x2="" y="" y1="" y2="" cx="" cy="" r="" a="" b="">
+    <!-- sort according to default list alphabetically -->
+</svg>
