@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_title.rs
+assertion_line: 49
+expression: "test_config(r#\"{ \"removeTitle\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <title>...</title>\n    <g/>\n</svg>\"#),)?"
+snapshot_kind: text
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    
+    <g></g>
+</svg>

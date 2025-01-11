@@ -81,6 +81,7 @@ jobs! {
     merge_paths: MergePaths,
     sort_attrs: SortAttrs,
     sort_defs_children: SortDefsChildren,
+    remove_title: RemoveTitle,
 }
 
 pub trait JobDefault {
