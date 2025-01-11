@@ -28,4 +28,8 @@ pub trait Name:
 
     /// Returns the namespace of the qualified name.
     fn ns(&self) -> Self::Namespace;
+
+    fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool;
 }

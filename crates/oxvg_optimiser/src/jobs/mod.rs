@@ -80,6 +80,7 @@ jobs! {
     remove_empty_containers: RemoveEmptyContainers,
     merge_paths: MergePaths,
     sort_attrs: SortAttrs,
+    sort_defs_children: SortDefsChildren,
 }
 
 pub trait JobDefault {

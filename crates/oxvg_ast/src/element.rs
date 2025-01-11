@@ -116,6 +116,10 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     where
         F: FnMut(Self);
 
+    fn sort_child_elements<F>(&self, f: F)
+    where
+        F: FnMut(Self, Self) -> std::cmp::Ordering;
+
     /// Replaces the element in the DOM with each of it's child nodes, removing the element in the
     /// process.
     fn flatten(&self);
