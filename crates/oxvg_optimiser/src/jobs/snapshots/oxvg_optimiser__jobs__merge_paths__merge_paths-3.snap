@@ -1,0 +1,28 @@
+---
+source: crates/oxvg_optimiser/src/jobs/merge_paths.rs
+expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- merge only intersected paths -->\n    <path d=\"M30 0L0 40H60z\"/>\n    <path d=\"M0 10H60L30 50z\"/>\n    <path d=\"M0 0V50L50 0\"/>\n    <path d=\"M0 60L50 10V60\"/>\n    <g>\n        <path d=\"M100 0a50 50 0 0 1 0 100\"/>\n        <path d=\"M25 25H75V75H25z\"/>\n        <path d=\"M135 85H185V135H135z\"/>\n    </g>\n    <g>\n        <path d=\"M10 14H7v1h3v-1z\"/>\n        <path d=\"M9 21H8v1h1v-1z\"/>\n    </g>\n    <g>\n        <path d=\"M30 32.705V40h10.42L30 32.705z\"/>\n        <path d=\"M46.25 34.928V30h-7.04l7.04 4.928z\"/>\n    </g>\n    <g>\n        <path d=\"M20 20H60L100 30\"/>\n        <path d=\"M20 20L50 30H100\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- merge only intersected paths -->
+    <path d="M30 0L0 40H60z"></path>
+    <path d="M0 10H60L30 50z"></path>
+    
+    <path d="M0 0V50L50 0M0 60 50 10V60"></path>
+    <g>
+        
+        <path d="M100 0a50 50 0 0 1 0 100M25 25H75V75H25Z"></path>
+        <path d="M135 85H185V135H135z"></path>
+    </g>
+    <g>
+        
+        <path d="M10 14H7v1h3v-1ZM9 21H8v1h1v-1Z"></path>
+    </g>
+    <g>
+        
+        <path d="M30 32.705V40h10.42L30 32.705ZM46.25 34.928V30h-7.04l7.04 4.928Z"></path>
+    </g>
+    <g>
+        
+        <path d="M20 20H60L100 30M20 20 50 30H100"></path>
+    </g>
+</svg>

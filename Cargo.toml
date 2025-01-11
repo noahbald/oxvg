@@ -49,6 +49,7 @@ ctor = "0.2.8"
 divan = "0.1.14"
 env_logger = "0.11.5"
 insta = "1.36.1"
+pretty_assertions = "1.4"
 
 [profile.bench]
 debug-assertions = false

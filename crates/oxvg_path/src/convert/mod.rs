@@ -17,7 +17,7 @@ mod relative;
 
 pub use crate::convert::cleanup::{cleanup, cleanup_unpositioned};
 pub use crate::convert::filter::filter;
-pub use crate::convert::mixed::mixed;
+pub use crate::convert::mixed::{mixed, to_absolute};
 pub use crate::convert::relative::relative;
 use crate::geometry::MakeArcs;
 use crate::math::to_fixed;

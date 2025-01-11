@@ -1,4 +1,4 @@
-mod arc;
+pub mod arc;
 mod from;
 mod remove;
 mod round;

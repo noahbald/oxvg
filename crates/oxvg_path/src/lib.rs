@@ -32,7 +32,11 @@ pub(crate) mod math;
 #[cfg(feature = "parse")]
 pub mod parser;
 #[cfg(feature = "optimise")]
+pub mod points;
+#[cfg(feature = "optimise")]
 pub mod positioned;
+
+use points::{Point, Points};
 
 #[cfg(feature = "parse")]
 use crate::parser::Parser;
@@ -65,6 +69,67 @@ impl Path {
     /// If the definition is invalid
     pub fn parse(definition: impl Into<String>) -> Result<Self, parser::Error> {
         Parser::default().parse(definition)
+    }
+
+    /// Checks if two paths have an intersection by checking convex hulls collision using
+    /// Gilbert-Johnson-Keerthi distance algorithm.
+    ///
+    /// # Panics
+    /// If internal assertions fail
+    pub fn intersects(&self, other: &Self) -> bool {
+        let points_1 = Points::from_positioned(&convert::relative(self));
+        let points_2 = Points::from_positioned(&convert::relative(other));
+
+        if dbg!(&points_1).max_x <= dbg!(&points_2).min_x
+            || points_2.max_x <= points_1.min_x
+            || points_1.max_y <= points_2.min_y
+            || points_2.max_y <= points_1.min_y
+            || points_1.list.iter().all(|set_1| {
+                points_2.list.iter().all(|set_2| {
+                    set_1.list[set_1.max_x].0[0] <= set_2.list[set_2.min_x].0[0]
+                        || set_2.list[set_2.max_x].0[0] <= set_1.list[set_1.min_x].0[0]
+                        || set_1.list[set_1.max_y].0[1] <= set_2.list[set_2.min_y].0[1]
+                        || set_2.list[set_2.max_y].0[1] <= set_1.list[set_1.min_y].0[1]
+                })
+            })
+        {
+            log::debug!("no intersection, bounds check failed");
+            return false;
+        }
+
+        let mut hull_nest_1 = points_1.list.iter().map(Point::convex_hull);
+        let hull_nest_2: Vec<_> = points_2.list.iter().map(Point::convex_hull).collect();
+
+        hull_nest_1.any(|hull_1| {
+            if hull_1.list.len() < 3 {
+                return false;
+            }
+
+            hull_nest_2.iter().any(|hull_2| {
+                if hull_2.list.len() < 3 {
+                    return false;
+                }
+
+                let mut simplex = vec![hull_1.get_support(hull_2, geometry::Point([1.0, 0.0]))];
+                let mut direction = simplex[0].minus();
+                let mut iterations = 10_000;
+
+                loop {
+                    iterations -= 1;
+                    if iterations == 0 {
+                        log::error!("Infinite loop while finding path intersections");
+                        return true;
+                    }
+                    simplex.push(hull_1.get_support(hull_2, direction));
+                    if direction.dot(simplex.last().unwrap()) <= 0.0 {
+                        return false;
+                    }
+                    if geometry::Point::process_simplex(&mut simplex, &mut direction) {
+                        return true;
+                    }
+                }
+            })
+        })
     }
 }
 

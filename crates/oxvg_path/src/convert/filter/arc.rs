@@ -1,3 +1,5 @@
+use core::f64;
+
 use crate::{
     command::{self, Position},
     convert::{self, filter},
@@ -320,4 +322,155 @@ impl Convert {
         item.command = arc.command.clone();
         item.end = arc.end;
     }
+
+    /// Gets curves(???) from an absolute arc command and it's base point.
+    ///
+    /// Based on code from Snap.svg (Apache 2 license). <http://snapsvg.io>/
+    /// Thanks to Dmitry Baranovskiy for his great work!
+    #[allow(clippy::similar_names, clippy::too_many_lines)]
+    pub fn a2c<'a>(
+        base_point: &'a [f64; 2],
+        data: &'a [f64; 7],
+        recursive: Option<&[f64]>,
+    ) -> Vec<f64> {
+        let [mut x1, mut y1] = *base_point;
+        let [mut rx, mut ry, angle, large_arc_flage, sweep_flag, mut x2, mut y2] = *data;
+        // for more information of where this Math came from visit:
+        // https://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes
+        let rad = (f64::consts::PI / 180.0) * angle;
+        let mut res = vec![];
+
+        let (f1, mut f2, cx, cy) = if let Some(recursive) = recursive {
+            (recursive[0], recursive[1], recursive[2], recursive[3])
+        } else {
+            x1 = rotate_x(x1, y1, -rad);
+            y1 = rotate_y(x1, y1, -rad);
+            x2 = rotate_x(x2, y2, -rad);
+            y2 = rotate_y(x2, y2, -rad);
+            let x = (x1 - x2) / 2.0;
+            let y = (y1 - y2) / 2.0;
+            let mut h = (x * x) / (rx * rx) + (y * y) / (ry * ry);
+            let (rx, ry) = if h > 1.0 {
+                h = h.sqrt();
+                rx *= h;
+                ry *= h;
+                (rx, ry)
+            } else {
+                (rx, ry)
+            };
+            let rx2 = rx * rx;
+            let ry2 = ry * ry;
+            let k = if large_arc_flage == (if sweep_flag == 0.0 { 1.0 } else { -1.0 }) {
+                f64::sqrt(f64::abs(
+                    (rx2 * ry2 - rx2 * y * y - ry2 * x * x) / (rx2 * y * y + ry2 * x * x),
+                ))
+            } else {
+                0.0
+            };
+            let cx = (k * rx * y) / ry + (x1 + x2) / 2.0;
+            let cy = (k * -ry * x) / rx + (y1 + y2) / 2.0;
+            let f1 = f64::asin((y1 - cy) / ry);
+            let f2 = f64::asin((y2 - cy) / ry);
+
+            let mut f1 = if x1 < cx { f64::consts::PI - f1 } else { f1 };
+            let mut f2 = if x2 < cx { f64::consts::PI - f2 } else { f2 };
+            if f1 < 0.0 {
+                f1 += f64::consts::PI * 2.0;
+            }
+            if f2 < 0.0 {
+                f2 += f64::consts::PI * 2.0;
+            }
+            if sweep_flag != 0.0 && f1 > f2 {
+                f1 -= f64::consts::PI * 2.0;
+            }
+            if sweep_flag == 0.0 && f2 > f1 {
+                f2 -= f64::consts::PI * 2.0;
+            }
+            (f1, f2, cx, cy)
+        };
+        let df = f2 - f1;
+        if f64::abs(df) > _120 {
+            let f2_old = f2;
+            let x2_old = x2;
+            let y2_old = y2;
+            f2 = f1
+                + _120
+                    * (if sweep_flag != 0.0 && f2 > f1 {
+                        1.0
+                    } else {
+                        -1.0
+                    });
+            x2 = cx + rx * f64::cos(f2);
+            y2 = cy + ry * f64::sin(f2);
+            res = Convert::a2c(
+                &[x2, y2],
+                &[rx, ry, angle, 0.0, sweep_flag, x2_old, y2_old],
+                Some(&[f2, f2_old, cx, cy]),
+            );
+        }
+        let df = f2 - f1;
+        let c1 = f1.cos();
+        let s1 = f1.sin();
+        let c2 = f2.cos();
+        let s2 = f2.sin();
+        let t = f64::tan(df / 4.0);
+        let hx = (4.0 / 3.0) * rx * t;
+        let hy = (4.0 / 3.0) * ry * t;
+        dbg!(x2, hx, s2, x1);
+        let m = [
+            -hx * s1,
+            hy * c1,
+            x2 + hx * s2 - x1,
+            y2 - hy * c2 - y1,
+            x2 - x1,
+            y2 - y1,
+        ];
+        dbg!(m, &res);
+        let res = m.into_iter().chain(res).collect();
+        if recursive.is_some() {
+            res
+        } else {
+            (0..res.len())
+                .map(|i| {
+                    if i % 2 == 1 {
+                        rotate_y(res[i - 1], res[i], rad)
+                    } else {
+                        rotate_x(res[i], res[i + 1], rad)
+                    }
+                })
+                .collect()
+        }
+    }
+}
+
+fn rotate_x(x: f64, y: f64, rad: f64) -> f64 {
+    x * f64::cos(rad) - y * f64::sin(rad)
+}
+
+fn rotate_y(x: f64, y: f64, rad: f64) -> f64 {
+    x * f64::sin(rad) + y * f64::cos(rad)
+}
+
+const _120: f64 = (f64::consts::PI * 120.0) / 180.0;
+
+#[test]
+#[allow(clippy::unreadable_literal)]
+fn a2c() {
+    pretty_assertions::assert_eq!(
+        Convert::a2c(&[10.0, 10.0], &[6.0, 4.0, 10.0, 1.0, 0.0, 24.0, 20.0], None),
+        vec![
+            -4.7584157403801,
+            3.2058197930361305,
+            -1.8799473690996882,
+            9.267547431273137,
+            5.1812430683047435,
+            10.911109748826613,
+            3.2771099921148092,
+            0.7627799506704301,
+            6.656316411051708,
+            0.3161330070672036,
+            8.864704831995782,
+            -1.1716932404506106,
+        ]
+    );
 }

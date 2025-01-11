@@ -70,7 +70,7 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
     result
 }
 
-fn to_absolute(item: &Position) -> command::Data {
+pub fn to_absolute(item: &Position) -> command::Data {
     match item.command {
         command::Data::MoveBy(_)
         | command::Data::LineBy(_)

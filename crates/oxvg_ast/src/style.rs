@@ -1886,13 +1886,49 @@ macro_rules! get_computed_styles_factory {
                     .map(|p| &p.1)
                     .or_else(|| $item.inline_important.get(&PropertyId::$ident($vp)))
                     .or_else(|| $item.inline.get(&PropertyId::$ident($vp)))
-                    .or_else(|| $item.attr.get(&PresentationAttrId::$ident))
                     .or_else(|| {
                         $item
                             .declarations
                             .get(&PropertyId::$ident($vp))
                             .map(|p| &p.1)
                     })
+                    .or_else(|| $item.attr.get(&PresentationAttrId::$ident))
+                    .or_else(|| $item.inherited.get(&Id::CSS(PropertyId::$ident($vp))))
+                    .or_else(|| $item.inherited.get(&Id::Attr(PresentationAttrId::$ident)))
+            };
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! get_computed_property_factory {
+    ($item:ident) => {
+        macro_rules! get_computed_property {
+            // NOTE: Two branches should be identical, apart from $vp
+            ($ident:ident) => {
+                $item
+                    .important_declarations
+                    .get(&PropertyId::$ident)
+                    .map(|p| &p.1)
+                    .or_else(|| $item.inline_important.get(&PropertyId::$ident))
+                    .or_else(|| $item.inline.get(&PropertyId::$ident))
+                    .or_else(|| $item.declarations.get(&PropertyId::$ident).map(|p| &p.1))
+                    .or_else(|| $item.inherited.get(&Id::CSS(PropertyId::$ident)))
+            };
+            ($ident:ident ( $vp:expr )) => {
+                $item
+                    .important_declarations
+                    .get(&PropertyId::$ident($vp))
+                    .map(|p| &p.1)
+                    .or_else(|| $item.inline_important.get(&PropertyId::$ident($vp)))
+                    .or_else(|| $item.inline.get(&PropertyId::$ident($vp)))
+                    .or_else(|| {
+                        $item
+                            .declarations
+                            .get(&PropertyId::$ident($vp))
+                            .map(|p| &p.1)
+                    })
+                    .or_else(|| $item.inherited.get(&Id::CSS(PropertyId::$ident($vp))))
             };
         }
     };
