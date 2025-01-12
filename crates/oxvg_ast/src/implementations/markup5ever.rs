@@ -1026,6 +1026,28 @@ impl parse::Node for Node5Ever {
 
         Ok(Node5Ever(dom.document))
     }
+
+    fn parse_file(mut file: &std::fs::File) -> anyhow::Result<Self> {
+        use xml5ever::{
+            driver::{parse_document, XmlParseOpts},
+            tendril::{ReadExt, Tendril, TendrilSink},
+        };
+
+        let mut tendril = Tendril::new();
+        file.read_to_tendril(&mut tendril)?;
+
+        let mut parser =
+            parse_document(rcdom::RcDom::default(), XmlParseOpts::default()).from_utf8();
+        parser.process(tendril);
+        let dom: rcdom::RcDom = parser.finish();
+
+        Ok(Node5Ever(dom.document))
+    }
+
+    fn parse_path(path: &std::path::Path) -> anyhow::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        Self::parse_file(&file)
+    }
 }
 
 #[cfg(feature = "serialize")]
@@ -1451,6 +1473,19 @@ impl node::Features for Element5Ever {}
 impl parse::Node for Element5Ever {
     fn parse(source: &str) -> anyhow::Result<Self> {
         let root = Node5Ever::parse(source)?;
+        match Node5Ever::find_element(&root) {
+            Some(element) => Ok(element),
+            None => Err(anyhow::Error::new(parse::Error::NoElementInDocument)),
+        }
+    }
+
+    fn parse_path(path: &std::path::Path) -> anyhow::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        Self::parse_file(&file)
+    }
+
+    fn parse_file(file: &std::fs::File) -> anyhow::Result<Self> {
+        let root = Node5Ever::parse_file(&file)?;
         match Node5Ever::find_element(&root) {
             Some(element) => Ok(element),
             None => Err(anyhow::Error::new(parse::Error::NoElementInDocument)),

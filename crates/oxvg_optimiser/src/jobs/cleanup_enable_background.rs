@@ -44,8 +44,7 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local(style_name) {
-            let new_value = Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*")
-                .unwrap()
+            let new_value = ENABLE_BACKGROUND
                 .replace_all(style.value().as_ref(), "")
                 .to_string();
             if new_value.is_empty() {
@@ -114,6 +113,11 @@ impl CleanupEnableBackground {
         };
         dimensions.width == width.as_ref() && dimensions.height == height.as_ref()
     }
+}
+
+lazy_static! {
+    static ref ENABLE_BACKGROUND: Regex =
+        Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*").unwrap();
 }
 
 #[test]

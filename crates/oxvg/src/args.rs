@@ -1,11 +1,12 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use clap::{Parser, Subcommand};
+use oxvg_ast::serialize::Node;
 
-use crate::{
-    config::Config,
-    fs::{load_files, write_file},
-};
+use crate::config::Config;
 
 pub trait RunCommand {
     /// # Errors
@@ -48,16 +49,66 @@ pub struct Optimise {
     pub output: Option<PathBuf>,
 }
 
+struct StdoutCounter {
+    stdout: std::io::Stdout,
+    count: usize,
+}
+
+impl StdoutCounter {
+    fn new() -> Self {
+        Self {
+            stdout: std::io::stdout(),
+            count: 0,
+        }
+    }
+}
+
+impl std::io::Write for StdoutCounter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let result = self.stdout.write(buf);
+        if let Ok(n) = result {
+            self.count += n;
+        }
+        result
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.stdout.flush()
+    }
+}
+
 impl RunCommand for Optimise {
     fn run(&self, config: Config) -> anyhow::Result<()> {
         use oxvg_ast::{implementations::markup5ever::Node5Ever, parse::Node};
 
-        let files = load_files(&self.paths);
-        let config = config.optimisation.unwrap_or_default();
-        for (path, file) in &files {
-            let dom: Node5Ever = Node::parse(&String::from_utf8_lossy(file))?;
-            config.clone().run(&dom)?;
-            write_file(&self.output, path, &dom);
+        if self.paths.len() == 1 {
+            let file = std::fs::File::open(self.paths.first().unwrap())?;
+            let dom = Node5Ever::parse_file(&file)?;
+            let jobs = config.optimisation.unwrap_or_default();
+
+            let start_time = SystemTime::now().duration_since(UNIX_EPOCH)?;
+            let prev_file_size = file.metadata()?.len();
+
+            jobs.run(&dom)?;
+            let mut stdout = StdoutCounter::new();
+            dom.serialize_into(&mut stdout)?;
+
+            let result_file_size = stdout.count;
+            let end_time = SystemTime::now().duration_since(UNIX_EPOCH)?;
+            let duration = end_time - start_time;
+
+            log::info!("Done in {duration:?}!");
+            log::info!(
+                "{}.{:#1} KiB -> {}.{:#1} KiB",
+                prev_file_size / 1000,
+                prev_file_size % 1000,
+                result_file_size / 1000,
+                result_file_size % 1000
+            );
+        } else {
+            for _path in &self.paths {
+                todo!();
+            }
         }
         Ok(())
     }

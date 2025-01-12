@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::Path};
 
 #[derive(Debug)]
 pub enum Error {
@@ -10,6 +10,16 @@ pub trait Node: Sized {
     ///
     /// Any error cause by the underlying parser, or [Error]
     fn parse(source: &str) -> anyhow::Result<Self>;
+
+    /// # Errors
+    ///
+    /// Any error cause by the underlying parser, or [Error]
+    fn parse_path(path: &Path) -> anyhow::Result<Self>;
+
+    /// # Errors
+    ///
+    /// Any error cause by the underlying parser, or [Error]
+    fn parse_file(file: &std::fs::File) -> anyhow::Result<Self>;
 }
 
 impl std::error::Error for Error {}
