@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unused_n_s.rs
+expression: "test_config(r#\"{ \"removeUnusedNS\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:test=\"http://trololololololololololo.com/\">\n    <g>\n        test\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <g>
+        test
+    </g>
+</svg>
