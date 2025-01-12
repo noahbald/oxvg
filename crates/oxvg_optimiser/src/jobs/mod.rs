@@ -120,6 +120,7 @@ jobs! {
     convert_transform: ConvertTransform (is_default: true),
     remove_empty_attrs: RemoveEmptyAttrs (is_default: true),
     remove_empty_containers: RemoveEmptyContainers (is_default: true),
+    remove_unused_n_s: RemoveUnusedNS (is_default: true),
     merge_paths: MergePaths (is_default: true),
     sort_attrs: SortAttrs (is_default: true),
     sort_defs_children: SortDefsChildren (is_default: true),
