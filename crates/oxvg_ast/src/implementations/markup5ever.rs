@@ -3,7 +3,7 @@ use std::{
     cell::{Cell, RefCell, RefMut},
     collections::VecDeque,
     fmt::{Debug, Display},
-    hash::Hash,
+    hash::{DefaultHasher, Hash, Hasher},
     rc::Rc,
 };
 
@@ -1671,6 +1671,54 @@ impl selectors::Element for Element5Ever {
             return true;
         };
         parent.node_type() == node::Type::Document
+    }
+
+    fn has_custom_state(
+        &self,
+        _name: &<Self::Impl as selectors::SelectorImpl>::Identifier,
+    ) -> bool {
+        false
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn add_element_unique_hashes(&self, filter: &mut selectors::bloom::BloomFilter) -> bool {
+        let mut f = |hash: u32| filter.insert_hash(hash & selectors::bloom::BLOOM_HASH_MASK);
+
+        let local_name_hash = &mut DefaultHasher::default();
+        self.local_name().hash(local_name_hash);
+        f(local_name_hash.finish() as u32);
+
+        let prefix_hash = &mut DefaultHasher::default();
+        self.prefix().hash(prefix_hash);
+        f(prefix_hash.finish() as u32);
+
+        if let Some(id) = self.get_attribute(&QualName5Ever(QualName {
+            prefix: None,
+            ns: Namespace::default(),
+            local: local_name!("id"),
+        })) {
+            let id_hash = &mut DefaultHasher::default();
+            id.hash(id_hash);
+            f(prefix_hash.finish() as u32);
+        }
+
+        for class in self.class_list().iter() {
+            let class_hash = &mut DefaultHasher::default();
+            class.hash(class_hash);
+            f(class_hash.finish() as u32);
+        }
+
+        for attr in self.attributes().iter() {
+            let name = attr.name();
+            if matches!(name.local_name().as_ref(), "class" | "id" | "style") {
+                continue;
+            }
+
+            let name_hash = &mut DefaultHasher::default();
+            name.hash(name_hash);
+            f(name_hash.finish() as u32);
+        }
+        true
     }
 }
 

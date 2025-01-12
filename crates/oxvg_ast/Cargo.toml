@@ -21,7 +21,7 @@ markup5ever = [
 ]
 parse = ["dep:anyhow"]
 serialize = []
-selectors = ["dep:selectors", "dep:cssparser"]
+selectors = ["dep:selectors", "dep:cssparser", "dep:precomputed-hash"]
 visitor = ["dep:bitflags", "dep:derive-where"]
 style = [
   "dep:lazy_static",
@@ -41,9 +41,10 @@ lazy_static = { workspace = true, optional = true }
 lightningcss = { workspace = true, optional = true }
 log = { workspace = true }
 markup5ever = { workspace = true, optional = true }
+precomputed-hash = { workspace = true, optional = true }
 string_cache = { workspace = true, optional = true }
 rcdom = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-selectors = { version = "0.25.0", optional = true }
+selectors = { workspace = true, optional = true }
 smallvec = { version = "1.13.2", optional = true }
 xml5ever = { workspace = true, optional = true }

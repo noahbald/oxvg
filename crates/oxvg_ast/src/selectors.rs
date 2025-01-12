@@ -1,10 +1,15 @@
-use std::marker::PhantomData;
+use std::{
+    hash::{DefaultHasher, Hasher},
+    marker::PhantomData,
+};
 
 use cssparser::ToCss;
+use precomputed_hash::PrecomputedHash;
 use selectors::{
+    context::SelectorCaches,
     matching,
     parser::{ParseRelative, SelectorParseErrorKind},
-    NthIndexCache, SelectorList,
+    SelectorList,
 };
 
 use crate::{
@@ -94,6 +99,22 @@ impl<A: Atom, N: Atom, NS: Atom> ToCss for PseudoClass<A, N, NS> {
     }
 }
 
+impl<N: Atom> PrecomputedHash for CssLocalName<N> {
+    fn precomputed_hash(&self) -> u32 {
+        let mut output = DefaultHasher::default();
+        self.0.hash(&mut output);
+        output.finish() as u32
+    }
+}
+
+impl<N: Atom> PrecomputedHash for CssNamespace<N> {
+    fn precomputed_hash(&self) -> u32 {
+        let mut output = DefaultHasher::default();
+        self.0.hash(&mut output);
+        output.finish() as u32
+    }
+}
+
 impl<A: Atom, N: Atom, NS: Atom> selectors::parser::NonTSPseudoClass for PseudoClass<A, N, NS> {
     type Impl = SelectorImpl<A, N, NS>;
 
@@ -149,7 +170,7 @@ pub struct Select<E: crate::element::Element> {
     inner: element::Iterator<E>,
     scope: Option<E>,
     selector: Selector<E>,
-    nth_index_cache: selectors::NthIndexCache,
+    selector_caches: SelectorCaches,
 }
 
 #[derive(Debug)]
@@ -175,7 +196,7 @@ impl<E: crate::element::Element> Select<E> {
             inner: element.breadth_first(),
             scope: Some(element.clone()),
             selector,
-            nth_index_cache: NthIndexCache::default(),
+            selector_caches: SelectorCaches::default(),
         }
     }
 }
@@ -189,7 +210,7 @@ impl<E: crate::element::Element> Iterator for Select<E> {
                 && self.selector.matches_with_scope_and_cache(
                     element,
                     self.scope.clone(),
-                    &mut self.nth_index_cache,
+                    &mut self.selector_caches,
                 )
         })
     }
@@ -213,25 +234,22 @@ impl<E: crate::element::Element> Selector<E> {
         &self,
         element: &E,
         scope: Option<E>,
-        nth_index_cache: &mut NthIndexCache,
+        selector_caches: &mut SelectorCaches,
     ) -> bool {
         let context = &mut matching::MatchingContext::new(
             matching::MatchingMode::Normal,
             None,
-            nth_index_cache,
+            selector_caches,
             matching::QuirksMode::NoQuirks,
             matching::NeedsSelectorFlags::No,
-            matching::IgnoreNthChildForInvalidation::No,
+            matching::MatchingForInvalidation::No,
         );
         context.scope_element = scope.map(|x| selectors::Element::opaque(&x));
-        self.0
-             .0
-            .iter()
-            .any(|s| matching::matches_selector(s, 0, None, element, context))
+        matching::matches_selector_list(&self.0, element, context)
     }
 
     pub fn matches_naive(&self, element: &E) -> bool {
-        self.matches_with_scope_and_cache(element, None, &mut NthIndexCache::default())
+        self.matches_with_scope_and_cache(element, None, &mut SelectorCaches::default())
     }
 }
 
