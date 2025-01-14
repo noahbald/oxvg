@@ -83,11 +83,11 @@ impl<E: Element> Visitor<E> for ConvertColors {
 
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let mask_localname = &"mask".into();
-        let is_masked = &element.local_name() == mask_localname
+        let is_masked = element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();
 
-        for mut attr in element.attributes().iter() {
-            let is_style = attr.local_name() == "style".into();
+        for mut attr in element.attributes().into_iter_mut() {
+            let is_style = attr.local_name().as_ref() == "style";
             let style = if is_style {
                 attr.value().to_string()
             } else {
@@ -97,7 +97,7 @@ impl<E: Element> Visitor<E> for ConvertColors {
             let mut style = match style {
                 Ok(result) => result,
                 Err(e) => {
-                    log::debug!("failed to convert {attr}: {e}");
+                    log::debug!("failed to convert {}: {e}", attr.formatter());
                     continue;
                 }
             };

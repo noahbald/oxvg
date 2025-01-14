@@ -64,7 +64,7 @@ jobs! {
     merge_styles: MergeStyles (is_default: true),
     inline_styles: InlineStyles<E> (is_default: true),
     minify_styles: MinifyStyles (is_default: true),
-    cleanup_ids: CleanupIds (is_default: true),
+    cleanup_ids: CleanupIds<E> (is_default: true),
     remove_useless_defs: RemoveUselessDefs (is_default: true),
     cleanup_numeric_values: CleanupNumericValues (is_default: true),
     convert_colors: ConvertColors (is_default: true),

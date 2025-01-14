@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use oxvg_ast::{
+    attribute::{Attr, Attributes},
     element::Element,
+    name::Name,
     visitor::{Context, Visitor},
 };
 use serde::Deserialize;
@@ -23,7 +25,8 @@ impl<E: Element> Visitor<E> for AddAttributesToSVGElement {
         };
 
         for (name, value) in &self.attributes {
-            let name = name.as_str().into();
+            let name =
+                <<E::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name::parse(name);
             let value = value.as_str().into();
             if element.has_attribute(&name) {
                 continue;

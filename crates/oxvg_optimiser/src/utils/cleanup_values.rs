@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
@@ -23,7 +25,10 @@ pub trait CleanupValues {
 
     fn get_mode(&self) -> Mode;
 
-    fn round_values<A: Attr>(&self, attr: &mut A) -> anyhow::Result<A::Atom> {
+    fn round_values<A: Attr>(
+        &self,
+        attr: &mut impl DerefMut<Target = A>,
+    ) -> anyhow::Result<A::Atom> {
         let mut rounded_list: Vec<String> = Vec::new();
         let Options {
             float_precision,
@@ -81,18 +86,22 @@ pub trait CleanupValues {
         Ok(rounded_list.join(" ").into())
     }
 
-    fn element<E: Element>(&self, element: &E, _context: & mut Context<E>) -> Result<(), String> {
-        for mut attr in element.attributes().iter() {
+    fn element<E: Element>(&self, element: &E, _context: &mut Context<E>) -> Result<(), String> {
+        for mut attr in element.attributes().into_iter_mut() {
             if !self.get_mode().allowed_attribute(&attr) {
                 continue;
             }
 
-            let name = attr.name();
-            let value = attr.value();
+            log::debug!(
+                "CleanupValues::run: rounding value: {:?}={}",
+                attr.name(),
+                attr.value()
+            );
             match self.round_values(&mut attr) {
                 Ok(new_value) => {
                     log::debug!(
-                        "CleanupValues::run: rounding value: {name:?}={value} -> {new_value}"
+                        "CleanupValues::run: rounded {:?} to {new_value}",
+                        attr.name(),
                     );
                     attr.set_value(new_value);
                 }
@@ -106,7 +115,7 @@ pub trait CleanupValues {
 }
 
 impl Mode {
-    pub fn allowed_attribute(&self, attr: &impl Attr) -> bool {
+    pub fn allowed_attribute(&self, attr: &impl DerefMut<Target = impl Attr>) -> bool {
         let name = attr.local_name();
         let name = name.as_ref();
         match self {
@@ -126,9 +135,12 @@ impl Mode {
         }
     }
 
-    pub fn separate_value<'a>(&self, attr: &'a impl Attr) -> impl Iterator<Item = &'a str> {
-        let value = attr.value_ref();
-        if (matches!(self, Self::List) || attr.local_name() == "viewBox".into()) {
+    pub fn separate_value<'a>(
+        &self,
+        attr: &'a impl DerefMut<Target = impl Attr + 'a>,
+    ) -> impl Iterator<Item = &'a str> {
+        let value = attr.value().as_ref();
+        if (matches!(self, Self::List) || attr.local_name().as_ref() == "viewBox") {
             Box::new(SEPARATOR.split(value)) as Box<dyn Iterator<Item = &str>>
         } else {
             Box::new(std::iter::once(value)) as Box<dyn Iterator<Item = &str>>

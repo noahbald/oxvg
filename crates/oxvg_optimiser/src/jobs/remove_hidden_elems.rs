@@ -69,7 +69,7 @@ impl<E: Element> Visitor<E> for Data<E> {
     }
 
     fn use_style(&self, element: &E) -> bool {
-        let name = element.qual_name().to_string();
+        let name = element.qual_name().formatter().to_string();
         !NON_RENDERING.contains(&name)
     }
 
@@ -107,7 +107,7 @@ impl<E: Element> Visitor<E> for Data<E> {
 
 impl<E: Element> Data<E> {
     fn remove_element(&mut self, element: &E) {
-        if let Some(id) = element.get_attribute(&"id".into()) {
+        if let Some(id) = element.get_attribute_local(&"id".into()) {
             if let Some(parent) = Element::parent_element(element) {
                 if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
                     self.removed_def_ids.insert(id.to_string());
@@ -139,7 +139,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
-        let name = element.qual_name().to_string();
+        let name = element.qual_name().formatter().to_string();
 
         self.ref_element(element, &parent, &name);
         if self.is_hidden_style(element, &name, context)
@@ -154,7 +154,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
             return Ok(());
         }
 
-        for attr in element.attributes().iter() {
+        for attr in element.attributes().into_iter() {
             let local_name = attr.local_name();
             let value = attr.value();
 
@@ -206,7 +206,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
 
 impl<E: Element> RemoveHiddenElems<E> {
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
-        if let Some(id) = element.get_attribute(&"id".into()) {
+        if let Some(id) = element.get_attribute_local(&"id".into()) {
             if self.data.all_references.contains(id.as_ref()) {
                 return false;
             }
@@ -218,7 +218,7 @@ impl<E: Element> RemoveHiddenElems<E> {
         if name == "defs" {
             self.data.all_defs.insert(element.clone());
         } else if name == "use" {
-            for attr in element.attributes().iter() {
+            for attr in element.attributes().into_iter() {
                 if attr.local_name().as_ref() != "href" {
                     continue;
                 }
@@ -285,7 +285,7 @@ impl<E: Element> RemoveHiddenElems<E> {
             && element.is_empty()
             && self.options.circle_r_zero.unwrap_or(true)
             && element
-                .get_attribute(&"r".into())
+                .get_attribute_local(&"r".into())
                 .is_some_and(|v| v.as_ref() == "0")
         {
             element.remove();
@@ -295,7 +295,7 @@ impl<E: Element> RemoveHiddenElems<E> {
         if name == "ellipse" && element.is_empty() {
             if self.options.ellipse_rx_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"rx".into())
+                    .get_attribute_local(&"rx".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -303,7 +303,7 @@ impl<E: Element> RemoveHiddenElems<E> {
 
             if self.options.ellipse_ry_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"ry".into())
+                    .get_attribute_local(&"ry".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -315,14 +315,14 @@ impl<E: Element> RemoveHiddenElems<E> {
     fn is_hidden_rect(&self, element: &E, name: &str) -> bool {
         if name == "rect" && element.is_empty() && self.options.rect_width_zero.unwrap_or(true) {
             if element
-                .get_attribute(&"width".into())
+                .get_attribute_local(&"width".into())
                 .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
             }
             if self.options.rect_height_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"height".into())
+                    .get_attribute_local(&"height".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -335,7 +335,7 @@ impl<E: Element> RemoveHiddenElems<E> {
         if name == "pattern" {
             if self.options.pattern_width_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"width".into())
+                    .get_attribute_local(&"width".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -343,7 +343,7 @@ impl<E: Element> RemoveHiddenElems<E> {
 
             if self.options.pattern_height_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"height".into())
+                    .get_attribute_local(&"height".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -356,7 +356,7 @@ impl<E: Element> RemoveHiddenElems<E> {
         if name == "image" {
             if self.options.image_width_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"width".into())
+                    .get_attribute_local(&"width".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -364,7 +364,7 @@ impl<E: Element> RemoveHiddenElems<E> {
 
             if self.options.image_height_zero.unwrap_or(true)
                 && element
-                    .get_attribute(&"height".into())
+                    .get_attribute_local(&"height".into())
                     .is_some_and(|v| v.as_ref() == "0")
             {
                 return true;
@@ -377,10 +377,10 @@ impl<E: Element> RemoveHiddenElems<E> {
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);
         if self.options.path_empty_d.unwrap_or(true) && name == "path" {
-            let Some(d) = element.get_attribute(&"d".into()) else {
+            let Some(d) = element.get_attribute_local(&"d".into()) else {
                 return true;
             };
-            return match Path::parse(d) {
+            return match Path::parse(d.as_ref()) {
                 Ok(d) => {
                     d.0.is_empty()
                         || (d.0.len() == 1
@@ -396,14 +396,14 @@ impl<E: Element> RemoveHiddenElems<E> {
     fn is_hidden_poly(&self, element: &E, name: &str) -> bool {
         if self.options.polyline_empty_points.unwrap_or(true)
             && name == "polyline"
-            && element.get_attribute(&"points".into()).is_none()
+            && element.get_attribute_local(&"points".into()).is_none()
         {
             return true;
         }
 
         if self.options.polygon_empty_points.unwrap_or(true)
             && name == "polygon"
-            && element.get_attribute(&"points".into()).is_none()
+            && element.get_attribute_local(&"points".into()).is_none()
         {
             return true;
         }

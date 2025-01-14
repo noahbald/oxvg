@@ -8,7 +8,6 @@ pub trait Atom:
     + Clone
     + Default
     + for<'a> From<&'a str>
-    + Into<String>
     + From<String>
     + AsRef<str>
     + Hash
@@ -18,4 +17,19 @@ pub trait Atom:
     fn as_str(&self) -> &str {
         self.as_ref()
     }
+}
+
+impl<T> Atom for T where
+    T: Eq
+        + Display
+        + PartialEq
+        + std::fmt::Debug
+        + Clone
+        + Default
+        + for<'a> From<&'a str>
+        + From<String>
+        + AsRef<str>
+        + Hash
+        + 'static
+{
 }

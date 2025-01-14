@@ -32,7 +32,7 @@ impl<E: Element> Visitor<E> for SortDefsChildren {
 
         let mut frequencies = HashMap::new();
         element.for_each_element_child(|e| {
-            let name = e.qual_name();
+            let name = e.qual_name().clone();
             if let Some(frequency) = frequencies.get_mut(&name) {
                 *frequency += 1;
             } else {

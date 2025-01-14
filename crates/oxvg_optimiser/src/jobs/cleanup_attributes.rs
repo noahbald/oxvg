@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
@@ -17,22 +18,22 @@ impl<E: Element> Visitor<E> for CleanupAttributes {
     type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
-        for mut attr in element.attributes().iter() {
+        for mut attr in element.attributes().into_iter_mut() {
+            let mut value = attr.value().to_string();
+            let original_len = value.len();
             if matches!(self.newlines, Some(true)) {
-                attr.set_value(attr.value().as_ref().replace('\n', " ").into());
+                value = value.replace('\n', " ");
             }
-            if matches!(self.trim, Some(true)) {
-                attr.set_value(attr.value().as_ref().trim().into());
-            }
+            let value = if matches!(self.trim, Some(true)) {
+                value.trim()
+            } else {
+                value.as_ref()
+            };
             if matches!(self.spaces, Some(true)) {
-                attr.set_value(
-                    attr.value()
-                        .as_ref()
-                        .split_whitespace()
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                        .into(),
-                );
+                let value = value.split_whitespace().join(" ");
+                attr.set_value(value.into());
+            } else if value.len() < original_len {
+                attr.set_value(value.into());
             }
         }
         Ok(())

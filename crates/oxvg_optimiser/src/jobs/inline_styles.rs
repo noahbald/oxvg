@@ -5,8 +5,10 @@ use itertools::Itertools;
 use lightningcss::{media_query, printer, rules, selector, stylesheet, traits::ToCss};
 use oxvg_ast::{
     atom::Atom,
+    attribute::Attr,
     class_list::ClassList,
     element::Element,
+    name::Name,
     visitor::{Context, ContextFlags, Visitor},
 };
 use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
@@ -88,14 +90,14 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         element: &mut E,
         context: &oxvg_ast::visitor::Context<E>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() || element.local_name() != "style".into() {
+        if element.prefix().is_some() || element.local_name().as_ref() != "style" {
             return Ok(());
         }
 
         if let Some(style_type) = element
-            .get_attribute(&"type".into())
-            .as_ref()
-            .map(Atom::as_str)
+            .get_attribute_local(&"type".into())
+            .as_deref()
+            .map(AsRef::as_ref)
         {
             if !style_type.is_empty() && style_type != "text/css" {
                 log::debug!("Not merging style: unsupported type");
@@ -194,7 +196,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                 if token.iter().any(|t| parent_tokens.ids.contains(t.as_str())) {
                     return;
                 }
-                element.remove_attribute(id_name);
+                element.remove_attribute_local(id_name);
             });
 
         // declarations, sorted by specificity, grouped by element
@@ -224,7 +226,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             let group_element = group_element.expect("chunks shouldn't be empty");
             let style_name = "style".into();
             let original_inline_styles = group_element
-                .get_attribute(&style_name)
+                .get_attribute_local(&style_name)
                 .map(|a| a.to_string())
                 .unwrap_or_default();
             style.push_str(&original_inline_styles);
@@ -248,9 +250,9 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                 continue;
             };
             if style.is_empty() {
-                group_element.remove_attribute(&style_name);
+                group_element.remove_attribute_local(&style_name);
             } else {
-                group_element.set_attribute(style_name, style.into());
+                group_element.set_attribute_local(style_name, style.into());
             }
 
             css.declarations
@@ -266,7 +268,8 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                     if parent_tokens.presentation_attrs.iter().any(|s| s == name) {
                         return;
                     }
-                    group_element.remove_attribute(&name.into());
+                    let name = <E::Attr as Attr>::Name::parse(name);
+                    group_element.remove_attribute(&name);
                 });
         }
         Ok(())
@@ -402,8 +405,10 @@ impl<E: Element> InlineStyles<E> {
 
         let id_name = &"id".into();
         let selected = selected.filter_map(|m| {
-            let id = m.get_attribute(id_name)?;
-            let (id, specificity) = matching_ids.iter().find(|(t, _)| t == &id)?;
+            let id = m.get_attribute_local(id_name)?;
+            let (id, specificity) = matching_ids
+                .iter()
+                .find(|(t, _)| t.as_ref() == id.as_ref())?;
             Some(RemovedToken {
                 element: m.clone(),
                 token: vec![id.clone()],
@@ -626,13 +631,15 @@ impl Options {
             }
             _ => Token::Other,
         };
-        let token = &token.into();
         let id_name = &"id".into();
+        let token = token.into();
         let match_count = matches
             .iter()
             .filter(|m| match token_type {
-                Token::Class => Element::has_class(*m, token),
-                Token::ID => m.get_attribute(id_name).is_some_and(|id| &id == token),
+                Token::Class => Element::has_class(*m, &token),
+                Token::ID => m
+                    .get_attribute_local(id_name)
+                    .is_some_and(|id| id.as_ref() == token.as_str()),
                 Token::Attr => {
                     let Some((name, value)) = token.as_str().split_once('=') else {
                         return false;

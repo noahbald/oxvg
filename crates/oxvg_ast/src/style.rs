@@ -1519,12 +1519,15 @@ impl<E: Element> ElementData<E> {
             styles.insert(
                 element.clone(),
                 ElementData {
-                    inline_style: element.get_attribute(&"style".into()),
+                    inline_style: element
+                        .get_attribute_local(&"style".into())
+                        .as_deref()
+                        .cloned(),
                     presentation_attrs: element
                         .attributes()
-                        .iter()
+                        .into_iter()
                         .filter(|a| a.prefix().is_none())
-                        .map(|a| (a.local_name(), a.value()))
+                        .map(|a| (a.local_name().clone(), a.value().clone()))
                         .collect(),
                 },
             );

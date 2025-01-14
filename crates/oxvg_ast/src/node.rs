@@ -164,7 +164,7 @@ pub trait Node: Clone + Debug + 'static + Features {
 
     /// Returns the processing instruction's target and data, if the node is a processing
     /// instruction
-    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)>;
+    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)>;
 
     /// Tries settings the value of the node if possible. If not possible, returns [None].
     ///

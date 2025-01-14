@@ -5,6 +5,7 @@ use lightningcss::{
 };
 use oxvg_ast::{
     atom::Atom,
+    attribute::Attr,
     element::Element,
     name::Name,
     visitor::{Context, PrepareOutcome, Visitor},
@@ -119,18 +120,19 @@ impl MinifyStyles {
 
     fn attr<E: Element>(element: &E) {
         let style_name = "style".into();
-        let Some(style) = element.get_attribute(&style_name) else {
+        let Some(mut style) = element.get_attribute_node_local_mut(&style_name) else {
             return;
         };
-        let mut css = match StyleAttribute::parse(style.as_str(), ParserOptions::default()) {
+        let value = style.value().as_str();
+        let mut css_source = match StyleAttribute::parse(value, ParserOptions::default()) {
             Ok(css) => css,
             Err(e) => {
                 log::debug!("failed to parse attribute: {e}");
                 return;
             }
         };
-        css.minify(MinifyOptions::default());
-        let css = match css.to_css(PrinterOptions {
+        css_source.minify(MinifyOptions::default());
+        let css = match css_source.to_css(PrinterOptions {
             minify: true,
             ..PrinterOptions::default()
         }) {
@@ -140,8 +142,10 @@ impl MinifyStyles {
                 return;
             }
         };
+        let css_atom = css.code.into();
+        drop(css_source);
 
-        element.set_attribute(style_name, css.code.into());
+        style.set_value(css_atom);
     }
 }
 

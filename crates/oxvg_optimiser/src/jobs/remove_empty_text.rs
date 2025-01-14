@@ -1,5 +1,7 @@
 use oxvg_ast::{
+    attribute::Attr,
     element::Element,
+    name::Name,
     visitor::{Context, Visitor},
 };
 use serde::Deserialize;
@@ -16,7 +18,7 @@ impl<E: Element> Visitor<E> for RemoveEmptyText {
     type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
-        let name = element.qual_name().to_string();
+        let name = element.qual_name().formatter().to_string();
 
         if self.text.unwrap_or(true) && &name == "text" && element.is_empty() {
             element.remove();
@@ -26,10 +28,8 @@ impl<E: Element> Visitor<E> for RemoveEmptyText {
             element.remove();
         }
 
-        if self.tref.unwrap_or(true)
-            && &name == "tref"
-            && !element.has_attribute(&"xlink:href".into())
-        {
+        let xlink_name = <E::Attr as Attr>::Name::new(Some("xlink".into()), "href".into());
+        if self.tref.unwrap_or(true) && &name == "tref" && !element.has_attribute(&xlink_name) {
             element.remove();
         }
 

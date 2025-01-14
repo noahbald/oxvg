@@ -30,7 +30,7 @@ impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
         if name.prefix().is_some() {
             return Ok(());
         }
-        if name.local_name() != "g".into() {
+        if name.local_name().as_ref() != "g" {
             return Ok(());
         }
 
@@ -46,14 +46,14 @@ impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
         });
         let mut common_attributes = get_common_attributes(&children);
 
-        let transform_name = "transform".into();
+        let transform_name = <E::Attr as Attr>::Name::new(None, "transform".into());
         if
         // preserve for other jobs
         every_child_is_path
             // preserve for pass-through attributes
-            || element.has_attribute(&"filter".into())
-            || element.has_attribute(&"clip-path".into())
-            || element.has_attribute(&"mask".into())
+            || element.has_attribute_local(&"filter".into())
+            || element.has_attribute_local(&"clip-path".into())
+            || element.has_attribute_local(&"mask".into())
         {
             common_attributes.remove(&transform_name);
         }
@@ -69,8 +69,9 @@ impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
                 continue;
             }
 
-            if let Some(mut attr) = element.get_attribute_node(&transform_name) {
-                attr.set_value(format!("{} {value}", attr.value()).into());
+            if let Some(mut attr) = element.get_attribute_node_mut(&transform_name) {
+                let value = format!("{} {value}", attr.value());
+                attr.set_value(value.into());
             } else {
                 element.set_attribute(name, value);
             }
@@ -84,13 +85,15 @@ fn get_common_attributes<E: Element>(children: &[E]) -> BTreeMap<E::Name, E::Ato
     let mut common_attributes: BTreeMap<_, _> = child_iter
         .next()
         .expect("element should have >1 child")
-        .iter()
-        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().to_string()))
-        .map(|a| (a.name(), a.value()))
+        .into_iter()
+        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().formatter().to_string()))
+        .map(|a| (a.name().clone(), a.value().clone()))
         .collect();
     child_iter.for_each(|attrs| {
         common_attributes.retain(|name, value| {
-            attrs.get_named_item(name).map(|a| a.value()).as_mut() == Some(value)
+            attrs
+                .get_named_item(name)
+                .is_some_and(|a| a.value() == value)
         });
     });
 

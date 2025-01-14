@@ -51,7 +51,7 @@ impl<A: Atom> ToCss for CssAtom<A> {
     where
         W: std::fmt::Write,
     {
-        cssparser::serialize_string(&self.0.clone().into(), dest)
+        cssparser::serialize_string(self.0.as_ref(), dest)
     }
 }
 
@@ -66,7 +66,7 @@ impl<N: Atom> ToCss for CssLocalName<N> {
     where
         W: std::fmt::Write,
     {
-        cssparser::serialize_string(&self.0.clone().into(), dest)
+        cssparser::serialize_string(self.0.as_ref(), dest)
     }
 }
 
@@ -100,6 +100,7 @@ impl<A: Atom, N: Atom, NS: Atom> ToCss for PseudoClass<A, N, NS> {
 }
 
 impl<N: Atom> PrecomputedHash for CssLocalName<N> {
+    #[allow(clippy::cast_possible_truncation)] // fine for hash
     fn precomputed_hash(&self) -> u32 {
         let mut output = DefaultHasher::default();
         self.0.hash(&mut output);
@@ -108,6 +109,7 @@ impl<N: Atom> PrecomputedHash for CssLocalName<N> {
 }
 
 impl<N: Atom> PrecomputedHash for CssNamespace<N> {
+    #[allow(clippy::cast_possible_truncation)] // fine for hash
     fn precomputed_hash(&self) -> u32 {
         let mut output = DefaultHasher::default();
         self.0.hash(&mut output);

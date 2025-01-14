@@ -32,9 +32,9 @@ impl<E: Element> Visitor<E> for RemoveUselessDefs {
             return Ok(());
         }
         let name = name.local_name();
-        if name != "defs".into()
+        if name.as_ref() != "defs"
             && (!ElementGroup::NonRendering.matches(name.as_str())
-                || element.get_attribute(&"id".into()).is_some())
+                || element.get_attribute_local(&"id".into()).is_some())
         {
             return Ok(());
         }
@@ -54,7 +54,9 @@ impl<E: Element> Visitor<E> for RemoveUselessDefs {
 
 fn collect_useful_nodes<E: Element>(element: &E, useful_nodes: &mut Vec<E::Child>) {
     element.for_each_element_child(|child| {
-        if child.qual_name() == "style".into() || child.get_attribute(&"id".into()).is_some() {
+        if child.prefix().is_none() && child.local_name().as_ref() == "style"
+            || child.get_attribute_local(&"id".into()).is_some()
+        {
             useful_nodes.push(child.as_child());
         } else {
             collect_useful_nodes(&child, useful_nodes);

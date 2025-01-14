@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, fmt::Debug};
+use std::{
+    collections::VecDeque,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     atom::Atom,
@@ -17,10 +21,8 @@ pub trait Features: selectors::Element {}
 
 pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     type Name: Name;
-    type Attributes<'a>: Attributes<
-        'a,
-        Attribute: Attr<Name = Self::Name, Atom = <Self as Node>::Atom>,
-    >;
+    type Attr: Attr<Name = Self::Name, Atom = <Self as Node>::Atom>;
+    type Attributes<'a>: Attributes<'a, Attribute = Self::Attr>;
 
     /// Converts the provided node into an element, if the node type matches an element or document
     fn new(node: Self::Child) -> Option<Self>;
@@ -89,7 +91,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         if parent.node_type() == node::Type::Document {
             return None;
         }
-        if &parent.local_name() == name {
+        if parent.local_name() == name {
             Some(parent)
         } else {
             parent.closest_local(name)
@@ -132,12 +134,12 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     }
 
     /// Returns the element's name as a qualified name.
-    fn qual_name(&self) -> Self::Name;
+    fn qual_name(&self) -> &Self::Name;
 
     /// Returns the local part of the element's qualified name.
     ///
     /// [MDN | localName](https://developer.mozilla.org/en-US/docs/Web/API/Element/localName)
-    fn local_name(&self) -> <Self::Name as Name>::LocalName {
+    fn local_name(&self) -> &<Self::Name as Name>::LocalName {
         self.qual_name().local_name()
     }
 
@@ -165,7 +167,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Returns the namespace prefix of the element's qualified name.
     ///
     /// [MDN | prefix](https://developer.mozilla.org/en-US/docs/Web/API/Element/prefix)
-    fn prefix(&self) -> Option<<Self::Name as Name>::Prefix> {
+    fn prefix(&self) -> &Option<<Self::Name as Name>::Prefix> {
         self.qual_name().prefix()
     }
 
@@ -227,97 +229,73 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Returns the value of an attribute of the element specified by it's qualified name.
     ///
     /// [MDN | getAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttribute)
-    fn get_attribute<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-    {
-        Some(self.get_attribute_node(name)?.value())
-    }
+    fn get_attribute<'a>(
+        &'a self,
+        name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<impl Deref<Target = Self::Atom>>;
 
-    /// Returns the value of an attribute of the element specified by a local name.
-    fn get_attribute_local<'a, N>(&'a self, name: &N) -> Option<Self::Atom>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-    {
-        Some(self.get_attribute_node_local(name)?.value())
-    }
+    /// Returns the value of an attribute of the element specified by a local name, only if that
+    /// attribute also has no prefix
+    fn get_attribute_local<'a>(
+        &'a self,
+        name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
+    ) -> Option<impl Deref<Target = Self::Atom> + 'a>;
 
     /// Returns the value of an attribute of the element specified by it's local name and
     /// namespace.
     ///
     /// [MDN | getAttributeNS](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNS)
-    fn get_attribute_ns<'a, N, NS>(&'a self, namespace: &NS, name: &N) -> Option<Self::Atom>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<Namespace = NS>>>,
-        NS: Atom,
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-    {
-        Some(self.get_attribute_node_ns(namespace, name)?.value())
-    }
+    fn get_attribute_ns<'a>(
+        &'a self,
+        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
+        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<impl Deref<Target = Self::Atom>>;
 
     /// Returns a collection of the attribute names of the element.
     ///
     /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
-    fn get_attribute_names<'a, N>(&'a self) -> Vec<N>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-    {
-        let attrs = self.attributes();
-        let mut names = Vec::with_capacity(attrs.len());
-
-        for i in 0..attrs.len() {
-            let Some(attr) = attrs.item(i) else { continue };
-            names.push(attr.name());
-        }
-        names
-    }
+    fn get_attribute_names(
+        &self,
+    ) -> Vec<impl Deref<Target = <<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>>;
 
     /// Returns the attribute specified by it's qualified name.
     ///
     /// [MDN | getAttributeNode](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNode)
-    fn get_attribute_node<'a, N>(
+    fn get_attribute_node<'a>(
         &'a self,
-        attr_name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-    {
-        self.attributes().get_named_item(attr_name)
+        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+
+    /// See [`Attributes::get_attribute_node`]
+    fn get_attribute_node_mut<'a>(
+        &'a self,
+        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<impl DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+
+    /// Returns the attribute of the element specified by a local name, only if that
+    /// attribute also has no prefix
+    fn get_attribute_node_local<'a>(
+        &'a self,
+        attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_local(attr_name)
     }
 
-    /// Returns the attribute specified by it's local name.
-    fn get_attribute_node_local<'a, N>(
+    fn get_attribute_node_local_mut<'a>(
         &'a self,
-        attr_name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-    {
-        self.attributes().get_named_item_local(attr_name)
+        attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<impl DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_local_mut(attr_name)
     }
 
     /// Returns the attribute specified by it's localname and namespace
     ///
     /// [MDN getAttributeNodeNS](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNodeNS)
-    fn get_attribute_node_ns<'a, N, NS>(
+    fn get_attribute_node_ns<'a>(
         &'a self,
-        namespace: &NS,
-        name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes>::Attribute>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<Namespace = NS>>>,
-        NS: Atom,
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-    {
-        self.attributes().get_named_item_ns(namespace, name)
-    }
+        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
+        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
 
     /// Returns whether the element has the specified attribute or not.
     ///
@@ -330,7 +308,8 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         self.get_attribute_node(name).is_some()
     }
 
-    /// Returns whether the element has the specified attribute or not by it's local name.
+    /// Returns whether the element has the specified attribute or not by a local name, only if that
+    /// attribute also has no prefix
     fn has_attribute_local<'a, N>(&'a self, name: &N) -> bool
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
@@ -374,7 +353,8 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         attrs.remove_named_item(attr_name);
     }
 
-    /// Removes the attribute with the specified local-name from the element.
+    /// Removes the attribute with the specified local name from the element, only if that
+    /// attribute also has no prefix
     fn remove_attribute_local<'a, N>(&'a self, attr_name: &N)
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
@@ -397,27 +377,26 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Sets the value of the specified attribute on the specified element.
     ///
     /// [MDN | setAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/setAttribute)
-    fn set_attribute<'a, N, V>(&'a self, attr_name: N, value: V)
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Atom = V>>,
-        N: Name,
-        V: Atom,
-    {
+    fn set_attribute<'a>(
+        &'a self,
+        attr_name: <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+        value: <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Atom,
+    ) {
         let attrs = self.attributes();
-        attrs.set_named_item((attr_name, value).into());
+        let new_attr = <Self::Attributes<'a> as Attributes<'a>>::Attribute::new(attr_name, value);
+        attrs.set_named_item(new_attr);
     }
 
-    /// Sets the value of the specified attribute on the specified element by local-name.
-    fn set_attribute_local<'a, N, V>(&'a self, attr_name: N, value: V)
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Atom = V>>,
-        N: Atom,
-        V: Atom,
-    {
+    /// Sets the value of the specified attribute on the element by local name, without any prefix
+    fn set_attribute_local(
+        &self,
+        attr_name: <<Self::Attr as Attr>::Name as Name>::LocalName,
+        value: <Self::Attr as Attr>::Atom,
+    ) {
         let attrs = self.attributes();
-        attrs.set_named_item((attr_name, value).into());
+        let qual_name = <Self::Attr as Attr>::Name::new(None, attr_name);
+        let new_attr = Self::Attr::new(qual_name, value);
+        attrs.set_named_item(new_attr);
     }
 
     /// Returns the element's parent element.

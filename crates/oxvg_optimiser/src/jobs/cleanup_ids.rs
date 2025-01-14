@@ -3,11 +3,11 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 
+use derive_where::derive_where;
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::Deserialize;
@@ -26,33 +26,35 @@ struct GeneratedId {
 }
 
 #[derive(Debug)]
-struct RefRename {
-    element_ref: Box<dyn node::Ref>,
-    local_name: String,
+#[derive_where(Clone)]
+struct RefRename<E: Element> {
+    element_ref: E,
+    name: <E::Attr as Attr>::Name,
     referenced_id: String,
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct CleanupIds {
+struct Options {
     remove: Option<bool>,
     minify: Option<bool>,
     preserve: Option<Vec<String>>,
     preserve_prefixes: Option<Vec<String>>,
     force: Option<bool>,
-    #[serde(skip_deserializing)]
+}
+
+#[derive(Debug)]
+#[derive_where(Clone, Default)]
+pub struct CleanupIds<E: Element> {
+    options: Options,
     ignore_document: bool,
-    #[serde(skip_deserializing)]
     replaceable_ids: BTreeSet<String>,
-    #[serde(skip_deserializing)]
     id_renames: RefCell<BTreeMap<String, String>>,
-    #[serde(skip_deserializing)]
-    ref_renames: RefCell<Vec<RefRename>>,
-    #[serde(skip_deserializing)]
+    ref_renames: RefCell<Vec<RefRename<E>>>,
     generated_id: RefCell<GeneratedId>,
 }
 
-impl<E: Element> Visitor<E> for CleanupIds {
+impl<E: Element> Visitor<E> for CleanupIds<E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -76,7 +78,7 @@ impl<E: Element> Visitor<E> for CleanupIds {
         let mut generated_id = self.generated_id.borrow_mut();
         // Find references in attributes
         let mut ref_renames = self.ref_renames.borrow_mut();
-        for attr in element.attributes().iter() {
+        for attr in element.attributes().into_iter() {
             let name = attr.name();
             let local_name = name.local_name();
             let value = attr.value();
@@ -90,8 +92,8 @@ impl<E: Element> Visitor<E> for CleanupIds {
                     if self.replaceable_ids.contains(item) {
                         log::debug!("CleanupIds::run: found potential reference: {item}");
                         ref_renames.push(RefRename {
-                            element_ref: element.as_ref(),
-                            local_name: name.to_string(),
+                            element_ref: element.clone(),
+                            name: name.clone(),
                             referenced_id: item.to_string(),
                         });
                     } else {
@@ -104,7 +106,7 @@ impl<E: Element> Visitor<E> for CleanupIds {
     }
 
     fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
-        let remove = self.remove.unwrap_or(REMOVE_DEFAULT);
+        let remove = self.options.remove.unwrap_or(REMOVE_DEFAULT);
 
         let Some(root) = &document.find_element() else {
             return Ok(());
@@ -114,24 +116,21 @@ impl<E: Element> Visitor<E> for CleanupIds {
         let mut generated_id = self.generated_id.borrow_mut();
         for RefRename {
             element_ref,
-            local_name,
+            name,
             referenced_id,
         } in self.ref_renames.borrow().iter()
         {
-            let element = element_ref
-                .inner_as_any()
-                .downcast_ref::<E::ParentChild>()
-                .expect("cleanup ids used with inconsistent types");
-            let element = element.element().expect("memoised invalid node type");
-            let Some(ref mut attr) = element.get_attribute(&local_name.as_str().into()) else {
-                log::debug!("CleanupIds::breakdown: {local_name} attribute missing");
+            let element = element_ref;
+            let Some(ref mut attr) = element.get_attribute_node_mut(name) else {
+                log::debug!("CleanupIds::breakdown: {name:?} attribute missing");
                 continue;
             };
             let minified_id = used_ids
                 .get(referenced_id)
                 .unwrap_or(&generated_id.current)
                 .clone();
-            let replacements = replace_id_in_attr(attr.to_string(), referenced_id, &minified_id);
+            let replacements =
+                replace_id_in_attr(attr.value().to_string(), referenced_id, &minified_id);
             if replacements.count() == &0 {
                 continue;
             }
@@ -141,11 +140,11 @@ impl<E: Element> Visitor<E> for CleanupIds {
             if is_new {
                 generated_id.next();
             }
-            if self.minify.unwrap_or(MINIFY_DEFAULT) {
+            if self.options.minify.unwrap_or(MINIFY_DEFAULT) {
                 log::debug!(
-                    "CleanupIds::breakdown: updating reference: {local_name} <-> {referenced_id}"
+                    "CleanupIds::breakdown: updating reference: {name:?} <-> {referenced_id}"
                 );
-                element.set_attribute(local_name.as_str().into(), replacements.0.as_str().into());
+                attr.set_value(replacements.0.as_str().into());
             }
         }
         log::debug!(
@@ -155,16 +154,17 @@ impl<E: Element> Visitor<E> for CleanupIds {
         );
         let id_localname = "id".into();
         for element in root.select("[id]").unwrap() {
-            let Some(id) = element.get_attribute_local(&id_localname) else {
+            let Some(mut attr) = element.get_attribute_node_local_mut(&id_localname) else {
                 continue;
             };
-            let id = id.to_string();
+            let id = attr.value().to_string();
             if let Some(rename) = used_ids
                 .get(&id)
                 .or_else(|| used_ids.get(&urlencoding::encode(&id).to_string()))
             {
-                element.set_attribute_local(id_localname.clone(), rename.to_string().into());
+                attr.set_value(rename.as_str().into());
             } else if remove && self.replaceable_ids.contains(&id) {
+                drop(attr);
                 element.remove_attribute_local(&id_localname);
             };
         }
@@ -172,9 +172,9 @@ impl<E: Element> Visitor<E> for CleanupIds {
     }
 }
 
-impl CleanupIds {
-    fn prepare_ignore_document(&mut self, root: &impl Element, context_flags: &ContextFlags) {
-        if self.force == Some(true) {
+impl<E: Element> CleanupIds<E> {
+    fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
+        if self.options.force == Some(true) {
             // Then we don't care, just pretend we don't have a script or style
             self.ignore_document = false;
             return;
@@ -193,8 +193,8 @@ impl CleanupIds {
         let mut preserved_ids = Vec::new();
         log::debug!(
             "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",
-            &self.preserve,
-            &self.preserve_prefixes
+            &self.options.preserve,
+            &self.options.preserve_prefixes
         );
         // Find ids
         let id_localname = &"id".into();
@@ -205,15 +205,18 @@ impl CleanupIds {
             let value = attr.to_string();
             log::debug!("CleanupIds: prepare_id: found id: {value}");
             if self.replaceable_ids.contains(&value) || value.chars().all(char::is_numeric) {
+                drop(attr);
                 element.remove_attribute_local(id_localname);
                 log::debug!("CleanupIds: prepare_id: removed redundant id: {value}");
                 continue;
             }
             let is_preserved_prefix = self
+                .options
                 .preserve_prefixes
                 .as_ref()
                 .is_some_and(|prefixes| prefixes.iter().any(|prefix| value.starts_with(prefix)));
             let is_preserve = self
+                .options
                 .preserve
                 .as_ref()
                 .is_some_and(|preserve| preserve.contains(&value));
@@ -230,6 +233,19 @@ impl CleanupIds {
         self.generated_id
             .borrow_mut()
             .set_prevent_collision(preserved_ids);
+    }
+}
+
+impl<'de, E: Element> Deserialize<'de> for CleanupIds<E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let options = Options::deserialize(deserializer)?;
+        Ok(Self {
+            options,
+            ..Self::default()
+        })
     }
 }
 
@@ -338,16 +354,6 @@ impl Default for GeneratedId {
         Self {
             current: String::from("a"),
             prevent_collision: BTreeSet::default(),
-        }
-    }
-}
-
-impl Clone for RefRename {
-    fn clone(&self) -> Self {
-        Self {
-            element_ref: self.element_ref.clone(),
-            local_name: self.local_name.clone(),
-            referenced_id: self.referenced_id.clone(),
         }
     }
 }

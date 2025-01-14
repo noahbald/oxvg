@@ -1,26 +1,25 @@
-use core::panic;
 use std::{
-    cell::{Cell, RefCell, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::VecDeque,
-    fmt::{Debug, Display},
+    fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
+    ops::Deref,
     rc::Rc,
 };
 
 use markup5ever::{
-    local_name, tendril::StrTendril, Attribute, LocalName, Namespace, NamespaceStaticSet, Prefix,
-    QualName,
+    local_name, tendril::StrTendril, Attribute, LocalName, Namespace, Prefix, QualName,
 };
 use rcdom::NodeData;
+use xml5ever::{namespace_url, ns};
 
 use crate::{
-    atom::Atom,
-    attribute::{Attr, Attributes},
+    attribute::{Attr, Attributes, AttributesIter, AttributesIterMut},
     class_list::ClassList,
     document::Document,
     element::{self, Element},
     name::Name,
-    node::{self, Node, Ref},
+    node::{self, Node},
 };
 
 #[cfg(feature = "parse")]
@@ -28,60 +27,6 @@ use crate::parse;
 
 #[cfg(feature = "serialize")]
 use crate::serialize;
-
-macro_rules! atom {
-    ($name:ident) => {
-        impl Atom for $name {}
-
-        impl From<&str> for $name {
-            fn from(value: &str) -> Self {
-                Self(value.into())
-            }
-        }
-
-        impl From<$name> for String {
-            fn from(val: $name) -> Self {
-                val.0.to_string()
-            }
-        }
-
-        impl From<String> for $name {
-            fn from(value: String) -> Self {
-                Self(value.into())
-            }
-        }
-
-        impl From<&$name> for String {
-            fn from(val: &$name) -> Self {
-                val.0.to_string()
-            }
-        }
-
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                self.0.as_ref()
-            }
-        }
-
-        impl Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Display::fmt(&self.0, f)
-            }
-        }
-    };
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Atom5Ever(StrTendril);
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Prefix5Ever(Prefix);
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LocalName5Ever(LocalName);
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Namespace5Ever(string_cache::Atom<NamespaceStaticSet>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct QualName5Ever(QualName);
@@ -98,7 +43,7 @@ pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
 pub struct ClassList5Ever<'a> {
     attrs: Attributes5Ever<'a>,
     class_index_memo: Cell<usize>,
-    tokens: Vec<Atom5Ever>,
+    tokens: Vec<StrTendril>,
 }
 
 #[derive(Clone)]
@@ -116,45 +61,46 @@ pub struct Element5Ever {
 
 pub struct Document5Ever(Element5Ever);
 
-atom!(Atom5Ever);
-atom!(LocalName5Ever);
-atom!(Prefix5Ever);
-atom!(Namespace5Ever);
+impl Name for QualName {
+    type LocalName = LocalName;
+    type Prefix = Prefix;
+    type Namespace = Namespace;
 
-impl Name for QualName5Ever {
-    type LocalName = LocalName5Ever;
-    type Prefix = Prefix5Ever;
-    type Namespace = Namespace5Ever;
-
-    fn local_name(&self) -> Self::LocalName {
-        LocalName5Ever(self.0.local.clone())
-    }
-
-    fn prefix(&self) -> Option<Self::Prefix> {
-        Some(Prefix5Ever(self.0.prefix.clone()?))
-    }
-
-    fn ns(&self) -> Self::Namespace {
-        Namespace5Ever(self.0.ns.clone())
-    }
-
-    fn len(&self) -> usize {
-        match &self.0.prefix {
-            Some(prefix) => prefix.len() + 1 + self.0.local.len(),
-            None => self.0.local.len(),
+    fn new(prefix: Option<Self::Prefix>, local: Self::LocalName) -> Self {
+        QualName {
+            prefix,
+            local,
+            ns: Namespace::default(),
         }
+    }
+
+    fn local_name(&self) -> &Self::LocalName {
+        &self.local
+    }
+
+    fn prefix(&self) -> &Option<Self::Prefix> {
+        &self.prefix
+    }
+
+    fn ns(&self) -> &Self::Namespace {
+        &self.ns
     }
 
     fn is_empty(&self) -> bool {
-        match self.0.prefix {
+        match self.prefix {
             Some(_) => false,
-            None => self.0.local.is_empty(),
+            None => self.local.is_empty(),
         }
     }
-}
 
-impl From<&str> for QualName5Ever {
-    fn from(value: &str) -> Self {
+    fn len(&self) -> usize {
+        match &self.prefix {
+            Some(p) => p.len() + 1 + self.local.len(),
+            None => self.local.len(),
+        }
+    }
+
+    fn parse(value: &str) -> Self {
         let mut parts = value.split(':');
         let prefix_or_local = parts
             .next()
@@ -163,208 +109,134 @@ impl From<&str> for QualName5Ever {
         assert_eq!(parts.next(), None);
 
         match maybe_local {
-            Some(local) => Self(QualName {
+            Some(local) => QualName {
                 prefix: Some(prefix_or_local.into()),
                 local: local.into(),
                 ns: string_cache::Atom::default(),
-            }),
-            None => Self(QualName {
+            },
+            None => QualName {
                 prefix: None,
                 local: prefix_or_local.into(),
                 ns: string_cache::Atom::default(),
-            }),
+            },
         }
     }
 }
 
-impl Default for QualName5Ever {
-    fn default() -> Self {
-        Self(QualName::new(None, Namespace::default(), "".into()))
-    }
-}
+impl Attr for Attribute {
+    type Atom = StrTendril;
+    type Name = QualName;
 
-impl From<String> for QualName5Ever {
-    fn from(value: String) -> Self {
-        value.as_str().into()
-    }
-}
-
-impl Display for QualName5Ever {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let local = &self.0.local;
-        match &self.0.prefix {
-            Some(prefix) => f.write_fmt(format_args!("{prefix}:{local}")),
-            None => Display::fmt(&local, f),
-        }
-    }
-}
-
-impl Ord for QualName5Ever {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
-impl PartialOrd for QualName5Ever {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Attr for Attribute5Ever<'_> {
-    type Atom = Atom5Ever;
-    type Name = QualName5Ever;
-
-    fn value(&self) -> Self::Atom {
-        Atom5Ever(self.inner().value.clone())
+    fn new(name: Self::Name, value: Self::Atom) -> Self {
+        Attribute { name, value }
     }
 
-    fn value_ref(&self) -> &str {
-        self.inner().value.as_ref()
+    fn name(&self) -> &Self::Name {
+        &self.name
+    }
+
+    fn name_mut(&mut self) -> &mut Self::Name {
+        &mut self.name
+    }
+
+    fn local_name(&self) -> &<Self::Name as Name>::LocalName {
+        &self.name.local
+    }
+
+    fn prefix(&self) -> &Option<<Self::Name as Name>::Prefix> {
+        &self.name.prefix
+    }
+
+    fn value(&self) -> &Self::Atom {
+        &self.value
+    }
+
+    fn value_mut(&mut self) -> &mut Self::Atom {
+        &mut self.value
     }
 
     fn set_value(&mut self, value: Self::Atom) -> Self::Atom {
-        Atom5Ever(std::mem::replace(&mut self.inner_mut().value, value.0))
-    }
-
-    fn name(&self) -> Self::Name {
-        QualName5Ever(self.inner().name.clone())
-    }
-
-    fn into_owned(self) -> Self {
-        match self {
-            Self::Owned(_) => self,
-            Self::Borrowed(attr) => Self::Owned(attr.clone()),
-        }
+        std::mem::replace(&mut self.value, value)
     }
 
     fn presentation(&self) -> Option<crate::style::PresentationAttr> {
-        match self {
-            Self::Borrowed(attr) => {
-                attr.name.prefix.as_ref()?;
-                let id = crate::style::PresentationAttrId::from(attr.name.local.as_ref());
-                crate::style::PresentationAttr::parse_string(
-                    id,
-                    attr.name.local.as_ref(),
-                    lightningcss::stylesheet::ParserOptions::default(),
-                )
-                .ok()
-            }
-            Self::Owned(attr) => {
-                attr.name.prefix.as_ref()?;
-                let id = crate::style::PresentationAttrId::from(attr.name.local.as_ref());
-                crate::style::PresentationAttr::parse_string(
-                    id,
-                    attr.name.local.as_ref(),
-                    lightningcss::stylesheet::ParserOptions::default(),
-                )
-                .ok()
-            }
-        }
-    }
-}
-
-impl Attribute5Ever<'_> {
-    /// Returns the associated attribute
-    fn inner(&self) -> &Attribute {
-        match self {
-            Self::Owned(attr) => attr,
-            Self::Borrowed(attr) => attr,
-        }
-    }
-
-    /// Mutable returns the associated attribute
-    fn inner_mut(&mut self) -> &mut Attribute {
-        match self {
-            Self::Owned(attr) => attr,
-            Self::Borrowed(attr) => attr,
-        }
-    }
-}
-
-impl PartialEq for Attribute5Ever<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.inner() == other.inner()
-    }
-}
-
-impl From<(QualName5Ever, Atom5Ever)> for Attribute5Ever<'_> {
-    fn from(value: (QualName5Ever, Atom5Ever)) -> Self {
-        let (QualName5Ever(name), Atom5Ever(value)) = value;
-        Self::Owned(Attribute { name, value })
-    }
-}
-
-impl From<(LocalName5Ever, Atom5Ever)> for Attribute5Ever<'_> {
-    fn from(value: (LocalName5Ever, Atom5Ever)) -> Self {
-        let (LocalName5Ever(name), Atom5Ever(value)) = value;
-        Self::Owned(Attribute {
-            name: QualName {
-                local: name,
-                prefix: None,
-                ns: string_cache::Atom::default(),
-            },
-            value,
-        })
-    }
-}
-
-impl Display for Attribute5Ever<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let name = self.name();
-        let value = self.value();
-        f.write_fmt(format_args!(r#"{name}="{value}""#))
+        self.name.prefix.as_ref()?;
+        let id = crate::style::PresentationAttrId::from(self.name.local.as_ref());
+        crate::style::PresentationAttr::parse_string(
+            id,
+            self.name.local.as_ref(),
+            lightningcss::stylesheet::ParserOptions::default(),
+        )
+        .ok()
     }
 }
 
 impl<'a> Attributes<'a> for Attributes5Ever<'a> {
-    type Attribute = Attribute5Ever<'a>;
+    type Attribute = Attribute;
+    type Deref = Ref<'a, Attribute>;
+    type DerefMut = RefMut<'a, Attribute>;
 
     fn len(&self) -> usize {
         self.0.borrow().len()
     }
 
-    fn item(&self, index: usize) -> Option<Self::Attribute> {
-        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| v.get_mut(index)).ok()?;
-        Some(Attribute5Ever::Borrowed(attr))
+    fn item(&self, index: usize) -> Option<Self::Deref> {
+        Ref::filter_map(self.0.borrow(), |v| v.get(index)).ok()
     }
 
-    fn get_named_item(&self, name: &QualName5Ever) -> Option<Self::Attribute> {
-        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
+    fn item_mut(&self, index: usize) -> Option<Self::DerefMut> {
+        RefMut::filter_map(self.0.borrow_mut(), |v| v.get_mut(index)).ok()
+    }
+
+    fn get_named_item(&self, name: &QualName) -> Option<Self::Deref> {
+        Ref::filter_map(self.0.borrow(), |v| {
+            v.iter()
+                .find(|a| a.name.prefix == name.prefix && a.name.local == name.local)
+        })
+        .ok()
+    }
+
+    fn get_named_item_mut(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::DerefMut> {
+        RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut()
-                .find(|a| a.name.prefix == name.0.prefix && a.name.local == name.0.local)
+                .find(|a| a.name.prefix == name.prefix && a.name.local == name.local)
         })
-        .ok()?;
-        Some(Attribute5Ever::Borrowed(attr))
+        .ok()
     }
 
-    fn get_named_item_local(&self, name: &LocalName5Ever) -> Option<Self::Attribute> {
-        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
-            v.iter_mut().find(|a| a.name.local == name.0)
+    fn get_named_item_local(&self, name: &LocalName) -> Option<Self::Deref> {
+        Ref::filter_map(self.0.borrow(), |v| {
+            v.iter()
+                .find(|a| a.prefix().is_none() && &a.name.local == name)
         })
-        .ok()?;
-        Some(Attribute5Ever::Borrowed(attr))
+        .ok()
     }
 
-    fn get_named_item_ns(
+    fn get_named_item_local_mut(
         &self,
-        namespace: &Namespace5Ever,
-        name: &LocalName5Ever,
-    ) -> Option<Self::Attribute> {
-        let attr = RefMut::filter_map(self.0.borrow_mut(), |v| {
+        name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Self::DerefMut> {
+        RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut()
-                .find(|a| a.name.local == name.0 && a.name.ns == namespace.0)
+                .find(|a| a.prefix().is_none() && &a.name.local == name)
         })
-        .ok()?;
-        Some(Attribute5Ever::Borrowed(attr))
+        .ok()
+    }
+
+    fn get_named_item_ns(&self, namespace: &Namespace, name: &LocalName) -> Option<Self::Deref> {
+        Ref::filter_map(self.0.borrow(), |v| {
+            v.iter()
+                .find(|a| &a.name.local == name && &a.name.ns == namespace)
+        })
+        .ok()
     }
 
     fn remove_named_item(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::Attribute> {
         let mut attrs = self.0.borrow_mut();
         let index = attrs
             .iter()
-            .position(|a| a.name.prefix == name.0.prefix && a.name.local == name.0.local)?;
-        Some(Attribute5Ever::Owned(attrs.remove(index)))
+            .position(|a| a.name.prefix == name.prefix && a.name.local == name.local)?;
+        Some(attrs.remove(index))
     }
 
     fn remove_named_item_local(
@@ -372,23 +244,19 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
     ) -> Option<Self::Attribute> {
         let mut attrs = self.0.borrow_mut();
-        let index = attrs.iter().position(|a| a.name.local == name.0)?;
-        Some(Attribute5Ever::Owned(attrs.remove(index)))
+        let index = attrs
+            .iter()
+            .position(|a| a.name.prefix.is_none() && &a.name.local == name)?;
+        Some(attrs.remove(index))
     }
 
     fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute> {
-        let Attribute5Ever::Owned(attr) = attr else {
-            panic!("Tried setting attribute to borrowed value, try cloning first");
-        };
         let attrs = &mut *self.0.borrow_mut();
         if let Some(index) = attrs
             .iter()
             .position(|a| a.name.prefix == attr.name.prefix && a.name.local == attr.name.local)
         {
-            Some(Attribute5Ever::Owned(std::mem::replace(
-                &mut attrs[index],
-                attr,
-            )))
+            Some(std::mem::replace(&mut attrs[index], attr))
         } else {
             attrs.push(attr);
             None
@@ -400,18 +268,16 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         name: <Self::Attribute as Attr>::Name,
         value: <Self::Attribute as Attr>::Atom,
     ) -> Option<Self::Attribute> {
-        let attr = Attribute5Ever::Owned(Attribute {
-            name: name.0,
-            value: value.0,
-        });
+        let attr = Attribute { name, value };
         self.set_named_item(attr)
     }
 
-    fn iter(&self) -> impl Iterator<Item = Self::Attribute> {
-        AttributesIterator {
-            index: 0,
-            attrs_ref: self.0,
-        }
+    fn into_iter(self) -> AttributesIter<'a, Self> {
+        AttributesIter::new(self)
+    }
+
+    fn into_iter_mut(self) -> crate::attribute::AttributesIterMut<'a, Self> {
+        AttributesIterMut::new(self)
     }
 
     fn sort(&self, order: &[String], xmlns_front: bool) {
@@ -468,51 +334,31 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
 
     fn retain<F>(&self, mut f: F)
     where
-        F: FnMut(Self::Attribute) -> bool,
+        F: FnMut(&Self::Attribute) -> bool,
     {
-        self.0
-            .borrow_mut()
-            .retain(|attr| f(Attribute5Ever::Owned(attr.clone())));
+        self.0.borrow_mut().retain(|attr| f(attr));
     }
 }
 
 impl Debug for Attributes5Ever<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Attribute5Ever { ")?;
-        self.iter()
-            .try_for_each(|a| f.write_fmt(format_args!(r#"{}="{}" "#, a.name(), a.value())))?;
+        f.write_str("Attributes5Ever { ")?;
+        self.0.borrow().iter().try_for_each(|a| {
+            f.write_fmt(format_args!(r#"{}="{}" "#, a.name.formatter(), a.value))
+        })?;
         f.write_str("} ")
     }
 }
 
-struct AttributesIterator<'a> {
-    index: usize,
-    attrs_ref: &'a RefCell<Vec<Attribute>>,
-}
-
-impl<'a> Iterator for AttributesIterator<'a> {
-    type Item = Attribute5Ever<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result =
-            RefMut::filter_map(self.attrs_ref.borrow_mut(), |v| v.get_mut(self.index)).ok()?;
-        let result = Attribute5Ever::Borrowed(result);
-        self.index += 1;
-        Some(result)
-    }
-}
-
 impl<'a> ClassList for ClassList5Ever<'a> {
-    type Attribute = Attribute5Ever<'a>;
+    type Attribute = Attribute;
 
     fn length(&self) -> usize {
         self.tokens.len()
     }
 
     fn value(&self) -> <Self::Attribute as Attr>::Atom {
-        self.attr()
-            .map(|a| Atom5Ever(a.value.clone()))
-            .unwrap_or_default()
+        self.attr().map(|a| a.value.clone()).unwrap_or_default()
     }
 
     fn add(&mut self, token: <Self::Attribute as Attr>::Atom) {
@@ -520,19 +366,19 @@ impl<'a> ClassList for ClassList5Ever<'a> {
             return;
         };
         let Some(mut attr) = self.attr() else {
-            self.attrs.set_named_item(Attribute5Ever::Owned(Attribute {
+            self.attrs.set_named_item(Attribute {
                 name: QualName {
                     prefix: None,
                     local: local_name!("class"),
-                    ns: Namespace::default(),
+                    ns: ns!(html),
                 },
-                value: token.0.clone(),
-            }));
+                value: token.clone(),
+            });
             self.tokens.push(token);
             return;
         };
 
-        attr.value.push_tendril(&token.0);
+        attr.value.push_tendril(&token);
     }
 
     fn contains(&self, token: &<Self::Attribute as Attr>::Atom) -> bool {
@@ -560,16 +406,15 @@ impl<'a> ClassList for ClassList5Ever<'a> {
         new_value.push_tendril(&attr.value.subtendril(end, attr.value.len() as u32 - end));
         drop(attr);
         if new_value.trim().is_empty() {
-            self.attrs
-                .remove_named_item_local(&LocalName5Ever(local_name!("class")));
+            self.attrs.remove_named_item_local(&local_name!("class"));
         } else {
             self.attrs.set_named_item_qual(
-                QualName5Ever(QualName {
+                QualName {
                     prefix: None,
                     local: local_name!("class"),
                     ns: Namespace::default(),
-                }),
-                Atom5Ever(new_value),
+                },
+                new_value,
             );
         }
     }
@@ -587,20 +432,20 @@ impl<'a> ClassList for ClassList5Ever<'a> {
             return false;
         };
 
-        let token_tendril = new_token.0.clone();
-        self.tokens[index] = new_token;
         let attr = self.attr().expect("had token");
         let mut new_value = attr.value.subtendril(0, start);
-        new_value.push_tendril(&token_tendril);
+        new_value.push_tendril(&new_token);
         new_value.push_tendril(&attr.value.subtendril(end, attr.value.len() as u32 - end));
+        drop(attr);
+        self.tokens[index] = new_token;
 
         self.attrs.set_named_item_qual(
-            QualName5Ever(QualName {
+            QualName {
                 prefix: None,
                 local: local_name!("class"),
                 ns: Namespace::default(),
-            }),
-            Atom5Ever(new_value),
+            },
+            new_value,
         );
         true
     }
@@ -628,7 +473,7 @@ impl<'a> ClassList5Ever<'a> {
                 start = i;
                 end = i;
             } else if char.is_whitespace() {
-                if end - start == token.0.len() {
+                if end - start == token.len() {
                     break;
                 }
                 saw_whitespace = true;
@@ -637,13 +482,13 @@ impl<'a> ClassList5Ever<'a> {
             if skip_to_next_word {
                 continue;
             }
-            if token.0.chars().nth(end - start).is_some_and(|c| c == char) {
+            if token.chars().nth(end - start).is_some_and(|c| c == char) {
                 end = i + 1;
                 continue;
             }
             skip_to_next_word = true;
         }
-        if end - start < token.0.len() || skip_to_next_word {
+        if end - start < token.len() || skip_to_next_word {
             return None;
         }
         Some((start as u32, end as u32))
@@ -744,7 +589,7 @@ impl Node5Ever {
 }
 
 impl Node for Node5Ever {
-    type Atom = Atom5Ever;
+    type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
 
@@ -880,10 +725,10 @@ impl Node for Node5Ever {
     fn node_name(&self) -> Self::Atom {
         match &self.0.data {
             NodeData::Comment { .. } => "#comment".into(),
-            NodeData::Doctype { name, .. } => Atom5Ever(name.clone()),
+            NodeData::Doctype { name, .. } => name.clone(),
             NodeData::Document => "#document".into(),
             NodeData::Element { name, .. } => name.local.to_uppercase().into(),
-            NodeData::ProcessingInstruction { target, .. } => Atom5Ever(target.clone()),
+            NodeData::ProcessingInstruction { target, .. } => target.clone(),
             NodeData::Text { .. } => "#text".into(),
         }
     }
@@ -891,18 +736,16 @@ impl Node for Node5Ever {
     fn node_value(&self) -> Option<Self::Atom> {
         Some(match &self.0.data {
             NodeData::Comment { contents } | NodeData::ProcessingInstruction { contents, .. } => {
-                Atom5Ever(contents.clone())
+                contents.clone()
             }
-            NodeData::Text { contents } => Atom5Ever(contents.borrow().clone()),
+            NodeData::Text { contents } => contents.borrow().clone(),
             _ => return None,
         })
     }
 
-    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
+    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)> {
         match &self.0.data {
-            NodeData::ProcessingInstruction { target, contents } => {
-                Some((Atom5Ever(target.clone()), Atom5Ever(contents.clone())))
-            }
+            NodeData::ProcessingInstruction { target, contents } => Some((target, contents)),
             _ => None,
         }
     }
@@ -910,7 +753,7 @@ impl Node for Node5Ever {
     fn try_set_node_value(&self, value: Self::Atom) -> Option<()> {
         match &self.0.data {
             NodeData::Text { contents } => {
-                contents.replace(value.0);
+                contents.replace(value);
                 Some(())
             }
             _ => None,
@@ -937,7 +780,7 @@ impl Node for Node5Ever {
             parent: Cell::new(None),
             children: RefCell::new(vec![]),
             data: NodeData::Text {
-                contents: RefCell::new(content.0),
+                contents: RefCell::new(content),
             },
         }))
     }
@@ -1073,8 +916,9 @@ impl serialize::Node for Node5Ever {
 }
 
 impl Element for Element5Ever {
-    type Name = QualName5Ever;
+    type Name = QualName;
     type Attributes<'a> = Attributes5Ever<'a>;
+    type Attr = Attribute;
 
     fn new(node: Node5Ever) -> Option<Self> {
         if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {
@@ -1099,8 +943,8 @@ impl Element for Element5Ever {
         self.node.node_name()
     }
 
-    fn qual_name(&self) -> Self::Name {
-        QualName5Ever(self.data().name.clone())
+    fn qual_name(&self) -> &Self::Name {
+        self.data().name
     }
 
     fn replace_children(&self, children: Vec<Self::Child>) {
@@ -1120,7 +964,7 @@ impl Element for Element5Ever {
     fn set_local_name(&mut self, new_name: <Self::Name as Name>::LocalName) {
         let mut data = self.node.clone_node_data();
         if let rcdom::NodeData::Element { name, .. } = &mut data {
-            name.local = new_name.0;
+            name.local = new_name;
         };
         let clone = Node5Ever(Rc::new(rcdom::Node {
             parent: Cell::new(None),
@@ -1152,22 +996,21 @@ impl Element for Element5Ever {
 
     #[allow(refining_impl_trait)]
     fn class_list(&self) -> ClassList5Ever {
-        let attrs = self.attributes();
-        let attr = attrs.get_named_item_local(&LocalName5Ever(local_name!("class")));
-        let tokens = attr
-            .as_ref()
-            .map(|a| a.value().0.split_whitespace().map(Into::into).collect())
-            .unwrap_or_default();
         ClassList5Ever {
-            attrs,
+            attrs: self.attributes(),
             class_index_memo: Cell::new(0),
-            tokens,
+            tokens: self
+                .attributes()
+                .get_named_item_local(&local_name!("class"))
+                .as_ref()
+                .map(|a| a.value().split_whitespace().map(Into::into).collect())
+                .unwrap_or_default(),
         }
     }
 
     fn has_class(&self, token: &Self::Atom) -> bool {
-        let token = Atom5Ever(token.0.trim_start_matches('.').into());
-        self.class_list().contains(&token)
+        let token = token.trim_start_matches('.');
+        self.class_list().contains(&token.into())
     }
 
     fn document(&self) -> Option<Self> {
@@ -1222,6 +1065,79 @@ impl Element for Element5Ever {
         None
     }
 
+    #[allow(refining_impl_trait)]
+    fn get_attribute_node<'a>(
+        &'a self,
+        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<Ref<<Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item(attr_name)
+    }
+
+    fn get_attribute_node_mut<'a>(
+        &'a self,
+        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<impl std::ops::DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>
+    {
+        self.attributes().get_named_item_mut(attr_name)
+    }
+
+    #[allow(refining_impl_trait)]
+    fn get_attribute_node_local<'a>(
+        &'a self,
+        attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Ref<<Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_local(attr_name)
+    }
+
+    #[allow(refining_impl_trait)]
+    fn get_attribute_node_ns<'a>(
+        &'a self,
+        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
+        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_ns(namespace, name)
+    }
+
+    fn get_attribute<'a>(
+        &'a self,
+        name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> Option<impl Deref<Target = Self::Atom>> {
+        self.get_attribute_node(name)
+            .map(|a| Ref::map(a, |a| &a.value))
+    }
+
+    #[allow(refining_impl_trait)]
+    fn get_attribute_local(
+        &self,
+        name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
+    ) -> Option<Ref<Self::Atom>> {
+        self.get_attribute_node_local(name)
+            .map(|a| Ref::map(a, |a| &a.value))
+    }
+
+    #[allow(refining_impl_trait)]
+    fn get_attribute_ns<'a>(
+        &'a self,
+        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
+        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
+    ) -> Option<Ref<Self::Atom>> {
+        self.get_attribute_node_ns(namespace, name)
+            .map(|a| Ref::map(a, |a| &a.value))
+    }
+
+    fn get_attribute_names(
+        &self,
+    ) -> Vec<impl Deref<Target = <<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>>
+    {
+        let mut output = vec![];
+        let i = 0;
+        while let Ok(r) = Ref::filter_map(self.attributes().0.borrow(), |a| a.get(i)) {
+            let r = Ref::map(r, |r| &r.name);
+            output.push(r);
+        }
+        output
+    }
+
     fn for_each_element_child<F>(&self, mut f: F)
     where
         F: FnMut(Self),
@@ -1267,7 +1183,7 @@ impl PartialEq for Element5Ever {
 }
 
 impl Node for Element5Ever {
-    type Atom = Atom5Ever;
+    type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
 
@@ -1279,7 +1195,7 @@ impl Node for Element5Ever {
         self.node.as_ptr_byte()
     }
 
-    fn as_ref(&self) -> Box<dyn Ref> {
+    fn as_ref(&self) -> Box<dyn node::Ref> {
         self.node.as_ref()
     }
 
@@ -1335,7 +1251,7 @@ impl Node for Element5Ever {
         self.node.node_type()
     }
 
-    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
+    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)> {
         None
     }
 
@@ -1455,7 +1371,7 @@ impl Debug for Element5Ever {
         if self.node_type() != node::Type::Element {
             return self.node.fmt(f);
         }
-        let name = self.qual_name();
+        let name = self.qual_name().formatter();
         let attributes = self.attributes();
         let text = self.text_content().map(|s| s.trim().to_string());
         let child_count = match self.node.0.children.borrow().len() {
@@ -1486,7 +1402,7 @@ impl parse::Node for Element5Ever {
     }
 
     fn parse_file(file: &std::fs::File) -> anyhow::Result<Self> {
-        let root = Node5Ever::parse_file(&file)?;
+        let root = Node5Ever::parse_file(file)?;
         match Node5Ever::find_element(&root) {
             Some(element) => Ok(element),
             None => Err(anyhow::Error::new(parse::Error::NoElementInDocument)),
@@ -1494,13 +1410,13 @@ impl parse::Node for Element5Ever {
     }
 }
 
-impl Ref for Node5EverRef {
+impl node::Ref for Node5EverRef {
     fn inner_as_any(&self) -> &dyn std::any::Any {
         let inner: &Node5Ever = self.0.as_ref();
         inner as &dyn std::any::Any
     }
 
-    fn clone(&self) -> Box<dyn Ref> {
+    fn clone(&self) -> Box<dyn node::Ref> {
         Box::new(Self(self.0.clone()))
     }
 }
@@ -1569,7 +1485,7 @@ impl selectors::Element for Element5Ever {
         if self.node_type() == node::Type::Document {
             false
         } else {
-            self.local_name() == local_name.0
+            self.local_name() == &local_name.0
         }
     }
 
@@ -1577,7 +1493,7 @@ impl selectors::Element for Element5Ever {
         &self,
         ns: &<Self::Impl as selectors::SelectorImpl>::BorrowedNamespaceUrl,
     ) -> bool {
-        self.qual_name().ns() == ns.0
+        self.qual_name().ns() == &ns.0
     }
 
     fn is_same_type(&self, other: &Self) -> bool {
@@ -1606,7 +1522,7 @@ impl selectors::Element for Element5Ever {
         let Some(value) = value else {
             return false;
         };
-        let string = value.0.as_ref();
+        let string = value.as_ref();
         operation.eval_str(string)
     }
 
@@ -1646,9 +1562,9 @@ impl selectors::Element for Element5Ever {
             return false;
         }
         matches!(
-            self.local_name().0,
-            local_name!("a") | local_name!("area") | local_name!("link")
-        ) && self.has_attribute_local(&LocalName5Ever(local_name!("href")))
+            self.local_name(),
+            &local_name!("a") | &local_name!("area") | &local_name!("link")
+        ) && self.has_attribute_local(&local_name!("href"))
     }
 
     fn is_html_slot_element(&self) -> bool {
@@ -1660,10 +1576,10 @@ impl selectors::Element for Element5Ever {
         id: &<Self::Impl as selectors::SelectorImpl>::Identifier,
         case_sensitivity: selectors::attr::CaseSensitivity,
     ) -> bool {
-        let Some(self_id) = self.get_attribute_local(&LocalName5Ever(local_name!("id"))) else {
+        let Some(self_id) = self.get_attribute_local(&local_name!("id")) else {
             return false;
         };
-        case_sensitivity.eq(id.0 .0.as_bytes(), self_id.0.as_bytes())
+        case_sensitivity.eq(id.0.as_bytes(), self_id.as_bytes())
     }
 
     fn has_class(
@@ -1675,13 +1591,11 @@ impl selectors::Element for Element5Ever {
             return false;
         }
 
-        let Some(self_class) = self.get_attribute_local(&LocalName5Ever(local_name!("class")))
-        else {
+        let Some(self_class) = self.get_attribute_local(&local_name!("class")) else {
             return false;
         };
-        let name = name.0 .0.as_bytes();
+        let name = name.0.as_bytes();
         self_class
-            .0
             .split_whitespace()
             .any(|c| case_sensitivity.eq(name, c.as_bytes()))
     }
@@ -1731,11 +1645,11 @@ impl selectors::Element for Element5Ever {
         self.prefix().hash(prefix_hash);
         f(prefix_hash.finish() as u32);
 
-        if let Some(id) = self.get_attribute(&QualName5Ever(QualName {
+        if let Some(id) = self.get_attribute(&QualName {
             prefix: None,
             ns: Namespace::default(),
             local: local_name!("id"),
-        })) {
+        }) {
             let id_hash = &mut DefaultHasher::default();
             id.hash(id_hash);
             f(prefix_hash.finish() as u32);
@@ -1747,7 +1661,7 @@ impl selectors::Element for Element5Ever {
             f(class_hash.finish() as u32);
         }
 
-        for attr in self.attributes().iter() {
+        for attr in self.attributes().into_iter() {
             let name = attr.name();
             if matches!(name.local_name().as_ref(), "class" | "id" | "style") {
                 continue;
@@ -1768,23 +1682,26 @@ impl Document for Document5Ever {
         &self.0
     }
 
-    fn create_attribute<'a>(&self, name: QualName5Ever) -> Attribute5Ever<'a> {
-        Attribute5Ever::Owned(Attribute {
-            name: name.0,
+    fn create_attribute<'a>(
+        &self,
+        name: <<<Self::Root as Element>::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> <<Self::Root as Element>::Attributes<'a> as Attributes<'a>>::Attribute {
+        Attribute {
+            name,
             value: StrTendril::default(),
-        })
+        }
     }
 
     fn create_c_data_section(&self, data: <Self::Root as Node>::Atom) -> Node5Ever {
         Self::create_node(rcdom::NodeData::Text {
-            contents: RefCell::new(data.0),
+            contents: RefCell::new(data),
         })
     }
 
     fn create_element(&self, tag_name: <Self::Root as Element>::Name) -> Self::Root {
         Element5Ever {
             node: Self::create_node(rcdom::NodeData::Element {
-                name: tag_name.0,
+                name: tag_name,
                 attrs: RefCell::new(vec![]),
                 template_contents: RefCell::new(None),
                 mathml_annotation_xml_integration_point: false,
@@ -1799,14 +1716,14 @@ impl Document for Document5Ever {
         data: <Self::Root as Node>::Atom,
     ) -> <Self::Root as Node>::Child {
         Self::create_node(rcdom::NodeData::ProcessingInstruction {
-            target: target.0,
-            contents: data.0,
+            target,
+            contents: data,
         })
     }
 
     fn create_text_node(&self, data: <Self::Root as Node>::Atom) -> <Self::Root as Node>::Child {
         Self::create_node(rcdom::NodeData::Text {
-            contents: RefCell::new(data.0),
+            contents: RefCell::new(data),
         })
     }
 }

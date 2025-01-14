@@ -45,7 +45,7 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
             return false;
         }
 
-        if element.has_attribute(&"id".into()) {
+        if element.has_attribute_local(&"id".into()) {
             log::debug!("flagged as id root");
             *id_rc_byte = Some(element.as_ptr_byte());
             return false;
@@ -178,7 +178,7 @@ impl RemoveUselessStrokeAndFill {
                     )
                 {
                     log::debug!("stroke is also inherited, setting to `none`");
-                    element.set_attribute("stroke".into(), "none".into());
+                    element.set_attribute_local("stroke".into(), "none".into());
                     is_stroke_eq_none = true;
                 }
             }
@@ -227,7 +227,7 @@ impl RemoveUselessStrokeAndFill {
             });
 
             if fill.is_none() || !is_fill_eq_none {
-                element.set_attribute("fill".into(), "none".into());
+                element.set_attribute_local("fill".into(), "none".into());
                 is_fill_eq_none = true;
             }
         }

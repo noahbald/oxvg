@@ -104,9 +104,9 @@ impl Parser {
         Ok(())
     }
 
-    pub fn parse(&mut self, definition: impl Into<String>) -> Result<Path, Error> {
+    pub fn parse(&mut self, definition: &str) -> Result<Path, Error> {
         self.cursor = 0;
-        for char in definition.into().chars() {
+        for char in definition.chars() {
             if char.is_whitespace() && self.current_number.is_empty() {
                 continue;
             }
