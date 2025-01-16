@@ -80,7 +80,7 @@ impl Path {
         let points_1 = Points::from_positioned(&convert::relative(self));
         let points_2 = Points::from_positioned(&convert::relative(other));
 
-        if dbg!(&points_1).max_x <= dbg!(&points_2).min_x
+        if points_1.max_x <= points_2.min_x
             || points_2.max_x <= points_1.min_x
             || points_1.max_y <= points_2.min_y
             || points_2.max_y <= points_1.min_y

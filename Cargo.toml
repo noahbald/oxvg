@@ -9,6 +9,7 @@ must_use_candidate = "allow"
 return_self_not_must_use = "allow"
 # Not a priority for svgo parity
 float_cmp = "allow"
+dbg_macro = "warn"
 
 [workspace.package]
 authors = ["Noah <noahwbaldwin@gmail.com>"]
@@ -48,13 +49,13 @@ xml5ever = "0.20"
 
 # Developer dependencies
 ctor = "0.2"
-divan = "0.1"
+criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = "0.11"
 insta = "1.42"
 pretty_assertions = "1.4"
 
 [profile.bench]
-debug-assertions = false
+inherits = "release"
 
 [profile.profiling]
 inherits = "release"

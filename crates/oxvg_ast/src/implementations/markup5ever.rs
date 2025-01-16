@@ -1434,6 +1434,7 @@ impl Element5Ever {
             log::debug!(
                 "You probably tried getting something element related from a document element. Check the stack trace."
             );
+            dbg!(&self.node);
             unreachable!("Element contains non-element data. This is a bug!")
         }
     }
@@ -1641,6 +1642,9 @@ impl selectors::Element for Element5Ever {
     }
 
     fn is_link(&self) -> bool {
+        if self.node_type() == node::Type::Document {
+            return false;
+        }
         matches!(
             self.local_name().0,
             local_name!("a") | local_name!("area") | local_name!("link")

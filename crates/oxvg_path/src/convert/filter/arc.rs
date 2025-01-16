@@ -416,7 +416,6 @@ impl Convert {
         let t = f64::tan(df / 4.0);
         let hx = (4.0 / 3.0) * rx * t;
         let hy = (4.0 / 3.0) * ry * t;
-        dbg!(x2, hx, s2, x1);
         let m = [
             -hx * s1,
             hy * c1,
@@ -425,7 +424,6 @@ impl Convert {
             x2 - x1,
             y2 - y1,
         ];
-        dbg!(m, &res);
         let res = m.into_iter().chain(res).collect();
         if recursive.is_some() {
             res

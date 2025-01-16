@@ -71,13 +71,16 @@ fn move_attributes_to_child(element: &impl Element) {
         return;
     }
 
-    if dbg!(is_group_identifiable(element, first_child))
-        || dbg!(is_position_visually_unstable(element, first_child))
-        || dbg!(is_node_with_filter(element))
-    {
-        log::debug!("collapse_groups: not moving attrs: see true condition");
+    if is_group_identifiable(element, first_child) {
+        log::debug!("collapse_groups: not moving attrs: identifiable");
         return;
-    };
+    } else if is_position_visually_unstable(element, first_child) {
+        log::debug!("collapse_groups: not moving attrs: visually unstable");
+        return;
+    } else if is_node_with_filter(element) {
+        log::debug!("collapse_groups: not moving attrs: filter");
+        return;
+    }
 
     let mut removals = Vec::default();
     let first_child_attrs = first_child.attributes();
