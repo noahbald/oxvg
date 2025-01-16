@@ -37,18 +37,18 @@ impl<E: Element> Visitor<E> for RemoveViewBox {
         };
 
         let view_box_name = "viewBox".into();
-        let Some(view_box) = element.get_attribute(&view_box_name) else {
+        let Some(view_box_atom) = element.get_attribute_local(&view_box_name) else {
             return Ok(());
         };
-        let view_box = view_box.as_ref();
-        let Some(width) = element.get_attribute(&"width".into()) else {
+        let view_box = view_box_atom.as_ref();
+        let Some(width_atom) = element.get_attribute_local(&"width".into()) else {
             return Ok(());
         };
-        let width = width.as_ref();
-        let Some(height) = element.get_attribute(&"height".into()) else {
+        let width = width_atom.as_ref();
+        let Some(height_atom) = element.get_attribute_local(&"height".into()) else {
             return Ok(());
         };
-        let height = height.as_ref();
+        let height = height_atom.as_ref();
 
         if name.local_name().as_ref() == "svg"
             && element
@@ -71,8 +71,11 @@ impl<E: Element> Visitor<E> for RemoveViewBox {
             && width.strip_suffix("px").unwrap_or(width) == nums[2]
             && height.strip_suffix("px").unwrap_or(height) == nums[3]
         {
+            drop(view_box_atom);
+            drop(width_atom);
+            drop(height_atom);
             log::debug!("removing viewBox from element");
-            element.remove_attribute(&view_box_name);
+            element.remove_attribute_local(&view_box_name);
         }
 
         Ok(())

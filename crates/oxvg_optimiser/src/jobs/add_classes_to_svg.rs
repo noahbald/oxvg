@@ -20,12 +20,12 @@ impl<E: Element> Visitor<E> for AddClassesToSVG {
     type Error = String;
 
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
-        if !element.is_root() || element.local_name() != "svg".into() {
+        if !element.is_root() || element.local_name().as_ref() != "svg" {
             return Ok(());
         }
 
         let class_localname = "class".into();
-        let attr = element.get_attribute(&class_localname);
+        let attr = element.get_attribute_local(&class_localname);
         let attr = attr.map(|a| a.to_string()).unwrap_or_default();
         let class = attr.split_whitespace();
 
@@ -40,7 +40,7 @@ impl<E: Element> Visitor<E> for AddClassesToSVG {
         };
         let class_names = class_names.into_iter().collect::<Vec<_>>().join(" ");
 
-        element.set_attribute(class_localname, class_names.into());
+        element.set_attribute_local(class_localname, class_names.into());
         Ok(())
     }
 }

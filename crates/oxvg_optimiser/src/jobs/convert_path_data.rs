@@ -40,7 +40,8 @@ impl<E: Element> Visitor<E> for ConvertPathData {
     }
 
     fn use_style(&self, element: &E) -> bool {
-        element.has_attribute(&"d".into())
+        let d_name = "d".into();
+        element.has_attribute_local(&d_name)
     }
 
     fn element(&mut self, element: &mut E, context: &mut Context<'_, '_, E>) -> Result<(), String> {
@@ -55,10 +56,11 @@ impl<E: Element> Visitor<E> for ConvertPathData {
         let path = match Path::parse(d.as_ref()) {
             Ok(path) => path,
             Err(e) => {
-                log::error!("failed to parse path: {e}\n{d}");
+                log::error!("failed to parse path: {e}\n{}", d.as_ref());
                 return Ok(());
             }
         };
+        drop(d);
         if path.0.is_empty() {
             return Ok(());
         }

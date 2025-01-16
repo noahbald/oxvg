@@ -16,10 +16,10 @@ pub trait Document {
     /// Creates a new attribute node and returns it
     ///
     /// [MDN | createAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Document/createAttribute)
-    fn create_attribute<'b>(
+    fn create_attribute<'a>(
         &self,
-        name: <<<Self::Root as Element>::Attributes<'b> as Attributes<'b>>::Attribute as Attr>::Name,
-    ) -> <<Self::Root as Element>::Attributes<'b> as Attributes<'b>>::Attribute;
+        name: <<<Self::Root as Element>::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
+    ) -> <<Self::Root as Element>::Attributes<'a> as Attributes<'a>>::Attribute;
 
     /// Creates a new CDATA section node and returns it
     ///

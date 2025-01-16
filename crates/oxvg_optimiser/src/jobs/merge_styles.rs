@@ -29,13 +29,13 @@ impl<E: Element> Visitor<E> for MergeStyles {
     }
 
     fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
-        if element.prefix().is_none() && element.local_name() != "style".into() {
+        if element.prefix().is_none() && element.local_name().as_str() != "style" {
             return Ok(());
         }
 
         if let Some(style_type) = element
-            .get_attribute(&"type".into())
-            .as_ref()
+            .get_attribute_local(&"type".into())
+            .as_deref()
             .map(Atom::as_str)
         {
             if !style_type.is_empty() && style_type != "text/css" {
@@ -66,9 +66,11 @@ impl<E: Element> Visitor<E> for MergeStyles {
         }
 
         let media_name = &"media".into();
-        let css = if let Some(media) = element.get_attribute(media_name) {
-            element.remove_attribute(media_name);
-            format!("@media {media}{{{css}}}")
+        let css = if let Some(media) = element.get_attribute_local(media_name) {
+            let css = format!("@media {}{{{css}}}", media.as_ref());
+            drop(media);
+            element.remove_attribute_local(media_name);
+            css
         } else {
             css.to_string()
         };

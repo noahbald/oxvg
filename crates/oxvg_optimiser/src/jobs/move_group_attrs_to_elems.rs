@@ -34,11 +34,11 @@ impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
             return Ok(());
         }
         let transform_name = "transform".into();
-        let Some(transform) = element.get_attribute(&transform_name) else {
+        let Some(transform) = element.get_attribute_local(&transform_name) else {
             return Ok(());
         };
-        if element.attributes().iter().any(|a| {
-            let name = a.name().to_string();
+        if element.attributes().into_iter().any(|a| {
+            let name = a.name().formatter().to_string();
             let value = a.value();
             REFERENCES_PROPS.contains(&name) && REFERENCES_URL.is_match(value.as_ref())
         }) {
@@ -49,20 +49,22 @@ impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
             let Some(e) = E::new(n) else {
                 return false;
             };
-            let name = e.qual_name().to_string();
+            let name = e.qual_name().formatter().to_string();
             !(PATH_ELEMS.contains(&name) || &name == "g" || &name == "text")
-                || e.has_attribute(id_name)
+                || e.has_attribute_local(id_name)
         }) {
             return Ok(());
         }
 
-        element.for_each_element_child(|e| match e.get_attribute_node(&transform_name) {
+        element.for_each_element_child(|e| match e.get_attribute_node_local_mut(&transform_name) {
             Some(mut child_attr) => {
-                child_attr.set_value(format!("{} {}", transform, child_attr.value()).into());
+                let value = format!("{} {}", transform.as_ref(), child_attr.value());
+                child_attr.set_value(value.into());
             }
-            None => e.set_attribute(transform_name.clone(), transform.clone()),
+            None => e.set_attribute_local(transform_name.clone(), transform.clone()),
         });
-        element.remove_attribute(&transform_name);
+        drop(transform);
+        element.remove_attribute_local(&transform_name);
 
         Ok(())
     }

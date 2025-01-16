@@ -48,7 +48,7 @@ impl<E: Element> Visitor<E> for ConvertTransform {
     }
 
     fn use_style(&self, element: &E) -> bool {
-        element.attributes().iter().any(|attr| {
+        element.attributes().into_iter().any(|attr| {
             matches!(
                 attr.local_name().as_ref(),
                 "transform" | "gradientTransform" | "patternTransform"

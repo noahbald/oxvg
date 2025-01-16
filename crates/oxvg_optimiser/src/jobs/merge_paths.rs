@@ -46,7 +46,7 @@ impl<E: Element> Visitor<E> for MergePaths {
             macro_rules! update_previous_path {
                 () => {
                     if let Some(data) = &mut prev_path_data {
-                        prev_child.set_attribute(d_name.clone(), data.to_string().into());
+                        prev_child.set_attribute_local(d_name.clone(), data.to_string().into());
                     }
                     prev_path_data = None;
                 };
@@ -55,7 +55,7 @@ impl<E: Element> Visitor<E> for MergePaths {
             if prev_child.prefix().is_some()
                 || prev_child.local_name().as_ref() != "path"
                 || !prev_child.is_empty()
-                || !prev_child.has_attribute(&d_name)
+                || !prev_child.has_attribute_local(&d_name)
             {
                 log::debug!("ending merge, prev not a plain path");
                 update_previous_path!();
@@ -71,7 +71,7 @@ impl<E: Element> Visitor<E> for MergePaths {
                 continue;
             }
             let Some(current_path_data) = child
-                .get_attribute(&d_name)
+                .get_attribute_local(&d_name)
                 .and_then(|d| Path::parse(d.as_ref()).ok())
             else {
                 log::debug!("ending merge, current has no `d`");
@@ -126,9 +126,11 @@ impl<E: Element> Visitor<E> for MergePaths {
                 continue;
             }
 
-            let attrs_are_equal = attrs.iter().any(|a| {
+            let attrs_are_equal = attrs.into_iter().any(|a| {
                 (a.prefix().is_some() || a.local_name().as_ref() != "d")
-                    && Some(a.value()) != prev_attrs.get_named_item(&a.name()).map(|a| a.value())
+                    && prev_attrs
+                        .get_named_item(&a.name())
+                        .is_some_and(|p| p.value() != a.value())
             });
             if attrs_are_equal {
                 log::debug!("ending merge, current attrs equal to prev");
@@ -139,7 +141,7 @@ impl<E: Element> Visitor<E> for MergePaths {
             let has_prev_path = prev_path_data.is_some();
             if prev_path_data.is_none() {
                 prev_path_data = prev_child
-                    .get_attribute(&d_name)
+                    .get_attribute_local(&d_name)
                     .and_then(|v| Path::parse(v.as_ref()).ok());
             }
 
@@ -173,7 +175,7 @@ impl<E: Element> Visitor<E> for MergePaths {
             element
                 .last_element_child()
                 .unwrap()
-                .set_attribute(d_name, prev_path_data.to_string().into());
+                .set_attribute_local(d_name, prev_path_data.to_string().into());
         }
 
         Ok(())

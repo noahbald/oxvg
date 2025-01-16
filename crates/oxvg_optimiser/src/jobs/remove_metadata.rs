@@ -30,7 +30,7 @@ impl<E: Element> Visitor<E> for RemoveMetadata {
             return Ok(());
         }
 
-        if name.local_name() == "metadata".into() {
+        if name.local_name().as_ref() == "metadata" {
             element.remove();
         }
         Ok(())

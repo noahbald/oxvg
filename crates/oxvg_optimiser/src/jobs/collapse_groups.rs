@@ -84,34 +84,35 @@ fn move_attributes_to_child(element: &impl Element) {
 
     let mut removals = Vec::default();
     let first_child_attrs = first_child.attributes();
-    for attr in attrs.iter() {
+    for attr in attrs.into_iter() {
         let name = attr.name();
         let local_name = name.local_name();
         let local_name: &str = local_name.as_ref();
         let value = attr.value();
 
-        let child_attr = first_child_attrs.get_named_item(&name);
-        if has_animated_attr(first_child, &name) {
+        let child_attr = first_child_attrs.get_named_item_mut(&name);
+        if has_animated_attr(first_child, name) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
 
-        removals.push(attr.name());
+        removals.push(attr.name().clone());
         let Some(mut child_attr) = child_attr else {
-            log::debug!("collapse_groups: moved {name}: same as parent",);
-            first_child_attrs.set_named_item(attr.into_owned());
+            log::debug!("collapse_groups: moved {name:?}: same as parent",);
+            first_child_attrs.set_named_item(attr.clone());
             continue;
         };
 
         let child_attr_value = child_attr.value();
         if name.local_name().as_ref() == "transform" {
             log::debug!("collapse_groups: moved transform: is transform");
-            child_attr.set_value(format!("{value} {child_attr_value}").into());
+            let value = format!("{value} {child_attr_value}");
+            child_attr.set_value(value.into());
         } else if child_attr_value.as_ref() == "inherit" {
-            log::debug!("collapse_groups: moved {name}: is explicit inherit");
-            child_attr.set_value(value);
+            log::debug!("collapse_groups: moved {name:?}: is explicit inherit");
+            child_attr.set_value(value.clone());
         } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
-            log::debug!("collapse_groups: removing {name}: inheritable attr is not inherited");
+            log::debug!("collapse_groups: removing {name:?}: inheritable attr is not inherited");
             return;
         }
     }

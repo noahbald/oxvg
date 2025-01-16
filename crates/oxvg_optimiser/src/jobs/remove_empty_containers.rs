@@ -3,6 +3,7 @@ use oxvg_ast::{
     attribute::Attributes,
     element::Element,
     get_computed_styles_factory,
+    name::Name,
     style::{Id, PresentationAttrId},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
@@ -33,7 +34,7 @@ impl<E: Element> Visitor<E> for RemoveEmptyContainers {
     }
 
     fn exit_element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
-        let name = &element.qual_name().to_string();
+        let name = &element.qual_name().formatter().to_string();
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);
 
@@ -44,7 +45,7 @@ impl<E: Element> Visitor<E> for RemoveEmptyContainers {
                 return Ok(());
             }
         } else if name == "mask" {
-            if element.has_attribute(&"id".into()) {
+            if element.has_attribute_local(&"id".into()) {
                 return Ok(());
             }
         } else if Element::parent_element(element)

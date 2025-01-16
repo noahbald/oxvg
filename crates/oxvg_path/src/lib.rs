@@ -67,7 +67,7 @@ impl Path {
     ///
     /// # Errors
     /// If the definition is invalid
-    pub fn parse(definition: impl Into<String>) -> Result<Self, parser::Error> {
+    pub fn parse(definition: &str) -> Result<Self, parser::Error> {
         Parser::default().parse(definition)
     }
 

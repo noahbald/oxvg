@@ -1,5 +1,4 @@
 use oxvg_ast::{
-    atom::Atom,
     attribute::Attr,
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
@@ -43,7 +42,7 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
     ///   node's width and height
     fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let style_name = &"style".into();
-        if let Some(mut style) = element.get_attribute_node_local(style_name) {
+        if let Some(mut style) = element.get_attribute_node_local_mut(style_name) {
             let new_value = ENABLE_BACKGROUND
                 .replace_all(style.value().as_ref(), "")
                 .to_string();
@@ -68,12 +67,13 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
         let name = element.local_name();
 
         let enabled_background_dimensions =
-            Self::get_enabled_background_dimensions(&enable_background);
+            Self::get_enabled_background_dimensions(enable_background.as_ref());
         let matches_dimensions =
             Self::enabled_background_matches(element, enabled_background_dimensions);
-        if matches_dimensions && name == "svg".into() {
+        drop(enable_background);
+        if matches_dimensions && name.as_ref() == "svg" {
             element.remove_attribute_local(&enable_background_localname);
-        } else if matches_dimensions && (name == "mask".into() || name == "pattern".into()) {
+        } else if matches_dimensions && (name.as_ref() == "mask" || name.as_ref() == "pattern") {
             element.set_attribute_local(enable_background_localname, "new".into());
         }
         Ok(())
@@ -85,8 +85,8 @@ impl CleanupEnableBackground {
         self.contains_filter = root.select("filter").unwrap().next().is_some();
     }
 
-    fn get_enabled_background_dimensions(attr: &impl Atom) -> Option<EnableBackgroundDimensions> {
-        let parameters: Vec<_> = attr.as_ref().split_whitespace().collect();
+    fn get_enabled_background_dimensions(attr: &str) -> Option<EnableBackgroundDimensions> {
+        let parameters: Vec<_> = attr.split_whitespace().collect();
         // Only allow `new <x> <y> <width> <height>`
         if parameters.len() != 5 {
             return None;

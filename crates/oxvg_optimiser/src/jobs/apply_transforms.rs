@@ -44,17 +44,18 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
 
     fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         let d_localname = "d".into();
-        let Some(path) = element.get_attribute_local(&d_localname) else {
+        let Some(path_atom) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");
             return Ok(());
         };
-        let Ok(mut path) = Path::parse(path.into()) else {
+        let Ok(mut path) = Path::parse(path_atom.as_ref()) else {
             log::debug!("run: failed to parse path");
             return Ok(());
         };
+        drop(path_atom);
 
-        for attr in element.attributes().iter() {
-            if attr.local_name() == "id".into() || attr.local_name() == "style".into() {
+        for attr in element.attributes().into_iter() {
+            if attr.local_name().as_ref() == "id" || attr.local_name().as_ref() == "style" {
                 log::debug!("run: element has id");
                 return Ok(());
             }
@@ -135,11 +136,9 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         }
 
         apply_matrix_to_path_data(&mut path, &matrix);
-        element.set_attribute_local(
-            d_localname,
-            convert::cleanup_unpositioned(&path).to_string().into(),
-        );
+        let path = convert::cleanup_unpositioned(&path).to_string().into();
         log::debug!("new d <- {path}");
+        element.set_attribute_local(d_localname, path);
         element.remove_attribute_local(&"transform".into());
         Ok(())
     }
@@ -176,6 +175,7 @@ impl ApplyTransforms {
         {
             return false;
         }
+        drop(vector_effect);
 
         let mut scale = f64::sqrt((matrix[0] * matrix[0]) + (matrix[1] * matrix[1])); // hypot
         if let Some(transform_precision) = self.transform_precision {

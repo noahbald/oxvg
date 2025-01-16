@@ -56,7 +56,7 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
         let new_pi = context
             .root
             .as_document()
-            .create_processing_instruction(target, data);
+            .create_processing_instruction(target.clone(), data);
         parent.replace_child(new_pi, &processing_instruction.as_parent_child());
         Ok(())
     }
@@ -93,8 +93,8 @@ impl RemoveUnknownsAndDefaults {
         if parent.node_type() == node::Type::Document {
             return;
         }
-        let parent_name = parent.qual_name().to_string();
-        let name = element.qual_name().to_string();
+        let parent_name = parent.qual_name().formatter().to_string();
+        let name = element.qual_name().formatter().to_string();
 
         let allowed_children = allowed_per_element.children.get(parent_name.as_str());
         if allowed_children.is_none_or(HashSet::is_empty) {
@@ -115,10 +115,10 @@ impl RemoveUnknownsAndDefaults {
         element: &E,
         inherited_styles: &HashMap<Id, Style>,
     ) {
-        let element_name = element.qual_name().to_string();
+        let element_name = element.qual_name().formatter().to_string();
         let allowed_attrs = allowed_per_element.attrs.get(element_name.as_str());
         let default_attrs = allowed_per_element.defaults.get(element_name.as_str());
-        let has_id = element.get_attribute(&"id".into()).is_some();
+        let has_id = element.get_attribute_local(&"id".into()).is_some();
 
         element.attributes().retain(|attr| {
             let name = attr.name();
@@ -154,7 +154,7 @@ impl RemoveUnknownsAndDefaults {
                 }
             }
 
-            let name_string = name.to_string();
+            let name_string = name.formatter().to_string();
             if let Some(allowed_attrs) = allowed_attrs {
                 if self.unknown_attrs.unwrap_or(true)
                     && !allowed_attrs.contains(name_string.as_str())
