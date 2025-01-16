@@ -1,0 +1,18 @@
+{
+  "type": "module",
+  "name": "benches",
+  "version": "1.0.0",
+  "description": "Criterion benchmarks for SVGO",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "noahbald",
+  "license": "MIT",
+  "devDependencies": {
+    "@folkol/criterion": "^0.0.27"
+  },
+  "dependencies": {
+    "svgo": "^3.3.2"
+  }
+}

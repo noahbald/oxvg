@@ -160,7 +160,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
 
             let ids = find_references(local_name.as_ref(), value.as_ref());
             if let Some(ids) = ids {
-                ids.filter_map(|id| dbg!(id).get(1))
+                ids.filter_map(|id| id.get(1))
                     .map(|id| id.as_str().to_string())
                     .for_each(|id| {
                         self.data.all_references.insert(id);

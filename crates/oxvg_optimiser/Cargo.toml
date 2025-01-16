@@ -33,10 +33,14 @@ urlencoding = "2.1"
 
 [dev-dependencies]
 ctor = { workspace = true }
-divan = { workspace = true }
+criterion = { workspace = true }
 env_logger = { workspace = true }
 insta = { workspace = true }
 
-[profile.bench]
-opt-level = 3
-debug-assertions = false
+[[bench]]
+name = "default_jobs"
+harness = false
+
+[[bench]]
+name = "path"
+harness = false

@@ -1,1 +1,6 @@
 /target
+
+*.svg
+node_modules
+**/benches/criterion
+*.zip
