@@ -1,9 +1,9 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
-expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 32\">\n  <path d=\"M 6 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" />\n  <path d=\"M 18 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" stroke=\"#f00\" stroke-width=\"4\" />\n  <path d=\"M 30 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" stroke=\"#f00\" stroke-width=\"4\" stroke-linejoin=\"round\" stroke-linecap=\"round\" />\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 32\">\n  <path d=\"M 6 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" />\n  <path d=\"M 18 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" stroke=\"#f00\" stroke-width=\"4\" />\n  <path d=\"M 30 12 v -6 h 6 a 3 3 0 0 1 -6 6 z\" stroke=\"#f00\" stroke-width=\"4\" stroke-linejoin=\"round\" stroke-linecap=\"round\" />\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32">
-  <path d="M6 12V6h6a3 3 0 0 1-6 6"></path>
-  <path d="M18 12V6h6a3 3 0 0 1-6 6Z" stroke="#f00" stroke-width="4"></path>
-  <path d="M30 12V6h6a3 3 0 0 1-6 6" stroke="#f00" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <path d="M6 12V6h6a3 3 0 0 1-6 6"/>
+    <path d="M18 12V6h6a3 3 0 0 1-6 6Z" stroke="#f00" stroke-width="4"/>
+    <path d="M30 12V6h6a3 3 0 0 1-6 6" stroke="#f00" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>

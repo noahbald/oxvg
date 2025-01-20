@@ -1,10 +1,16 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
-expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": { \"keepRoleAttr\": true } }\"#,\nSome(r##\"<svg width=\"480\" height=\"360\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- handle xlink and xmlns -->\n    <text x=\"50\" y=\"50\">\n        A <a xlink:href=\"#\"><tspan>link around tspan</tspan></a> for testing\n    </text>\n</svg>\"##),)?"
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##\"<svg width=\"480\" height=\"360\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- handle xlink and xmlns -->\n    <text x=\"50\" y=\"50\">\n        A <a xlink:href=\"#\"><tspan>link around tspan</tspan></a> for testing\n    </text>\n</svg>\"##),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">
     <!-- handle xlink and xmlns -->
     <text x="50" y="50">
-        A <a xlink:href="#"><tspan>link around tspan</tspan></a> for testing
+        A
+        <a xlink:href="#">
+            <tspan>
+                link around tspan
+            </tspan>
+        </a>
+        for testing
     </text>
 </svg>

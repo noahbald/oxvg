@@ -3,13 +3,13 @@ source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
 expression: "test_config(r#\"{ \"convertShapeToPath\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <rect width=\"100%\"/>\n    <rect width=\"100%\" height=\"100%\"/>\n    <rect x=\"25%\" y=\"25%\" width=\"50%\" height=\"50%\"/>\n    <rect x=\"25pt\" y=\"25pt\" width=\"50pt\" height=\"50pt\"/>\n    <rect x=\"10\" y=\"10\" width=\"50\" height=\"50\" rx=\"4\"/>\n    <rect x=\"0\" y=\"0\" width=\"20\" height=\"20\" ry=\"5\"/>\n    <rect width=\"32\" height=\"32\"/>\n    <rect x=\"20\" y=\"10\" width=\"50\" height=\"40\"/>\n    <rect fill=\"#666\" x=\"10\" y=\"10\" width=\"10\" height=\"10\"/>\n</svg>\n\"##),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%"></rect>
-    <rect width="100%" height="100%"></rect>
-    <rect x="25%" y="25%" width="50%" height="50%"></rect>
-    <rect x="25pt" y="25pt" width="50pt" height="50pt"></rect>
-    <rect x="10" y="10" width="50" height="50" rx="4"></rect>
-    <rect x="0" y="0" width="20" height="20" ry="5"></rect>
-    <path d="M0 0H32V32H0Z"></path>
-    <path d="M20 10H70V50H20Z"></path>
-    <path fill="#666" d="M10 10H20V20H10Z"></path>
+    <rect width="100%"/>
+    <rect width="100%" height="100%"/>
+    <rect x="25%" y="25%" width="50%" height="50%"/>
+    <rect x="25pt" y="25pt" width="50pt" height="50pt"/>
+    <rect x="10" y="10" width="50" height="50" rx="4"/>
+    <rect x="0" y="0" width="20" height="20" ry="5"/>
+    <path d="M0 0H32V32H0Z"/>
+    <path d="M20 10H70V50H20Z"/>
+    <path fill="#666" d="M10 10H20V20H10Z"/>
 </svg>

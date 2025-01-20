@@ -4,7 +4,5 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove empty containers -->
-    
-    
-    <path d="..."></path>
+    <path d="..."/>
 </svg>

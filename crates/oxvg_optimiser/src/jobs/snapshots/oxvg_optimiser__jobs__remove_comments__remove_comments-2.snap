@@ -2,6 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/remove_comments.rs
 expression: "test_config(r#\"{ \"removeComments\": {} }\"#,\nSome(r#\"<!--!Icon Font v1 by @iconfont - Copyright 2023 Icon Font CIC.-->\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n    test\n</svg>\"#),)?"
 ---
-<!--!Icon Font v1 by @iconfont - Copyright 2023 Icon Font CIC.--><svg xmlns="http://www.w3.org/2000/svg">
+<!--!Icon Font v1 by @iconfont - Copyright 2023 Icon Font CIC.-->
+<svg xmlns="http://www.w3.org/2000/svg">
     test
 </svg>

@@ -3,6 +3,6 @@ source: crates/oxvg_optimiser/src/jobs/apply_transforms.rs
 expression: "test_config(r#\"{ \"applyTransforms\": {}, \"convertPathData\": {} }\"#,\nSome(r#\"<svg width=\"200\" height=\"100\">\n  <path transform=\"scale(2)\" style=\"stroke:black;stroke-width:10;\" d=\"M 20 20 H 80\" />\n  <path transform=\"scale(2)\" stroke=\"black\" stroke-width=\"10\" d=\"M 20 20 H 80\" />\n</svg>\"#))?"
 ---
 <svg width="200" height="100">
-  <path transform="scale(2)" style="stroke:black;stroke-width:10;" d="M20 20h60"></path>
-  <path stroke="black" stroke-width="20" d="M40 40h120"></path>
+    <path transform="scale(2)" style="stroke:black;stroke-width:10;" d="M20 20h60"/>
+    <path stroke="black" stroke-width="20" d="M40 40h120"/>
 </svg>

@@ -4,7 +4,5 @@ expression: "test_config(r#\"{ \"removeEmptyText\": {} }\"#,\nSome(r#\"<svg xmln
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove non-linking tref -->
-    <g>
-        
-    </g>
+    <g/>
 </svg>

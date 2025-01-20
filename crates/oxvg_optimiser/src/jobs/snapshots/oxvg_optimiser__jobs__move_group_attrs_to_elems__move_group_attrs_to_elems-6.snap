@@ -5,7 +5,7 @@ expression: "test_config(r#\"{ \"moveGroupAttrsToElems\": true }\"#,\nSome(r##\"
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- don't move for child with id -->
     <g transform="translate(0 -140)">
-        <path id="c" transform="scale(.5)" d="M0,0 L10,20"></path>
+        <path id="c" transform="scale(.5)" d="M0,0 L10,20"/>
     </g>
-    <use xlink:href="#c" transform="translate(-140)"></use>
+    <use xlink:href="#c" transform="translate(-140)"/>
 </svg>

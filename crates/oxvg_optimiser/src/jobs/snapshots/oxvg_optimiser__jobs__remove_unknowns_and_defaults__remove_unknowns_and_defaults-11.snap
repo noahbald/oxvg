@@ -10,6 +10,6 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##
     <g aria-label="foo">
         test
     </g>
-    <path id="t" d="M10 10h10L10 20"></path>
-    <use href="#t"></use>
+    <path id="t" d="M10 10h10L10 20"/>
+    <use href="#t"/>
 </svg>

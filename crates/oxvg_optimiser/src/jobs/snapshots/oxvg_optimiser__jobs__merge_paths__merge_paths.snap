@@ -4,11 +4,7 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r##\"<svg xmlns=\"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- merge paths without attributes -->
-    
-    
-    
-    <path d="M0 0ZM10 10ZM20 20l10 10M30 0c10 0 20 10 20 20M30 30Z"></path>
-    <path d="M 30,30 z" fill="#f00"></path>
-    
-    <path d="M40 40Zm50 50 0 10 20 30 40 0"></path>
+    <path d="M0 0ZM10 10ZM20 20l10 10M30 0c10 0 20 10 20 20M30 30Z"/>
+    <path d="M 30,30 z" fill="#f00"/>
+    <path d="M40 40Zm50 50 0 10 20 30 40 0"/>
 </svg>

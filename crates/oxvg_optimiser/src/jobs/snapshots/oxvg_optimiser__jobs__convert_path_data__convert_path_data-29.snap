@@ -1,14 +1,14 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
-expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 9 9\">\n    <marker id=\"a\" stroke=\"red\" viewBox=\"0 0 5 5\">\n        <circle cx=\"2\" cy=\"2\" r=\"1\"/>\n    </marker>\n    <marker id=\"b\" stroke=\"green\" viewBox=\"0 0 5 5\">\n        <circle cx=\"2\" cy=\"2\" r=\"0.5\"/>\n    </marker>\n    <path marker-start=\"url(#a)\" d=\"M5 5h0\"/>\n    <path marker-start=\"url(#b)\" d=\"M5 5\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 9 9\">\n    <marker id=\"a\" stroke=\"red\" viewBox=\"0 0 5 5\">\n        <circle cx=\"2\" cy=\"2\" r=\"1\"/>\n    </marker>\n    <marker id=\"b\" stroke=\"green\" viewBox=\"0 0 5 5\">\n        <circle cx=\"2\" cy=\"2\" r=\"0.5\"/>\n    </marker>\n    <path marker-start=\"url(#a)\" d=\"M5 5h0\"/>\n    <path marker-start=\"url(#b)\" d=\"M5 5\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
     <marker id="a" stroke="red" viewBox="0 0 5 5">
-        <circle cx="2" cy="2" r="1"></circle>
+        <circle cx="2" cy="2" r="1"/>
     </marker>
     <marker id="b" stroke="green" viewBox="0 0 5 5">
-        <circle cx="2" cy="2" r="0.5"></circle>
+        <circle cx="2" cy="2" r="0.5"/>
     </marker>
-    <path marker-start="url(#a)" d="M5 5Z"></path>
-    <path marker-start="url(#b)" d="M5 5"></path>
+    <path marker-start="url(#a)" d="M5 5Z"/>
+    <path marker-start="url(#b)" d="M5 5"/>
 </svg>

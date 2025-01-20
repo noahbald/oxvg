@@ -3,16 +3,16 @@ source: crates/oxvg_optimiser/src/jobs/convert_transform.rs
 expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <g transform=\"\"/>\n    <g transform=\"translate(0)\"/>\n    <g transform=\"translate(0 0)\"/>\n    <g transform=\"translate(0 50)\"/>\n    <g transform=\"scale(1)\"/>\n    <g transform=\"scale(1 2)\"/>\n    <g transform=\"rotate(0)\"/>\n    <g transform=\"rotate(0 100 100)\"/>\n    <g transform=\"skewX(0)\"/>\n    <g transform=\"skewY(0)\"/>\n    <g transform=\"translate(0,-100) translate(0,100)\"/>\n    <g transform=\"rotate(45, 34, 34\"/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <g></g>
-    <g></g>
-    <g></g>
-    <g transform="translate(0 50)"></g>
-    <g></g>
-    <g transform="scale(1 2)"></g>
-    <g></g>
-    <g></g>
-    <g></g>
-    <g></g>
-    <g></g>
-    <g></g>
+    <g/>
+    <g/>
+    <g/>
+    <g transform="translate(0 50)"/>
+    <g/>
+    <g transform="scale(1 2)"/>
+    <g/>
+    <g/>
+    <g/>
+    <g/>
+    <g/>
+    <g/>
 </svg>

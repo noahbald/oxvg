@@ -1,9 +1,9 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
-expression: "test_config(r#\"{ \"convertColors\": { } }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to named color -->\n    <g color=\"#FF0000\"/>\n    <g color=\"#f00\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"convertColors\": { } }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to named color -->\n    <g color=\"#FF0000\"/>\n    <g color=\"#f00\"/>\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should convert to named color -->
-    <g color="red"></g>
-    <g color="red"></g>
+    <g color="red"/>
+    <g color="red"/>
 </svg>

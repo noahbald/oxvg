@@ -4,6 +4,5 @@ expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg id=\"te
 ---
 <svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
     <!-- Should apply a single style based on specificity and cascade -->
-    
-    <rect width="100" height="100" style="fill:red"></rect>
+    <rect width="100" height="100" style="fill:red"/>
 </svg>

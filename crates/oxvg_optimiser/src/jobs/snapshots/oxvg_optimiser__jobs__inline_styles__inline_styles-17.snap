@@ -5,7 +5,13 @@ expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\
 <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
     <!-- foreignObject elements ignored -->
     <foreignObject width="100%" height="100%">
-        <style>div{color:red}</style>
-        <body xmlns="http://www.w3.org/1999/xhtml"><div>hello, world</div></body>
+        <style>
+            div{color:red}
+        </style>
+        <body xmlns="http://www.w3.org/1999/xhtml">
+            <div>
+                hello, world
+            </div>
+        </body>
     </foreignObject>
 </svg>

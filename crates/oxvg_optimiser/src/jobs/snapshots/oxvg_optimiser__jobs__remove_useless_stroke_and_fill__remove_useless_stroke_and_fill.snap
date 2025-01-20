@@ -6,21 +6,21 @@ expression: "test_config(r#\"{ \"removeUselessStrokeAndFill\": {} }\"#,\nSome(r#
     <!-- don't affect elements within id'd element -->
     <defs>
         <g id="test">
-            <rect stroke-dashoffset="5" width="100" height="100"></rect>
+            <rect stroke-dashoffset="5" width="100" height="100"/>
         </g>
     </defs>
     <!-- remove useless strokes/fills -->
-    <circle fill="red" cx="60" cy="60" r="50"></circle>
-    <circle fill="red" cx="60" cy="60" r="50"></circle>
-    <circle fill="red" cx="60" cy="60" r="50"></circle>
-    <circle fill="red" stroke="#000" stroke-width="6" stroke-dashoffset="5" cx="60" cy="60" r="50"></circle>
+    <circle fill="red" cx="60" cy="60" r="50"/>
+    <circle fill="red" cx="60" cy="60" r="50"/>
+    <circle fill="red" cx="60" cy="60" r="50"/>
+    <circle fill="red" stroke="#000" stroke-width="6" stroke-dashoffset="5" cx="60" cy="60" r="50"/>
     <!-- replace useless strokes with "none" when inherited stroke will replace it -->
     <g stroke="#000" stroke-width="6">
-        <circle fill="red" cx="60" cy="60" r="50" stroke="none"></circle>
-        <circle fill="red" stroke-dashoffset="5" cx="60" cy="60" r="50"></circle>
+        <circle fill="red" cx="60" cy="60" r="50" stroke="none"/>
+        <circle fill="red" stroke-dashoffset="5" cx="60" cy="60" r="50"/>
     </g>
     <g stroke="#000">
-        <circle fill="red" cx="60" cy="60" r="50" stroke="none"></circle>
-        <circle fill="red" cx="60" cy="60" r="50" stroke="none"></circle>
+        <circle fill="red" cx="60" cy="60" r="50" stroke="none"/>
+        <circle fill="red" cx="60" cy="60" r="50" stroke="none"/>
     </g>
 </svg>

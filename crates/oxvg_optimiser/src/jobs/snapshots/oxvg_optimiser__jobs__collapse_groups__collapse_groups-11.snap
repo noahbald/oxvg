@@ -4,10 +4,8 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should replace inheritable value -->
-	
-		<g color="red" fill="none" stroke="none">
-			<circle cx="130" cy="80" r="60" fill="currentColor"></circle>
-			<circle cx="350" cy="80" r="60" stroke="currentColor" stroke-width="4"></circle>
-		</g>
-	
+    <g color="red" fill="none" stroke="none">
+        <circle cx="130" cy="80" r="60" fill="currentColor"/>
+        <circle cx="350" cy="80" r="60" stroke="currentColor" stroke-width="4"/>
+    </g>
 </svg>

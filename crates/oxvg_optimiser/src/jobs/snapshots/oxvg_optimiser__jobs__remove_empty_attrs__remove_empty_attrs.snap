@@ -4,5 +4,5 @@ expression: "test_config(r#\"{ \"removeEmptyAttrs\": true }\"#,\nSome(r#\"<svg x
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove empty attrs -->
-    <g></g>
+    <g/>
 </svg>

@@ -5,9 +5,7 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should remove inheritable overridden attributes -->
     <g attr1="val1">
-        
-            <path fill="green" d="..."></path>
-        
-        <path d="..."></path>
+        <path fill="green" d="..."/>
+        <path d="..."/>
     </g>
 </svg>

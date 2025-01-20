@@ -4,5 +4,4 @@ expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xm
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove unused defs -->
-    
 </svg>

@@ -3,8 +3,10 @@ source: crates/oxvg_optimiser/src/jobs/remove_useless_defs.rs
 expression: "test_config(r#\"{ \"removeUselessDefs\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <rect fill=\"url(#a)\" width=\"64\" height=\"64\"/>\n    <symbol>\n        <linearGradient id=\"a\">\n            <stop offset=\"5%\" stop-color=\"gold\" />\n        </linearGradient>\n    </symbol>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <rect fill="url(#a)" width="64" height="64"></rect>
-    <symbol><linearGradient id="a">
-            <stop offset="5%" stop-color="gold"></stop>
-        </linearGradient></symbol>
+    <rect fill="url(#a)" width="64" height="64"/>
+    <symbol>
+        <linearGradient id="a">
+            <stop offset="5%" stop-color="gold"/>
+        </linearGradient>
+    </symbol>
 </svg>

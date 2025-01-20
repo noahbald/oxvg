@@ -894,22 +894,122 @@ impl parse::Node for Node5Ever {
 }
 
 #[cfg(feature = "serialize")]
+struct SerializableHandle {
+    handle: Node5Ever,
+}
+
+#[cfg(feature = "serialize")]
+enum SerializeOp {
+    Open(Node5Ever),
+    Close(QualName),
+}
+
+#[cfg(feature = "serialize")]
+impl crate::serialize::Serialize for SerializableHandle {
+    fn serialize<Wr: std::io::Write>(
+        &self,
+        serializer: &mut crate::serialize::Serializer<Wr>,
+        traversal_scope: xml5ever::serialize::TraversalScope,
+    ) -> std::io::Result<()> {
+        use xml5ever::serialize::TraversalScope;
+        let mut ops = VecDeque::new();
+        match traversal_scope {
+            TraversalScope::IncludeNode => ops.push_back(SerializeOp::Open(self.handle.clone())),
+            TraversalScope::ChildrenOnly(_) => ops.extend(
+                self.handle
+                    .child_nodes()
+                    .iter()
+                    .map(|h| SerializeOp::Open(h.clone())),
+            ),
+        };
+
+        while let Some(op) = ops.pop_front() {
+            match op {
+                SerializeOp::Open(handle) => {
+                    match handle.0.data {
+                        NodeData::Element {
+                            ref name,
+                            ref attrs,
+                            ..
+                        } => {
+                            let children = handle.0.children.borrow();
+                            let is_empty = children.is_empty()
+                                || children.iter().all(|e| match e.data {
+                                    NodeData::Text { ref contents } => {
+                                        contents.borrow().trim().is_empty()
+                                    }
+                                    _ => false,
+                                });
+                            serializer.start_elem(
+                                name,
+                                attrs.borrow().iter().map(|a| (&a.name, &a.value[..])),
+                                is_empty,
+                            )?;
+                            if is_empty {
+                                continue;
+                            }
+
+                            let child_len = handle.0.children.borrow().len();
+                            ops.reserve(1 + child_len);
+                            if child_len > 0 {
+                                ops.push_front(SerializeOp::Close(name.clone()));
+                            }
+
+                            for child in handle.0.children.borrow().iter().rev() {
+                                ops.push_front(SerializeOp::Open(Node5Ever(child.clone())));
+                            }
+                        }
+                        NodeData::Doctype { ref name, .. } => serializer.write_doctype(name)?,
+                        NodeData::Text { ref contents, .. } => {
+                            serializer.write_text(&contents.borrow())?;
+                        }
+                        NodeData::Comment { ref contents } => serializer.write_comment(contents)?,
+                        NodeData::ProcessingInstruction {
+                            ref target,
+                            ref contents,
+                        } => serializer.write_processing_instruction(target, contents)?,
+                        NodeData::Document => panic!("Can't serialize Document node itself"),
+                    };
+                }
+                SerializeOp::Close(name) => {
+                    serializer.end_elem(&name)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "serialize")]
 impl serialize::Node for Node5Ever {
     fn serialize(&self) -> anyhow::Result<String> {
+        self.serialize_with_options(crate::serialize::Options::new())
+    }
+
+    fn serialize_with_options(&self, options: serialize::Options) -> anyhow::Result<String> {
         let mut sink: std::io::BufWriter<_> = std::io::BufWriter::new(Vec::new());
-        self.serialize_into(&mut sink)?;
+        crate::serialize::with_options(
+            &mut sink,
+            &SerializableHandle {
+                handle: self.clone(),
+            },
+            xml5ever::serialize::SerializeOpts::default(),
+            options,
+        )?;
 
         let sink: Vec<_> = sink.into_inner()?;
         Ok(String::from_utf8_lossy(&sink).to_string())
     }
 
     fn serialize_into<Wr: std::io::Write>(&self, sink: Wr) -> anyhow::Result<()> {
-        use rcdom::SerializableHandle;
-        use xml5ever::serialize::{serialize, SerializeOpts};
+        use xml5ever::serialize::SerializeOpts;
 
-        Ok(serialize(
+        Ok(crate::serialize::serialize(
             sink,
-            &std::convert::Into::<SerializableHandle>::into(self.0.clone()),
+            &SerializableHandle {
+                handle: self.clone(),
+            },
             SerializeOpts::default(),
         )?)
     }
@@ -1350,7 +1450,7 @@ impl Element5Ever {
             log::debug!(
                 "You probably tried getting something element related from a document element. Check the stack trace."
             );
-            dbg!(&self.node);
+            log::debug!("{:?}", self.node);
             unreachable!("Element contains non-element data. This is a bug!")
         }
     }
@@ -1423,6 +1523,10 @@ impl node::Ref for Node5EverRef {
 
 #[cfg(feature = "serialize")]
 impl serialize::Node for Element5Ever {
+    fn serialize_with_options(&self, options: serialize::Options) -> anyhow::Result<String> {
+        self.node.serialize_with_options(options)
+    }
+
     fn serialize(&self) -> anyhow::Result<String> {
         self.node.serialize()
     }

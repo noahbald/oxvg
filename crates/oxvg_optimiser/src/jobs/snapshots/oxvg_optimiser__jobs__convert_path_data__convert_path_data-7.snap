@@ -1,13 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
-expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <path d=\"m 0,0\"/>\n    <path d=\"m 0,0l 0,0\"/>\n    <path d=\"m 0,0h 0\"/>\n    <path d=\"m 0,0v 0\"/>\n    <path d=\"m 0,0c 0,0 0,0 0,0 s 0,0 0,0\"/>\n    <path d=\"m 0,0q 0,0 0,0 t 0,0\"/>\n    <path d=\"m 0,0a 25,25 -30 0,1 0,0\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <path d=\"m 0,0\"/>\n    <path d=\"m 0,0l 0,0\"/>\n    <path d=\"m 0,0h 0\"/>\n    <path d=\"m 0,0v 0\"/>\n    <path d=\"m 0,0c 0,0 0,0 0,0 s 0,0 0,0\"/>\n    <path d=\"m 0,0q 0,0 0,0 t 0,0\"/>\n    <path d=\"m 0,0a 25,25 -30 0,1 0,0\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
-    <path d="M0 0"></path>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
+    <path d="M0 0"/>
 </svg>

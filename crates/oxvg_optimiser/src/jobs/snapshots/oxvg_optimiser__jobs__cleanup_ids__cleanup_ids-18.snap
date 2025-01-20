@@ -1,15 +1,15 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 48 48\">\n    <!-- Allow minification when <style> is empty -->\n    <defs>\n        <style></style>\n        <linearGradient id=\"file-name_svg__file-name_svg__original-id\" x1=\"12\" y1=\"-1\" x2=\"33\" y2=\"46\" gradientUnits=\"userSpaceOnUse\">\n            <stop offset=\"0\" stop-color=\"#6b5aed\" stop-opacity=\"0\" />\n            <stop offset=\"1\" stop-color=\"#6b5aed\" />\n        </linearGradient>\n    </defs>\n    <path d=\"M46 24a21.9 21.9\" fill=\"url(#file-name_svg__file-name_svg__original-id)\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 48 48\">\n    <!-- Allow minification when <style> is empty -->\n    <defs>\n        <style></style>\n        <linearGradient id=\"file-name_svg__file-name_svg__original-id\" x1=\"12\" y1=\"-1\" x2=\"33\" y2=\"46\" gradientUnits=\"userSpaceOnUse\">\n            <stop offset=\"0\" stop-color=\"#6b5aed\" stop-opacity=\"0\" />\n            <stop offset=\"1\" stop-color=\"#6b5aed\" />\n        </linearGradient>\n    </defs>\n    <path d=\"M46 24a21.9 21.9\" fill=\"url(#file-name_svg__file-name_svg__original-id)\"/>\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
     <!-- Allow minification when <style> is empty -->
     <defs>
-        <style></style>
+        <style/>
         <linearGradient id="a" x1="12" y1="-1" x2="33" y2="46" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#6b5aed" stop-opacity="0"></stop>
-            <stop offset="1" stop-color="#6b5aed"></stop>
+            <stop offset="0" stop-color="#6b5aed" stop-opacity="0"/>
+            <stop offset="1" stop-color="#6b5aed"/>
         </linearGradient>
     </defs>
-    <path d="M46 24a21.9 21.9" fill="url(#a)"></path>
+    <path d="M46 24a21.9 21.9" fill="url(#a)"/>
 </svg>
