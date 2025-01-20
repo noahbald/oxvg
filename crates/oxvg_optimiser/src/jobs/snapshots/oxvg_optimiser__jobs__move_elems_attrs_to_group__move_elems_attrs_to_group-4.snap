@@ -5,20 +5,20 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- preserve transform for masked/clipped groups -->
     <mask id="mask">
-        <path></path>
+        <path/>
     </mask>
     <g transform="rotate(45) scale(2)" fill="red">
         <g>
-            <path d="..."></path>
+            <path d="..."/>
         </g>
-        <circle></circle>
+        <circle/>
     </g>
     <g clip-path="url(#clipPath)">
-        <g transform="translate(10 10)"></g>
-        <g transform="translate(10 10)"></g>
+        <g transform="translate(10 10)"/>
+        <g transform="translate(10 10)"/>
     </g>
     <g mask="url(#mask)">
-        <g transform="translate(10 10)"></g>
-        <g transform="translate(10 10)"></g>
+        <g transform="translate(10 10)"/>
+        <g transform="translate(10 10)"/>
     </g>
 </svg>

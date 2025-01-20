@@ -6,8 +6,10 @@ expression: "test_config(r#\"{ \"mergeStyles\": true }\"#,\nSome(r#\"<svg id=\"t
     <!-- Skip styles inside foreignObject -->
     <foreignObject>
         <style>
-        .st0 { fill: yellow; }
+            .st0 { fill: yellow; }
         </style>
     </foreignObject>
-    <style>.st1 { fill: red; }</style>
+    <style>
+        .st1 { fill: red; }
+    </style>
 </svg>

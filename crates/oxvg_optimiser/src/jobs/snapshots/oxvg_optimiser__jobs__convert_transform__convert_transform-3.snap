@@ -3,11 +3,11 @@ source: crates/oxvg_optimiser/src/jobs/convert_transform.rs
 expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <g transform=\"matrix(1 0 0 1 50 100)\"/>\n    <g transform=\"matrix(0.5 0 0 2 0 0)\"/>\n    <g transform=\"matrix(.707-.707.707.707 0 0)\"/>\n    <g transform=\"matrix(1 0 0.466 1 0 0)\"/>\n    <g transform=\"matrix(1 0.466 0 1 0 0)\"/>\n    <g transform=\"matrix(1 0 0 1 50 90) matrix(1 0 0 1 60 20) matrix(1 0 0 1 20 40)\"/>\n    <g transform=\"matrix(-0.10443115234375 0 0 -0.10443115234375 182.15 61.15)\"/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <g transform="translate(50 100)"></g>
-    <g transform="scale(.5 2)"></g>
-    <g transform="rotate(-45)"></g>
-    <g transform="skewX(24.99)"></g>
-    <g transform="skewY(24.99)"></g>
-    <g transform="translate(130 150)"></g>
-    <g transform="translate(182.15 61.15)scale(-.10443)"></g>
+    <g transform="translate(50 100)"/>
+    <g transform="scale(.5 2)"/>
+    <g transform="rotate(-45)"/>
+    <g transform="skewX(24.99)"/>
+    <g transform="skewY(24.99)"/>
+    <g transform="translate(130 150)"/>
+    <g transform="translate(182.15 61.15)scale(-.10443)"/>
 </svg>

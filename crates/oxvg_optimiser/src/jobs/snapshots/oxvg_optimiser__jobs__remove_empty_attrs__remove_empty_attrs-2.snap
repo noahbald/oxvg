@@ -4,7 +4,7 @@ expression: "test_config(r#\"{ \"removeEmptyAttrs\": true }\"#,\nSome(r#\"<svg x
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- retain conditional processing attrs -->
-    <g requiredFeatures=""></g>
-    <g requiredExtensions=""></g>
-    <g systemLanguage=""></g>
+    <g requiredFeatures=""/>
+    <g requiredExtensions=""/>
+    <g systemLanguage=""/>
 </svg>

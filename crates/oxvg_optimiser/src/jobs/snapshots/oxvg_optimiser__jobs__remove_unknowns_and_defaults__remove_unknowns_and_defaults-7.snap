@@ -9,8 +9,6 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\
             fallback test
         </div>
     </foreignObject>
-
-    
     <test:test xmlns:test="http://">
         test
     </test:test>

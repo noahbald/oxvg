@@ -6,12 +6,11 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<
     <!-- preserve non-empty containers -->
     <defs>
         <pattern id="a">
-            <rect></rect>
+            <rect/>
         </pattern>
-        <pattern xlink:href="url(#a)" id="b"></pattern>
+        <pattern xlink:href="url(#a)" id="b"/>
     </defs>
     <g>
-        
-        <path d="..."></path>
+        <path d="..."/>
     </g>
 </svg>

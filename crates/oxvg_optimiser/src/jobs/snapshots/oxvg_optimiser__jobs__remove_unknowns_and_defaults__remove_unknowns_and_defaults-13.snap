@@ -4,5 +4,5 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove default role -->
-    <g></g>
+    <g/>
 </svg>

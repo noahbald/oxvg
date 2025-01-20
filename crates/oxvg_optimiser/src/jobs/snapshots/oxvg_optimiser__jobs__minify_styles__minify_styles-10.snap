@@ -3,6 +3,5 @@ source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
 expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 113.9 130.4\">\n    <style>\n    .st1{fill:#453624;stroke:#453624;stroke-width:0.7495;stroke-miterlimit:10;}\n    .st2{fill:#FFFFFF;}\n    .st3{fill:#FCBF2A;}\n    </style>\n    <path d=\"\"/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113.9 130.4">
-    
-    <path d=""></path>
+    <path d=""/>
 </svg>

@@ -4,9 +4,8 @@ expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xm
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- don't remove used defs -->
-    <rect fill="url(#a)" width="64" height="64"></rect>
+    <rect fill="url(#a)" width="64" height="64"/>
     <defs>
-        <linearGradient id="a">
-        </linearGradient>
+        <linearGradient id="a"/>
     </defs>
 </svg>

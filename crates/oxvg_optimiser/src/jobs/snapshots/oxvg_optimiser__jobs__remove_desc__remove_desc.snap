@@ -3,6 +3,5 @@ source: crates/oxvg_optimiser/src/jobs/remove_desc.rs
 expression: "test_config(r#\"{ \"removeDesc\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <desc>Created with Sketch.</desc>\n    <g/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    
-    <g></g>
+    <g/>
 </svg>

@@ -1,11 +1,11 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"force\": true\n        } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- Allow minification when force is given, regardless of `<style>` -->\n    <style>\n        …\n    </style>\n    <circle id=\"circle001\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {\n            \"force\": true\n        } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- Allow minification when force is given, regardless of `<style>` -->\n    <style>\n        …\n    </style>\n    <circle id=\"circle001\" fill=\"red\" cx=\"60\" cy=\"60\" r=\"50\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Allow minification when force is given, regardless of `<style>` -->
     <style>
         …
     </style>
-    <circle fill="red" cx="60" cy="60" r="50"></circle>
+    <circle fill="red" cx="60" cy="60" r="50"/>
 </svg>

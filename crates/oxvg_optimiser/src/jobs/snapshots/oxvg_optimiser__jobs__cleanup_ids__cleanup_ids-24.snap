@@ -1,11 +1,11 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 9 9\">\n  <!-- Handle non-ascii and URI encoding correctly -->\n  <defs>\n    <path id=\"人口\" d=\"M1 1l2 2\" stroke=\"black\"/>\n  </defs>\n  <use href=\"#%E4%BA%BA%E5%8F%A3\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 9 9\">\n  <!-- Handle non-ascii and URI encoding correctly -->\n  <defs>\n    <path id=\"人口\" d=\"M1 1l2 2\" stroke=\"black\"/>\n  </defs>\n  <use href=\"#%E4%BA%BA%E5%8F%A3\"/>\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
-  <!-- Handle non-ascii and URI encoding correctly -->
-  <defs>
-    <path id="a" d="M1 1l2 2" stroke="black"></path>
-  </defs>
-  <use href="#a"></use>
+    <!-- Handle non-ascii and URI encoding correctly -->
+    <defs>
+        <path id="a" d="M1 1l2 2" stroke="black"/>
+    </defs>
+    <use href="#a"/>
 </svg>

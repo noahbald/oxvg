@@ -3,7 +3,9 @@ source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
 expression: "test_config(r#\"{ \"minifyStyles\": { \"removeUnused\": \"force\" } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <style>\n        .used { p: 1 }\n        .unused { p: 2 }\n    </style>\n    <script>\n        /* with usage.force=true script element does not prevent removing unused styles */\n    </script>\n    <g class=\"used\" onclick=\"/* with usage.force=true on* attributes doesn't prevent removing unused styles */\">\n        test\n    </g>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <style>.used{p:1}</style>
+    <style>
+        .used{p:1}
+    </style>
     <script>
         /* with usage.force=true script element does not prevent removing unused styles */
     </script>

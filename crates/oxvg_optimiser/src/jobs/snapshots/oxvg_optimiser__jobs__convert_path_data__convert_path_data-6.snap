@@ -1,19 +1,19 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
-expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <path d=\"M 10,50 L 10,50\"/>\n    <path d=\"M 10,50 L 20,50\"/>\n    <path d=\"M 10,50 L 10,60\"/>\n    <path d=\"M 10,50 L 20,30 10,30\"/>\n    <path d=\"M 10,50 L 20,30 20,20\"/>\n    <path d=\"M 10,50 L 20,30 10,30 40,50\"/>\n    <path d=\"M 10,50 L 20,30 20,20 40,50\"/>\n    <path d=\"M 10,50 L 20,50 L 30,50\"/>\n    <path d=\"M 10,50 L 20,50 30,50\"/>\n    <path d=\"M 10,50 L 20,50 L 30,50 L 40,50\"/>\n    <path d=\"M 10,50 L 10,60 L 10,70\"/>\n    <path d=\"M 10,50 L 10,60 10,70\"/>\n    <path d=\"M 10,50 L 10,60 L 10,70 L 10,80\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <path d=\"M 10,50 L 10,50\"/>\n    <path d=\"M 10,50 L 20,50\"/>\n    <path d=\"M 10,50 L 10,60\"/>\n    <path d=\"M 10,50 L 20,30 10,30\"/>\n    <path d=\"M 10,50 L 20,30 20,20\"/>\n    <path d=\"M 10,50 L 20,30 10,30 40,50\"/>\n    <path d=\"M 10,50 L 20,30 20,20 40,50\"/>\n    <path d=\"M 10,50 L 20,50 L 30,50\"/>\n    <path d=\"M 10,50 L 20,50 30,50\"/>\n    <path d=\"M 10,50 L 20,50 L 30,50 L 40,50\"/>\n    <path d=\"M 10,50 L 10,60 L 10,70\"/>\n    <path d=\"M 10,50 L 10,60 10,70\"/>\n    <path d=\"M 10,50 L 10,60 L 10,70 L 10,80\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
-    <path d="M10 50"></path>
-    <path d="M10 50h10"></path>
-    <path d="M10 50v10"></path>
-    <path d="m10 50 10-20H10"></path>
-    <path d="m10 50 10-20V20"></path>
-    <path d="m10 50 10-20H10l30 20"></path>
-    <path d="m10 50 10-20V20l20 30"></path>
-    <path d="M10 50h20"></path>
-    <path d="M10 50h20"></path>
-    <path d="M10 50h30"></path>
-    <path d="M10 50v20"></path>
-    <path d="M10 50v20"></path>
-    <path d="M10 50v30"></path>
+    <path d="M10 50"/>
+    <path d="M10 50h10"/>
+    <path d="M10 50v10"/>
+    <path d="m10 50 10-20H10"/>
+    <path d="m10 50 10-20V20"/>
+    <path d="m10 50 10-20H10l30 20"/>
+    <path d="m10 50 10-20V20l20 30"/>
+    <path d="M10 50h20"/>
+    <path d="M10 50h20"/>
+    <path d="M10 50h30"/>
+    <path d="M10 50v20"/>
+    <path d="M10 50v20"/>
+    <path d="M10 50v30"/>
 </svg>

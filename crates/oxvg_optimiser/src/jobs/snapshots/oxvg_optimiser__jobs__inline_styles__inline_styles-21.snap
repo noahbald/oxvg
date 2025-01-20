@@ -1,11 +1,10 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
-expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": true } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1570.062\" height=\"2730\" viewBox=\"0 0 415.412 722.312\">\n    <!-- selectors matching two classes should be handled -->\n    <style>\n        .segment.minor {\n        stroke-width: 1.5;\n        stroke: #15c6aa;\n        }\n    </style>\n    <g transform=\"translate(200.662 362.87)\">\n        <path d=\"M163.502-303.979h3.762\" class=\"segment minor\"/>\n    </g>\n</svg>\"#),)?"
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1570.062\" height=\"2730\" viewBox=\"0 0 415.412 722.312\">\n    <!-- selectors matching two classes should be handled -->\n    <style>\n        .segment.minor {\n        stroke-width: 1.5;\n        stroke: #15c6aa;\n        }\n    </style>\n    <g transform=\"translate(200.662 362.87)\">\n        <path d=\"M163.502-303.979h3.762\" class=\"segment minor\"/>\n    </g>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" width="1570.062" height="2730" viewBox="0 0 415.412 722.312">
     <!-- selectors matching two classes should be handled -->
-    
     <g transform="translate(200.662 362.87)">
-        <path d="M163.502-303.979h3.762" style="stroke-width:1.5px;stroke:#15c6aa"></path>
+        <path d="M163.502-303.979h3.762" style="stroke-width:1.5px;stroke:#15c6aa"/>
     </g>
 </svg>

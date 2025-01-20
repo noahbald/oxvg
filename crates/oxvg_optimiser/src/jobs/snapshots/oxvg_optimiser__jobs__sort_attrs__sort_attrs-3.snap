@@ -4,5 +4,5 @@ expression: "test_config(r#\"{ \"sortAttrs\": {} }\"#,\nSome(r#\"<svg xmlns:edit
 ---
 <svg fill="" d="" b="">
     <!-- put xmlns and namespace attributes before others by default -->
-    <rect editor2:a="" editor2:b=""></rect>
+    <rect editor2:a="" editor2:b=""/>
 </svg>

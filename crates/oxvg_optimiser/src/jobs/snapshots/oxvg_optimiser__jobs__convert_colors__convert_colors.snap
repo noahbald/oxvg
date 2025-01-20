@@ -1,13 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
-expression: "test_config(r#\"{ \"convertColors\": { \"method\": \"lightning\" } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to hex -->\n    <g color=\"black\"/>\n    <g color=\"BLACK\"/>\n    <path fill=\"rgb(64 64 64)\"/>\n    <path fill=\"rgb(64, 64, 64)\"/>\n    <path fill=\"rgb(86.27451%,86.666667%,87.058824%)\"/>\n    <path fill=\"rgb(-255,100,500)\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertColors\": {  } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should convert to hex -->\n    <g color=\"black\"/>\n    <g color=\"BLACK\"/>\n    <path fill=\"rgb(64 64 64)\"/>\n    <path fill=\"rgb(64, 64, 64)\"/>\n    <path fill=\"rgb(86.27451%,86.666667%,87.058824%)\"/>\n    <path fill=\"rgb(-255,100,500)\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should convert to hex -->
-    <g color="#000"></g>
-    <g color="#000"></g>
-    <path fill="#404040"></path>
-    <path fill="#404040"></path>
-    <path fill="#dcddde"></path>
-    <path fill="#0064ff"></path>
+    <g color="#000"/>
+    <g color="#000"/>
+    <path fill="#404040"/>
+    <path fill="#404040"/>
+    <path fill="#dcddde"/>
+    <path fill="#0064ff"/>
 </svg>

@@ -4,7 +4,7 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<
 ---
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">
     <!-- preserve id'd mask -->
-    <mask id="testMask"></mask>
-    <rect x="100" y="100" width="250" height="150" fill="green"></rect>
-    <rect x="100" y="100" width="250" height="150" fill="red" mask="url(#testMask)"></rect>
+    <mask id="testMask"/>
+    <rect x="100" y="100" width="250" height="150" fill="green"/>
+    <rect x="100" y="100" width="250" height="150" fill="red" mask="url(#testMask)"/>
 </svg>

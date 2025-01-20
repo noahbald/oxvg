@@ -9,9 +9,9 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r##\"
             text
         </g>
         <g>
-          <rect></rect>
-          <ellipsis></ellipsis>
+            <rect/>
+            <ellipsis/>
         </g>
-        <circle attr3="val3"></circle>
+        <circle attr3="val3"/>
     </g>
 </svg>

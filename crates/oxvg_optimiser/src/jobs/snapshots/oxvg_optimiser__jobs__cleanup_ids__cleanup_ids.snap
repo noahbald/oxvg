@@ -1,30 +1,30 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\n        Some(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- Minify ids and references to ids -->\n    <defs>\n        <linearGradient id=\"gradient001\">\n            <stop offset=\"5%\" stop-color=\"#F60\"/>\n            <stop offset=\"95%\" stop-color=\"#FF6\"/>\n        </linearGradient>\n        <text id=\"referencedText\">\n            referenced text\n        </text>\n        <path id=\"crochet\" d=\"...\"/>\n        <path id=\"block\" d=\"...\"/>\n        <path id=\"two\" d=\"...\"/>\n        <path id=\"two\" d=\"...\"/>\n    </defs>\n    <g id=\"g001\">\n        <circle id=\"circle001\" fill=\"url(#gradient001)\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect fill=\"url('#gradient001')\" x=\"0\" y=\"0\" width=\"500\" height=\"100\"/>\n        <tref href=\"#referencedText\"/>\n    </g>\n    <g>\n        <tref href=\"#referencedText\"/>\n    </g>\n    <animateMotion href=\"#crochet\" dur=\"0.5s\" begin=\"block.mouseover\" fill=\"freeze\" path=\"m 0,0 0,-21\"/>\n    <use href=\"#two\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- Minify ids and references to ids -->\n    <defs>\n        <linearGradient id=\"gradient001\">\n            <stop offset=\"5%\" stop-color=\"#F60\"/>\n            <stop offset=\"95%\" stop-color=\"#FF6\"/>\n        </linearGradient>\n        <text id=\"referencedText\">\n            referenced text\n        </text>\n        <path id=\"crochet\" d=\"...\"/>\n        <path id=\"block\" d=\"...\"/>\n        <path id=\"two\" d=\"...\"/>\n        <path id=\"two\" d=\"...\"/>\n    </defs>\n    <g id=\"g001\">\n        <circle id=\"circle001\" fill=\"url(#gradient001)\" cx=\"60\" cy=\"60\" r=\"50\"/>\n        <rect fill=\"url('#gradient001')\" x=\"0\" y=\"0\" width=\"500\" height=\"100\"/>\n        <tref href=\"#referencedText\"/>\n    </g>\n    <g>\n        <tref href=\"#referencedText\"/>\n    </g>\n    <animateMotion href=\"#crochet\" dur=\"0.5s\" begin=\"block.mouseover\" fill=\"freeze\" path=\"m 0,0 0,-21\"/>\n    <use href=\"#two\"/>\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Minify ids and references to ids -->
     <defs>
         <linearGradient id="a">
-            <stop offset="5%" stop-color="#F60"></stop>
-            <stop offset="95%" stop-color="#FF6"></stop>
+            <stop offset="5%" stop-color="#F60"/>
+            <stop offset="95%" stop-color="#FF6"/>
         </linearGradient>
         <text id="b">
             referenced text
         </text>
-        <path id="c" d="..."></path>
-        <path id="d" d="..."></path>
-        <path id="e" d="..."></path>
-        <path d="..."></path>
+        <path id="c" d="..."/>
+        <path id="d" d="..."/>
+        <path id="e" d="..."/>
+        <path d="..."/>
     </defs>
     <g>
-        <circle fill="url(#a)" cx="60" cy="60" r="50"></circle>
-        <rect fill="url(&apos;#a&apos;)" x="0" y="0" width="500" height="100"></rect>
-        <tref href="#b"></tref>
+        <circle fill="url(#a)" cx="60" cy="60" r="50"/>
+        <rect fill="url(&apos;#a&apos;)" x="0" y="0" width="500" height="100"/>
+        <tref href="#b"/>
     </g>
     <g>
-        <tref href="#b"></tref>
+        <tref href="#b"/>
     </g>
-    <animateMotion href="#c" dur="0.5s" begin="d.mouseover" fill="freeze" path="m 0,0 0,-21"></animateMotion>
-    <use href="#e"></use>
+    <animateMotion href="#c" dur="0.5s" begin="d.mouseover" fill="freeze" path="m 0,0 0,-21"/>
+    <use href="#e"/>
 </svg>

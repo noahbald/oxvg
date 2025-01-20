@@ -1,11 +1,11 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_ellipse_to_circle.rs
-expression: "test_config(r#\"{ \"convertEllipseToCircle\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Convert circular ellipses to circles -->\n    <ellipse rx=\"5\" ry=\"5\"/>\n    <ellipse rx=\"auto\" ry=\"5\"/>\n    <ellipse rx=\"5\" ry=\"auto\"/>\n    <ellipse />\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertEllipseToCircle\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Convert circular ellipses to circles -->\n    <ellipse rx=\"5\" ry=\"5\"/>\n    <ellipse rx=\"auto\" ry=\"5\"/>\n    <ellipse rx=\"5\" ry=\"auto\"/>\n    <ellipse />\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Convert circular ellipses to circles -->
-    <ellipse r="5"></ellipse>
-    <ellipse r="5"></ellipse>
-    <ellipse r="5"></ellipse>
-    <ellipse r="0"></ellipse>
+    <ellipse r="5"/>
+    <ellipse r="5"/>
+    <ellipse r="5"/>
+    <ellipse r="0"/>
 </svg>

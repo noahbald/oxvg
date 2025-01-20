@@ -1,13 +1,13 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 88 88\">\n  <!-- Should preserve group if some attrs cannot be moved -->\n  <filter id=\"a\">\n    <feGaussianBlur stdDeviation=\"1\"/>\n  </filter>\n  <g transform=\"matrix(0.6875,0,0,0.6875,20.34375,66.34375)\" style=\"filter:url(#a)\">\n    <path d=\"M 33.346591,-83.471591 L -10.744318,-36.471591 L -10.49989,-32.5\" style=\"fill-opacity:1\"/>\n  </g>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 88 88\">\n  <!-- Should preserve group if some attrs cannot be moved -->\n  <filter id=\"a\">\n    <feGaussianBlur stdDeviation=\"1\"/>\n  </filter>\n  <g transform=\"matrix(0.6875,0,0,0.6875,20.34375,66.34375)\" style=\"filter:url(#a)\">\n    <path d=\"M 33.346591,-83.471591 L -10.744318,-36.471591 L -10.49989,-32.5\" style=\"fill-opacity:1\"/>\n  </g>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88">
-  <!-- Should preserve group if some attrs cannot be moved -->
-  <filter id="a">
-    <feGaussianBlur stdDeviation="1"></feGaussianBlur>
-  </filter>
-  <g transform="matrix(0.6875,0,0,0.6875,20.34375,66.34375)" style="filter:url(#a)">
-    <path d="M 33.346591,-83.471591 L -10.744318,-36.471591 L -10.49989,-32.5" style="fill-opacity:1"></path>
-  </g>
+    <!-- Should preserve group if some attrs cannot be moved -->
+    <filter id="a">
+        <feGaussianBlur stdDeviation="1"/>
+    </filter>
+    <g transform="matrix(0.6875,0,0,0.6875,20.34375,66.34375)" style="filter:url(#a)">
+        <path d="M 33.346591,-83.471591 L -10.744318,-36.471591 L -10.49989,-32.5" style="fill-opacity:1"/>
+    </g>
 </svg>

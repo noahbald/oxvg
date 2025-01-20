@@ -4,8 +4,7 @@ expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\
 ---
 <svg xmlns="http://www.w3.org/2000/svg" width="1570.062" height="2730" viewBox="0 0 415.412 722.312">
     <!-- selectors matching two classes should be handled -->
-    
     <g transform="translate(200.662 362.87)">
-        <path d="M163.502-303.979h3.762" style="stroke:#15c6aa;stroke-width:1.5px"></path>
+        <path d="M163.502-303.979h3.762" style="stroke:#15c6aa;stroke-width:1.5px"/>
     </g>
 </svg>

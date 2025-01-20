@@ -1,24 +1,24 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
-expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- Should preserve group if parent has `filter` -->\n    <clipPath id=\"a\">\n        <circle cx=\"25\" cy=\"15\" r=\"10\"/>\n    </clipPath>\n    <filter id=\"b\">\n        <feColorMatrix type=\"saturate\"/>\n    </filter>\n    <g filter=\"url(#b)\">\n        <g clip-path=\"url(#a)\">\n            <circle cx=\"30\" cy=\"10\" r=\"10\" fill=\"yellow\" id=\"c1\"/>\n        </g>\n    </g>\n    <g style=\"filter:url(#b)\">\n        <g clip-path=\"url(#a)\">\n            <circle cx=\"20\" cy=\"10\" r=\"10\" fill=\"blue\" id=\"c2\"/>\n        </g>\n    </g>\n    <circle cx=\"25\" cy=\"15\" r=\"10\" stroke=\"black\" stroke-width=\".1\" fill=\"none\"/>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- Should preserve group if parent has `filter` -->\n    <clipPath id=\"a\">\n        <circle cx=\"25\" cy=\"15\" r=\"10\"/>\n    </clipPath>\n    <filter id=\"b\">\n        <feColorMatrix type=\"saturate\"/>\n    </filter>\n    <g filter=\"url(#b)\">\n        <g clip-path=\"url(#a)\">\n            <circle cx=\"30\" cy=\"10\" r=\"10\" fill=\"yellow\" id=\"c1\"/>\n        </g>\n    </g>\n    <g style=\"filter:url(#b)\">\n        <g clip-path=\"url(#a)\">\n            <circle cx=\"20\" cy=\"10\" r=\"10\" fill=\"blue\" id=\"c2\"/>\n        </g>\n    </g>\n    <circle cx=\"25\" cy=\"15\" r=\"10\" stroke=\"black\" stroke-width=\".1\" fill=\"none\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
     <!-- Should preserve group if parent has `filter` -->
     <clipPath id="a">
-        <circle cx="25" cy="15" r="10"></circle>
+        <circle cx="25" cy="15" r="10"/>
     </clipPath>
     <filter id="b">
-        <feColorMatrix type="saturate"></feColorMatrix>
+        <feColorMatrix type="saturate"/>
     </filter>
     <g filter="url(#b)">
         <g clip-path="url(#a)">
-            <circle cx="30" cy="10" r="10" fill="yellow" id="c1"></circle>
+            <circle cx="30" cy="10" r="10" fill="yellow" id="c1"/>
         </g>
     </g>
     <g style="filter:url(#b)">
         <g clip-path="url(#a)">
-            <circle cx="20" cy="10" r="10" fill="blue" id="c2"></circle>
+            <circle cx="20" cy="10" r="10" fill="blue" id="c2"/>
         </g>
     </g>
-    <circle cx="25" cy="15" r="10" stroke="black" stroke-width=".1" fill="none"></circle>
+    <circle cx="25" cy="15" r="10" stroke="black" stroke-width=".1" fill="none"/>
 </svg>

@@ -5,10 +5,12 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r##\"
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
     <!-- preserve filtered `g`s -->
     <filter id="a" x="0" y="0" width="50" height="50" filterUnits="userSpaceOnUse">
-        <feFlood flood-color="#aaa"></feFlood>
+        <feFlood flood-color="#aaa"/>
     </filter>
     <mask id="b" x="0" y="0" width="50" height="50">
-        <g style="filter: url(#a)"></g>
+        <g style="filter: url(#a)"/>
     </mask>
-    <text x="16" y="16" style="mask: url(#b)">•ᴗ•</text>
+    <text x="16" y="16" style="mask: url(#b)">
+        •ᴗ•
+    </text>
 </svg>

@@ -1,9 +1,8 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
-expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": false } }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- important styles take precedence -->\n    <style>\n        .red {\n            fill: red !important;\n        }\n        .blue {\n            fill: blue;\n        }\n    </style>\n    <rect width=\"100\" height=\"100\" class=\"blue red\"/>\n</svg>\"#),)?"
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- important styles take precedence -->\n    <style>\n        .red {\n            fill: red !important;\n        }\n        .blue {\n            fill: blue;\n        }\n    </style>\n    <rect width=\"100\" height=\"100\" class=\"blue red\"/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
     <!-- important styles take precedence -->
-    
-    <rect width="100" height="100" style="fill:#00f;fill:red!important"></rect>
+    <rect width="100" height="100" style="fill:#00f;fill:red!important"/>
 </svg>

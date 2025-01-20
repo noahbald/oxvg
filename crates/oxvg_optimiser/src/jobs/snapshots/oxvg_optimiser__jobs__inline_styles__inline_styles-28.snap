@@ -4,6 +4,8 @@ expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
     <!-- unmatched pseudo-classes should do nothing -->
-    <style>path:not([fill=red]){stroke:purple}</style>
-    <path fill="red" d="M5 5H10"></path>
+    <style>
+        path:not([fill=red]){stroke:purple}
+    </style>
+    <path fill="red" d="M5 5H10"/>
 </svg>

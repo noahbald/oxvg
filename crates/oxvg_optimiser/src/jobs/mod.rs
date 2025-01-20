@@ -155,7 +155,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
 </svg>"#,
     ))?;
     jobs.run(&dom)?;
-    serialize::Node::serialize(&dom)
+    serialize::Node::serialize_with_options(&dom, serialize::Options::new().pretty())
 }
 
 #[test]

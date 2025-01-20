@@ -1,9 +1,8 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
-expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": false } }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- CDATA content is used -->\n    <style>\n        <![CDATA[\n            .st0{fill:blue;}\n        ]]>\n    </style>\n    <rect width=\"100\" height=\"100\" class=\"st0\"/>\n</svg>\"#),)?"
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <!-- CDATA content is used -->\n    <style>\n        <![CDATA[\n            .st0{fill:blue;}\n        ]]>\n    </style>\n    <rect width=\"100\" height=\"100\" class=\"st0\"/>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
     <!-- CDATA content is used -->
-    
-    <rect width="100" height="100" style="fill:#00f"></rect>
+    <rect width="100" height="100" style="fill:#00f"/>
 </svg>

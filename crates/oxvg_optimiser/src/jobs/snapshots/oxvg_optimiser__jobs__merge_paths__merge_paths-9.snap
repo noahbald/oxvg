@@ -8,12 +8,12 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg xmlns=\"h
         path.lg{filter:url(#blurMe);}
     </style>
     <filter id="blurMe" x=".1">
-        <feGaussianBlur stdDeviation="5"></feGaussianBlur>
+        <feGaussianBlur stdDeviation="5"/>
     </filter>
-    <path filter="url(#blurMe)" fill="red" d="M 0 0 H 100 V 80 H 0 z"></path>
-    <path filter="url(#blurMe)" fill="red" d="M 200 0 H 300 V 80 H 200 z"></path>
-    <path style="filter:url(#blurMe)" fill="red" d="M 0 100 h 100 v 80 H 0 z"></path>
-    <path style="filter:url(#blurMe)" fill="red" d="M 200 100 H 300 v 80 H 200 z"></path>
-    <path class="lg" fill="red" d="M 0 200 h 100 v 80 H 0 z"></path>
-    <path class="lg" fill="red" d="M 200 200 H 300 v 80 H 200 z"></path>
+    <path filter="url(#blurMe)" fill="red" d="M 0 0 H 100 V 80 H 0 z"/>
+    <path filter="url(#blurMe)" fill="red" d="M 200 0 H 300 V 80 H 200 z"/>
+    <path style="filter:url(#blurMe)" fill="red" d="M 0 100 h 100 v 80 H 0 z"/>
+    <path style="filter:url(#blurMe)" fill="red" d="M 200 100 H 300 v 80 H 200 z"/>
+    <path class="lg" fill="red" d="M 0 200 h 100 v 80 H 0 z"/>
+    <path class="lg" fill="red" d="M 200 200 H 300 v 80 H 200 z"/>
 </svg>

@@ -4,9 +4,5 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should remove both useless `g`s -->
-    
-        
-            <path d="..."></path>
-        
-    
+    <path d="..."/>
 </svg>

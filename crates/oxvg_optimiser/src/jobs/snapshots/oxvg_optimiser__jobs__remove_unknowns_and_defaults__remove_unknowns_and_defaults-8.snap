@@ -6,16 +6,16 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\
     <!-- remove defaults of non-inheritable values -->
     <svg x="10" y="10">
         <svg>
-            <path></path>
+            <path/>
         </svg>
         <svg y="10">
-            <path></path>
+            <path/>
         </svg>
         <svg x="50">
-            <path></path>
+            <path/>
         </svg>
     </svg>
     <svg x="100" y="100">
-        <path></path>
+        <path/>
     </svg>
 </svg>

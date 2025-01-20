@@ -1,13 +1,19 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/convert_colors.rs
-expression: "test_config(r#\"{ \"convertColors\": { } }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve color-like substrings that aren't colors -->\n    <linearGradient id=\"Aa\">\n        <stop stop-color=\"ReD\" offset=\"5%\"/>\n    </linearGradient>\n    <text x=\"0\" y=\"32\" fill=\"gold\">uwu</text>\n    <text x=\"0\" y=\"64\" fill=\"GOLD\">owo</text>\n    <text x=\"0\" y=\"96\" fill=\"url(#Aa)\">eue</text>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"convertColors\": { } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve color-like substrings that aren't colors -->\n    <linearGradient id=\"Aa\">\n        <stop stop-color=\"ReD\" offset=\"5%\"/>\n    </linearGradient>\n    <text x=\"0\" y=\"32\" fill=\"gold\">uwu</text>\n    <text x=\"0\" y=\"64\" fill=\"GOLD\">owo</text>\n    <text x=\"0\" y=\"96\" fill=\"url(#Aa)\">eue</text>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should preserve color-like substrings that aren't colors -->
     <linearGradient id="Aa">
-        <stop stop-color="ReD" offset="5%"></stop>
+        <stop stop-color="ReD" offset="5%"/>
     </linearGradient>
-    <text x="0" y="32" fill="gold">uwu</text>
-    <text x="0" y="64" fill="gold">owo</text>
-    <text x="0" y="96" fill="url(&quot;#Aa&quot;)">eue</text>
+    <text x="0" y="32" fill="gold">
+        uwu
+    </text>
+    <text x="0" y="64" fill="gold">
+        owo
+    </text>
+    <text x="0" y="96" fill="url(&quot;#Aa&quot;)">
+        eue
+    </text>
 </svg>
