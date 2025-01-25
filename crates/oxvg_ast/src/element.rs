@@ -416,7 +416,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         selector: &'a str,
     ) -> Result<
         crate::selectors::Select<Self>,
-        cssparser::ParseError<'_, selectors::parser::SelectorParseErrorKind<'_>>,
+        cssparser::ParseError<'a, selectors::parser::SelectorParseErrorKind<'a>>,
     > {
         crate::selectors::Select::new(self, selector)
     }

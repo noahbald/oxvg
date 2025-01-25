@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use oxvg_ast::{
     element::Element,
-    visitor::{ContextFlags, PrepareOutcome, Visitor},
+    visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::Deserialize;
 
@@ -36,10 +36,10 @@ macro_rules! jobs {
 
         impl<E: Element> Jobs<E> {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs(&mut self, element: &mut E) -> Result<usize, String> {
+            fn run_jobs(&mut self, element: &mut E, info: &Info) -> Result<usize, String> {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_mut() {
-                    if !job.start(element)?.contains(PrepareOutcome::skip) {
+                    if !job.start(element, info)?.contains(PrepareOutcome::skip) {
                         count += 1;
                     }
                 })+
@@ -54,6 +54,7 @@ jobs! {
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
+    prefix_ids: PrefixIds<E>,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
@@ -111,14 +112,16 @@ impl std::error::Error for Error {}
 impl<E: Element> Jobs<E> {
     /// # Errors
     /// When any job fails for the first time
-    pub fn run(self, root: &E::ParentChild) -> Result<(), Error> {
+    pub fn run(self, root: &E::ParentChild, info: &Info) -> Result<(), Error> {
         let Some(mut root_element) = <E as Element>::from_parent(root.clone()) else {
             log::warn!("No elements found in the document, skipping");
             return Ok(());
         };
 
         let mut jobs = self.clone();
-        let count = jobs.run_jobs(&mut root_element).map_err(Error::Generic)?;
+        let count = jobs
+            .run_jobs(&mut root_element, info)
+            .map_err(Error::Generic)?;
         log::debug!("completed {count} jobs");
         Ok(())
     }
@@ -154,7 +157,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
     test
 </svg>"#,
     ))?;
-    jobs.run(&dom)?;
+    jobs.run(&dom, &Info::default())?;
     serialize::Node::serialize_with_options(&dom, serialize::Options::new().pretty())
 }
 

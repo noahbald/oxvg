@@ -86,9 +86,11 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// [MDN | childNodes](https://developer.mozilla.org/en-US/docs/Web/API/Node/childNodes)
     fn child_nodes(&self) -> Vec<Self::Child>;
 
+    fn child_node_count(&self) -> usize;
+
     /// Returns whether the node's list of children is empty or not
     fn has_child_nodes(&self) -> bool {
-        self.any_child(|_| true)
+        self.child_node_count() > 0
     }
 
     /// Upcasts self as an element
@@ -182,11 +184,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// [MDN | textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)
     fn text_content(&self) -> Option<String>;
 
-    fn set_text_content(&mut self, content: Self::Atom) {
-        let text = self.text(content);
-        self.empty();
-        self.append_child(text);
-    }
+    fn set_text_content(&mut self, content: Self::Atom);
 
     /// Creates a text node with the given content
     fn text(&self, content: Self::Atom) -> Self::Child;

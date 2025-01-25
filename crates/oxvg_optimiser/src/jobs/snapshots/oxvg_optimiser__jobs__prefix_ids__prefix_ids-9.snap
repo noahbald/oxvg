@@ -1,0 +1,16 @@
+---
+source: crates/oxvg_optimiser/src/jobs/prefix_ids.rs
+expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefixIds_08_svg_txt\",\n            \"prefixIds\": false,\n            \"prefixClassNames\": false\n        } }\"#,\nSome(r#\"<svg width=\"120\" height=\"120\" xmlns=\"http://www.w3.org/2000/svg\">\n    <style>\n        .test {\n            color: blue;\n        }\n        #test {\n            color: red;\n        }\n\n    </style>\n    <rect class=\"test\" x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n    <rect class=\"\" id=\"test\" x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+    <style>
+        .test {
+            color: blue;
+        }
+        #test {
+            color: red;
+        }
+    </style>
+    <rect class="test" x="10" y="10" width="100" height="100"/>
+    <rect class="" id="test" x="10" y="10" width="100" height="100"/>
+</svg>

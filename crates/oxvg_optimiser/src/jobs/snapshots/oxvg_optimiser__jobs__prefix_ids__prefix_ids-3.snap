@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/prefix_ids.rs
+expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefixIds_03_svg_txt\"\n        } }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- add prefix to xlink:href -->\n    <use xlink:href=\"#Port\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- add prefix to xlink:href -->
+    <use xlink:href="#prefixIds_03_svg_txt__Port"/>
+</svg>

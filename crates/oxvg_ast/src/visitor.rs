@@ -9,6 +9,12 @@ use crate::{
     style::{self, ComputedStyles, ElementData},
 };
 
+#[derive(Debug, Default, Clone)]
+pub struct Info {
+    pub path: Option<std::path::PathBuf>,
+    pub multipass_count: usize,
+}
+
 #[derive(Debug)]
 pub struct Context<'i, 'o, E: Element> {
     pub computed_styles: crate::style::ComputedStyles<'i>,
@@ -16,6 +22,7 @@ pub struct Context<'i, 'o, E: Element> {
     pub element_styles: &'i HashMap<E, ElementData<E>>,
     pub root: E,
     pub flags: ContextFlags,
+    pub info: &'i Info,
 }
 
 impl<'i, 'o, E: Element> Context<'i, 'o, E> {
@@ -23,6 +30,7 @@ impl<'i, 'o, E: Element> Context<'i, 'o, E> {
         root: E,
         flags: ContextFlags,
         element_styles: &'i HashMap<E, ElementData<E>>,
+        info: &'i Info,
     ) -> Self {
         Self {
             computed_styles: crate::style::ComputedStyles::default(),
@@ -30,6 +38,7 @@ impl<'i, 'o, E: Element> Context<'i, 'o, E> {
             element_styles,
             root,
             flags,
+            info,
         }
     }
 }
@@ -88,7 +97,7 @@ pub trait Visitor<E: Element> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn document(&mut self, document: &mut E) -> Result<(), Self::Error> {
+    fn document(&mut self, document: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -164,7 +173,7 @@ pub trait Visitor<E: Element> {
     ///
     /// # Errors
     /// If any of the visitor's methods fail
-    fn start(&mut self, root: &mut E) -> Result<PrepareOutcome, Self::Error> {
+    fn start(&mut self, root: &mut E, info: &Info) -> Result<PrepareOutcome, Self::Error> {
         let element_styles = &mut HashMap::new();
         let mut flags = ContextFlags::empty();
         let prepare_outcome = self.prepare(root, &mut flags);
@@ -181,11 +190,14 @@ pub trait Visitor<E: Element> {
             )
             .ok();
             *element_styles = ElementData::new(root);
-            let mut context = Context::new(root.clone(), flags, element_styles);
+            let mut context = Context::new(root.clone(), flags, element_styles, info);
             context.stylesheet = stylesheet;
             self.visit(root, &mut context)?;
         } else {
-            self.visit(root, &mut Context::new(root.clone(), flags, element_styles))?;
+            self.visit(
+                root,
+                &mut Context::new(root.clone(), flags, element_styles, info),
+            )?;
         };
         Ok(prepare_outcome)
     }
@@ -201,7 +213,7 @@ pub trait Visitor<E: Element> {
     ) -> Result<(), Self::Error> {
         match element.node_type() {
             node::Type::Document => {
-                self.document(element)?;
+                self.document(element, context)?;
                 self.visit_children(element, context)?;
                 self.exit_document(element, context)
             }

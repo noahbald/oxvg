@@ -350,7 +350,7 @@ impl Debug for Attributes5Ever<'_> {
     }
 }
 
-impl<'a> ClassList for ClassList5Ever<'a> {
+impl ClassList for ClassList5Ever<'_> {
     type Attribute = Attribute;
 
     fn length(&self) -> usize {
@@ -402,7 +402,7 @@ impl<'a> ClassList for ClassList5Ever<'a> {
         };
 
         let attr = self.attr().expect("had token");
-        let mut new_value = attr.value.subtendril(0, start as u32);
+        let mut new_value = attr.value.subtendril(0, start);
         new_value.push_tendril(&attr.value.subtendril(end, attr.value.len() as u32 - end));
         drop(attr);
         if new_value.trim().is_empty() {
@@ -619,6 +619,10 @@ impl Node for Node5Ever {
             .collect()
     }
 
+    fn child_node_count(&self) -> usize {
+        self.0.children.borrow().len()
+    }
+
     #[allow(refining_impl_trait)]
     fn element(&self) -> Option<Element5Ever> {
         match self.node_type() {
@@ -772,6 +776,18 @@ impl Node for Node5Ever {
             }
             NodeData::Text { contents } => Some(contents.borrow().to_string()),
             NodeData::Element { .. } => Some(String::new()),
+        }
+    }
+
+    fn set_text_content(&mut self, content: Self::Atom) {
+        match &self.0.data {
+            NodeData::Text { contents } => *contents.borrow_mut() = content,
+            NodeData::Element { .. } => {
+                let text = self.text(content);
+                self.empty();
+                self.append_child(text);
+            }
+            _ => {}
         }
     }
 
@@ -1169,7 +1185,7 @@ impl Element for Element5Ever {
     fn get_attribute_node<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<Ref<<Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
         self.attributes().get_named_item(attr_name)
     }
 
@@ -1185,7 +1201,7 @@ impl Element for Element5Ever {
     fn get_attribute_node_local<'a>(
         &'a self,
         attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<<Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
         self.attributes().get_named_item_local(attr_name)
     }
 
@@ -1220,7 +1236,7 @@ impl Element for Element5Ever {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<Self::Atom>> {
+    ) -> Option<Ref<'a, Self::Atom>> {
         self.get_attribute_node_ns(namespace, name)
             .map(|a| Ref::map(a, |a| &a.value))
     }
@@ -1301,6 +1317,10 @@ impl Node for Element5Ever {
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
         self.node.child_nodes().into_iter()
+    }
+
+    fn child_node_count(&self) -> usize {
+        self.node.child_node_count()
     }
 
     fn child_nodes(&self) -> Vec<Self::Child> {
@@ -1393,6 +1413,10 @@ impl Node for Element5Ever {
 
     fn text_content(&self) -> Option<String> {
         self.node.text_content()
+    }
+
+    fn set_text_content(&mut self, content: Self::Atom) {
+        self.node.set_text_content(content);
     }
 
     fn text(&self, content: Self::Atom) -> Self::Child {
@@ -1716,11 +1740,11 @@ impl selectors::Element for Element5Ever {
     }
 
     fn is_empty(&self) -> bool {
-        self.all_children(|child| match child.node_type() {
-            node::Type::Element => false,
-            node::Type::Text => child.node_value().is_some(),
-            _ => true,
-        })
+        !self.has_child_nodes()
+            || self.all_children(|child| match &child.0.data {
+                NodeData::Text { contents } => contents.borrow().trim().is_empty(),
+                _ => false,
+            })
     }
 
     fn is_root(&self) -> bool {

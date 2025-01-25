@@ -5,7 +5,7 @@ use oxvg_ast::{
     element::Element,
     implementations::markup5ever::{Element5Ever, Node5Ever},
     parse::Node,
-    visitor::Visitor,
+    visitor::{Info, Visitor},
 };
 use oxvg_optimiser::ConvertPathData;
 
@@ -36,7 +36,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         let mut dom = Element5Ever::from_parent(dom).unwrap();
                         let mut job = ConvertPathData::default();
                         let start = Instant::now();
-                        let _ = black_box(job.start(&mut dom));
+                        let _ = black_box(job.start(&mut dom, &Info::default()));
                         result += start.elapsed();
                     }
                     result

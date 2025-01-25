@@ -585,7 +585,7 @@ impl<'i> Parse<'i> for FontVariant<'i> {
     }
 }
 
-impl<'i> ToCss for FontVariant<'i> {
+impl ToCss for FontVariant<'_> {
     fn to_css<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
@@ -983,7 +983,7 @@ impl SVGTransform {
             }
         }
 
-        log::debug!(r#"converted to transform: {:?}"#, shortest);
+        log::debug!("converted to transform: {:?}", shortest);
         shortest
     }
 
@@ -1745,7 +1745,7 @@ impl<'i> ComputedStyles<'i> {
         Some((value.mode(), string))
     }
 
-    fn get_important(&'i self, id: &Id<'i>) -> Option<&Style<'i>> {
+    fn get_important(&'i self, id: &Id<'i>) -> Option<&'i Style<'i>> {
         match id {
             Id::CSS(id) => {
                 if let Some(value) = self.inline_important.get(id) {
@@ -1760,7 +1760,7 @@ impl<'i> ComputedStyles<'i> {
         }
     }
 
-    fn get_unimportant(&'i self, id: &Id<'i>) -> Option<&Style<'i>> {
+    fn get_unimportant(&'i self, id: &Id<'i>) -> Option<&'i Style<'i>> {
         match id {
             Id::CSS(id) => {
                 if let Some(value) = self.inline.get(id) {
@@ -1784,7 +1784,7 @@ impl<'i> ComputedStyles<'i> {
         self.inherited.get(id)
     }
 
-    pub fn get_static<'a>(&'i self, id: &'a Id<'a>) -> Option<&Static>
+    pub fn get_static<'a>(&'i self, id: &'a Id<'a>) -> Option<&'i Static<'i>>
     where
         'a: 'i,
     {
@@ -1794,7 +1794,7 @@ impl<'i> ComputedStyles<'i> {
         }
     }
 
-    pub fn computed(&'i self) -> HashMap<Id, &Style> {
+    pub fn computed(&'i self) -> HashMap<Id<'i>, &'i Style<'i>> {
         let mut result = HashMap::new();
         let map = |s: &'i (u32, Style<'i>)| &s.1;
         let mut insert = |s: &'i Style<'i>| {
