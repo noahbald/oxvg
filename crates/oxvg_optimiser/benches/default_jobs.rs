@@ -4,6 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use oxvg_ast::{
     implementations::markup5ever::{Element5Ever, Node5Ever},
     parse::Node,
+    visitor::Info,
 };
 use oxvg_optimiser::Jobs;
 
@@ -33,7 +34,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         let dom = Node5Ever::parse(svg).unwrap();
                         let jobs = Jobs::<Element5Ever>::default();
                         let start = Instant::now();
-                        let _ = black_box(jobs.run(&dom));
+                        let _ = black_box(jobs.run(&dom, &Info::default()));
                         result += start.elapsed();
                     }
                     result

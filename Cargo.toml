@@ -33,7 +33,7 @@ cssparser = "0.34.0"
 derive-where = "1.2"
 itertools = "0.14"
 lazy_static = "1.5"
-lightningcss = { version = "1.0.0-alpha.63" }
+lightningcss = { version = "1.0.0-alpha.63", features = [ "visitor" ] }
 log = "0.4"
 markup5ever = "0.14"
 phf = { version = "0.11", features = ["macros"] }

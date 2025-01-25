@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use oxvg_ast::serialize::Node;
+use oxvg_ast::{serialize::Node, visitor::Info};
 
 use crate::config::Config;
 
@@ -82,14 +82,19 @@ impl RunCommand for Optimise {
         use oxvg_ast::{implementations::markup5ever::Node5Ever, parse::Node};
 
         if self.paths.len() == 1 {
-            let file = std::fs::File::open(self.paths.first().unwrap())?;
+            let path = self.paths.first().unwrap();
+            let file = std::fs::File::open(path)?;
             let dom = Node5Ever::parse_file(&file)?;
             let jobs = config.optimisation.unwrap_or_default();
 
             let start_time = SystemTime::now().duration_since(UNIX_EPOCH)?;
             let prev_file_size = file.metadata()?.len();
 
-            jobs.run(&dom)?;
+            let info = Info {
+                path: Some(path.clone()),
+                multipass_count: 0,
+            };
+            jobs.run(&dom, &info)?;
             let mut stdout = StdoutCounter::new();
             dom.serialize_into(&mut stdout)?;
 

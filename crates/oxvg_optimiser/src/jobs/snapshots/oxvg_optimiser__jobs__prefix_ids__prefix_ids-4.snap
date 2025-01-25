@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/prefix_ids.rs
+expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefixIds_04_svg_txt\"\n        } }\"#,\nSome(r##\"<svg width=\"120\" height=\"120\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- add prefix to css urls -->\n    <style>\n        rect {\n            cursor: pointer;\n            shape-rendering: crispEdges;\n            fill:url(\"#MyGradient\");\n        }\n\n    </style>\n    <rect x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n    <rect x=\"10\" y=\"10\" width=\"100\" height=\"100\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+    <!-- add prefix to css urls -->
+    <style>
+        rect{cursor:pointer;shape-rendering:crispEdges;fill:url(#prefixIds_04_svg_txt__MyGradient)}
+    </style>
+    <rect x="10" y="10" width="100" height="100"/>
+    <rect x="10" y="10" width="100" height="100"/>
+</svg>

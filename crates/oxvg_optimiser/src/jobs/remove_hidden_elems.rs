@@ -107,10 +107,14 @@ impl<E: Element> Visitor<E> for Data<E> {
 
 impl<E: Element> Data<E> {
     fn remove_element(&mut self, element: &E) {
-        if let Some(id) = element.get_attribute_local(&"id".into()) {
-            if let Some(parent) = Element::parent_element(element) {
-                if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
+        if let Some(parent) = Element::parent_element(element) {
+            if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
+                if let Some(id) = element.get_attribute_local(&"id".into()) {
                     self.removed_def_ids.insert(id.to_string());
+                }
+                if parent.child_element_count() == 1 {
+                    parent.remove();
+                    return;
                 }
             }
         }
@@ -127,8 +131,8 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
         PrepareOutcome::use_style
     }
 
-    fn document(&mut self, document: &mut E) -> Result<(), Self::Error> {
-        self.data.start(document).map(|_| ())
+    fn document(&mut self, document: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
+        self.data.start(document, context.info).map(|_| ())
     }
 
     fn use_style(&self, _element: &E) -> bool {

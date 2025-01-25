@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/prefix_ids.rs
+expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefixIds_12_svg_txt\"\n        } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\">\n  <style>\n    <!-- uwu -->\n    #a {}\n  </style>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
+    <style>
+        <!-- uwu -->
+        #prefixIds_12_svg_txt__a{}
+    </style>
+</svg>
