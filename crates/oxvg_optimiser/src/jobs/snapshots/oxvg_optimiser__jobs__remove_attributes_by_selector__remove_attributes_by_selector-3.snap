@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_attributes_by_selector.rs
+expression: "test_config(r##\"{ \"removeAttributesBySelector\": [\n            {\n                \"selector\": \"[fill='#00ff00']\",\n                \"attributes\": [\"fill\"]\n            },\n            {\n                \"selector\": \"#remove\",\n                \"attributes\": [\"stroke\", \"id\"]\n            }\n        ] }\"##,\nSome(r##\"<svg id=\"test\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <rect id=\"remove\" x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"#00ff00\" stroke=\"#00ff00\"/>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" id="test" viewBox="0 0 100 100">
+    <rect x="0" y="0" width="100" height="100"/>
+</svg>

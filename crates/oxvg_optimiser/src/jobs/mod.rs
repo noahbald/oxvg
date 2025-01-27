@@ -55,6 +55,7 @@ jobs! {
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
     prefix_ids: PrefixIds<E>,
+    remove_attributes_by_selector: RemoveAttributesBySelector,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
