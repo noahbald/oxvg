@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_attrs.rs
+expression: "test_config(r#\"{ \"removeAttrs\": {\n            \"attrs\": [\"fill\"],\n            \"preserveCurrentColor\": true\n        } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 150 150\">\n    <linearGradient id=\"A\">\n        <stop stop-color=\"ReD\" offset=\"5%\"/>\n    </linearGradient>\n    <text x=\"0\" y=\"32\" fill=\"currentColor\">uwu</text>\n    <text x=\"0\" y=\"64\" fill=\"currentcolor\">owo</text>\n    <text x=\"0\" y=\"96\" fill=\"url(#A)\">eue</text>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150">
+    <linearGradient id="A">
+        <stop stop-color="ReD" offset="5%"/>
+    </linearGradient>
+    <text x="0" y="32" fill="currentColor">
+        uwu
+    </text>
+    <text x="0" y="64" fill="currentcolor">
+        owo
+    </text>
+    <text x="0" y="96">
+        eue
+    </text>
+</svg>
