@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_deprecated_attrs.rs
+expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": { \"removeUnsafe\": true } }\"#,\nSome(r#\"<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- removes unsafe to remove deprecated `viewTarget` -->\n    <view id=\"one\" viewBox=\"0 0 100 100\" viewTarget=\"\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- removes unsafe to remove deprecated `viewTarget` -->
+    <view id="one" viewBox="0 0 100 100"/>
+</svg>

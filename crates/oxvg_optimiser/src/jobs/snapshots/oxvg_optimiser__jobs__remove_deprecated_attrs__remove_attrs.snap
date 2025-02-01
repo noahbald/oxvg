@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_deprecated_attrs.rs
+expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": {} }\"#,\nSome(r#\"<svg version=\"1.1\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- removes deprecated `version` -->\n    <rect x=\"10\" y=\"10\" width=\"80\" height=\"80\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- removes deprecated `version` -->
+    <rect x="10" y="10" width="80" height="80"/>
+</svg>

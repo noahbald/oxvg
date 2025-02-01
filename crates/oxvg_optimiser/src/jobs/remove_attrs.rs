@@ -26,11 +26,11 @@ pub struct RemoveAttrs {
     parsed_attrs: Vec<[regex::Regex; 3]>,
 }
 
-fn decorate_pattern(part: &str) -> String {
-    if part == "*" {
-        return String::from(".*");
+fn create_regex(part: &str) -> Result<regex::Regex, regex::Error> {
+    if matches!(part, "*" | ".*") {
+        return Ok(WILDCARD.clone());
     }
-    format!("^{part}$")
+    regex::Regex::new(&format!("^{part}$"))
 }
 
 impl RemoveAttrs {
@@ -38,21 +38,13 @@ impl RemoveAttrs {
         let list = match pattern.split_once(&self.elem_separator) {
             Some((start, rest)) => match rest.split_once(&self.elem_separator) {
                 Some((middle, end)) => [
-                    regex::Regex::new(&decorate_pattern(start))?,
-                    regex::Regex::new(&decorate_pattern(middle))?,
-                    regex::Regex::new(&decorate_pattern(end))?,
+                    create_regex(start)?,
+                    create_regex(middle)?,
+                    create_regex(end)?,
                 ],
-                None => [
-                    regex::Regex::new(&decorate_pattern(start))?,
-                    regex::Regex::new(&decorate_pattern(rest))?,
-                    WILDCARD.clone(),
-                ],
+                None => [create_regex(start)?, create_regex(rest)?, WILDCARD.clone()],
             },
-            None => [
-                WILDCARD.clone(),
-                regex::Regex::new(&decorate_pattern(pattern))?,
-                WILDCARD.clone(),
-            ],
+            None => [WILDCARD.clone(), create_regex(pattern)?, WILDCARD.clone()],
         };
         Ok(list)
     }

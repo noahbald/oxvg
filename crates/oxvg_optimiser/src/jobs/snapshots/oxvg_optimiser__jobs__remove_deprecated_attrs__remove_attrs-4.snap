@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_deprecated_attrs.rs
+expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": { \"removeUnsafe\": true } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100.5\" height=\".5\" enable-background=\"new 0 0 100.5 .5\">\n    <!-- remove deprecated `enable-background` -->\n    <defs>\n        <filter id=\"ShiftBGAndBlur\">\n            <feOffset dx=\"0\" dy=\"75\"/>\n        </filter>\n    </defs>\n    test\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height=".5">
+    <!-- remove deprecated `enable-background` -->
+    <defs>
+        <filter id="ShiftBGAndBlur">
+            <feOffset dx="0" dy="75"/>
+        </filter>
+    </defs>
+    test
+</svg>

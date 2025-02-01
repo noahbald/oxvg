@@ -2048,3 +2048,40 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         content: None,
     },
 };
+
+pub static ANIMATION_ATTRIBUTE_TARGET_DEPRECATED: phf::Set<&'static str> = phf_set! {
+    "attributeType"
+};
+
+pub static CONDITIONAL_PROCESSING_DEPRECATED: phf::Set<&'static str> = phf_set! {
+    "requiredFeatures"
+};
+
+pub static CORE_DEPRECATED: phf::Set<&'static str> = phf_set! {
+    "xml:base", "xml:lang", "xml:space"
+};
+
+pub static PRESENTATION_DEPRECATED: phf::Set<&'static str> = phf_set! {
+    "clip",
+    "color-profile",
+    "enable-background",
+    "glyph-orientation-horizontal",
+    "glyph-orientation-vertical",
+    "kerning"
+};
+
+pub fn attrs_group_deprecated_unsafe<'a>(
+    attrs_group: &'static phf::Set<&'static str>,
+) -> Option<&'a phf::Set<&'static str>> {
+    if attrs_group.map.key == ANIMATION_ATTRIBUTE_TARGET.map.key {
+        Some(&ANIMATION_ATTRIBUTE_TARGET_DEPRECATED)
+    } else if attrs_group.map.key == CONDITIONAL_PROCESSING.map.key {
+        Some(&CONDITIONAL_PROCESSING_DEPRECATED)
+    } else if attrs_group.map.key == CORE.map.key {
+        Some(&CORE_DEPRECATED)
+    } else if attrs_group.map.key == PRESENTATION.map.key {
+        Some(&PRESENTATION_DEPRECATED)
+    } else {
+        None
+    }
+}

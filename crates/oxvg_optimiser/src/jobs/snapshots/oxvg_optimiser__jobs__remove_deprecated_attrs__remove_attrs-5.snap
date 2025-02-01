@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_deprecated_attrs.rs
+expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": {} }\"#,\nSome(r#\"<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- remove deprecated `xml:lang` in presence of `lang` -->\n    <text xml:lang=\"en-CA\" lang=\"en-US\">English text</text>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- remove deprecated `xml:lang` in presence of `lang` -->
+    <text xml:lang="en-CA">
+        English text
+    </text>
+</svg>
