@@ -27,7 +27,7 @@ impl<E: Element> Visitor<E> for CollapseGroups {
         }
     }
 
-    fn exit_element(&mut self, element: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn exit_element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
