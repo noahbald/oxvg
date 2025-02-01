@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_deprecated_attrs.rs
+expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": { \"removeUnsafe\": true } }\"#,\nSome(r#\"<svg version=\"1.1\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep selected `version` -->\n    <style>\n        <![CDATA[svg[version=\"1.1\"]{fill:blue;}rect[clip]{fill:green;}]]>\n    </style>\n    <rect x=\"10\" y=\"10\" width=\"80\" height=\"80\" clip=\"1\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100">
+    <!-- keep selected `version` -->
+    <style>
+        svg[version="1.1"]{fill:blue;}rect[clip]{fill:green;}
+    </style>
+    <rect x="10" y="10" width="80" height="80" clip="1"/>
+</svg>

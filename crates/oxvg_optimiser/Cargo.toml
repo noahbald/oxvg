@@ -28,6 +28,8 @@ serde_json = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
+parcel_selectors = { version = "0.28" }
+phf = { workspace = true }
 regex = { workspace = true }
 urlencoding = "2.1"
 

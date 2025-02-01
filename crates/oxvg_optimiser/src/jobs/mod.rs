@@ -57,6 +57,7 @@ jobs! {
     prefix_ids: PrefixIds<E>,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
+    remove_deprecated_attrs: RemoveDeprecatedAttrs,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
