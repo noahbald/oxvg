@@ -58,6 +58,7 @@ jobs! {
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
     remove_deprecated_attrs: RemoveDeprecatedAttrs,
+    reuse_paths: ReusePaths<E>,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),

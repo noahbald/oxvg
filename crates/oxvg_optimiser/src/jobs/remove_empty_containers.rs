@@ -33,7 +33,7 @@ impl<E: Element> Visitor<E> for RemoveEmptyContainers {
         element.prefix().is_none() && element.local_name().as_ref() == "g"
     }
 
-    fn exit_element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), String> {
+    fn exit_element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
         let name = &element.qual_name().formatter().to_string();
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);

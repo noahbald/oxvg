@@ -25,7 +25,7 @@ pub struct Context<'i, 'o, E: Element> {
     pub info: &'i Info,
 }
 
-impl<'i, 'o, E: Element> Context<'i, 'o, E> {
+impl<'i, E: Element> Context<'i, '_, E> {
     pub fn new(
         root: E,
         flags: ContextFlags,
@@ -121,7 +121,11 @@ pub trait Visitor<E: Element> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn exit_element(&mut self, element: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
+    fn exit_element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<E>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 

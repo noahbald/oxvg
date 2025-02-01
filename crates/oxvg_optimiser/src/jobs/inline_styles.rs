@@ -88,7 +88,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
     fn exit_element(
         &mut self,
         element: &mut E,
-        context: &oxvg_ast::visitor::Context<E>,
+        context: &mut Context<E>,
     ) -> Result<(), Self::Error> {
         if element.prefix().is_some() || element.local_name().as_ref() != "style" {
             return Ok(());

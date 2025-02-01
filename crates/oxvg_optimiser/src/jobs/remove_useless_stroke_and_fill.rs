@@ -72,7 +72,7 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
     fn exit_element(
         &mut self,
         element: &mut E,
-        _context: &oxvg_ast::visitor::Context<E>,
+        _context: &mut Context<E>,
     ) -> Result<(), Self::Error> {
         let mut id_rc_byte = self.id_rc_byte.borrow_mut();
         if id_rc_byte.is_some_and(|b| b == element.as_ptr_byte()) {
