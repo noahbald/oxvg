@@ -59,6 +59,7 @@ jobs! {
     remove_attrs: RemoveAttrs,
     remove_deprecated_attrs: RemoveDeprecatedAttrs,
     remove_dimensions: RemoveDimensions,
+    remove_elements_by_attr: RemoveElementsByAttr,
     remove_off_canvas_paths: RemoveOffCanvasPaths,
     remove_raster_images: RemoveRasterImages,
     reuse_paths: ReusePaths<E>,
