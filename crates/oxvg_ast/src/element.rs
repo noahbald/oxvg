@@ -355,13 +355,16 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
 
     /// Removes the attribute with the specified local name from the element, only if that
     /// attribute also has no prefix
-    fn remove_attribute_local<'a, N>(&'a self, attr_name: &N)
+    fn remove_attribute_local<'a, N>(
+        &'a self,
+        attr_name: &N,
+    ) -> Option<<Self::Attributes<'a> as Attributes<'a>>::Attribute>
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
     {
         let attrs = self.attributes();
-        attrs.remove_named_item_local(attr_name);
+        attrs.remove_named_item_local(attr_name)
     }
 
     fn replace_children(&self, children: Vec<Self::Child>);
