@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 lazy_static = { workspace = true }
-log = { workspace = true }
 phf = { workspace = true }
 regex = { workspace = true }
 

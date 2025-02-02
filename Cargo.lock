@@ -1175,11 +1175,9 @@ dependencies = [
  "clap",
  "config",
  "log",
- "markup5ever_rcdom",
  "oxvg_ast",
  "oxvg_optimiser",
  "serde",
- "xml5ever",
 ]
 
 [[package]]
@@ -1200,16 +1198,13 @@ dependencies = [
  "bitflags",
  "cssparser 0.33.0",
  "cssparser 0.34.0",
- "derive-where",
  "itertools 0.14.0",
- "lazy_static",
  "lightningcss",
  "log",
  "markup5ever",
  "markup5ever_rcdom",
  "precomputed-hash",
  "selectors",
- "serde",
  "smallvec",
  "string_cache",
  "xml5ever",
@@ -1220,7 +1215,6 @@ name = "oxvg_collections"
 version = "0.0.1-alpha.1"
 dependencies = [
  "lazy_static",
- "log",
  "oxvg_ast",
  "phf",
  "regex",

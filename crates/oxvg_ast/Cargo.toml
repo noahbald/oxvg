@@ -22,9 +22,8 @@ markup5ever = [
 parse = ["dep:anyhow"]
 serialize = []
 selectors = ["dep:selectors", "dep:cssparser", "dep:precomputed-hash"]
-visitor = ["dep:bitflags", "dep:derive-where"]
+visitor = ["dep:bitflags"]
 style = [
-  "dep:lazy_static",
   "dep:lightningcss",
   "dep:cssparser_lightningcss",
   "dep:smallvec",
@@ -35,16 +34,13 @@ anyhow = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 cssparser = { workspace = true, optional = true }
 cssparser_lightningcss = { package = "cssparser", version = "0.33", optional = true }
-derive-where = { workspace = true, optional = true }
 itertools = { workspace = true }
-lazy_static = { workspace = true, optional = true }
 lightningcss = { workspace = true, optional = true }
 log = { workspace = true }
 markup5ever = { workspace = true, optional = true }
 precomputed-hash = { workspace = true, optional = true }
 string_cache = { workspace = true, optional = true }
 rcdom = { workspace = true, optional = true }
-serde = { workspace = true, features = ["derive"] }
 selectors = { workspace = true, optional = true }
 smallvec = { version = "1.13.2", optional = true }
 xml5ever = { workspace = true, optional = true }

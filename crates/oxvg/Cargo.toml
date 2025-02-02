@@ -27,6 +27,4 @@ anyhow = { workspace = true }
 clap = { version = "4.5.4", features = ["derive"] }
 config = { version = "0.14.0", features = ["json", "json5"] }
 log = { workspace = true }
-rcdom = { workspace = true }
 serde = { workspace = true }
-xml5ever = { workspace = true }
