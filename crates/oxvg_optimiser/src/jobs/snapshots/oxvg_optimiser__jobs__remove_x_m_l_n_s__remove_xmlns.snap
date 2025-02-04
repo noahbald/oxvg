@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_x_m_l_n_s.rs
+expression: "test_config(r#\"{ \"removeXMLNS\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    test\n</svg>\"#),)?"
+---
+<svg>
+    test
+</svg>
