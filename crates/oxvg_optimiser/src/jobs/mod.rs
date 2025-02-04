@@ -63,6 +63,7 @@ jobs! {
     remove_off_canvas_paths: RemoveOffCanvasPaths,
     remove_raster_images: RemoveRasterImages,
     remove_scripts: RemoveScripts,
+    remove_style_element: RemoveStyleElement,
     reuse_paths: ReusePaths<E>,
 
     // Default plugins

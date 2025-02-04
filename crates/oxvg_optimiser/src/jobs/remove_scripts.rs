@@ -65,10 +65,6 @@ impl<E: Element> Visitor<E> for RemoveScripts {
     }
 }
 
-lazy_static! {
-    static ref STANDARD_DESCS: regex::Regex = regex::Regex::new("^Created (with|using)").unwrap();
-}
-
 #[test]
 fn remove_scripts() -> anyhow::Result<()> {
     use crate::test_config;
