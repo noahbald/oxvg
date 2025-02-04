@@ -1,4 +1,4 @@
-use std::{fmt::Display, hash::Hash};
+use std::{fmt::Display, hash::Hash, ops::Deref};
 
 pub trait Atom:
     Eq
@@ -10,6 +10,7 @@ pub trait Atom:
     + for<'a> From<&'a str>
     + From<String>
     + AsRef<str>
+    + Deref<Target = str>
     + Hash
     + 'static
 {
@@ -29,6 +30,7 @@ impl<T> Atom for T where
         + for<'a> From<&'a str>
         + From<String>
         + AsRef<str>
+        + Deref<Target = str>
         + Hash
         + 'static
 {

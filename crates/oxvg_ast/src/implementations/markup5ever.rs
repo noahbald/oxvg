@@ -684,6 +684,16 @@ impl Node for Node5Ever {
             .all(|node| f(Self(node.clone())))
     }
 
+    fn retain_children<F>(&self, mut f: F)
+    where
+        F: FnMut(Self::Child) -> bool,
+    {
+        self.0
+            .children
+            .borrow_mut()
+            .retain(|node| f(Self(node.clone())));
+    }
+
     fn node_type(&self) -> node::Type {
         match self.0.data {
             NodeData::Comment { .. } => node::Type::Comment,
@@ -1353,6 +1363,13 @@ impl Node for Element5Ever {
         F: FnMut(Self::Child) -> bool,
     {
         self.node.all_children(f)
+    }
+
+    fn retain_children<F>(&self, f: F)
+    where
+        F: FnMut(Self::Child) -> bool,
+    {
+        self.node.retain_children(f)
     }
 
     fn element(&self) -> Option<impl Element> {

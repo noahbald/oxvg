@@ -62,6 +62,7 @@ jobs! {
     remove_elements_by_attr: RemoveElementsByAttr,
     remove_off_canvas_paths: RemoveOffCanvasPaths,
     remove_raster_images: RemoveRasterImages,
+    remove_scripts: RemoveScripts,
     reuse_paths: ReusePaths<E>,
 
     // Default plugins

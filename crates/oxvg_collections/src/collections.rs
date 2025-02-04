@@ -167,13 +167,90 @@ impl<'a> Group<'a> for AttrsGroups {
             Self::Presentation => &PRESENTATION,
             Self::XLink => &X_LINK,
             Self::DocumentEvent => &DOCUMENT_EVENT,
-            Self::DocumentElementEvent => &DOCUMENT_EVEMENT_EVENT,
+            Self::DocumentElementEvent => &DOCUMENT_ELEMENT_EVENT,
             Self::GlobalEvent => &GLOBAL_EVENT,
             Self::FilterPrimitive => &FILTER_PRIMITIVE,
             Self::TransferFunction => &TRANSFER_FUNCTION,
         }
     }
 }
+
+// NOTE: Can't seem to macronise this
+pub static EVENT_ATTRS: phf::Set<&'static str> = phf_set! {
+    // ANIMATION_EVENT
+    "onbegin",
+    "onend",
+    "onrepeat",
+    "onload",
+    // DOCUMENT_EVENT
+    "onabort",
+    "onerror",
+    "onresize",
+    "onscroll",
+    "onunload",
+    "onzoom",
+    // DOCUMENT_ELEMENT_EVENT
+    "oncopy",
+    "oncut",
+    "onpaste",
+    // GLOBAL_EVENT (NOTE: Deduplicated)
+    "oncancel",
+    "oncanplay",
+    "oncanplaythrough",
+    "onchange",
+    "onclick",
+    "onclose",
+    "oncuechange",
+    "ondblclick",
+    "ondrag",
+    "ondragend",
+    "ondragenter",
+    "ondragleave",
+    "ondragover",
+    "ondragstart",
+    "ondrop",
+    "ondurationchange",
+    "onemptied",
+    "onended",
+    "onfocus",
+    "oninput",
+    "oninvalid",
+    "onkeydown",
+    "onkeypress",
+    "onkeyup",
+    "onloadeddata",
+    "onloadedmetadata",
+    "onloadstart",
+    "onmousedown",
+    "onmouseenter",
+    "onmouseleave",
+    "onmousemove",
+    "onmouseout",
+    "onmouseover",
+    "onmouseup",
+    "onmousewheel",
+    "onpause",
+    "onplay",
+    "onplaying",
+    "onprogress",
+    "onratechange",
+    "onreset",
+    "onseeked",
+    "onseeking",
+    "onselect",
+    "onshow",
+    "onstalled",
+    "onsubmit",
+    "onsuspend",
+    "ontimeupdate",
+    "ontoggle",
+    "onvolumechange",
+    "onwaiting",
+    // GRAPHICAL_EVENT (NOTE: Deduplicated)
+    "onactivate",
+    "onfocusin",
+    "onfocusout",
+};
 
 // Attrs groups
 pub static ANIMATION_ADDITION: phf::Set<&'static str> = phf_set! { "additive", "accumulate" };
@@ -293,7 +370,7 @@ pub static X_LINK: phf::Set<&'static str> = phf_set! {
 };
 pub static DOCUMENT_EVENT: phf::Set<&'static str> =
     phf_set! {"onabort", "onerror", "onresize", "onscroll", "onunload", "onzoom",};
-pub static DOCUMENT_EVEMENT_EVENT: phf::Set<&'static str> = phf_set! {"oncopy", "oncut", "onpaste"};
+pub static DOCUMENT_ELEMENT_EVENT: phf::Set<&'static str> = phf_set! {"oncopy", "oncut", "onpaste"};
 pub static GLOBAL_EVENT: phf::Set<&'static str> = phf_set! {
     "oncancel",
     "oncanplay",
