@@ -127,6 +127,10 @@ pub trait Node: Clone + Debug + 'static + Features {
     where
         F: FnMut(Self::Child) -> bool;
 
+    fn retain_children<F>(&self, f: F)
+    where
+        F: FnMut(Self::Child) -> bool;
+
     /// Returns the last child in the node's tree
     ///
     /// [MDN | lastChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/lastChild)

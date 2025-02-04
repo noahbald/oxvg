@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_scripts.rs
+expression: "test_config(r#\"{ \"removeScripts\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n  <a href=\"https://yewtu.be/watch?v=dQw4w9WgXcQ\">\n    <text y=\"10\" onclick=\"alert('uwu')\">uwu</text>\n  </a>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <a href="https://yewtu.be/watch?v=dQw4w9WgXcQ">
+        <text y="10">
+            uwu
+        </text>
+    </a>
+</svg>
