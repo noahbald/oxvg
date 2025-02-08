@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_xlink.rs
+expression: "test_config(r#\"{ \"removeXlink\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 50 50\">\n  <!-- drops other xlink attributes -->\n  <defs>\n    <linearGradient id=\"a\" x1=\"263.36\" y1=\"14.74\" x2=\"333.47\" y2=\"84.85\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#45afe4\"/>\n      <stop offset=\"1\" stop-color=\"#364f9e\"/>\n    </linearGradient>\n    <linearGradient id=\"b\" x1=\"262.64\" y1=\"15.46\" x2=\"332.75\" y2=\"85.57\" xlink:href=\"#a\" xlink:type=\"simple\"/>\n  </defs>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- drops other xlink attributes -->
+    <defs>
+        <linearGradient id="a" x1="263.36" y1="14.74" x2="333.47" y2="84.85" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#45afe4"/>
+            <stop offset="1" stop-color="#364f9e"/>
+        </linearGradient>
+        <linearGradient id="b" x1="262.64" y1="15.46" x2="332.75" y2="85.57" href="#a"/>
+    </defs>
+</svg>
