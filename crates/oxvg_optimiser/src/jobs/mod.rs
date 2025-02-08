@@ -102,6 +102,9 @@ jobs! {
     sort_defs_children: SortDefsChildren (is_default: true),
     remove_title: RemoveTitle (is_default: true),
     remove_desc: RemoveDesc (is_default: true),
+
+    // Final non-default plugins
+    remove_xlink: RemoveXlink<E>,
 }
 
 #[derive(Debug)]
