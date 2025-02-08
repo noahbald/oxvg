@@ -110,9 +110,9 @@ impl MinifyStyles {
             return None;
         }
 
-        let options = inline_styles::Options {
-            use_mqs: Some(vec!["*".to_string()]),
-            use_pseudos: Some(vec!["*".to_string()]),
+        let mut options = inline_styles::Options {
+            use_mqs: vec!["*".to_string()],
+            use_pseudos: vec!["*".to_string()],
             ..inline_styles::Options::default()
         };
         options.take_matching_selectors(css, context)

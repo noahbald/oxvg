@@ -68,7 +68,7 @@ impl<E: Element> Visitor<E> for Data<E> {
         PrepareOutcome::use_style
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         let name = element.qual_name().formatter().to_string();
         !NON_RENDERING.contains(&name)
     }
@@ -135,7 +135,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
         self.data.start(document, context.info).map(|_| ())
     }
 
-    fn use_style(&self, _element: &E) -> bool {
+    fn use_style(&mut self, _element: &E) -> bool {
         true
     }
 

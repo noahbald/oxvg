@@ -9,10 +9,14 @@ use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupNumericValues {
-    float_precision: Option<usize>,
-    leading_zero: Option<bool>,
-    default_px: Option<bool>,
-    convert_to_px: Option<bool>,
+    #[serde(default = "default_float_precision")]
+    float_precision: usize,
+    #[serde(default = "default_leading_zero")]
+    leading_zero: bool,
+    #[serde(default = "default_default_px")]
+    default_px: bool,
+    #[serde(default = "default_convert_to_px")]
+    convert_to_px: bool,
 }
 
 impl<E: Element> Visitor<E> for CleanupNumericValues {
@@ -26,10 +30,10 @@ impl<E: Element> Visitor<E> for CleanupNumericValues {
 impl CleanupValues for CleanupNumericValues {
     fn get_options(&self) -> cleanup_values::Options {
         cleanup_values::Options {
-            float_precision: self.float_precision.unwrap_or(DEFAULT_FLOAT_PRECISION),
-            leading_zero: self.leading_zero.unwrap_or(DEFAULT_LEADING_ZERO),
-            default_px: self.default_px.unwrap_or(DEFAULT_DEFAULT_PX),
-            do_convert_to_px: self.convert_to_px.unwrap_or(DEFAULT_CONVERT_TO_PX),
+            float_precision: self.float_precision,
+            leading_zero: self.leading_zero,
+            default_px: self.default_px,
+            do_convert_to_px: self.convert_to_px,
         }
     }
 
@@ -38,10 +42,18 @@ impl CleanupValues for CleanupNumericValues {
     }
 }
 
-static DEFAULT_FLOAT_PRECISION: usize = 3;
-static DEFAULT_LEADING_ZERO: bool = true;
-static DEFAULT_DEFAULT_PX: bool = true;
-static DEFAULT_CONVERT_TO_PX: bool = true;
+const fn default_float_precision() -> usize {
+    3
+}
+const fn default_leading_zero() -> bool {
+    true
+}
+const fn default_default_px() -> bool {
+    true
+}
+const fn default_convert_to_px() -> bool {
+    true
+}
 
 #[test]
 fn cleanup_numeric_values() -> anyhow::Result<()> {

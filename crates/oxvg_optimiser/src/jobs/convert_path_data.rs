@@ -8,20 +8,34 @@ use serde_json::Value;
 
 #[derive(Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ConvertPathData {
-    remove_useless: Option<bool>,
-    smart_arc_rounding: Option<bool>,
-    straight_curves: Option<bool>,
-    convert_to_q: Option<bool>,
-    line_shorthands: Option<bool>,
-    collapse_repeated: Option<bool>,
-    curve_smooth_shorthands: Option<bool>,
-    convert_to_z: Option<bool>,
-    force_absolute_path: Option<bool>,
-    negative_extra_space: Option<bool>,
-    make_arcs: Option<MakeArcs>,
-    float_precision: Option<Precision>,
-    utilize_absolute: Option<bool>,
+    #[serde(default = "flag_default_true")]
+    remove_useless: bool,
+    #[serde(default = "flag_default_true")]
+    smart_arc_rounding: bool,
+    #[serde(default = "flag_default_true")]
+    straight_curves: bool,
+    #[serde(default = "flag_default_true")]
+    convert_to_q: bool,
+    #[serde(default = "flag_default_true")]
+    line_shorthands: bool,
+    #[serde(default = "flag_default_true")]
+    collapse_repeated: bool,
+    #[serde(default = "flag_default_true")]
+    curve_smooth_shorthands: bool,
+    #[serde(default = "flag_default_true")]
+    convert_to_z: bool,
+    #[serde(default = "bool::default")]
+    force_absolute_path: bool,
+    #[serde(default = "flag_default_true")]
+    negative_extra_space: bool,
+    #[serde(default = "MakeArcs::default")]
+    make_arcs: MakeArcs,
+    #[serde(default = "Precision::default")]
+    float_precision: Precision,
+    #[serde(default = "flag_default_true")]
+    utilize_absolute: bool,
     // TODO: Do we want to have apply_transforms as an option, or is it better to have this as a plugin
     // just *before* this one
     // apply_transforms: Option<bool>,
@@ -39,7 +53,7 @@ impl<E: Element> Visitor<E> for ConvertPathData {
         PrepareOutcome::use_style
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         let d_name = "d".into();
         element.has_attribute_local(&d_name)
     }
@@ -69,8 +83,8 @@ impl<E: Element> Visitor<E> for ConvertPathData {
             &path,
             &convert::Options {
                 flags: self.into(),
-                make_arcs: self.make_arcs.clone().unwrap_or_default(),
-                precision: self.float_precision.unwrap_or_default().0,
+                make_arcs: self.make_arcs.clone(),
+                precision: self.float_precision.0,
             },
             &style_info,
         );
@@ -85,41 +99,26 @@ impl From<&mut ConvertPathData> for convert::Flags {
         use convert::Flags;
 
         let mut output = convert::Flags::default();
-        if let Some(f) = val.remove_useless {
-            output.set(Flags::remove_useless_flag, f);
-        }
-        if let Some(f) = val.smart_arc_rounding {
-            output.set(Flags::smart_arc_rounding_flag, f);
-        }
-        if let Some(f) = val.straight_curves {
-            output.set(Flags::straight_curves_flag, f);
-        }
-        if let Some(f) = val.convert_to_q {
-            output.set(Flags::convert_to_q_flag, f);
-        }
-        if let Some(f) = val.line_shorthands {
-            output.set(Flags::line_shorthands_flag, f);
-        }
-        if let Some(f) = val.collapse_repeated {
-            output.set(Flags::collapse_repeated_flag, f);
-        }
-        if let Some(f) = val.curve_smooth_shorthands {
-            output.set(Flags::curve_smooth_shorthands_flag, f);
-        }
-        if let Some(f) = val.convert_to_z {
-            output.set(Flags::convert_to_z_flag, f);
-        }
-        if let Some(f) = val.force_absolute_path {
-            output.set(Flags::force_absolute_path_flag, f);
-        }
-        if let Some(f) = val.negative_extra_space {
-            output.set(Flags::negative_extra_space_flag, f);
-        }
-        if let Some(f) = val.utilize_absolute {
-            output.set(Flags::utilize_absolute_flag, f);
-        }
+        output.set(Flags::remove_useless_flag, val.remove_useless);
+        output.set(Flags::smart_arc_rounding_flag, val.smart_arc_rounding);
+        output.set(Flags::straight_curves_flag, val.straight_curves);
+        output.set(Flags::convert_to_q_flag, val.convert_to_q);
+        output.set(Flags::line_shorthands_flag, val.line_shorthands);
+        output.set(Flags::collapse_repeated_flag, val.collapse_repeated);
+        output.set(
+            Flags::curve_smooth_shorthands_flag,
+            val.curve_smooth_shorthands,
+        );
+        output.set(Flags::convert_to_z_flag, val.convert_to_z);
+        output.set(Flags::force_absolute_path_flag, val.force_absolute_path);
+        output.set(Flags::negative_extra_space_flag, val.negative_extra_space);
+        output.set(Flags::utilize_absolute_flag, val.utilize_absolute);
         output
     }
+}
+
+const fn flag_default_true() -> bool {
+    true
 }
 
 #[derive(Debug)]

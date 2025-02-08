@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 use derive_where::derive_where;
 use oxvg_ast::{
@@ -36,11 +33,14 @@ struct RefRename<E: Element> {
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 struct Options {
-    remove: Option<bool>,
-    minify: Option<bool>,
+    #[serde(default = "default_remove")]
+    remove: bool,
+    #[serde(default = "default_minify")]
+    minify: bool,
     preserve: Option<Vec<String>>,
     preserve_prefixes: Option<Vec<String>>,
-    force: Option<bool>,
+    #[serde(default = "bool::default")]
+    force: bool,
 }
 
 #[derive(Debug)]
@@ -49,9 +49,9 @@ pub struct CleanupIds<E: Element> {
     options: Options,
     ignore_document: bool,
     replaceable_ids: BTreeSet<String>,
-    id_renames: RefCell<BTreeMap<String, String>>,
-    ref_renames: RefCell<Vec<RefRename<E>>>,
-    generated_id: RefCell<GeneratedId>,
+    id_renames: BTreeMap<String, String>,
+    ref_renames: Vec<RefRename<E>>,
+    generated_id: GeneratedId,
 }
 
 impl<E: Element> Visitor<E> for CleanupIds<E> {
@@ -75,9 +75,7 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
             return Ok(());
         }
 
-        let mut generated_id = self.generated_id.borrow_mut();
         // Find references in attributes
-        let mut ref_renames = self.ref_renames.borrow_mut();
         for attr in element.attributes().into_iter() {
             let name = attr.name();
             let local_name = name.local_name();
@@ -91,14 +89,14 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
                 .for_each(|item| {
                     if self.replaceable_ids.contains(item) {
                         log::debug!("CleanupIds::run: found potential reference: {item}");
-                        ref_renames.push(RefRename {
+                        self.ref_renames.push(RefRename {
                             element_ref: element.clone(),
                             name: name.clone(),
                             referenced_id: item.to_string(),
                         });
                     } else {
                         log::debug!("CleanupIds::run: found unmatched reference: {item}");
-                        generated_id.insert_prevent_collision(item.to_string());
+                        self.generated_id.insert_prevent_collision(item.to_string());
                     }
                 });
         }
@@ -106,19 +104,18 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
     }
 
     fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
-        let remove = self.options.remove.unwrap_or(REMOVE_DEFAULT);
+        let remove = self.options.remove;
 
         let Some(root) = &document.find_element() else {
             return Ok(());
         };
         // Generate renames for references
         let mut used_ids = BTreeMap::new();
-        let mut generated_id = self.generated_id.borrow_mut();
         for RefRename {
             element_ref,
             name,
             referenced_id,
-        } in self.ref_renames.borrow().iter()
+        } in &self.ref_renames
         {
             let element = element_ref;
             let Some(ref mut attr) = element.get_attribute_node_mut(name) else {
@@ -127,7 +124,7 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
             };
             let minified_id = used_ids
                 .get(referenced_id)
-                .unwrap_or(&generated_id.current)
+                .unwrap_or(&self.generated_id.current)
                 .clone();
             let replacements =
                 replace_id_in_attr(attr.value().to_string(), referenced_id, &minified_id);
@@ -138,9 +135,9 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
                 .insert(referenced_id.clone(), minified_id.clone())
                 .is_none();
             if is_new {
-                generated_id.next();
+                self.generated_id.next();
             }
-            if self.options.minify.unwrap_or(MINIFY_DEFAULT) {
+            if self.options.minify {
                 log::debug!(
                     "CleanupIds::breakdown: updating reference: {name:?} <-> {referenced_id}"
                 );
@@ -174,7 +171,7 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
 
 impl<E: Element> CleanupIds<E> {
     fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
-        if self.options.force == Some(true) {
+        if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
             self.ignore_document = false;
             return;
@@ -230,9 +227,7 @@ impl<E: Element> CleanupIds<E> {
                 self.replaceable_ids.insert(encoded_id.to_string());
             }
         }
-        self.generated_id
-            .borrow_mut()
-            .set_prevent_collision(preserved_ids);
+        self.generated_id.set_prevent_collision(preserved_ids);
     }
 }
 
@@ -358,8 +353,12 @@ impl Default for GeneratedId {
     }
 }
 
-static REMOVE_DEFAULT: bool = true;
-static MINIFY_DEFAULT: bool = true;
+const fn default_remove() -> bool {
+    true
+}
+const fn default_minify() -> bool {
+    true
+}
 
 #[test]
 #[allow(clippy::too_many_lines)]

@@ -38,7 +38,7 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         PrepareOutcome::use_style
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 

@@ -47,7 +47,7 @@ impl<E: Element> Visitor<E> for ConvertTransform {
         PrepareOutcome::use_style
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         element.attributes().into_iter().any(|attr| {
             matches!(
                 attr.local_name().as_ref(),

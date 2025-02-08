@@ -165,7 +165,7 @@ pub trait Visitor<E: Element> {
         Ok(())
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         false
     }
 

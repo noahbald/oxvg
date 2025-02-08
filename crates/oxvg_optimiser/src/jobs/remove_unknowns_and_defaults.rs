@@ -17,15 +17,24 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)]
 pub struct RemoveUnknownsAndDefaults {
-    unknown_content: Option<bool>,
-    unknown_attrs: Option<bool>,
-    default_attrs: Option<bool>,
-    default_markup_declarations: Option<bool>,
-    useless_overrides: Option<bool>,
-    keep_data_attrs: Option<bool>,
-    keep_aria_attrs: Option<bool>,
-    keep_role_attr: Option<bool>,
+    #[serde(default = "default_unknown_content")]
+    unknown_content: bool,
+    #[serde(default = "default_unknown_attrs")]
+    unknown_attrs: bool,
+    #[serde(default = "default_default_attrs")]
+    default_attrs: bool,
+    #[serde(default = "default_default_markup_declarations")]
+    default_markup_declarations: bool,
+    #[serde(default = "default_useless_overrides")]
+    useless_overrides: bool,
+    #[serde(default = "default_keep_data_attrs")]
+    keep_data_attrs: bool,
+    #[serde(default = "default_keep_aria_attrs")]
+    keep_aria_attrs: bool,
+    #[serde(default = "default_keep_role_attr")]
+    keep_role_attr: bool,
 }
 
 impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
@@ -35,7 +44,7 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
         PrepareOutcome::use_style
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         element.attributes().len() > 0
     }
 
@@ -44,7 +53,7 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
         processing_instruction: &mut <E as oxvg_ast::node::Node>::Child,
         context: &Context<E>,
     ) -> Result<(), Self::Error> {
-        if !self.default_markup_declarations.unwrap_or(true) {
+        if !self.default_markup_declarations {
             return Ok(());
         }
 
@@ -79,12 +88,8 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
 }
 
 impl RemoveUnknownsAndDefaults {
-    const DEFAULT_KEEP_DATA_ATTRS: bool = true;
-    const DEFAULT_KEEP_ARIA_ATTRS: bool = true;
-    const DEFAULT_KEEP_ROLE_ATTR: bool = false;
-
     fn remove_unknown_content<E: Element>(&self, element: &E) {
-        if !self.unknown_content.unwrap_or(true) {
+        if !self.unknown_content {
             return;
         }
         let Some(parent) = Element::parent_element(element) else {
@@ -130,25 +135,15 @@ impl RemoveUnknownsAndDefaults {
                     return true;
                 }
             } else {
-                if self
-                    .keep_data_attrs
-                    .unwrap_or(Self::DEFAULT_KEEP_DATA_ATTRS)
-                    && local_name.as_str().starts_with("data-")
-                {
+                if self.keep_data_attrs && local_name.as_str().starts_with("data-") {
                     log::debug!("keeping data attribute");
                     return true;
                 }
-                if self
-                    .keep_aria_attrs
-                    .unwrap_or(Self::DEFAULT_KEEP_ARIA_ATTRS)
-                    && local_name.as_str().starts_with("aria-")
-                {
+                if self.keep_aria_attrs && local_name.as_str().starts_with("aria-") {
                     log::debug!("keeping aria attribute");
                     return true;
                 }
-                if self.keep_role_attr.unwrap_or(Self::DEFAULT_KEEP_ROLE_ATTR)
-                    && local_name.as_str() == "role"
-                {
+                if self.keep_role_attr && local_name.as_str() == "role" {
                     log::debug!("keeping role attribute");
                     return true;
                 }
@@ -156,9 +151,7 @@ impl RemoveUnknownsAndDefaults {
 
             let name_string = name.formatter().to_string();
             if let Some(allowed_attrs) = allowed_attrs {
-                if self.unknown_attrs.unwrap_or(true)
-                    && !allowed_attrs.contains(name_string.as_str())
-                {
+                if self.unknown_attrs && !allowed_attrs.contains(name_string.as_str()) {
                     log::debug!("removing unknown attr");
                     return false;
                 }
@@ -178,7 +171,7 @@ impl RemoveUnknownsAndDefaults {
                 None
             };
             if let Some(default_attrs) = default_attrs {
-                if self.default_attrs.unwrap_or(true)
+                if self.default_attrs
                     && !has_id
                     && default_attrs.get(name_string.as_str()) == Some(&attr.value().as_str())
                     && inherited_value.is_none()
@@ -188,7 +181,7 @@ impl RemoveUnknownsAndDefaults {
                 }
             }
 
-            if self.useless_overrides.unwrap_or(true)
+            if self.useless_overrides
                 && !has_id
                 && !PRESENTATION_NON_INHERITABLE_GROUP_ATTRS.contains(name_string.as_str())
                 && inherited_value.is_some_and(|s| {
@@ -263,6 +256,31 @@ impl AllowedPerElement {
         }
         output
     }
+}
+
+const fn default_unknown_content() -> bool {
+    true
+}
+const fn default_unknown_attrs() -> bool {
+    true
+}
+const fn default_default_attrs() -> bool {
+    true
+}
+const fn default_useless_overrides() -> bool {
+    true
+}
+const fn default_default_markup_declarations() -> bool {
+    true
+}
+const fn default_keep_data_attrs() -> bool {
+    true
+}
+const fn default_keep_aria_attrs() -> bool {
+    true
+}
+const fn default_keep_role_attr() -> bool {
+    false
 }
 
 lazy_static! {

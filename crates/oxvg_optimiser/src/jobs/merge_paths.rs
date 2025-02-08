@@ -19,7 +19,8 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MergePaths {
-    force: Option<bool>,
+    #[serde(default = "default_force")]
+    force: bool,
 }
 
 impl<E: Element> Visitor<E> for MergePaths {
@@ -129,7 +130,7 @@ impl<E: Element> Visitor<E> for MergePaths {
             let attrs_are_equal = attrs.into_iter().any(|a| {
                 (a.prefix().is_some() || a.local_name().as_ref() != "d")
                     && prev_attrs
-                        .get_named_item(&a.name())
+                        .get_named_item(a.name())
                         .is_some_and(|p| p.value() != a.value())
             });
             if attrs_are_equal {
@@ -154,9 +155,7 @@ impl<E: Element> Visitor<E> for MergePaths {
                 }) {
                     prev_path_data.0.pop();
                 }
-                if self.force.unwrap_or(Self::DEFAULT_FORCE)
-                    || !prev_path_data.intersects(&current_path_data)
-                {
+                if self.force || !prev_path_data.intersects(&current_path_data) {
                     log::debug!("merging, current doesn't intersect prev");
                     prev_path_data.0.extend(current_path_data.0);
                     prev_child.remove();
@@ -182,8 +181,8 @@ impl<E: Element> Visitor<E> for MergePaths {
     }
 }
 
-impl MergePaths {
-    const DEFAULT_FORCE: bool = false;
+const fn default_force() -> bool {
+    false
 }
 
 #[test]
