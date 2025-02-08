@@ -121,15 +121,13 @@ impl Mode {
         match self {
             Self::List => {
                 "points" == name
-                || "enable-background" == name
-                || "viewBox" == name
-                || "stroke-dasharray" == name
-                || "dx" == name
-                || "dy" == name
-                || "x" == name
-                || "y" == name
-                // WARN: This differs from SVGO, which doesn't include `d`
-                || "d" == name
+                    || "enable-background" == name
+                    || "viewBox" == name
+                    || "stroke-dasharray" == name
+                    || "dx" == name
+                    || "dy" == name
+                    || "x" == name
+                    || "y" == name
             }
             Self::SingleValue => "version" != name,
         }
