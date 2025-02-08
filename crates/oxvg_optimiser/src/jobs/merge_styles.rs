@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use oxvg_ast::{
     atom::Atom,
     document::Document,
@@ -11,13 +9,13 @@ use serde::Deserialize;
 
 use super::ContextFlags;
 
-pub struct MergeStyles {
+pub struct MergeStyles<E: Element> {
     enabled: bool,
-    first_style: RefCell<Option<RefCell<Box<dyn node::Ref>>>>,
-    is_cdata: RefCell<bool>,
+    first_style: Option<E>,
+    is_cdata: bool,
 }
 
-impl<E: Element> Visitor<E> for MergeStyles {
+impl<E: Element> Visitor<E> for MergeStyles<E> {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -55,7 +53,7 @@ impl<E: Element> Visitor<E> for MergeStyles {
                 css.push_str(&text);
             }
             if node.node_type() == node::Type::CDataSection {
-                self.is_cdata.replace_with(|_| true);
+                self.is_cdata = true;
             }
         });
         let css = css.trim();
@@ -75,41 +73,27 @@ impl<E: Element> Visitor<E> for MergeStyles {
             css.to_string()
         };
 
-        let first_style = self.first_style.borrow();
-        if let Some(first_style) = &*first_style {
-            let node = &mut *first_style.borrow_mut();
-            let mut node = node
-                .inner_as_any()
-                .downcast_ref::<E::Child>()
-                .unwrap()
-                .clone();
+        if let Some(node) = &self.first_style {
+            let mut node = node.clone();
             node.append_child(node.text(css.into()));
             element.remove();
             log::debug!("Merged style");
         } else {
-            drop(first_style);
             element.clone().set_text_content(css.into());
-            self.first_style
-                .replace_with(|_| Some(RefCell::new(element.as_ref())));
+            self.first_style = Some(element.clone());
             log::debug!("Assigned first style");
         }
         Ok(())
     }
 
     fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
-        if !&*self.is_cdata.borrow() {
+        if !self.is_cdata {
             return Ok(());
         }
 
-        let Some(style) = &*self.first_style.borrow() else {
+        let Some(style) = self.first_style.as_mut() else {
             return Ok(());
         };
-        let style = &mut *style.borrow_mut();
-        let mut style = style
-            .inner_as_any()
-            .downcast_ref::<E::ParentChild>()
-            .unwrap()
-            .clone();
         let Some(text) = style.text_content() else {
             style.remove();
             return Ok(());
@@ -121,33 +105,27 @@ impl<E: Element> Visitor<E> for MergeStyles {
     }
 }
 
-impl Default for MergeStyles {
+impl<E: Element> Default for MergeStyles<E> {
     fn default() -> Self {
         Self {
             enabled: true,
-            first_style: RefCell::new(None),
-            is_cdata: RefCell::new(false),
+            first_style: None,
+            is_cdata: false,
         }
     }
 }
 
-impl Clone for MergeStyles {
+impl<E: Element> Clone for MergeStyles<E> {
     fn clone(&self) -> Self {
         Self {
             enabled: self.enabled,
-            first_style: match &*self.first_style.borrow() {
-                Some(node) => {
-                    let node = node.borrow().clone();
-                    RefCell::new(Some(RefCell::new(node)))
-                }
-                None => RefCell::new(None),
-            },
-            is_cdata: self.is_cdata.clone(),
+            first_style: self.first_style.clone(),
+            is_cdata: self.is_cdata,
         }
     }
 }
 
-impl<'de> Deserialize<'de> for MergeStyles {
+impl<'de, E: Element> Deserialize<'de> for MergeStyles<E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -155,8 +133,8 @@ impl<'de> Deserialize<'de> for MergeStyles {
         let enabled = bool::deserialize(deserializer)?;
         Ok(Self {
             enabled,
-            first_style: RefCell::new(None),
-            is_cdata: RefCell::new(false),
+            first_style: None,
+            is_cdata: false,
         })
     }
 }

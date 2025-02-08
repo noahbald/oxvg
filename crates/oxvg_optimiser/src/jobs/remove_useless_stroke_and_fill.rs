@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use lightningcss::{
     properties::{svg::SVGPaint, Property, PropertyId},
     traits::Zero,
@@ -19,11 +17,14 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
-    stroke: Option<bool>,
-    fill: Option<bool>,
-    remove_none: Option<bool>,
+    #[serde(default = "default_stroke")]
+    stroke: bool,
+    #[serde(default = "default_fill")]
+    fill: bool,
+    #[serde(default = "default_remove_none")]
+    remove_none: bool,
     #[serde(skip_deserializing)]
-    id_rc_byte: RefCell<Option<usize>>,
+    id_rc_byte: Option<usize>,
 }
 
 impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
@@ -39,15 +40,14 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
         }
     }
 
-    fn use_style(&self, element: &E) -> bool {
-        let mut id_rc_byte = self.id_rc_byte.borrow_mut();
-        if id_rc_byte.is_some() {
+    fn use_style(&mut self, element: &E) -> bool {
+        if self.id_rc_byte.is_some() {
             return false;
         }
 
         if element.has_attribute_local(&"id".into()) {
             log::debug!("flagged as id root");
-            *id_rc_byte = Some(element.as_ptr_byte());
+            self.id_rc_byte = Some(element.as_ptr_byte());
             return false;
         }
 
@@ -74,10 +74,9 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
         element: &mut E,
         _context: &mut Context<E>,
     ) -> Result<(), Self::Error> {
-        let mut id_rc_byte = self.id_rc_byte.borrow_mut();
-        if id_rc_byte.is_some_and(|b| b == element.as_ptr_byte()) {
+        if self.id_rc_byte.is_some_and(|b| b == element.as_ptr_byte()) {
             log::debug!("unflagged as id root");
-            *id_rc_byte = None;
+            self.id_rc_byte = None;
         }
 
         Ok(())
@@ -85,12 +84,8 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
 }
 
 impl RemoveUselessStrokeAndFill {
-    const DEFAULT_STROKE: bool = true;
-    const DEFAULT_FILL: bool = true;
-    const DEFAULT_REMOVE_NONE: bool = false;
-
     fn remove_stroke<E: Element>(&self, element: &E, context: &mut Context<E>) {
-        if !self.stroke.unwrap_or(Self::DEFAULT_STROKE) {
+        if !self.stroke {
             return;
         }
 
@@ -184,14 +179,14 @@ impl RemoveUselessStrokeAndFill {
             }
         }
 
-        if is_stroke_eq_none && self.remove_none.unwrap_or(Self::DEFAULT_REMOVE_NONE) {
+        if is_stroke_eq_none && self.remove_none {
             log::debug!("removing element with no stroke");
             element.remove();
         }
     }
 
     fn remove_fill<E: Element>(&self, element: &E, context: &mut Context<E>) {
-        if !self.fill.unwrap_or(Self::DEFAULT_FILL) {
+        if !self.fill {
             return;
         }
 
@@ -232,11 +227,21 @@ impl RemoveUselessStrokeAndFill {
             }
         }
 
-        if is_fill_eq_none && self.remove_none.unwrap_or(Self::DEFAULT_REMOVE_NONE) {
+        if is_fill_eq_none && self.remove_none {
             log::debug!("removing element with no fill");
             element.remove();
         }
     }
+}
+
+const fn default_stroke() -> bool {
+    true
+}
+const fn default_fill() -> bool {
+    true
+}
+const fn default_remove_none() -> bool {
+    false
 }
 
 #[test]

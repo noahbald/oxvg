@@ -27,7 +27,7 @@ pub trait Document {
     fn create_c_data_section(
         &self,
         data: <Self::Root as Node>::Atom,
-    ) -> <<Self::Root as Node>::ParentChild as Node>::Child;
+    ) -> <Self::Root as Node>::Child;
 
     /// Creates the html element specified by `tag_name`
     ///

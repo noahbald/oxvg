@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeSet};
+use std::collections::BTreeSet;
 
 use derive_where::derive_where;
 use itertools::Itertools;
@@ -48,31 +48,35 @@ pub struct ParentTokens {
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     /// If to only inline styles if the selector matches one element.
-    pub only_matched_once: Option<bool>,
+    #[serde(default = "default_only_matched_once")]
+    pub only_matched_once: bool,
     /// If to remove the selector and styles from the stylesheet while inlining the styles. This
     /// does not remove the selectors that did not match any elements.
-    pub remove_matched_selectors: Option<bool>,
+    #[serde(default = "default_remove_matched_selectors")]
+    pub remove_matched_selectors: bool,
     /// An array of media query conditions to use, such as `screen`. An empty string signifies all
     /// selectors outside of a media query.
     /// Using `["*"]` will match all media-queries
-    pub use_mqs: Option<Vec<String>>,
+    #[serde(default = "default_use_mqs")]
+    pub use_mqs: Vec<String>,
     /// What pseudo-classes and pseudo-elements to use. An empty string signifies all non-pseudo
     /// classes and non-pseudo elements.
     /// Using `["*"]` will match all pseudo-elements
-    pub use_pseudos: Option<Vec<String>>,
+    #[serde(default = "default_use_pseudos")]
+    pub use_pseudos: Vec<String>,
     #[serde(skip_deserializing)]
     /// After running, a record of matching tokens in a selector that are an ancestor of a matching
     /// element.
     /// e.g. `.foo .bar` would record `.foo` as a parent token.
-    pub parent_tokens: RefCell<ParentTokens>,
+    pub parent_tokens: ParentTokens,
 }
 
 #[derive(Clone)]
 #[derive_where(Default)]
 pub struct InlineStyles<E: Element> {
     options: Options,
-    styles: RefCell<Vec<CapturedStyles<E>>>,
-    removed_tokens: RefCell<RemovedTokens<E>>,
+    styles: Vec<CapturedStyles<E>>,
+    removed_tokens: RemovedTokens<E>,
 }
 
 enum Token {
@@ -139,7 +143,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             .rules
             .to_css_string(stylesheet::PrinterOptions::default())
         {
-            self.styles.borrow_mut().push(CapturedStyles {
+            self.styles.push(CapturedStyles {
                 node: element.clone(),
                 css: css_string,
             });
@@ -151,10 +155,11 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         let removed_styles = flatten_media(removed_styles);
 
         let new_removed_tokens = self.gather_removed_tokens(&removed_styles, context);
-        let mut removed_tokens = self.removed_tokens.borrow_mut();
-        removed_tokens.classes.extend(new_removed_tokens.classes);
-        removed_tokens.ids.extend(new_removed_tokens.ids);
-        removed_tokens.other.extend(new_removed_tokens.other);
+        self.removed_tokens
+            .classes
+            .extend(new_removed_tokens.classes);
+        self.removed_tokens.ids.extend(new_removed_tokens.ids);
+        self.removed_tokens.other.extend(new_removed_tokens.other);
 
         // For any styles that didn't match, keep them in `<style>`
         let css: String = css
@@ -173,38 +178,41 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     fn exit_document(&mut self, _root: &mut E, _context: &Context<E>) -> Result<(), Self::Error> {
-        let removed_tokens = self.removed_tokens.borrow();
-        let parent_tokens = self.options.parent_tokens.borrow();
-        removed_tokens
+        self.removed_tokens
             .classes
             .iter()
             .for_each(|RemovedToken { element, token, .. }| {
                 let mut class_list = element.class_list();
                 for token in token {
-                    if parent_tokens.classes.contains(token.as_str()) {
+                    if self.options.parent_tokens.classes.contains(token.as_str()) {
                         continue;
                     }
                     class_list.remove(token);
                 }
             });
         let id_name = &"id".into();
-        removed_tokens
+        self.removed_tokens
             .ids
             .iter()
             .for_each(|RemovedToken { element, token, .. }| {
-                if token.iter().any(|t| parent_tokens.ids.contains(t.as_str())) {
+                if token
+                    .iter()
+                    .any(|t| self.options.parent_tokens.ids.contains(t.as_str()))
+                {
                     return;
                 }
                 element.remove_attribute_local(id_name);
             });
 
         // declarations, sorted by specificity, grouped by element
-        let style_chunks = removed_tokens
+        let style_chunks = self
+            .removed_tokens
             .ids
             .iter()
-            .chain(removed_tokens.classes.iter())
-            .chain(removed_tokens.other.iter())
+            .chain(self.removed_tokens.classes.iter())
+            .chain(self.removed_tokens.other.iter())
             .sorted_by(|a, b| a.specificity.cmp(&b.specificity))
             .sorted_by(|a, b| a.element.as_ptr_byte().cmp(&b.element.as_ptr_byte()))
             .chunk_by(|r| r.element.as_ptr_byte());
@@ -219,7 +227,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                      ..
                  }| {
                     group_element = Some(element);
-                    style.push_str(declarations);
+                    style.push_str(declarations.as_str());
                     style.push(';');
                 },
             );
@@ -265,7 +273,13 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                     if !PRESENTATION.contains(name) {
                         return;
                     }
-                    if parent_tokens.presentation_attrs.iter().any(|s| s == name) {
+                    if self
+                        .options
+                        .parent_tokens
+                        .presentation_attrs
+                        .iter()
+                        .any(|s| s == name)
+                    {
                         return;
                     }
                     let name = <E::Attr as Attr>::Name::parse(name);
@@ -290,7 +304,7 @@ impl<E: Element> InlineStyles<E> {
             rules::CssRule::Media(media_rule) => {
                 self.gather_removed_tokens(&media_rule.rules, context);
             }
-            rules::CssRule::Style(style_rule) => {
+            rules::CssRule::Style(ref style_rule) => {
                 let mut selector = format!("{}", style_rule.selectors);
                 selector = self.options.strip_allowed_pseudos(selector);
                 let declarations = match style_rule
@@ -477,7 +491,7 @@ fn flatten_media(css: rules::CssRuleList) -> rules::CssRuleList {
 
 impl Options {
     pub(crate) fn take_matching_selectors<'a, E: Element>(
-        &self,
+        &mut self,
         css: &mut rules::CssRuleList<'a>,
         context: &Context<E>,
     ) -> Option<rules::CssRuleList<'a>> {
@@ -523,12 +537,11 @@ impl Options {
                         return true;
                     }
                 };
-                let mut parent_tokens = self.parent_tokens.borrow_mut();
                 let new_parent_tokens = find_parent_attrs(style_rule);
-                parent_tokens.classes.extend(new_parent_tokens.classes);
-                parent_tokens.ids.extend(new_parent_tokens.ids);
+                self.parent_tokens.classes.extend(new_parent_tokens.classes);
+                self.parent_tokens.ids.extend(new_parent_tokens.ids);
                 if !new_parent_tokens.presentation_attrs.is_empty() {
-                    parent_tokens
+                    self.parent_tokens
                         .presentation_attrs
                         .extend(new_parent_tokens.presentation_attrs);
                     log::debug!("selector has presentation attr");
@@ -538,9 +551,7 @@ impl Options {
                 removed_selector.selectors.0 = Default::default();
                 style_rule.selectors.0.retain_mut(|s| {
                     if self.is_selector_removeable(s, &mut removed_selector, &matches) {
-                        !self
-                            .remove_matched_selectors
-                            .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
+                        !self.remove_matched_selectors
                     } else {
                         true
                     }
@@ -548,9 +559,7 @@ impl Options {
                 removed.0.push(rules::CssRule::Style(removed_selector));
                 matching_elements.extend(matches);
                 if style_rule.selectors.0.is_empty() {
-                    !self
-                        .remove_matched_selectors
-                        .unwrap_or(DEFAULT_REMOVE_MATCHED_SELECTORS)
+                    !self.remove_matched_selectors
                 } else {
                     true
                 }
@@ -565,11 +574,10 @@ impl Options {
     }
 
     fn is_media_query_useable(&self, media_rule: &media_query::MediaList) -> bool {
-        let use_mqs = self.use_mqs.as_ref().unwrap_or(&DEFAULT_USE_MQS);
-        if use_mqs.is_empty() {
+        if self.use_mqs.is_empty() {
             return false;
         }
-        if use_mqs.first().expect("previously checked is_empty") == "*" {
+        if self.use_mqs.first().expect("previously checked is_empty") == "*" {
             return true;
         }
         let media_query = match media_rule.to_css_string(printer::PrinterOptions::default()) {
@@ -579,7 +587,7 @@ impl Options {
                 return false;
             }
         };
-        use_mqs.contains(&media_query)
+        self.use_mqs.contains(&media_query)
     }
 
     fn is_selector_removeable<'a, E: Element>(
@@ -588,8 +596,7 @@ impl Options {
         removed_selector: &mut rules::style::StyleRule<'a>,
         matches: &[E],
     ) -> bool {
-        let use_pseudos = self.use_pseudos.as_ref().unwrap_or(&DEFAULT_USE_PSEUDOS);
-        let use_any_pseudo = use_pseudos.first().is_some_and(|s| s == "*");
+        let use_any_pseudo = self.use_pseudos.first().is_some_and(|s| s == "*");
 
         if selector.has_pseudo_element() {
             log::debug!("selector has pseudo-element: {selector:?}");
@@ -599,7 +606,7 @@ impl Options {
             .iter()
             .filter(|p| !matches!(p, selector::Component::NonTSPseudoClass(_)))
             .map(|p| format!("{p:?}"))
-            .filter(|p| use_any_pseudo || use_pseudos.contains(p))
+            .filter(|p| use_any_pseudo || self.use_pseudos.contains(p))
             .any(|p| PRESERVED_PSEUDOS.contains(p.as_str()))
         {
             log::debug!("selector has pseudo-class: {selector:?}");
@@ -609,7 +616,7 @@ impl Options {
         let Some(mut token) = selector
             .iter()
             .map(|p| format!("{p:?}"))
-            .filter(|p| !use_any_pseudo || !use_pseudos.contains(p))
+            .filter(|p| !use_any_pseudo || !self.use_pseudos.contains(p))
             .last()
         else {
             log::debug!("selector doesn't end with a static token: {selector:?}");
@@ -657,7 +664,7 @@ impl Options {
             .count();
         log::debug!("selector {token:?} has matches: {match_count:?}");
 
-        let removeable = if self.only_matched_once.unwrap_or(DEFAULT_ONLY_MATCHED_ONCE) {
+        let removeable = if self.only_matched_once {
             match_count == 1
         } else {
             match_count > 0
@@ -671,7 +678,7 @@ impl Options {
 
     fn strip_allowed_pseudos(&self, selector: String) -> String {
         let mut new_selector = None;
-        for pseudo in self.use_pseudos.as_ref().unwrap_or(&DEFAULT_USE_PSEUDOS) {
+        for pseudo in &self.use_pseudos {
             let Some(stripped) = new_selector
                 .unwrap_or(selector.as_str())
                 .strip_suffix(pseudo)
@@ -775,8 +782,8 @@ impl<'de, E: Element> Deserialize<'de> for InlineStyles<E> {
         let options = Options::deserialize(deserializer)?;
         Ok(Self {
             options,
-            styles: RefCell::new(vec![]),
-            removed_tokens: RefCell::new(RemovedTokens::default()),
+            styles: vec![],
+            removed_tokens: RemovedTokens::default(),
         })
     }
 }
@@ -790,12 +797,20 @@ impl<E: Element> Clone for CapturedStyles<E> {
     }
 }
 
-const DEFAULT_ONLY_MATCHED_ONCE: bool = true;
-const DEFAULT_REMOVE_MATCHED_SELECTORS: bool = true;
+const fn default_only_matched_once() -> bool {
+    true
+}
+const fn default_remove_matched_selectors() -> bool {
+    true
+}
+fn default_use_mqs() -> Vec<String> {
+    vec![String::new(), String::from("screen")]
+}
+fn default_use_pseudos() -> Vec<String> {
+    vec![String::new()]
+}
 
 lazy_static! {
-    static ref DEFAULT_USE_MQS: Vec<String> = vec![String::new(), String::from("screen")];
-    static ref DEFAULT_USE_PSEUDOS: Vec<String> = vec![String::new()];
     static ref PRESERVED_PSEUDOS: BTreeSet<&'static str> = {
         PSEUDO_FUNCTIONAL
             .iter()

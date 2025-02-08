@@ -29,7 +29,7 @@ impl<E: Element> Visitor<E> for RemoveEmptyContainers {
         }
     }
 
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&mut self, element: &E) -> bool {
         element.prefix().is_none() && element.local_name().as_ref() == "g"
     }
 
