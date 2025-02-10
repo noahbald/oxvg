@@ -12,9 +12,9 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{ElementGroup, Group};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]
@@ -23,7 +23,7 @@ pub struct RemoveUselessStrokeAndFill {
     fill: bool,
     #[serde(default = "default_remove_none")]
     remove_none: bool,
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     id_rc_byte: Option<usize>,
 }
 

@@ -12,9 +12,9 @@ use oxvg_ast::{
     },
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertTransform {
     convert_to_shorts: Option<bool>,

@@ -10,7 +10,7 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::{inline_styles, ContextFlags};
 
@@ -21,7 +21,7 @@ pub enum RemoveUnused {
     Force,
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinifyStyles {
     remove_unused: Option<RemoveUnused>,
@@ -166,6 +166,19 @@ impl<'de> Deserialize<'de> for RemoveUnused {
             serde_json::Value::String(s) if s.as_str() == "force" => RemoveUnused::Force,
             _ => return Err(serde::de::Error::custom(r#"expected a boolean or "force""#)),
         })
+    }
+}
+
+impl Serialize for RemoveUnused {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            RemoveUnused::True => true.serialize(serializer),
+            RemoveUnused::False => false.serialize(serializer),
+            RemoveUnused::Force => "force".serialize(serializer),
+        }
     }
 }
 

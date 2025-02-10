@@ -10,7 +10,7 @@ use oxvg_collections::{
     allowed_content::{attrs_group_deprecated_unsafe, ELEMS},
     collections::CORE,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 const fn default_remove_unsafe() -> bool {
     false
@@ -72,7 +72,7 @@ impl<'a> AttrStylesheet<'a> {
     }
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeprecatedAttrs {
     #[serde(default = "default_remove_unsafe")]

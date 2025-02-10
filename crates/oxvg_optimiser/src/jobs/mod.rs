@@ -4,7 +4,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
@@ -12,7 +12,7 @@ macro_rules! jobs {
 
         $(pub use self::$name::$job;)+
 
-        #[derive(Deserialize, Clone)]
+        #[derive(Deserialize, Serialize, Clone)]
         #[serde(rename_all = "camelCase", bound = "E: Element")]
         pub struct Jobs<E: Element> {
             $($name: Option<$job $( < $($t),* >)?>),+

@@ -21,9 +21,9 @@ use oxvg_ast::{
 };
 use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Apply transformations to the path data
 pub struct ApplyTransforms {

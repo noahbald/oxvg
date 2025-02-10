@@ -3,9 +3,9 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 enum XMLNSOrder {
     Alphabetical,
@@ -13,7 +13,7 @@ enum XMLNSOrder {
     Front,
 }
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SortAttrs {
     order: Option<Vec<String>>,

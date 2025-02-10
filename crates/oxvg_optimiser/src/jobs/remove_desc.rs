@@ -3,9 +3,9 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct RemoveDesc {
     remove_any: Option<bool>,
 }

@@ -3,15 +3,16 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Selector {
     selector: String,
     attributes: Vec<String>,
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttributesBySelector(Vec<Selector>);
 

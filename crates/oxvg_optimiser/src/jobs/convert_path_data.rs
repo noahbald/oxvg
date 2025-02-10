@@ -3,10 +3,10 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_path::{convert, geometry::MakeArcs, Path};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Deserialize, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ConvertPathData {
@@ -160,6 +160,19 @@ impl<'de> Deserialize<'de> for Precision {
             _ => Err(serde::de::Error::custom(
                 DeserializePrecisionError::InvalidType,
             )),
+        }
+    }
+}
+
+impl Serialize for Precision {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.0 {
+            oxvg_path::convert::Precision::None => Value::Null.serialize(serializer),
+            oxvg_path::convert::Precision::Disabled => false.serialize(serializer),
+            oxvg_path::convert::Precision::Enabled(n) => n.serialize(serializer),
         }
     }
 }

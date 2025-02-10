@@ -1,8 +1,8 @@
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveComments {
     preserve_patterns: Option<Vec<PreservePattern>>,
@@ -72,6 +72,15 @@ impl<'de> Deserialize<'de> for PreservePattern {
         let regex = regex::Regex::new(&string)
             .map_err(|_| serde::de::Error::custom(DeserializePreservePatternError::InvalidRegex))?;
         Ok(Self(regex))
+    }
+}
+
+impl Serialize for PreservePattern {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.to_string().serialize(serializer)
     }
 }
 

@@ -2,9 +2,9 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct RemoveStyleElement(bool);
 
 impl<E: Element> Visitor<E> for RemoveStyleElement {

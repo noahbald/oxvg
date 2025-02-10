@@ -5,7 +5,7 @@ use oxvg_ast::{
     node::{self, Node},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
@@ -136,6 +136,15 @@ impl<'de, E: Element> Deserialize<'de> for MergeStyles<E> {
             first_style: None,
             is_cdata: false,
         })
+    }
+}
+
+impl<E: Element> Serialize for MergeStyles<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.enabled.serialize(serializer)
     }
 }
 

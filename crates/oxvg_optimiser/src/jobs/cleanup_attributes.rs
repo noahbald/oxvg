@@ -4,9 +4,9 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupAttributes {
     newlines: Option<bool>,

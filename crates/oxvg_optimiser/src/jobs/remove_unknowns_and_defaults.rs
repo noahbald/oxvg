@@ -13,9 +13,9 @@ use oxvg_collections::{
     allowed_content::ELEMS,
     collections::{AttrsGroups, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct RemoveUnknownsAndDefaults {
