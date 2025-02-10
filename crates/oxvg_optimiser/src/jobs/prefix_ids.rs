@@ -17,7 +17,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::{collections::REFERENCES_PROPS, regex::REFERENCES_URL};
 use regex::{Captures, Match};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone)]
 pub enum PrefixGenerator<E: Element> {
@@ -44,7 +44,7 @@ const fn default_prefix_class_names() -> bool {
     true
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[derive_where(Default)]
 #[serde(rename_all = "camelCase")]
 #[serde(bound = "E: Element")]
@@ -293,6 +293,23 @@ impl<'de, E: Element> Deserialize<'de> for PrefixGenerator<E> {
             _ => Err(serde::de::Error::custom(
                 "expected a string, boolean, or null",
             )),
+        }
+    }
+}
+
+impl<E: Element> Serialize for PrefixGenerator<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            PrefixGenerator::Prefix(prefix) => prefix.serialize(serializer),
+            PrefixGenerator::Default => true.serialize(serializer),
+            PrefixGenerator::None => false.serialize(serializer),
+            PrefixGenerator::Generator(_) => {
+                log::warn!("Cannot serialize PrefixGenerator function");
+                false.serialize(serializer)
+            }
         }
     }
 }

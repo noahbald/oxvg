@@ -18,11 +18,11 @@ use oxvg_ast::{
 };
 use oxvg_collections::collections::NON_RENDERING;
 use oxvg_path::Path;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::find_references;
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Options {
     is_hidden: Option<bool>,
     display_none: Option<bool>,
@@ -429,6 +429,15 @@ impl<'de, E: Element> Deserialize<'de> for RemoveHiddenElems<E> {
                 ..Data::default()
             },
         })
+    }
+}
+
+impl<E: Element> Serialize for RemoveHiddenElems<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.options.serialize(serializer)
     }
 }
 

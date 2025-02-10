@@ -10,7 +10,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use parcel_selectors::parser::Component;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive_where(Default, Clone)]
 pub struct ReusePaths<E: Element> {
@@ -237,6 +237,15 @@ impl<'de, E: Element> Deserialize<'de> for ReusePaths<E> {
             enabled,
             ..Self::default()
         })
+    }
+}
+
+impl<E: Element> Serialize for ReusePaths<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.enabled.serialize(serializer)
     }
 }
 

@@ -12,7 +12,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, Visitor},
 };
 use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 struct CapturedStyles<E: Element> {
@@ -44,7 +44,7 @@ pub struct ParentTokens {
     ids: BTreeSet<String>,
 }
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     /// If to only inline styles if the selector matches one element.
@@ -64,7 +64,7 @@ pub struct Options {
     /// Using `["*"]` will match all pseudo-elements
     #[serde(default = "default_use_pseudos")]
     pub use_pseudos: Vec<String>,
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     /// After running, a record of matching tokens in a selector that are an ancestor of a matching
     /// element.
     /// e.g. `.foo .bar` would record `.foo` as a parent token.
@@ -785,6 +785,15 @@ impl<'de, E: Element> Deserialize<'de> for InlineStyles<E> {
             styles: vec![],
             removed_tokens: RemovedTokens::default(),
         })
+    }
+}
+
+impl<E: Element> Serialize for InlineStyles<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.options.serialize(serializer)
     }
 }
 

@@ -4,14 +4,14 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     contains_filter: bool,
 }
 

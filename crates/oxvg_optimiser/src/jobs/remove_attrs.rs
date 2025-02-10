@@ -4,7 +4,7 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 fn default_elem_separator() -> String {
     String::from(":")
@@ -14,7 +14,7 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttrs {
     attrs: Vec<String>,
@@ -22,7 +22,7 @@ pub struct RemoveAttrs {
     elem_separator: String,
     #[serde(default = "default_preserve_current_color")]
     preserve_current_color: bool,
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     parsed_attrs: Vec<[regex::Regex; 3]>,
 }
 

@@ -3,7 +3,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_path::{command::Data, Path};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default)]
 pub struct RemoveOffCanvasPaths {
@@ -173,6 +173,15 @@ impl<'de> Deserialize<'de> for RemoveOffCanvasPaths {
             enabled,
             view_box_data: None,
         })
+    }
+}
+
+impl Serialize for RemoveOffCanvasPaths {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.enabled.serialize(serializer)
     }
 }
 

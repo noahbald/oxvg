@@ -3,9 +3,9 @@ use oxvg_ast::{
     node::Node,
     visitor::{ContextFlags, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(bool);
 

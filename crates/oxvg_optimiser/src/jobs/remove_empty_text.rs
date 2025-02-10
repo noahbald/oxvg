@@ -4,9 +4,9 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyText {
     text: Option<bool>,

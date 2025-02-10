@@ -6,11 +6,11 @@ use oxvg_ast::{
     visitor::{Context, Visitor},
 };
 use oxvg_path::{command::Data, convert, Path};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::convert_path_data::Precision;
 
-#[derive(Deserialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertShapeToPath {
     convert_arcs: Option<bool>,

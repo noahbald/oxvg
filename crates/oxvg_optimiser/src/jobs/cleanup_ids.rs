@@ -7,7 +7,7 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::find_references;
 
@@ -30,7 +30,7 @@ struct RefRename<E: Element> {
     referenced_id: String,
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 struct Options {
     #[serde(default = "default_remove")]
@@ -241,6 +241,15 @@ impl<'de, E: Element> Deserialize<'de> for CleanupIds<E> {
             options,
             ..Self::default()
         })
+    }
+}
+
+impl<E: Element> Serialize for CleanupIds<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.options.serialize(serializer)
     }
 }
 
