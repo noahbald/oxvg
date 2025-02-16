@@ -143,7 +143,6 @@ impl RemoveDeprecatedAttrs {
         group_deprecated_unsafe: Option<&phf::Set<&'static str>>,
         attributes_in_stylesheet: &AttrStylesheet,
     ) {
-        dbg!(&group_deprecated_safe, &group_deprecated_unsafe);
         if let Some(deprecated) = group_deprecated_safe {
             for deprecated in deprecated {
                 let (prefix, local_name) = match deprecated.split_once(':') {

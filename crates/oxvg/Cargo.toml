@@ -30,4 +30,4 @@ config = { version = "0.15", features = ["json", "json5"] }
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-walkdir = "2.5.0"
+ignore = "0.4"
