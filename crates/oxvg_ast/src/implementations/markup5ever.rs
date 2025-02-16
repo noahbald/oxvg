@@ -38,12 +38,12 @@ pub enum Attribute5Ever<'a> {
 }
 
 #[derive(Clone)]
-pub struct Attributes5Ever<'a>(&'a RefCell<Vec<Attribute>>);
+pub struct Attributes5Ever<'a>(pub &'a RefCell<Vec<Attribute>>);
 
 pub struct ClassList5Ever<'a> {
-    attrs: Attributes5Ever<'a>,
-    class_index_memo: Cell<usize>,
-    tokens: Vec<StrTendril>,
+    pub attrs: Attributes5Ever<'a>,
+    pub class_index_memo: Cell<usize>,
+    pub tokens: Vec<StrTendril>,
 }
 
 #[derive(Clone)]
@@ -592,6 +592,7 @@ impl Node for Node5Ever {
     type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
+    type Parent = Node5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
         self.as_ptr_byte() == other.as_ptr_byte()
@@ -601,9 +602,9 @@ impl Node for Node5Ever {
         Rc::as_ptr(&self.0) as usize
     }
 
-    fn as_ref(&self) -> Box<dyn node::Ref> {
-        Box::new(Node5EverRef(Rc::new(self.clone())))
-    }
+    // fn as_ref(&self) -> Box<dyn node::Ref> {
+    //     Box::new(Node5EverRef(Rc::new(self.clone())))
+    // }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         let children = self.0.children.borrow().clone();
@@ -715,13 +716,8 @@ impl Node for Node5Ever {
     }
 
     #[allow(refining_impl_trait)]
-    fn set_parent_node(&self, new_parent: &impl Node<Atom = Self::Atom>) -> Option<Node5Ever> {
-        let parent = new_parent as &dyn std::any::Any;
-        let parent = parent
-            .downcast_ref::<Node5Ever>()
-            .or_else(|| parent.downcast_ref::<Element5Ever>().map(|e| &e.node))
-            .expect("Incorrect implementation passed as new parent");
-        let parent = Rc::downgrade(&parent.0);
+    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Node5Ever> {
+        let parent = Rc::downgrade(&new_parent.0);
         let old_parent = self.0.parent.replace(Some(parent))?;
         Some(Node5Ever(old_parent.upgrade()?))
     }
@@ -757,9 +753,11 @@ impl Node for Node5Ever {
         })
     }
 
-    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)> {
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
         match &self.0.data {
-            NodeData::ProcessingInstruction { target, contents } => Some((target, contents)),
+            NodeData::ProcessingInstruction { target, contents } => {
+                Some((target.clone(), contents.clone()))
+            }
             _ => None,
         }
     }
@@ -1227,18 +1225,16 @@ impl Element for Element5Ever {
     fn get_attribute<'a>(
         &'a self,
         name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<impl Deref<Target = Self::Atom>> {
-        self.get_attribute_node(name)
-            .map(|a| Ref::map(a, |a| &a.value))
+    ) -> Option<Self::Atom> {
+        self.get_attribute_node(name).map(|a| a.value.clone())
     }
 
     #[allow(refining_impl_trait)]
     fn get_attribute_local(
         &self,
         name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<Self::Atom>> {
-        self.get_attribute_node_local(name)
-            .map(|a| Ref::map(a, |a| &a.value))
+    ) -> Option<Self::Atom> {
+        self.get_attribute_node_local(name).map(|a| a.value.clone())
     }
 
     #[allow(refining_impl_trait)]
@@ -1246,20 +1242,18 @@ impl Element for Element5Ever {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, Self::Atom>> {
+    ) -> Option<Self::Atom> {
         self.get_attribute_node_ns(namespace, name)
-            .map(|a| Ref::map(a, |a| &a.value))
+            .map(|a| a.value.clone())
     }
 
     fn get_attribute_names(
         &self,
-    ) -> Vec<impl Deref<Target = <<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>>
-    {
+    ) -> Vec<<<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name> {
         let mut output = vec![];
         let i = 0;
         while let Ok(r) = Ref::filter_map(self.attributes().0.borrow(), |a| a.get(i)) {
-            let r = Ref::map(r, |r| &r.name);
-            output.push(r);
+            output.push(r.name.clone());
         }
         output
     }
@@ -1312,6 +1306,7 @@ impl Node for Element5Ever {
     type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
+    type Parent = Node5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
         self.node.ptr_eq(other)
@@ -1321,9 +1316,9 @@ impl Node for Element5Ever {
         self.node.as_ptr_byte()
     }
 
-    fn as_ref(&self) -> Box<dyn node::Ref> {
-        self.node.as_ref()
-    }
+    // fn as_ref(&self) -> Box<dyn node::Ref> {
+    //     self.node.as_ref()
+    // }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
         self.node.child_nodes().into_iter()
@@ -1388,7 +1383,7 @@ impl Node for Element5Ever {
         self.node.node_type()
     }
 
-    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)> {
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
         None
     }
 
@@ -1398,14 +1393,8 @@ impl Node for Element5Ever {
     }
 
     #[allow(refining_impl_trait)]
-    fn set_parent_node(&self, new_parent: &impl Node<Atom = Self::Atom>) -> Option<Element5Ever> {
-        let new_parent_element = new_parent as &dyn std::any::Any;
-        let new_parent_element = new_parent_element.downcast_ref::<Element5Ever>().unwrap();
-        let old_parent = Element5Ever {
-            node: self.node.set_parent_node(&new_parent_element.node)?,
-            selector_flags: Cell::new(None),
-        };
-        Some(old_parent)
+    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Node5Ever> {
+        self.node.set_parent_node(&new_parent)
     }
 
     fn append_child(&mut self, a_child: Self::Child) {

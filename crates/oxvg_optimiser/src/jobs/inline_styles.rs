@@ -98,12 +98,8 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             return Ok(());
         }
 
-        if let Some(style_type) = element
-            .get_attribute_local(&"type".into())
-            .as_deref()
-            .map(AsRef::as_ref)
-        {
-            if !style_type.is_empty() && style_type != "text/css" {
+        if let Some(style_type) = element.get_attribute_local(&"type".into()) {
+            if !style_type.is_empty() && style_type.as_ref() != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
@@ -352,7 +348,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         let matching_classes: Vec<(Vec<E::Atom>, u32)> = style_rule
             .selectors
             .0
@@ -403,7 +402,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         let matching_ids: Vec<(E::Atom, u32)> = style_rule
             .selectors
             .0
@@ -442,7 +444,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         #[allow(clippy::redundant_closure_for_method_calls)]
         let matching: Vec<u32> = style_rule
             .selectors

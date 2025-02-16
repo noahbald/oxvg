@@ -31,12 +31,8 @@ impl<E: Element> Visitor<E> for MergeStyles<E> {
             return Ok(());
         }
 
-        if let Some(style_type) = element
-            .get_attribute_local(&"type".into())
-            .as_deref()
-            .map(Atom::as_str)
-        {
-            if !style_type.is_empty() && style_type != "text/css" {
+        if let Some(style_type) = element.get_attribute_local(&"type".into()) {
+            if !style_type.is_empty() && style_type.as_ref() != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
