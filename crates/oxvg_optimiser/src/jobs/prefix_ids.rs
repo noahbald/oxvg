@@ -18,7 +18,7 @@ use oxvg_collections::{collections::REFERENCES_PROPS, regex::REFERENCES_URL};
 use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub enum PrefixGenerator<E: Element> {
     /// A function to create a dynamic prefix
     Generator(Box<fn(E, &Info) -> &str>),
@@ -43,7 +43,7 @@ const fn default_prefix_class_names() -> bool {
     true
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(bound = "E: Element")]
 pub struct PrefixIds<E: Element> {

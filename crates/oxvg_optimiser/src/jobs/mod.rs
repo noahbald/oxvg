@@ -12,7 +12,7 @@ macro_rules! jobs {
 
         $(pub use self::$name::$job;)+
 
-        #[derive(Deserialize, Serialize, Clone)]
+        #[derive(Deserialize, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase", bound = "E: Element")]
         pub struct Jobs<E: Element> {
             $(pub $name: Option<$job $( < $($t),* >)?>),+
@@ -57,19 +57,21 @@ jobs! {
     prefix_ids: PrefixIds<E>,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
-    remove_deprecated_attrs: RemoveDeprecatedAttrs,
     remove_dimensions: RemoveDimensions,
     remove_elements_by_attr: RemoveElementsByAttr,
     remove_off_canvas_paths: RemoveOffCanvasPaths,
     remove_raster_images: RemoveRasterImages,
     remove_scripts: RemoveScripts,
     remove_style_element: RemoveStyleElement,
+    remove_title: RemoveTitle,
+    remove_view_box: RemoveViewBox,
     reuse_paths: ReusePaths<E>,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
     remove_xml_proc_inst: RemoveXMLProcInst (is_default: true),
     remove_comments: RemoveComments (is_default: true),
+    remove_deprecated_attrs: RemoveDeprecatedAttrs (is_default: true),
     remove_metadata: RemoveMetadata (is_default: true),
     cleanup_attributes: CleanupAttributes (is_default: true),
     merge_styles: MergeStyles<E> (is_default: true),
@@ -82,7 +84,6 @@ jobs! {
     remove_unknowns_and_defaults: RemoveUnknownsAndDefaults (is_default: true),
     remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs (is_default: true),
     remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill (is_default: true),
-    remove_view_box: RemoveViewBox (is_default: true),
     cleanup_enable_background: CleanupEnableBackground (is_default: true),
     remove_hidden_elems: RemoveHiddenElems<E> (is_default: true),
     remove_empty_text: RemoveEmptyText (is_default: true),
@@ -100,7 +101,6 @@ jobs! {
     merge_paths: MergePaths (is_default: true),
     sort_attrs: SortAttrs (is_default: true),
     sort_defs_children: SortDefsChildren (is_default: true),
-    remove_title: RemoveTitle (is_default: true),
     remove_desc: RemoveDesc (is_default: true),
 }
 

@@ -6,7 +6,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RemoveElementsByAttr {
     #[serde(default = "Vec::new")]
     pub id: Vec<String>,

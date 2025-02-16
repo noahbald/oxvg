@@ -7,7 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::CONDITIONAL_PROCESSING;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyAttrs(pub bool);
 

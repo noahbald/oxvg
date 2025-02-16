@@ -5,7 +5,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum XMLNSOrder {
     Alphabetical,
@@ -13,7 +13,7 @@ pub enum XMLNSOrder {
     Front,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SortAttrs {
     pub order: Option<Vec<String>>,

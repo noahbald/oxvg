@@ -4,7 +4,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RemoveTitle(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveTitle {

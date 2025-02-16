@@ -12,7 +12,7 @@ use oxvg_ast::{
 use parcel_selectors::parser::Component;
 use serde::{Deserialize, Serialize};
 
-#[derive_where(Default, Clone)]
+#[derive_where(Default, Clone, Debug)]
 pub struct ReusePaths<E: Element> {
     enabled: bool,
     paths: BTreeMap<String, Vec<E>>,

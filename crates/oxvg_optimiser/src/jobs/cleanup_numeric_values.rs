@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupNumericValues {
     #[serde(default = "default_float_precision")]

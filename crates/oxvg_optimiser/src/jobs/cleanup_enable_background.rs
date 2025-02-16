@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupEnableBackground {
     #[serde(skip_deserializing, skip_serializing)]

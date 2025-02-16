@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::convert_path_data::Precision;
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertShapeToPath {
     pub convert_arcs: Option<bool>,

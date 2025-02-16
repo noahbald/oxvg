@@ -22,7 +22,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::find_references;
 
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Options {
     pub is_hidden: Option<bool>,
     pub display_none: Option<bool>,
@@ -42,14 +43,14 @@ pub struct Options {
 }
 
 #[derive(Clone)]
-#[derive_where(Default)]
+#[derive_where(Default, Debug)]
 pub struct RemoveHiddenElems<E: Element> {
     options: Options,
     data: Data<E>,
 }
 
 #[derive(Clone)]
-#[derive_where(Default)]
+#[derive_where(Default, Debug)]
 struct Data<E: Element> {
     opacity_zero: bool,
     non_rendered_nodes: HashSet<E>,
