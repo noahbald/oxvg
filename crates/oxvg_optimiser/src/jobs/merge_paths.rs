@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct MergePaths {
     #[serde(default = "default_force")]
-    force: bool,
+    pub force: bool,
 }
 
 impl Default for MergePaths {

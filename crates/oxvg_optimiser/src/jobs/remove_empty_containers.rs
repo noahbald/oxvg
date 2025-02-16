@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveEmptyContainers(bool);
+pub struct RemoveEmptyContainers(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveEmptyContainers {
     type Error = String;

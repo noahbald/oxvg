@@ -34,13 +34,13 @@ struct RefRename<E: Element> {
 #[serde(rename_all = "camelCase")]
 struct Options {
     #[serde(default = "default_remove")]
-    remove: bool,
+    pub remove: bool,
     #[serde(default = "default_minify")]
-    minify: bool,
-    preserve: Option<Vec<String>>,
-    preserve_prefixes: Option<Vec<String>>,
+    pub minify: bool,
+    pub preserve: Option<Vec<String>>,
+    pub preserve_prefixes: Option<Vec<String>>,
     #[serde(default = "bool::default")]
-    force: bool,
+    pub force: bool,
 }
 
 impl Default for Options {

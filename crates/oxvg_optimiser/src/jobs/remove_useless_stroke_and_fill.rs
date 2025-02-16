@@ -18,13 +18,13 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]
-    stroke: bool,
+    pub stroke: bool,
     #[serde(default = "default_fill")]
-    fill: bool,
+    pub fill: bool,
     #[serde(default = "default_remove_none")]
-    remove_none: bool,
+    pub remove_none: bool,
     #[serde(skip_deserializing, skip_serializing)]
-    id_rc_byte: Option<usize>,
+    pub id_rc_byte: Option<usize>,
 }
 
 impl Default for RemoveUselessStrokeAndFill {

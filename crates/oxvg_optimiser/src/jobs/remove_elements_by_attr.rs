@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RemoveElementsByAttr {
     #[serde(default = "Vec::new")]
-    id: Vec<String>,
+    pub id: Vec<String>,
     #[serde(default = "Vec::new")]
-    class: Vec<String>,
+    pub class: Vec<String>,
 }
 
 impl Default for RemoveElementsByAttr {

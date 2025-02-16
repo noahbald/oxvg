@@ -24,7 +24,7 @@ pub enum RemoveUnused {
 #[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinifyStyles {
-    remove_unused: Option<RemoveUnused>,
+    pub remove_unused: Option<RemoveUnused>,
 }
 
 impl<E: Element> Visitor<E> for MinifyStyles {

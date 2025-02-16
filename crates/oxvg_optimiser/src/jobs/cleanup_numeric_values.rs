@@ -10,13 +10,13 @@ use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 #[serde(rename_all = "camelCase")]
 pub struct CleanupNumericValues {
     #[serde(default = "default_float_precision")]
-    float_precision: usize,
+    pub float_precision: usize,
     #[serde(default = "default_leading_zero")]
-    leading_zero: bool,
+    pub leading_zero: bool,
     #[serde(default = "default_default_px")]
-    default_px: bool,
+    pub default_px: bool,
     #[serde(default = "default_convert_to_px")]
-    convert_to_px: bool,
+    pub convert_to_px: bool,
 }
 
 impl Default for CleanupNumericValues {

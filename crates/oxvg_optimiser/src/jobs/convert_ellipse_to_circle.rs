@@ -8,7 +8,7 @@ use super::ContextFlags;
 
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ConvertEllipseToCircle(bool);
+pub struct ConvertEllipseToCircle(pub bool);
 
 impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
     type Error = String;

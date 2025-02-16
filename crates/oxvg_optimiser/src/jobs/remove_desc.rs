@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct RemoveDesc {
-    remove_any: Option<bool>,
+    pub remove_any: Option<bool>,
 }
 
 impl<E: Element> Visitor<E> for RemoveDesc {

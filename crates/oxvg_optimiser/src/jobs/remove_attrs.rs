@@ -17,13 +17,13 @@ const fn default_preserve_current_color() -> bool {
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttrs {
-    attrs: Vec<String>,
+    pub attrs: Vec<String>,
     #[serde(default = "default_elem_separator")]
-    elem_separator: String,
+    pub elem_separator: String,
     #[serde(default = "default_preserve_current_color")]
-    preserve_current_color: bool,
+    pub preserve_current_color: bool,
     #[serde(skip_deserializing, skip_serializing)]
-    parsed_attrs: Vec<[regex::Regex; 3]>,
+    pub parsed_attrs: Vec<[regex::Regex; 3]>,
 }
 
 impl Default for RemoveAttrs {

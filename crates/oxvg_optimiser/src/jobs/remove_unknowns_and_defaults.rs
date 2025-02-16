@@ -20,21 +20,21 @@ use serde::{Deserialize, Serialize};
 #[allow(clippy::struct_excessive_bools)]
 pub struct RemoveUnknownsAndDefaults {
     #[serde(default = "default_unknown_content")]
-    unknown_content: bool,
+    pub unknown_content: bool,
     #[serde(default = "default_unknown_attrs")]
-    unknown_attrs: bool,
+    pub unknown_attrs: bool,
     #[serde(default = "default_default_attrs")]
-    default_attrs: bool,
+    pub default_attrs: bool,
     #[serde(default = "default_default_markup_declarations")]
-    default_markup_declarations: bool,
+    pub default_markup_declarations: bool,
     #[serde(default = "default_useless_overrides")]
-    useless_overrides: bool,
+    pub useless_overrides: bool,
     #[serde(default = "default_keep_data_attrs")]
-    keep_data_attrs: bool,
+    pub keep_data_attrs: bool,
     #[serde(default = "default_keep_aria_attrs")]
-    keep_aria_attrs: bool,
+    pub keep_aria_attrs: bool,
     #[serde(default = "default_keep_role_attr")]
-    keep_role_attr: bool,
+    pub keep_role_attr: bool,
 }
 
 impl Default for RemoveUnknownsAndDefaults {

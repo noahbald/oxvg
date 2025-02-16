@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupAttributes {
-    newlines: Option<bool>,
-    trim: Option<bool>,
-    spaces: Option<bool>,
+    pub newlines: Option<bool>,
+    pub trim: Option<bool>,
+    pub spaces: Option<bool>,
 }
 
 impl<E: Element> Visitor<E> for CleanupAttributes {

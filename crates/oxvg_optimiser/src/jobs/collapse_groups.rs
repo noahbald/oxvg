@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CollapseGroups(bool);
+pub struct CollapseGroups(pub bool);
 
 impl<E: Element> Visitor<E> for CollapseGroups {
     type Error = String;

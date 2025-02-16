@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct MoveGroupAttrsToElems(bool);
+pub struct MoveGroupAttrsToElems(pub bool);
 
 impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
     type Error = String;

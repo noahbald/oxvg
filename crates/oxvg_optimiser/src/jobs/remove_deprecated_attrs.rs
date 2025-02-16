@@ -76,7 +76,7 @@ impl<'a> AttrStylesheet<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeprecatedAttrs {
     #[serde(default = "default_remove_unsafe")]
-    remove_unsafe: bool,
+    pub remove_unsafe: bool,
 }
 
 impl Default for RemoveDeprecatedAttrs {

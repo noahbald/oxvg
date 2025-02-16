@@ -15,7 +15,7 @@ macro_rules! jobs {
         #[derive(Deserialize, Serialize, Clone)]
         #[serde(rename_all = "camelCase", bound = "E: Element")]
         pub struct Jobs<E: Element> {
-            $($name: Option<$job $( < $($t),* >)?>),+
+            $(pub $name: Option<$job $( < $($t),* >)?>),+
         }
 
         impl<E: Element> Default for Jobs<E> {
