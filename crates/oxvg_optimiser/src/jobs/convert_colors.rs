@@ -111,7 +111,10 @@ impl<E: Element> Visitor<E> for ConvertColors {
                     if method.convert_presentation(&mut presentation) {
                         Some(
                             presentation
-                                .value_to_css_string(PrinterOptions::default())
+                                .value_to_css_string(PrinterOptions {
+                                    minify: true,
+                                    ..Default::default()
+                                })
                                 .unwrap(),
                         )
                     } else {
@@ -169,7 +172,10 @@ impl Method {
     }
 
     fn to_css(&self, style: &StyleAttribute) -> Result<String, PrinterError> {
-        let printer_options = PrinterOptions::default();
+        let printer_options = PrinterOptions {
+            minify: true,
+            ..Default::default()
+        };
         // NOTE: Useless destructure, maybe we'll use this in the future?
         let (..) = match self {
             Self::Value {
@@ -190,7 +196,7 @@ impl Method {
         };
 
         let mut s = String::with_capacity(1);
-        let mut dest = Printer::new(&mut s, PrinterOptions::default());
+        let mut dest = Printer::new(&mut s, printer_options);
         let len =
             style.declarations.declarations.len() + style.declarations.important_declarations.len();
         let mut i = 0;

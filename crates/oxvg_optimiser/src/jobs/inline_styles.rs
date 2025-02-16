@@ -147,10 +147,10 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         let matches_styles = self
             .options
             .take_matching_selectors(&mut css.rules, context);
-        if let Ok(css_string) = css
-            .rules
-            .to_css_string(stylesheet::PrinterOptions::default())
-        {
+        if let Ok(css_string) = css.rules.to_css_string(printer::PrinterOptions {
+            minify: true,
+            ..printer::PrinterOptions::default()
+        }) {
             self.styles.push(CapturedStyles {
                 node: element.clone(),
                 css: css_string,
@@ -315,16 +315,19 @@ impl<E: Element> InlineStyles<E> {
             rules::CssRule::Style(ref style_rule) => {
                 let mut selector = format!("{}", style_rule.selectors);
                 selector = self.options.strip_allowed_pseudos(selector);
-                let declarations = match style_rule
-                    .declarations
-                    .to_css_string(printer::PrinterOptions::default())
-                {
-                    Ok(d) => d,
-                    Err(e) => {
-                        log::debug!("couldn't move unparseable declarations: {e:?}");
-                        return;
-                    }
-                };
+                let declarations =
+                    match style_rule
+                        .declarations
+                        .to_css_string(printer::PrinterOptions {
+                            minify: true,
+                            ..printer::PrinterOptions::default()
+                        }) {
+                        Ok(d) => d,
+                        Err(e) => {
+                            log::debug!("couldn't move unparseable declarations: {e:?}");
+                            return;
+                        }
+                    };
                 let selected: Vec<_> = match context.root.select(selector.as_str()) {
                     Ok(i) => i,
                     Err(e) => {

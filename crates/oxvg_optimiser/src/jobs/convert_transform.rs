@@ -112,13 +112,18 @@ impl ConvertTransform {
                 log::debug!("transform_attr: updating {name}");
                 let value = match value.inner().id() {
                     Id::Attr(PresentationAttrId::Transform) => {
-                        transform.to_css_string(PrinterOptions::default())
+                        transform.to_css_string(PrinterOptions {
+                            minify: true,
+                            ..Default::default()
+                        })
                     }
                     Id::Attr(
                         PresentationAttrId::GradientTransform
                         | PresentationAttrId::PatternTransform,
-                    ) => Into::<TransformList>::into(transform)
-                        .to_css_string(PrinterOptions::default()),
+                    ) => Into::<TransformList>::into(transform).to_css_string(PrinterOptions {
+                        minify: true,
+                        ..Default::default()
+                    }),
                     _ => return,
                 }
                 .unwrap_or_default();
