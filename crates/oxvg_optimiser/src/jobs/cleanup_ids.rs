@@ -30,7 +30,7 @@ struct RefRename<E: Element> {
     referenced_id: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Options {
     #[serde(default = "default_remove")]
@@ -41,6 +41,18 @@ struct Options {
     preserve_prefixes: Option<Vec<String>>,
     #[serde(default = "bool::default")]
     force: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            remove: default_remove(),
+            minify: default_minify(),
+            preserve: None,
+            preserve_prefixes: None,
+            force: bool::default(),
+        }
+    }
 }
 
 #[derive(Debug)]

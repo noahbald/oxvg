@@ -14,7 +14,7 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttrs {
     attrs: Vec<String>,
@@ -24,6 +24,17 @@ pub struct RemoveAttrs {
     preserve_current_color: bool,
     #[serde(skip_deserializing, skip_serializing)]
     parsed_attrs: Vec<[regex::Regex; 3]>,
+}
+
+impl Default for RemoveAttrs {
+    fn default() -> Self {
+        RemoveAttrs {
+            attrs: Default::default(),
+            elem_separator: default_elem_separator(),
+            preserve_current_color: default_preserve_current_color(),
+            parsed_attrs: Default::default(),
+        }
+    }
 }
 
 fn create_regex(part: &str) -> Result<regex::Regex, regex::Error> {

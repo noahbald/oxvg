@@ -6,7 +6,7 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Deserialize, Serialize, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ConvertPathData {
@@ -41,6 +41,26 @@ pub struct ConvertPathData {
     // apply_transforms: Option<bool>,
     // apply_transforms_stroked: Option<bool>,
     // transform_precision: Option<usize>,
+}
+
+impl Default for ConvertPathData {
+    fn default() -> Self {
+        ConvertPathData {
+            remove_useless: flag_default_true(),
+            smart_arc_rounding: flag_default_true(),
+            straight_curves: flag_default_true(),
+            convert_to_q: flag_default_true(),
+            line_shorthands: flag_default_true(),
+            collapse_repeated: flag_default_true(),
+            curve_smooth_shorthands: flag_default_true(),
+            convert_to_z: flag_default_true(),
+            force_absolute_path: bool::default(),
+            negative_extra_space: flag_default_true(),
+            make_arcs: MakeArcs::default(),
+            float_precision: Precision::default(),
+            utilize_absolute: flag_default_true(),
+        }
+    }
 }
 
 #[derive(Clone, Default, Copy, Debug)]

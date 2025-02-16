@@ -15,7 +15,7 @@ use oxvg_collections::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct RemoveUnknownsAndDefaults {
@@ -35,6 +35,21 @@ pub struct RemoveUnknownsAndDefaults {
     keep_aria_attrs: bool,
     #[serde(default = "default_keep_role_attr")]
     keep_role_attr: bool,
+}
+
+impl Default for RemoveUnknownsAndDefaults {
+    fn default() -> Self {
+        RemoveUnknownsAndDefaults {
+            unknown_content: default_unknown_content(),
+            unknown_attrs: default_unknown_attrs(),
+            default_attrs: default_default_attrs(),
+            default_markup_declarations: default_default_markup_declarations(),
+            useless_overrides: default_useless_overrides(),
+            keep_data_attrs: default_keep_data_attrs(),
+            keep_aria_attrs: default_keep_aria_attrs(),
+            keep_role_attr: default_keep_role_attr(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {

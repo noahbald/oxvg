@@ -45,7 +45,6 @@ const fn default_prefix_class_names() -> bool {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-#[derive_where(Default)]
 #[serde(rename_all = "camelCase")]
 #[serde(bound = "E: Element")]
 pub struct PrefixIds<E: Element> {
@@ -57,6 +56,17 @@ pub struct PrefixIds<E: Element> {
     pub prefix_ids: bool,
     #[serde(default = "default_prefix_class_names")]
     pub prefix_class_names: bool,
+}
+
+impl<E: Element> Default for PrefixIds<E> {
+    fn default() -> Self {
+        PrefixIds {
+            delim: default_delim(),
+            prefix: PrefixGenerator::default(),
+            prefix_ids: default_prefix_ids(),
+            prefix_class_names: default_prefix_class_names(),
+        }
+    }
 }
 
 struct CssVisitor<'a, 'b, E: Element> {

@@ -72,11 +72,19 @@ impl<'a> AttrStylesheet<'a> {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeprecatedAttrs {
     #[serde(default = "default_remove_unsafe")]
     remove_unsafe: bool,
+}
+
+impl Default for RemoveDeprecatedAttrs {
+    fn default() -> Self {
+        RemoveDeprecatedAttrs {
+            remove_unsafe: default_remove_unsafe(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for RemoveDeprecatedAttrs {

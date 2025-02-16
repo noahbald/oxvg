@@ -6,12 +6,21 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct RemoveElementsByAttr {
     #[serde(default = "Vec::new")]
     id: Vec<String>,
     #[serde(default = "Vec::new")]
     class: Vec<String>,
+}
+
+impl Default for RemoveElementsByAttr {
+    fn default() -> Self {
+        RemoveElementsByAttr {
+            id: Vec::new(),
+            class: Vec::new(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for RemoveElementsByAttr {

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupListOfValues {
     #[serde(default = "default_float_precision")]
@@ -17,6 +17,17 @@ pub struct CleanupListOfValues {
     default_px: bool,
     #[serde(default = "default_convert_to_px")]
     convert_to_px: bool,
+}
+
+impl Default for CleanupListOfValues {
+    fn default() -> Self {
+        CleanupListOfValues {
+            float_precision: default_float_precision(),
+            leading_zero: default_leading_zero(),
+            default_px: default_default_px(),
+            convert_to_px: default_convert_to_px(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for CleanupListOfValues {

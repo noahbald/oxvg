@@ -14,7 +14,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]
@@ -25,6 +25,17 @@ pub struct RemoveUselessStrokeAndFill {
     remove_none: bool,
     #[serde(skip_deserializing, skip_serializing)]
     id_rc_byte: Option<usize>,
+}
+
+impl Default for RemoveUselessStrokeAndFill {
+    fn default() -> Self {
+        RemoveUselessStrokeAndFill {
+            stroke: default_stroke(),
+            fill: default_fill(),
+            remove_none: default_remove_none(),
+            id_rc_byte: None,
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {

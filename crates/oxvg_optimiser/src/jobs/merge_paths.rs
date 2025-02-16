@@ -16,11 +16,19 @@ use oxvg_ast::{
 use oxvg_path::{command, Path};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MergePaths {
     #[serde(default = "default_force")]
     force: bool,
+}
+
+impl Default for MergePaths {
+    fn default() -> Self {
+        MergePaths {
+            force: default_force(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for MergePaths {

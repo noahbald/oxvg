@@ -44,7 +44,7 @@ pub struct ParentTokens {
     ids: BTreeSet<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     /// If to only inline styles if the selector matches one element.
@@ -69,6 +69,18 @@ pub struct Options {
     /// element.
     /// e.g. `.foo .bar` would record `.foo` as a parent token.
     pub parent_tokens: ParentTokens,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            only_matched_once: default_only_matched_once(),
+            remove_matched_selectors: default_remove_matched_selectors(),
+            use_mqs: default_use_mqs(),
+            use_pseudos: default_use_pseudos(),
+            parent_tokens: ParentTokens::default(),
+        }
+    }
 }
 
 #[derive(Clone)]
