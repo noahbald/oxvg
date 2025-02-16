@@ -159,11 +159,13 @@ impl Attr for Attribute {
     }
 
     fn presentation(&self) -> Option<crate::style::PresentationAttr> {
-        self.name.prefix.as_ref()?;
+        if self.name.prefix.is_some() {
+            return None;
+        }
         let id = crate::style::PresentationAttrId::from(self.name.local.as_ref());
         crate::style::PresentationAttr::parse_string(
             id,
-            self.name.local.as_ref(),
+            self.value.as_ref(),
             lightningcss::stylesheet::ParserOptions::default(),
         )
         .ok()
