@@ -8,11 +8,7 @@ It's planned to include transforming, optimising, and linting, all written in Ru
 
 The following tools will be available in a CLI binary.
 
-### 🪶 Optimiser (In Progress)
-
-> [!info]- Please check out our [plan](https://github.com/noahbald/oxvg/milestone/1) for a v0.0.1 release
->
-> For now, expect bugs!
+### 🪶 Optimiser
 
 An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is in the works and is showing to be [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
 
@@ -37,7 +33,7 @@ As of now though, we're quite unstable and certain crates may be updated, merged
 
 These are where the commands for our transformer will live and will contain a set of actions to manipulate SVGs.
 
-### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast) (alpha)
+### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast) (beta)
 
 This crate provides a set of traits that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
 
@@ -47,14 +43,14 @@ There's currently an implementation with markup5ever's rcdom which can do the fo
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
 - An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
 
-#### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast/src/style.rs) (alpha)
+#### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast/src/style.rs)
 
 This crate uses lightningcss to provide some shortcuts for using CSS with our AST.
 
 - Parsing presentation attributes as CSS (hopefully this can be ported to lightningcss)
 - Collecting the computed styles of a HTML element
 
-### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser) (alpha)
+### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser) (beta)
 
 This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
 

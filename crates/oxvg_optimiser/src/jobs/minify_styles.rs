@@ -14,14 +14,14 @@ use serde::{Deserialize, Serialize};
 
 use super::{inline_styles, ContextFlags};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum RemoveUnused {
     False,
     True,
     Force,
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MinifyStyles {
     remove_unused: Option<RemoveUnused>,

@@ -14,7 +14,7 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttrs {
     attrs: Vec<String>,

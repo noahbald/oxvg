@@ -1,3 +1,5 @@
+//! Oxvg is a toolchain for transforming, optimising, and linting SVG documents.
+
 use clap::Parser;
 use config::File;
 use oxvg::{

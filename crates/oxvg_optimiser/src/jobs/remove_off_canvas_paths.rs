@@ -5,13 +5,13 @@ use oxvg_ast::{
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct RemoveOffCanvasPaths {
     enabled: bool,
     view_box_data: Option<ViewBoxData>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 struct ViewBoxData {
     top: f64,
     right: f64,

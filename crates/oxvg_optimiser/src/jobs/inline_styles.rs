@@ -44,7 +44,7 @@ pub struct ParentTokens {
     ids: BTreeSet<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     /// If to only inline styles if the selector matches one element.
@@ -72,7 +72,7 @@ pub struct Options {
 }
 
 #[derive(Clone)]
-#[derive_where(Default)]
+#[derive_where(Default, Debug)]
 pub struct InlineStyles<E: Element> {
     options: Options,
     styles: Vec<CapturedStyles<E>>,

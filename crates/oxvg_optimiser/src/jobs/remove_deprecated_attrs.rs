@@ -72,7 +72,7 @@ impl<'a> AttrStylesheet<'a> {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeprecatedAttrs {
     #[serde(default = "default_remove_unsafe")]
@@ -113,7 +113,6 @@ impl<E: Element> Visitor<E> for RemoveDeprecatedAttrs {
                 element.remove_attribute(&xml_lang_name);
             }
         }
-        dbg!(&element);
 
         // # General cases
         elem_config.attrs_groups.iter().for_each(|group| {

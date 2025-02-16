@@ -9,7 +9,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveElemsAttrsToGroup(bool);
 

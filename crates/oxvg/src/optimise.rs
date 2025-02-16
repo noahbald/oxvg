@@ -39,7 +39,7 @@ impl RunCommand for Optimise {
         let Some(config) = config else {
             return Ok(());
         };
-        let jobs = config.optimisation.unwrap_or_default();
+        let jobs = config.optimise.unwrap_or_default();
 
         self.handle_paths(&jobs)
     }
@@ -93,6 +93,7 @@ impl Optimise {
         use oxvg_ast::parse::Node;
 
         let file = std::fs::File::open(path)?;
+        let input_size = file.metadata()?.len() as f64 / 1000.0;
         let dom = Node5Ever::parse_file(&file)?;
         drop(file);
 
@@ -102,16 +103,24 @@ impl Optimise {
         };
         jobs.clone().run(&dom, &info)?;
 
-        match output {
-            Some(output_path) => {
-                println!("Optimising to file {output_path:?}");
-                if let Some(parent) = output_path.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                let file = std::fs::File::create(output_path)?;
-                Self::handle_out(&dom, file)
+        if let Some(output_path) = output {
+            if let Some(parent) = output_path.parent() {
+                std::fs::create_dir_all(parent)?;
             }
-            None => Self::handle_out(&dom, std::io::stdout()),
+            let file = std::fs::File::create(output_path)?;
+            Self::handle_out(&dom, file)?;
+
+            let output_size = output_path.metadata()?.len() as f64 / 1000.0;
+            let change = 100.0 * (input_size - output_size) / input_size;
+            let increased = if change < 0.0 { "\x1b[31m" } else { "" };
+            println!(
+                "\n\n\x1b[32m{path:?} ({input_size:.1}KB) -> {output_path:?} ({output_size:.1}KB) {increased}({change:.2}%)\x1b[0m"
+            );
+            Ok(())
+        } else {
+            // Print to stderr, so that stdout is clean for writing
+            eprintln!("\n\n\x1b[32m{}\x1b[0m", path.to_string_lossy());
+            Self::handle_out(&dom, std::io::stdout())
         }
     }
 
@@ -176,7 +185,12 @@ impl Optimise {
                     .map(Some)
             } else {
                 log::debug!("printing config");
-                serde_json::to_writer(std::io::stdout(), &config.optimisation.unwrap_or_default())?;
+                serde_json::to_writer(
+                    std::io::stdout(),
+                    &Config {
+                        optimise: Some(config.optimise.unwrap_or_default()),
+                    },
+                )?;
                 Ok(None)
             }
         } else {

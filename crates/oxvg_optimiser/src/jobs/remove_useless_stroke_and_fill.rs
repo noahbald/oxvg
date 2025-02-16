@@ -14,7 +14,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]

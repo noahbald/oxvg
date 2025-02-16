@@ -7,7 +7,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SortDefsChildren(bool);
 
 impl<E: Element> Visitor<E> for SortDefsChildren {

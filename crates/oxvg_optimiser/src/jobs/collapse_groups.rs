@@ -12,7 +12,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(bool);
 

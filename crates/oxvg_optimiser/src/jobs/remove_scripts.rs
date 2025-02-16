@@ -8,7 +8,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct RemoveScripts(bool);
 
 impl<E: Element> Visitor<E> for RemoveScripts {

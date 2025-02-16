@@ -16,7 +16,7 @@ use oxvg_ast::{
 use oxvg_path::{command, Path};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MergePaths {
     #[serde(default = "default_force")]

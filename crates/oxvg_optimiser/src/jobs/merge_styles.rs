@@ -1,3 +1,4 @@
+use derive_where::derive_where;
 use oxvg_ast::{
     atom::Atom,
     document::Document,
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[derive_where(Debug)]
 pub struct MergeStyles<E: Element> {
     enabled: bool,
     first_style: Option<E>,
