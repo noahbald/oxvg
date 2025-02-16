@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use derive_where::derive_where;
 use itertools::Itertools;
 use lightningcss::{
     printer::PrinterOptions,

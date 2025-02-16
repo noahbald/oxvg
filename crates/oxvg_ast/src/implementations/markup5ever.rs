@@ -3,7 +3,6 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
-    ops::Deref,
     rc::Rc,
 };
 

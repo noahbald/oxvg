@@ -17,6 +17,7 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    style::{PresentationAttr, UnparsedPresentationAttr},
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
@@ -86,34 +87,43 @@ impl<E: Element> Visitor<E> for ConvertColors {
         let is_masked = element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();
 
+        let mut method = self.method.clone().unwrap_or_default();
+        if is_masked && matches!(method, Method::CurrentColor) {
+            method = Method::Lightning;
+        }
         for mut attr in element.attributes().into_iter_mut() {
-            let is_style = attr.local_name().as_ref() == "style";
-            let style = if is_style {
-                attr.value().to_string()
-            } else {
-                format!("{}:{}", attr.local_name(), attr.value())
-            };
-            let style = StyleAttribute::parse(&style, ParserOptions::default());
-            let mut style = match style {
-                Ok(result) => result,
-                Err(e) => {
-                    log::debug!("failed to convert {}: {e}", attr.formatter());
-                    continue;
-                }
-            };
+            if attr.local_name().as_ref() == "style" {
+                let style = attr.value().to_string();
+                let style = StyleAttribute::parse(&style, ParserOptions::default());
+                let mut style = match style {
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::debug!("failed to convert {}: {e}", attr.formatter());
+                        continue;
+                    }
+                };
 
-            let mut method = self.method.clone().unwrap_or_default();
-            if is_masked && matches!(method, Method::CurrentColor) {
-                method = Method::Lightning;
-            }
-            method.convert_style(&mut style);
-            let mut minified_style = method.to_css(&style).unwrap();
-            if !is_style {
-                if let Some((_, value)) = minified_style.split_once(':') {
-                    minified_style = value.trim_start().to_string();
+                method.convert_style(&mut style);
+                let minified_style = method.to_css(&style).unwrap();
+                attr.set_value(minified_style.into());
+            } else {
+                let minified_value = if let Some(mut presentation) = attr.presentation() {
+                    if method.convert_presentation(&mut presentation) {
+                        Some(
+                            presentation
+                                .value_to_css_string(PrinterOptions::default())
+                                .unwrap(),
+                        )
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                if let Some(minified_value) = minified_value {
+                    attr.set_value(minified_value.into());
                 }
             }
-            attr.set_value(minified_style.into());
         }
         Ok(())
     }
@@ -139,6 +149,16 @@ impl Method {
             Color::Many(mut colors) => colors.iter_mut().for_each(|c| self.convert_color(c)),
             Color::None => {}
         };
+    }
+
+    fn convert_presentation(&self, attr: &mut PresentationAttr) -> bool {
+        let mut color = Color::get_colors_for_attr(attr);
+        match color {
+            Color::Single(ref mut color) => self.convert_color(color),
+            Color::Many(mut colors) => colors.iter_mut().for_each(|c| self.convert_color(c)),
+            Color::None => return false,
+        };
+        true
     }
 
     fn convert_color(&self, color: &mut CssColor) {
@@ -253,6 +273,32 @@ impl<'a> Color<'a> {
                 Color::Many(vec.into_iter().map(|ts| &mut ts.color).collect())
             }
             Property::Custom(CustomProperty {
+                value: TokenList(vec),
+                ..
+            }) => Color::Many(
+                vec.iter_mut()
+                    .filter_map(|tl| match tl {
+                        TokenOrValue::Color(color) => Some(color),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => Color::None,
+        }
+    }
+
+    fn get_colors_for_attr(attr: &'a mut PresentationAttr) -> Self {
+        match attr {
+            PresentationAttr::Color(color)
+            | PresentationAttr::Fill(SVGPaint::Color(color))
+            | PresentationAttr::FloodColor(color)
+            | PresentationAttr::LightingColor(color)
+            | PresentationAttr::StopColor(color)
+            | PresentationAttr::Stroke(SVGPaint::Color(color))
+            | PresentationAttr::TextDecoration(TextDecoration { color, .. }) => {
+                Color::Single(color)
+            }
+            PresentationAttr::Unparsed(UnparsedPresentationAttr {
                 value: TokenList(vec),
                 ..
             }) => Color::Many(
