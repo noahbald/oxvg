@@ -590,7 +590,7 @@ impl Node for Node5Ever {
     type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
-    type Parent = Node5Ever;
+    type Parent = Element5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
         self.as_ptr_byte() == other.as_ptr_byte()
@@ -621,7 +621,7 @@ impl Node for Node5Ever {
     #[allow(refining_impl_trait)]
     fn element(&self) -> Option<Element5Ever> {
         match self.node_type() {
-            node::Type::Element => Element5Ever::new(Node::to_owned(self)),
+            node::Type::Element | node::Type::Document => Element5Ever::new(Node::to_owned(self)),
             _ => None,
         }
     }
@@ -701,29 +701,33 @@ impl Node for Node5Ever {
     }
 
     #[allow(refining_impl_trait)]
-    fn parent_node(&self) -> Option<Node5Ever> {
+    fn parent_node(&self) -> Option<Element5Ever> {
         let cell = &self.0.parent;
         let parent = cell.take()?;
         let node = parent.upgrade().map(Self);
         cell.set(Some(parent));
-        node
+        node.and_then(|node| node.element())
     }
 
     #[allow(refining_impl_trait)]
-    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Node5Ever> {
-        let parent = Rc::downgrade(&new_parent.0);
+    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Element5Ever> {
+        let parent = Rc::downgrade(&new_parent.node.0);
         let old_parent = self.0.parent.replace(Some(parent))?;
-        Some(Node5Ever(old_parent.upgrade()?))
+        Node5Ever(old_parent.upgrade()?).element()
     }
 
     fn append_child(&mut self, a_child: Self::Child) {
-        a_child.set_parent_node(self);
-        self.0.children.borrow_mut().push(a_child.0);
+        if let Some(element) = self.element() {
+            a_child.set_parent_node(&element);
+            self.0.children.borrow_mut().push(a_child.0);
+        }
     }
 
     fn insert(&mut self, index: usize, new_node: Self::Child) {
-        new_node.set_parent_node(self);
-        self.0.children.borrow_mut().insert(index, new_node.0);
+        if let Some(element) = self.element() {
+            new_node.set_parent_node(&element);
+            self.0.children.borrow_mut().insert(index, new_node.0);
+        }
     }
 
     fn node_name(&self) -> Self::Atom {
@@ -1074,7 +1078,7 @@ impl Element for Element5Ever {
             c.parent.replace(None);
         });
         for child in &children {
-            child.set_parent_node(&self.node);
+            child.set_parent_node(self);
         }
         *old_children = children.into_iter().map(|c| c.0).collect();
     }
@@ -1108,8 +1112,8 @@ impl Element for Element5Ever {
     }
 
     fn parent_element(&self) -> Option<Self> {
-        let parent_node: Node5Ever = self.parent_node()?;
-        Self::new(parent_node)
+        let parent_node: Element5Ever = self.parent_node()?;
+        Some(parent_node)
     }
 
     #[allow(refining_impl_trait)]
@@ -1132,13 +1136,10 @@ impl Element for Element5Ever {
     }
 
     fn document(&self) -> Option<Self> {
-        let parent: Node5Ever = self.parent_node()?;
-        match parent.0.data {
-            NodeData::Element { .. } => parent.element()?.document(),
-            NodeData::Document => Some(Element5Ever {
-                node: parent,
-                selector_flags: Cell::new(None),
-            }),
+        let parent: Element5Ever = self.parent_node()?;
+        match parent.node.0.data {
+            NodeData::Element { .. } => parent.document(),
+            NodeData::Document => Some(parent),
             _ => None,
         }
     }
@@ -1300,7 +1301,7 @@ impl Node for Element5Ever {
     type Atom = StrTendril;
     type Child = Node5Ever;
     type ParentChild = Node5Ever;
-    type Parent = Node5Ever;
+    type Parent = Element5Ever;
 
     fn ptr_eq(&self, other: &impl Node) -> bool {
         self.node.ptr_eq(other)
@@ -1378,12 +1379,12 @@ impl Node for Element5Ever {
     }
 
     #[allow(refining_impl_trait)]
-    fn parent_node(&self) -> Option<Node5Ever> {
+    fn parent_node(&self) -> Option<Element5Ever> {
         self.node.parent_node()
     }
 
     #[allow(refining_impl_trait)]
-    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Node5Ever> {
+    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Element5Ever> {
         self.node.set_parent_node(&new_parent)
     }
 
