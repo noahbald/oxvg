@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveDoctype(bool);
+pub struct RemoveDoctype(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveDoctype {
     type Error = String;

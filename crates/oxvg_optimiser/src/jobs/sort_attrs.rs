@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
-enum XMLNSOrder {
+pub enum XMLNSOrder {
     Alphabetical,
     #[default]
     Front,
@@ -16,8 +16,8 @@ enum XMLNSOrder {
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SortAttrs {
-    order: Option<Vec<String>>,
-    xmlns_order: Option<XMLNSOrder>,
+    pub order: Option<Vec<String>>,
+    pub xmlns_order: Option<XMLNSOrder>,
 }
 
 impl<E: Element> Visitor<E> for SortAttrs {

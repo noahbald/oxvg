@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveNonInheritableGroupAttrs(bool);
+pub struct RemoveNonInheritableGroupAttrs(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
     type Error = String;

@@ -15,26 +15,41 @@ use oxvg_collections::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct RemoveUnknownsAndDefaults {
     #[serde(default = "default_unknown_content")]
-    unknown_content: bool,
+    pub unknown_content: bool,
     #[serde(default = "default_unknown_attrs")]
-    unknown_attrs: bool,
+    pub unknown_attrs: bool,
     #[serde(default = "default_default_attrs")]
-    default_attrs: bool,
+    pub default_attrs: bool,
     #[serde(default = "default_default_markup_declarations")]
-    default_markup_declarations: bool,
+    pub default_markup_declarations: bool,
     #[serde(default = "default_useless_overrides")]
-    useless_overrides: bool,
+    pub useless_overrides: bool,
     #[serde(default = "default_keep_data_attrs")]
-    keep_data_attrs: bool,
+    pub keep_data_attrs: bool,
     #[serde(default = "default_keep_aria_attrs")]
-    keep_aria_attrs: bool,
+    pub keep_aria_attrs: bool,
     #[serde(default = "default_keep_role_attr")]
-    keep_role_attr: bool,
+    pub keep_role_attr: bool,
+}
+
+impl Default for RemoveUnknownsAndDefaults {
+    fn default() -> Self {
+        RemoveUnknownsAndDefaults {
+            unknown_content: default_unknown_content(),
+            unknown_attrs: default_unknown_attrs(),
+            default_attrs: default_default_attrs(),
+            default_markup_declarations: default_default_markup_declarations(),
+            useless_overrides: default_useless_overrides(),
+            keep_data_attrs: default_keep_data_attrs(),
+            keep_aria_attrs: default_keep_aria_attrs(),
+            keep_role_attr: default_keep_role_attr(),
+        }
+    }
 }
 
 impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {

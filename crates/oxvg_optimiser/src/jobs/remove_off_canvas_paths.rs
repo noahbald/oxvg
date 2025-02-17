@@ -7,18 +7,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug)]
 pub struct RemoveOffCanvasPaths {
-    enabled: bool,
-    view_box_data: Option<ViewBoxData>,
+    pub enabled: bool,
+    pub view_box_data: Option<ViewBoxData>,
 }
 
 #[derive(Default, Clone, Debug)]
-struct ViewBoxData {
-    top: f64,
-    right: f64,
-    bottom: f64,
-    left: f64,
-    width: f64,
-    height: f64,
+pub struct ViewBoxData {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 impl<E: Element> Visitor<E> for RemoveOffCanvasPaths {

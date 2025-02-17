@@ -232,14 +232,14 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     fn get_attribute<'a>(
         &'a self,
         name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<impl Deref<Target = Self::Atom>>;
+    ) -> Option<Self::Atom>;
 
     /// Returns the value of an attribute of the element specified by a local name, only if that
     /// attribute also has no prefix
     fn get_attribute_local<'a>(
         &'a self,
         name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
-    ) -> Option<impl Deref<Target = Self::Atom> + 'a>;
+    ) -> Option<Self::Atom>;
 
     /// Returns the value of an attribute of the element specified by it's local name and
     /// namespace.
@@ -249,14 +249,14 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<impl Deref<Target = Self::Atom>>;
+    ) -> Option<Self::Atom>;
 
     /// Returns a collection of the attribute names of the element.
     ///
     /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
     fn get_attribute_names(
         &self,
-    ) -> Vec<impl Deref<Target = <<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>>;
+    ) -> Vec<<<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>;
 
     /// Returns the attribute specified by it's qualified name.
     ///

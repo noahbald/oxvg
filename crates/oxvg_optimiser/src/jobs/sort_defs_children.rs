@@ -8,7 +8,7 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct SortDefsChildren(bool);
+pub struct SortDefsChildren(pub bool);
 
 impl<E: Element> Visitor<E> for SortDefsChildren {
     type Error = String;

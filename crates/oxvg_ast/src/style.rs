@@ -262,10 +262,12 @@ macro_rules! define_presentation_attrs {
                     $(
                         PresentationAttr::$attr(val) => val.to_css(dest),
                     )+
-                    PresentationAttr::Unknown(unknown) => Property::Custom(CustomProperty {
-                            name: CustomPropertyName::Unknown("".into()),
-                            value: unknown.value.clone()
-                        }).value_to_css(dest),
+                    PresentationAttr::Unknown(unknown) => {
+                      Property::Custom(CustomProperty {
+                              name: CustomPropertyName::Unknown("".into()),
+                              value: unknown.value.clone()
+                          }).value_to_css(dest)
+                    },
                     PresentationAttr::Unparsed(unparsed) => Property::Custom(CustomProperty {
                             name: CustomPropertyName::Unknown("".into()),
                             value: unparsed.value.clone(),
@@ -1519,10 +1521,7 @@ impl<E: Element> ElementData<E> {
             styles.insert(
                 element.clone(),
                 ElementData {
-                    inline_style: element
-                        .get_attribute_local(&"style".into())
-                        .as_deref()
-                        .cloned(),
+                    inline_style: element.get_attribute_local(&"style".into()).clone(),
                     presentation_attrs: element
                         .attributes()
                         .into_iter()

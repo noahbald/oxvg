@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveXMLProcInst(bool);
+pub struct RemoveXMLProcInst(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveXMLProcInst {
     type Error = String;

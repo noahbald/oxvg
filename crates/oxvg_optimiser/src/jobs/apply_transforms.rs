@@ -27,8 +27,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 /// Apply transformations to the path data
 pub struct ApplyTransforms {
-    transform_precision: Option<f64>,
-    apply_transforms_stroked: Option<bool>,
+    pub transform_precision: Option<f64>,
+    pub apply_transforms_stroked: Option<bool>,
 }
 
 impl<E: Element> Visitor<E> for ApplyTransforms {

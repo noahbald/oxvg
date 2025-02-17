@@ -25,21 +25,21 @@ use crate::utils::find_references;
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
-    is_hidden: Option<bool>,
-    display_none: Option<bool>,
-    opacity_zero: Option<bool>,
-    circle_r_zero: Option<bool>,
-    ellipse_rx_zero: Option<bool>,
-    ellipse_ry_zero: Option<bool>,
-    rect_width_zero: Option<bool>,
-    rect_height_zero: Option<bool>,
-    pattern_width_zero: Option<bool>,
-    pattern_height_zero: Option<bool>,
-    image_width_zero: Option<bool>,
-    image_height_zero: Option<bool>,
-    path_empty_d: Option<bool>,
-    polyline_empty_points: Option<bool>,
-    polygon_empty_points: Option<bool>,
+    pub is_hidden: Option<bool>,
+    pub display_none: Option<bool>,
+    pub opacity_zero: Option<bool>,
+    pub circle_r_zero: Option<bool>,
+    pub ellipse_rx_zero: Option<bool>,
+    pub ellipse_ry_zero: Option<bool>,
+    pub rect_width_zero: Option<bool>,
+    pub rect_height_zero: Option<bool>,
+    pub pattern_width_zero: Option<bool>,
+    pub pattern_height_zero: Option<bool>,
+    pub image_width_zero: Option<bool>,
+    pub image_height_zero: Option<bool>,
+    pub path_empty_d: Option<bool>,
+    pub polyline_empty_points: Option<bool>,
+    pub polygon_empty_points: Option<bool>,
 }
 
 #[derive(Clone)]

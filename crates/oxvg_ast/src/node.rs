@@ -35,15 +35,6 @@ pub enum Type {
     DocumentFragment,
 }
 
-/// An opaque reference to [Node] that can be used in structs as `dyn` instead of `impl`
-pub trait Ref: Debug {
-    /// Upcasts the ref to `Any`
-    fn inner_as_any(&self) -> &dyn std::any::Any;
-
-    /// Creates a clone of the underlying type, usually an `Rc`
-    fn clone(&self) -> Box<dyn Ref>;
-}
-
 #[cfg(not(feature = "parse"))]
 #[cfg(not(feature = "serialize"))]
 pub trait Features {}
@@ -63,10 +54,11 @@ pub trait Features: crate::parse::Node + crate::serialize::Node {}
 /// An XML DOM node upon which other DOM API objects are based
 ///
 /// <https://developer.mozilla.org/en-US/docs/Web/API/Node>
-pub trait Node: Clone + Debug + 'static + Features {
+pub trait Node: Clone + Debug + Features {
     type Atom: Atom;
     type Child: Node<Atom = Self::Atom>;
-    type ParentChild: Node<Atom = Self::Atom>;
+    type ParentChild: Node<Atom = Self::Atom, Parent = Self::Parent>;
+    type Parent: Node<Atom = Self::Atom, Child = Self::ParentChild>;
 
     /// Whether the underlying pointer is at the same address as the other
     fn ptr_eq(&self, other: &impl Node) -> bool;
@@ -75,7 +67,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     fn as_ptr_byte(&self) -> usize;
 
     /// Get the node wrapped in an opaque reference
-    fn as_ref(&self) -> Box<dyn Ref>;
+    // fn as_ref(&self) -> Box<dyn Ref>;
 
     /// Returns an node list containing all the children of this node
     #[deprecated(note = "try use for_each_child, map_each_child, fold_each_child, etc, instead")]
@@ -170,7 +162,7 @@ pub trait Node: Clone + Debug + 'static + Features {
 
     /// Returns the processing instruction's target and data, if the node is a processing
     /// instruction
-    fn processing_instruction(&self) -> Option<(&Self::Atom, &Self::Atom)>;
+    fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)>;
 
     /// Tries settings the value of the node if possible. If not possible, returns [None].
     ///
@@ -197,7 +189,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]
     ///
     /// [MDN | parentNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentNode)
-    fn parent_node(&self) -> Option<impl Node<Child = Self::ParentChild, Atom = Self::Atom>>;
+    fn parent_node(&self) -> Option<Self::Parent>;
 
     /// Changes the return value of [`Node::parent_node`] to the given node
     ///
@@ -211,10 +203,7 @@ pub trait Node: Clone + Debug + 'static + Features {
     /// using [Element], you may want to try using [`Node::insert`], [`Node::insert_before`],
     /// [`Node::insert_after`], [`Element::after`], [`Element::before`], or
     /// [`Element::prepend`]
-    fn set_parent_node(
-        &self,
-        new_parent: &impl Node<Atom = Self::Atom>,
-    ) -> Option<impl Node<Child = <Self::ParentChild as Node>::Child, Atom = Self::Atom>>;
+    fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Self::Parent>;
 
     /// Adds a node to the end of the list of children of a specified node. This will update the
     /// parent of `a_child`
