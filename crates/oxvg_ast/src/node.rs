@@ -35,15 +35,6 @@ pub enum Type {
     DocumentFragment,
 }
 
-/// An opaque reference to [Node] that can be used in structs as `dyn` instead of `impl`
-pub trait Ref: Debug {
-    /// Upcasts the ref to `Any`
-    fn inner_as_any(&self) -> &dyn std::any::Any;
-
-    /// Creates a clone of the underlying type, usually an `Rc`
-    fn clone(&self) -> Box<dyn Ref>;
-}
-
 #[cfg(not(feature = "parse"))]
 #[cfg(not(feature = "serialize"))]
 pub trait Features {}

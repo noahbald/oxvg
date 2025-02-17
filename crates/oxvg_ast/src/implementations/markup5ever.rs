@@ -48,9 +48,6 @@ pub struct ClassList5Ever<'a> {
 #[derive(Clone)]
 pub struct Node5Ever(Rc<rcdom::Node>);
 
-#[derive(Debug)]
-pub struct Node5EverRef(Rc<Node5Ever>);
-
 #[derive(Clone)]
 pub struct Element5Ever {
     node: Node5Ever,
@@ -602,10 +599,6 @@ impl Node for Node5Ever {
     fn as_ptr_byte(&self) -> usize {
         Rc::as_ptr(&self.0) as usize
     }
-
-    // fn as_ref(&self) -> Box<dyn node::Ref> {
-    //     Box::new(Node5EverRef(Rc::new(self.clone())))
-    // }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         let children = self.0.children.borrow().clone();
@@ -1317,10 +1310,6 @@ impl Node for Element5Ever {
         self.node.as_ptr_byte()
     }
 
-    // fn as_ref(&self) -> Box<dyn node::Ref> {
-    //     self.node.as_ref()
-    // }
-
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
         self.node.child_nodes().into_iter()
     }
@@ -1538,17 +1527,6 @@ impl parse::Node for Element5Ever {
             Some(element) => Ok(element),
             None => Err(anyhow::Error::new(parse::Error::NoElementInDocument)),
         }
-    }
-}
-
-impl node::Ref for Node5EverRef {
-    fn inner_as_any(&self) -> &dyn std::any::Any {
-        let inner: &Node5Ever = self.0.as_ref();
-        inner as &dyn std::any::Any
-    }
-
-    fn clone(&self) -> Box<dyn node::Ref> {
-        Box::new(Self(self.0.clone()))
     }
 }
 
