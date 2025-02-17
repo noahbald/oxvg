@@ -104,19 +104,18 @@ impl<E: Element> Visitor<E> for ConvertColors {
                 };
 
                 method.convert_style(&mut style);
-                let minified_style = method.to_css(&style).unwrap();
-                attr.set_value(minified_style.into());
+                if let Ok(minified_style) = method.to_css(&style) {
+                    attr.set_value(minified_style.into());
+                }
             } else {
                 let minified_value = if let Some(mut presentation) = attr.presentation() {
                     if method.convert_presentation(&mut presentation) {
-                        Some(
-                            presentation
-                                .value_to_css_string(PrinterOptions {
-                                    minify: true,
-                                    ..Default::default()
-                                })
-                                .unwrap(),
-                        )
+                        presentation
+                            .value_to_css_string(PrinterOptions {
+                                minify: true,
+                                ..Default::default()
+                            })
+                            .ok()
                     } else {
                         None
                     }
