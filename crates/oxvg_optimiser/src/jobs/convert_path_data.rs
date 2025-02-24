@@ -6,41 +6,61 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Deserialize, Serialize, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ConvertPathData {
     #[serde(default = "flag_default_true")]
-    remove_useless: bool,
+    pub remove_useless: bool,
     #[serde(default = "flag_default_true")]
-    smart_arc_rounding: bool,
+    pub smart_arc_rounding: bool,
     #[serde(default = "flag_default_true")]
-    straight_curves: bool,
+    pub straight_curves: bool,
     #[serde(default = "flag_default_true")]
-    convert_to_q: bool,
+    pub convert_to_q: bool,
     #[serde(default = "flag_default_true")]
-    line_shorthands: bool,
+    pub line_shorthands: bool,
     #[serde(default = "flag_default_true")]
-    collapse_repeated: bool,
+    pub collapse_repeated: bool,
     #[serde(default = "flag_default_true")]
-    curve_smooth_shorthands: bool,
+    pub curve_smooth_shorthands: bool,
     #[serde(default = "flag_default_true")]
-    convert_to_z: bool,
+    pub convert_to_z: bool,
     #[serde(default = "bool::default")]
-    force_absolute_path: bool,
+    pub force_absolute_path: bool,
     #[serde(default = "flag_default_true")]
-    negative_extra_space: bool,
+    pub negative_extra_space: bool,
     #[serde(default = "MakeArcs::default")]
-    make_arcs: MakeArcs,
+    pub make_arcs: MakeArcs,
     #[serde(default = "Precision::default")]
-    float_precision: Precision,
+    pub float_precision: Precision,
     #[serde(default = "flag_default_true")]
-    utilize_absolute: bool,
+    pub utilize_absolute: bool,
     // TODO: Do we want to have apply_transforms as an option, or is it better to have this as a plugin
     // just *before* this one
     // apply_transforms: Option<bool>,
     // apply_transforms_stroked: Option<bool>,
     // transform_precision: Option<usize>,
+}
+
+impl Default for ConvertPathData {
+    fn default() -> Self {
+        ConvertPathData {
+            remove_useless: flag_default_true(),
+            smart_arc_rounding: flag_default_true(),
+            straight_curves: flag_default_true(),
+            convert_to_q: flag_default_true(),
+            line_shorthands: flag_default_true(),
+            collapse_repeated: flag_default_true(),
+            curve_smooth_shorthands: flag_default_true(),
+            convert_to_z: flag_default_true(),
+            force_absolute_path: bool::default(),
+            negative_extra_space: flag_default_true(),
+            make_arcs: MakeArcs::default(),
+            float_precision: Precision::default(),
+            utilize_absolute: flag_default_true(),
+        }
+    }
 }
 
 #[derive(Clone, Default, Copy, Debug)]

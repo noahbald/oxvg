@@ -44,7 +44,7 @@ pub struct ParentTokens {
     ids: BTreeSet<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     /// If to only inline styles if the selector matches one element.
@@ -69,6 +69,18 @@ pub struct Options {
     /// element.
     /// e.g. `.foo .bar` would record `.foo` as a parent token.
     pub parent_tokens: ParentTokens,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            only_matched_once: default_only_matched_once(),
+            remove_matched_selectors: default_remove_matched_selectors(),
+            use_mqs: default_use_mqs(),
+            use_pseudos: default_use_pseudos(),
+            parent_tokens: ParentTokens::default(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -98,12 +110,8 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             return Ok(());
         }
 
-        if let Some(style_type) = element
-            .get_attribute_local(&"type".into())
-            .as_deref()
-            .map(AsRef::as_ref)
-        {
-            if !style_type.is_empty() && style_type != "text/css" {
+        if let Some(style_type) = element.get_attribute_local(&"type".into()) {
+            if !style_type.is_empty() && style_type.as_ref() != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
@@ -139,10 +147,10 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
         let matches_styles = self
             .options
             .take_matching_selectors(&mut css.rules, context);
-        if let Ok(css_string) = css
-            .rules
-            .to_css_string(stylesheet::PrinterOptions::default())
-        {
+        if let Ok(css_string) = css.rules.to_css_string(printer::PrinterOptions {
+            minify: true,
+            ..printer::PrinterOptions::default()
+        }) {
             self.styles.push(CapturedStyles {
                 node: element.clone(),
                 css: css_string,
@@ -307,16 +315,19 @@ impl<E: Element> InlineStyles<E> {
             rules::CssRule::Style(ref style_rule) => {
                 let mut selector = format!("{}", style_rule.selectors);
                 selector = self.options.strip_allowed_pseudos(selector);
-                let declarations = match style_rule
-                    .declarations
-                    .to_css_string(printer::PrinterOptions::default())
-                {
-                    Ok(d) => d,
-                    Err(e) => {
-                        log::debug!("couldn't move unparseable declarations: {e:?}");
-                        return;
-                    }
-                };
+                let declarations =
+                    match style_rule
+                        .declarations
+                        .to_css_string(printer::PrinterOptions {
+                            minify: true,
+                            ..printer::PrinterOptions::default()
+                        }) {
+                        Ok(d) => d,
+                        Err(e) => {
+                            log::debug!("couldn't move unparseable declarations: {e:?}");
+                            return;
+                        }
+                    };
                 let selected: Vec<_> = match context.root.select(selector.as_str()) {
                     Ok(i) => i,
                     Err(e) => {
@@ -352,7 +363,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         let matching_classes: Vec<(Vec<E::Atom>, u32)> = style_rule
             .selectors
             .0
@@ -403,7 +417,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         let matching_ids: Vec<(E::Atom, u32)> = style_rule
             .selectors
             .0
@@ -442,7 +459,10 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>> {
+    ) -> Option<Vec<RemovedToken<E>>>
+    where
+        E: 'a,
+    {
         #[allow(clippy::redundant_closure_for_method_calls)]
         let matching: Vec<u32> = style_rule
             .selectors

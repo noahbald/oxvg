@@ -9,7 +9,7 @@ pub struct RemoveComments {
 }
 
 #[derive(Debug, Clone)]
-pub struct PreservePattern(regex::Regex);
+pub struct PreservePattern(pub regex::Regex);
 
 impl<E: Element> Visitor<E> for RemoveComments {
     type Error = String;

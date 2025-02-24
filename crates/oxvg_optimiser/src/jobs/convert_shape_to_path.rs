@@ -13,8 +13,8 @@ use super::convert_path_data::Precision;
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertShapeToPath {
-    convert_arcs: Option<bool>,
-    float_precision: Option<Precision>,
+    pub convert_arcs: Option<bool>,
+    pub float_precision: Option<Precision>,
 }
 
 impl<E: Element> Visitor<E> for ConvertShapeToPath {

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveUselessDefs(bool);
+pub struct RemoveUselessDefs(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveUselessDefs {
     type Error = String;

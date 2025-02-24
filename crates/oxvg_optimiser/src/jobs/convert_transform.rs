@@ -17,15 +17,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvertTransform {
-    convert_to_shorts: Option<bool>,
+    pub convert_to_shorts: Option<bool>,
     // NOTE: Some of the precision will be thrown out by lightningcss' serialization
-    deg_precision: Option<i32>,
-    float_precision: Option<i32>,
-    transform_precision: Option<i32>,
-    matrix_to_transform: Option<bool>,
-    short_rotate: Option<bool>,
-    remove_useless: Option<bool>,
-    collapse_into_one: Option<bool>,
+    pub deg_precision: Option<i32>,
+    pub float_precision: Option<i32>,
+    pub transform_precision: Option<i32>,
+    pub matrix_to_transform: Option<bool>,
+    pub short_rotate: Option<bool>,
+    pub remove_useless: Option<bool>,
+    pub collapse_into_one: Option<bool>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -112,13 +112,18 @@ impl ConvertTransform {
                 log::debug!("transform_attr: updating {name}");
                 let value = match value.inner().id() {
                     Id::Attr(PresentationAttrId::Transform) => {
-                        transform.to_css_string(PrinterOptions::default())
+                        transform.to_css_string(PrinterOptions {
+                            minify: true,
+                            ..Default::default()
+                        })
                     }
                     Id::Attr(
                         PresentationAttrId::GradientTransform
                         | PresentationAttrId::PatternTransform,
-                    ) => Into::<TransformList>::into(transform)
-                        .to_css_string(PrinterOptions::default()),
+                    ) => Into::<TransformList>::into(transform).to_css_string(PrinterOptions {
+                        minify: true,
+                        ..Default::default()
+                    }),
                     _ => return,
                 }
                 .unwrap_or_default();

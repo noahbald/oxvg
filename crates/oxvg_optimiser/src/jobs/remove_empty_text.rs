@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyText {
-    text: Option<bool>,
-    tspan: Option<bool>,
-    tref: Option<bool>,
+    pub text: Option<bool>,
+    pub tspan: Option<bool>,
+    pub tref: Option<bool>,
 }
 
 impl<E: Element> Visitor<E> for RemoveEmptyText {

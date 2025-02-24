@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveDimensions(bool);
+pub struct RemoveDimensions(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveDimensions {
     type Error = String;

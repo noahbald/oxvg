@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveEmptyAttrs(bool);
+pub struct RemoveEmptyAttrs(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveEmptyAttrs {
     type Error = String;

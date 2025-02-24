@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use derive_where::derive_where;
 use itertools::Itertools;
 use lightningcss::{
     printer::PrinterOptions,
@@ -44,8 +43,7 @@ const fn default_prefix_class_names() -> bool {
     true
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[derive_where(Default)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(bound = "E: Element")]
 pub struct PrefixIds<E: Element> {
@@ -57,6 +55,17 @@ pub struct PrefixIds<E: Element> {
     pub prefix_ids: bool,
     #[serde(default = "default_prefix_class_names")]
     pub prefix_class_names: bool,
+}
+
+impl<E: Element> Default for PrefixIds<E> {
+    fn default() -> Self {
+        PrefixIds {
+            delim: default_delim(),
+            prefix: PrefixGenerator::default(),
+            prefix_ids: default_prefix_ids(),
+            prefix_class_names: default_prefix_class_names(),
+        }
+    }
 }
 
 struct CssVisitor<'a, 'b, E: Element> {

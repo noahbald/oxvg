@@ -5,7 +5,7 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-pub struct RemoveStyleElement(bool);
+pub struct RemoveStyleElement(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveStyleElement {
     type Error = String;

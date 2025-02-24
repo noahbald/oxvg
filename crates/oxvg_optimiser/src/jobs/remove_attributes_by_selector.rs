@@ -14,7 +14,7 @@ pub struct Selector {
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveAttributesBySelector(Vec<Selector>);
+pub struct RemoveAttributesBySelector(pub Vec<Selector>);
 
 impl<E: Element> Visitor<E> for RemoveAttributesBySelector {
     type Error = String;

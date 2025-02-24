@@ -9,7 +9,7 @@ use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-pub struct RemoveScripts(bool);
+pub struct RemoveScripts(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveScripts {
     type Error = String;

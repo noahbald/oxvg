@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveRasterImages(bool);
+pub struct RemoveRasterImages(pub bool);
 
 impl<E: Element> Visitor<E> for RemoveRasterImages {
     type Error = String;
