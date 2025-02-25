@@ -30,14 +30,9 @@ use crate::parse;
 #[cfg(feature = "serialize")]
 use crate::serialize;
 
+/// A fully-qualified name for tags and attributes, e.g. `xlink:href`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct QualName5Ever(QualName);
-
-#[derive(Debug)]
-pub enum Attribute5Ever<'a> {
-    Borrowed(RefMut<'a, Attribute>),
-    Owned(Attribute),
-}
 
 #[derive(Clone)]
 pub struct Attributes5Ever<'a>(pub &'a RefCell<Vec<Attribute>>);
@@ -175,22 +170,20 @@ impl Attr for Attribute {
 
 impl<'a> Attributes<'a> for Attributes5Ever<'a> {
     type Attribute = Attribute;
-    type Deref = Ref<'a, Attribute>;
-    type DerefMut = RefMut<'a, Attribute>;
 
     fn len(&self) -> usize {
         self.0.borrow().len()
     }
 
-    fn item(&self, index: usize) -> Option<Self::Deref> {
+    fn item(&self, index: usize) -> Option<Ref<'a, Self::Attribute>> {
         Ref::filter_map(self.0.borrow(), |v| v.get(index)).ok()
     }
 
-    fn item_mut(&self, index: usize) -> Option<Self::DerefMut> {
+    fn item_mut(&self, index: usize) -> Option<RefMut<'a, Self::Attribute>> {
         RefMut::filter_map(self.0.borrow_mut(), |v| v.get_mut(index)).ok()
     }
 
-    fn get_named_item(&self, name: &QualName) -> Option<Self::Deref> {
+    fn get_named_item(&self, name: &QualName) -> Option<Ref<'a, Self::Attribute>> {
         Ref::filter_map(self.0.borrow(), |v| {
             v.iter()
                 .find(|a| a.name.prefix == name.prefix && a.name.local == name.local)
@@ -198,7 +191,10 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         .ok()
     }
 
-    fn get_named_item_mut(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::DerefMut> {
+    fn get_named_item_mut(
+        &self,
+        name: &<Self::Attribute as Attr>::Name,
+    ) -> Option<RefMut<'a, Self::Attribute>> {
         RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut()
                 .find(|a| a.name.prefix == name.prefix && a.name.local == name.local)
@@ -206,7 +202,7 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         .ok()
     }
 
-    fn get_named_item_local(&self, name: &LocalName) -> Option<Self::Deref> {
+    fn get_named_item_local(&self, name: &LocalName) -> Option<Ref<'a, Self::Attribute>> {
         Ref::filter_map(self.0.borrow(), |v| {
             v.iter()
                 .find(|a| a.prefix().is_none() && &a.name.local == name)
@@ -217,7 +213,7 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
     fn get_named_item_local_mut(
         &self,
         name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::DerefMut> {
+    ) -> Option<RefMut<'a, Self::Attribute>> {
         RefMut::filter_map(self.0.borrow_mut(), |v| {
             v.iter_mut()
                 .find(|a| a.prefix().is_none() && &a.name.local == name)
@@ -225,7 +221,11 @@ impl<'a> Attributes<'a> for Attributes5Ever<'a> {
         .ok()
     }
 
-    fn get_named_item_ns(&self, namespace: &Namespace, name: &LocalName) -> Option<Self::Deref> {
+    fn get_named_item_ns(
+        &self,
+        namespace: &Namespace,
+        name: &LocalName,
+    ) -> Option<Ref<'a, Self::Attribute>> {
         Ref::filter_map(self.0.borrow(), |v| {
             v.iter()
                 .find(|a| &a.name.local == name && &a.name.ns == namespace)
@@ -1193,7 +1193,6 @@ impl Element for Element5Ever {
         None
     }
 
-    #[allow(refining_impl_trait)]
     fn get_attribute_node<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
@@ -1204,12 +1203,10 @@ impl Element for Element5Ever {
     fn get_attribute_node_mut<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<impl std::ops::DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>
-    {
+    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
         self.attributes().get_named_item_mut(attr_name)
     }
 
-    #[allow(refining_impl_trait)]
     fn get_attribute_node_local<'a>(
         &'a self,
         attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
@@ -1217,7 +1214,6 @@ impl Element for Element5Ever {
         self.attributes().get_named_item_local(attr_name)
     }
 
-    #[allow(refining_impl_trait)]
     fn get_attribute_node_ns<'a>(
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
@@ -1233,7 +1229,6 @@ impl Element for Element5Ever {
         self.get_attribute_node(name).map(|a| a.value.clone())
     }
 
-    #[allow(refining_impl_trait)]
     fn get_attribute_local(
         &self,
         name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
@@ -1241,7 +1236,6 @@ impl Element for Element5Ever {
         self.get_attribute_node_local(name).map(|a| a.value.clone())
     }
 
-    #[allow(refining_impl_trait)]
     fn get_attribute_ns<'a>(
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
@@ -1384,12 +1378,10 @@ impl Node for Element5Ever {
         None
     }
 
-    #[allow(refining_impl_trait)]
     fn parent_node(&self) -> Option<Element5Ever> {
         self.node.parent_node()
     }
 
-    #[allow(refining_impl_trait)]
     fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Element5Ever> {
         self.node.set_parent_node(&new_parent)
     }

@@ -1,7 +1,7 @@
 use std::{
+    cell::{Ref, RefMut},
     fmt::{Debug, Display},
     marker::PhantomData,
-    ops::{Deref, DerefMut},
 };
 
 use crate::{atom::Atom, name::Name};
@@ -73,8 +73,6 @@ impl<'a, A: Attr> Display for Formatter<'a, A> {
 /// [MDN | NamedNodeMap](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap)
 pub trait Attributes<'a>: Debug + Clone {
     type Attribute: Attr;
-    type Deref: Deref<Target = Self::Attribute>;
-    type DerefMut: DerefMut<Target = Self::Attribute>;
 
     /// The number of attributes stored in the collection.
     ///
@@ -89,23 +87,29 @@ pub trait Attributes<'a>: Debug + Clone {
     /// Returns an attribute corresponding to the given name.
     ///
     /// [MDN | getNamedItem](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/getNamedItem)
-    fn get_named_item(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::Deref>;
+    fn get_named_item(
+        &self,
+        name: &<Self::Attribute as Attr>::Name,
+    ) -> Option<Ref<'a, Self::Attribute>>;
 
     /// See [`Attributes::get_named_item`]
-    fn get_named_item_mut(&self, name: &<Self::Attribute as Attr>::Name) -> Option<Self::DerefMut>;
+    fn get_named_item_mut(
+        &self,
+        name: &<Self::Attribute as Attr>::Name,
+    ) -> Option<RefMut<'a, Self::Attribute>>;
 
     /// Returns an attribute corresponding to the given local-name, only if the attribute has no
     /// prefix
     fn get_named_item_local(
         &self,
         name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::Deref>;
+    ) -> Option<Ref<'a, Self::Attribute>>;
 
     /// See [`Attributes::get_named_item_local`]
     fn get_named_item_local_mut(
         &self,
         name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::DerefMut>;
+    ) -> Option<RefMut<'a, Self::Attribute>>;
 
     /// Returns the attribute corresponding to the given local-name in the given namespace
     ///
@@ -114,14 +118,17 @@ pub trait Attributes<'a>: Debug + Clone {
         &self,
         namespace: &<<Self::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<Self::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::Deref>;
+    ) -> Option<Ref<'a, Self::Attribute>>;
 
     /// Returns the attribute in the collection matching the index
     ///
     /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/item)
-    fn item(&self, index: usize) -> Option<Self::Deref>;
+    fn item(&self, index: usize) -> Option<Ref<'a, Self::Attribute>>;
 
-    fn item_mut(&self, index: usize) -> Option<Self::DerefMut>;
+    /// Returns the mutable attribute in the collection matching the index
+    ///
+    /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/item)
+    fn item_mut(&self, index: usize) -> Option<RefMut<'a, Self::Attribute>>;
 
     /// Removes the attribute corresponding to the given name from the collection.
     ///
@@ -163,14 +170,20 @@ pub trait Attributes<'a>: Debug + Clone {
 }
 
 macro_rules! define_attrs_iter {
-    ($name:ident$((ref $deref:ident))?$((mut $derefmut:ident))?) => {
-        pub struct $name<'a, A: Attributes<'a>> {
+    ($name:ident$((Ref<'a, $deref:ident>))?$((RefMut<'a, $derefmut:ident>))?) => {
+        /// An iterator goes through each attribute of an [Attributes] struct.
+        pub struct $name<'a, A: Attributes<'a>>
+        where
+            A: Attributes<'a>,
+            A::Attribute: 'a,
+        {
             index: usize,
             attributes: A,
             ph: PhantomData<&'a ()>,
         }
 
         impl<'a, A: Attributes<'a>> $name<'a, A> {
+            /// Creates an iterator that goes from start to the of the given attributes.
             pub fn new(attributes: A) -> Self {
                 Self {
                     index: 0,
@@ -181,12 +194,12 @@ macro_rules! define_attrs_iter {
         }
 
         impl<'a, A: Attributes<'a>> Iterator for $name<'a, A> {
-            $(type Item = $deref::Deref;)?
-            $(type Item = $derefmut::DerefMut;)?
+            $(type Item = Ref<'a, <$deref as Attributes<'a>>::Attribute>;)?
+            $(type Item = RefMut<'a, <$derefmut as Attributes<'a>>::Attribute>;)?
 
             fn next(&mut self) -> Option<Self::Item> {
-                $(let output: Option<$deref::Deref> = self.attributes.item(self.index);)?
-                $(let output: Option<$derefmut::DerefMut> = self.attributes.item_mut(self.index);)?
+                $(let output: Option<Ref<'a, <$deref as Attributes<'a>>::Attribute>> = self.attributes.item(self.index);)?
+                $(let output: Option<RefMut<'a, <$derefmut as Attributes<'a>>::Attribute>> = self.attributes.item_mut(self.index);)?
                 self.index += 1;
                 output
             }
@@ -194,5 +207,5 @@ macro_rules! define_attrs_iter {
     };
 }
 
-define_attrs_iter!(AttributesIter(ref A));
-define_attrs_iter!(AttributesIterMut(mut A));
+define_attrs_iter!(AttributesIter(Ref<'a, A>));
+define_attrs_iter!(AttributesIterMut(RefMut<'a, A>));

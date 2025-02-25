@@ -1,7 +1,7 @@
 use std::{
+    cell::{Ref, RefMut},
     collections::VecDeque,
     fmt::Debug,
-    ops::{Deref, DerefMut},
 };
 
 use cfg_if::cfg_if;
@@ -270,27 +270,29 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     fn get_attribute_node<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
 
     /// See [`Attributes::get_attribute_node`]
     fn get_attribute_node_mut<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<impl DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
 
     /// Returns the attribute of the element specified by a local name, only if that
     /// attribute also has no prefix
     fn get_attribute_node_local<'a>(
         &'a self,
         attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
         self.attributes().get_named_item_local(attr_name)
     }
 
+    /// Returns the mutable attribute of the element specified by a local name, only if that
+    /// attribute also has no prefix
     fn get_attribute_node_local_mut<'a>(
         &'a self,
         attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<impl DerefMut<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
         self.attributes().get_named_item_local_mut(attr_name)
     }
 
@@ -301,7 +303,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<impl Deref<Target = <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
 
     /// Returns whether the element has the specified attribute or not.
     ///
