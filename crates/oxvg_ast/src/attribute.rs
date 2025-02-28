@@ -47,6 +47,8 @@ pub trait Attr: PartialEq + Debug + Sized + Clone {
     fn set_value(&mut self, value: Self::Atom) -> Self::Atom;
 
     #[cfg(feature = "style")]
+    /// Returns the attribute as a presentation attribute with a CSS value,
+    /// similar to [`lightningcss::properties::Property`]
     fn presentation(&self) -> Option<crate::style::PresentationAttr>;
 
     fn formatter(&self) -> Formatter<'_, Self> {

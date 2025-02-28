@@ -1484,6 +1484,7 @@ pub struct ComputedStyles<'i> {
     pub inline_important: HashMap<PropertyId<'i>, Style<'i>>,
 }
 
+#[cfg(feature = "selectors")]
 /// Gathers stylesheet declarations from the document
 ///
 /// # Panics

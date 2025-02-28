@@ -38,12 +38,16 @@ pub enum Type {
 
 cfg_if! {
     if #[cfg(all(feature = "parse", feature = "serialize"))] {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features: crate::parse::Node + crate::serialize::Node {}
     } else if #[cfg(feature = "parse")] {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features: crate::parse::Node {}
     } else if #[cfg(feature = "serialize")] {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features: crate::serialize::Node {}
     } else {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features {}
     }
 }

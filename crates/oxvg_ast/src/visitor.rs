@@ -22,15 +22,22 @@ pub struct Info {
 }
 
 #[derive(Debug)]
+/// The context struct provides information about the document and it's effects on the visited node
 pub struct Context<'i, 'o, E: Element> {
     #[cfg(feature = "style")]
+    /// Uses the style sheet to compute what css properties are applied to the node
     pub computed_styles: crate::style::ComputedStyles<'i>,
     #[cfg(feature = "style")]
+    /// A parsed stylesheet for all `<style>` nodes in the document
     pub stylesheet: Option<lightningcss::stylesheet::StyleSheet<'i, 'o>>,
     #[cfg(feature = "style")]
+    /// A collection of the inline style and presentation attributes for each element in the document
     pub element_styles: &'i HashMap<E, ElementData<E>>,
+    /// The root element of the document
     pub root: E,
+    /// A set of boolean flags about the document and the visited node
     pub flags: ContextFlags,
+    /// Info about how the program is using the document
     pub info: &'i Info,
     #[cfg(not(feature = "style"))]
     /// Marker to maintain consistent lifetime with `"style"` feature
@@ -40,6 +47,9 @@ pub struct Context<'i, 'o, E: Element> {
 impl<'i, E: Element> Context<'i, '_, E> {
     cfg_if! {
         if #[cfg(feature = "style")] {
+            /// Instantiates the context with the given fields.
+            ///
+            /// The visitor should update the context as it visits each node.
             pub fn new(
                 root: E,
                 flags: ContextFlags,
@@ -56,6 +66,9 @@ impl<'i, E: Element> Context<'i, '_, E> {
                 }
             }
         } else {
+            /// Instantiates the context with the given fields.
+            ///
+            /// The visitor should update the context as it visits each node.
             pub fn new(
                 root: E,
                 flags: ContextFlags,
@@ -72,23 +85,29 @@ impl<'i, E: Element> Context<'i, '_, E> {
     }
 }
 
+bitflags! {
+    /// A set of flags controlling how a visitor should run following [Visitor::prepare]
+    pub struct PrepareOutcome: usize {
+        /// Nothing of importance to consider following preparation.
+        const none = 0b000_0000_0000;
+        /// The visitor shouldn't run following preparation.
+        const skip = 0b000_0000_0001;
+        #[cfg(feature = "style")]
+        /// Style information should be added to context while visiting
+        const use_style = 0b000_0010;
+    }
+}
+
 impl PrepareOutcome {
+    /// A shorthand to check whether the skip flag is enabled
     pub fn can_skip(&self) -> bool {
         self.contains(Self::skip)
     }
 }
 
 bitflags! {
-    pub struct PrepareOutcome: usize {
-        const none = 0b000_0000_0000;
-        const skip = 0b000_0000_0001;
-        #[cfg(feature = "style")]
-        const use_style = 0b000_0010;
-    }
-}
-
-bitflags! {
     #[derive(Debug, Clone, Default)]
+    /// A set of boolean flags about the document and the visited node
     pub struct ContextFlags: usize {
         /// Whether the document has a script element, script href, or on-* attrs
         const has_script_ref = 0b0001;
@@ -106,15 +125,18 @@ bitflags! {
 
 impl ContextFlags {
     #[cfg(feature = "selectors")]
+    /// Queries whether a `<script>` element is within the document
     pub fn query_has_script<E: Element>(&mut self, root: &E) {
         self.set(Self::has_script_ref, has_scripts(root));
     }
 
-    #[cfg(feature = "style")]
+    #[cfg(all(feature = "style", feature = "selectors"))]
+    /// Queries whether a `<style>` element is within the document
     pub fn query_has_stylesheet<E: Element>(&mut self, root: &E) {
         self.set(Self::has_stylesheet, !style::root(root).is_empty());
     }
 
+    /// Prevents the children of the current node from being visited
     pub fn visit_skip(&mut self) {
         log::debug!("skipping children");
         self.set(Self::skip_children, true);
@@ -199,6 +221,8 @@ pub trait Visitor<E: Element> {
     }
 
     #[cfg(feature = "style")]
+    /// For implementors, determines whether style information should
+    /// be gathered and added to context prior to visiting an element.
     fn use_style(&mut self, element: &E) -> bool {
         false
     }
@@ -350,9 +374,19 @@ fn flag_style_source<E: Element>(flags: &mut ContextFlags, root: &E) -> String {
 }
 
 #[cfg(feature = "selectors")]
+/// Returns whether any potential scripting is contained in the document,
+/// including one of the following
+///
+/// - A `<script>` element
+/// - An `onbegin`, `onend`, `on...`, etc. attribute
+/// - A `href="javascript:..."` URL
+///
+/// # Panics
+///
+/// If the internal selector fails to build
 pub fn has_scripts<E: Element>(root: &E) -> bool {
     // PERF: Find a way to lazily evaluate selector
     root
-            .find_element().map(|e| e.select_with_selector(Selector::new( "script,a[href^='javascript:'],[onbegin],[onend],[onrepeat],[onload],[onabort],[onerror],[onresize],[onscroll],[onunload],[onzoom],[oncopy],[oncut],[onpaste],[oncancel],[oncanplay],[oncanplaythrough],[onchange],[onclick],[onclose],[oncuechange],[ondblclick],[ondrag],[ondragend],[ondragenter],[ondragleave],[ondragover],[ondragstart],[ondrop],[ondurationchange],[onemptied],[onended],[onfocus],[oninput],[oninvalid],[onkeydown],[onkeypress],[onkeyup],[onloadeddata],[onloadedmetadata],[onloadstart],[onmousedown],[onmouseenter],[onmouseleave],[onmousemove],[onmouseout],[onmouseup],[onmousewheel],[onpause],[onplay],[onplaying],[onprogress],[onratechange],[onreset],[onseeked],[onseeking],[onselect],[onshow],[onstalled],[onsubmit],[onsuspend],[ontimeupdate],[ontoggle],[onvolumechange],[onwaiting],[onactivate],[onfocusin],[onfocusout],[onmouseover]" ).unwrap()))
+            .find_element().map(|e| e.select_with_selector(Selector::new( "script,a[href^='javascript:'],[onbegin],[onend],[onrepeat],[onload],[onabort],[onerror],[onresize],[onscroll],[onunload],[onzoom],[oncopy],[oncut],[onpaste],[oncancel],[oncanplay],[oncanplaythrough],[onchange],[onclick],[onclose],[oncuechange],[ondblclick],[ondrag],[ondragend],[ondragenter],[ondragleave],[ondragover],[ondragstart],[ondrop],[ondurationchange],[onemptied],[onended],[onfocus],[oninput],[oninvalid],[onkeydown],[onkeypress],[onkeyup],[onloadeddata],[onloadedmetadata],[onloadstart],[onmousedown],[onmouseenter],[onmouseleave],[onmousemove],[onmouseout],[onmouseup],[onmousewheel],[onpause],[onplay],[onplaying],[onprogress],[onratechange],[onreset],[onseeked],[onseeking],[onselect],[onshow],[onstalled],[onsubmit],[onsuspend],[ontimeupdate],[ontoggle],[onvolumechange],[onwaiting],[onactivate],[onfocusin],[onfocusout],[onmouseover]" ).expect("known selector")))
             .is_some_and(|mut e| e.next().is_some())
 }

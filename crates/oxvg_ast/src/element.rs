@@ -17,8 +17,10 @@ use crate::{
 
 cfg_if! {
     if #[cfg(feature = "selectors")] {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features: selectors::Element {}
     } else {
+        /// This trait provides trait bounds depending on the package's enabled features
         pub trait Features {}
     }
 }
