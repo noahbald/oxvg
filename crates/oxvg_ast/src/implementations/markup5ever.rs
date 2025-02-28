@@ -2,10 +2,13 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::VecDeque,
     fmt::Debug,
-    hash::{DefaultHasher, Hash, Hasher},
     rc::Rc,
 };
 
+#[cfg(feature = "selectors")]
+use std::hash::{DefaultHasher, Hash, Hasher};
+
+use cfg_if::cfg_if;
 use markup5ever::{
     local_name, tendril::StrTendril, Attribute, LocalName, Namespace, Prefix, QualName,
 };
@@ -155,6 +158,7 @@ impl Attr for Attribute {
         std::mem::replace(&mut self.value, value)
     }
 
+    #[cfg(feature = "style")]
     fn presentation(&self) -> Option<crate::style::PresentationAttr> {
         if self.name.prefix.is_some() {
             return None;
@@ -1046,11 +1050,16 @@ impl Element for Element5Ever {
         if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {
             return None;
         }
-        Some(Self {
-            node,
-            #[cfg(feature = "selectors")]
-            selector_flags: Cell::new(None),
-        })
+        cfg_if! {
+            if #[cfg(feature = "selectors")] {
+                Some(Self {
+                    node,
+                    selector_flags: Cell::new(None),
+                })
+            } else {
+                Some(Self { node })
+            }
+        }
     }
 
     fn as_document(&self) -> impl crate::document::Document<Root = Self> {
@@ -1259,10 +1268,7 @@ impl Element for Element5Ever {
     {
         self.node.0.children.borrow().iter().for_each(|n| {
             if let NodeData::Element { .. } = &n.data {
-                f(Self {
-                    node: Node5Ever(n.clone()),
-                    selector_flags: Cell::new(None),
-                });
+                f(Self::new(Node5Ever(n.clone())).expect("node must be element"));
             }
         });
     }
@@ -1813,15 +1819,13 @@ impl Document for Document5Ever {
     }
 
     fn create_element(&self, tag_name: <Self::Root as Element>::Name) -> Self::Root {
-        Element5Ever {
-            node: Self::create_node(rcdom::NodeData::Element {
-                name: tag_name,
-                attrs: RefCell::new(vec![]),
-                template_contents: RefCell::new(None),
-                mathml_annotation_xml_integration_point: false,
-            }),
-            selector_flags: Cell::new(None),
-        }
+        Element5Ever::new(Self::create_node(rcdom::NodeData::Element {
+            name: tag_name,
+            attrs: RefCell::new(vec![]),
+            template_contents: RefCell::new(None),
+            mathml_annotation_xml_integration_point: false,
+        }))
+        .expect("node must be element")
     }
 
     fn create_processing_instruction(

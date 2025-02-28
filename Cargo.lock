@@ -1238,10 +1238,11 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.1-alpha.1"
+version = "0.0.1-beta.1"
 dependencies = [
  "anyhow",
  "bitflags",
+ "cfg-if",
  "cssparser 0.33.0",
  "cssparser 0.34.0",
  "itertools 0.14.0",
@@ -1258,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.1-alpha.1"
+version = "0.0.1"
 dependencies = [
  "lazy_static",
  "oxvg_ast",
