@@ -4,15 +4,13 @@ use lightningcss::{
     error::PrinterError,
     printer::{Printer, PrinterOptions},
     properties::{
-        border::{BorderBlockColor, BorderInlineColor, GenericBorder},
-        custom::{CustomProperty, TokenList, TokenOrValue},
+        custom::{TokenList, TokenOrValue},
         svg::SVGPaint,
-        text::{TextDecoration, TextEmphasis},
-        ui::{Caret, ColorOrAuto},
-        Property,
+        text::TextDecoration,
     },
     stylesheet::{ParserOptions, StyleAttribute},
     values::color::CssColor,
+    visit_types,
 };
 use oxvg_ast::{
     attribute::{Attr, Attributes},
@@ -33,8 +31,10 @@ pub enum ConvertCase {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Method {
+    /// Use lightningcss for conversion
     #[default]
     Lightning,
+    /// Convert all colors to `currentcolor`.
     CurrentColor,
     /// WARN: These options don't do anything right now, but exist in SVGO and may reluctantly be
     /// implemented here too
@@ -47,15 +47,17 @@ pub enum Method {
     },
 }
 
-enum Color<'a> {
-    Single(&'a mut CssColor),
-    Many(Vec<&'a mut CssColor>),
-    None,
-}
-
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Converts color references to their shortest equivalent.
+///
+/// Colors are minified using lightningcss' [minification](https://lightningcss.dev/minification.html#minify-colors).
 pub struct ConvertColors {
+    /// Whether to convert all instances of a color to `currentcolor`. This means all colors will match the foreground color, in HTML this would be the closest [`color`](https://developer.mozilla.org/docs/Web/CSS/color) property in CSS.
+    ///
+    /// The default method is "lightning". Other options are
+    /// - `"currentColor"` to convert all colors to `currentcolor`
+    /// - `"value": { ... }` is a reserved option for SVGO compatibility, it will prevent the plugin from running if any of [SVGO's parameters](https://svgo.dev/docs/plugins/convertColors/#parameters) are set.
     pub method: Option<Method>,
 }
 
@@ -103,13 +105,16 @@ impl<E: Element> Visitor<E> for ConvertColors {
                     }
                 };
 
-                method.convert_style(&mut style);
+                method.convert_style(&mut style).ok();
                 if let Ok(minified_style) = method.to_css(&style) {
                     attr.set_value(minified_style.into());
                 }
             } else {
                 let minified_value = if let Some(mut presentation) = attr.presentation() {
-                    if method.convert_presentation(&mut presentation) {
+                    if method
+                        .convert_presentation(&mut presentation)
+                        .unwrap_or(false)
+                    {
                         presentation
                             .value_to_css_string(PrinterOptions {
                                 minify: true,
@@ -132,35 +137,46 @@ impl<E: Element> Visitor<E> for ConvertColors {
 }
 
 impl Method {
-    fn convert_style(&self, style: &mut StyleAttribute) {
+    fn convert_style(&mut self, style: &mut StyleAttribute) -> Result<(), String> {
+        use lightningcss::visitor::Visitor;
+
         log::debug!("Method::convert_style: doing a thing");
         // CurrentColor is the only case in which we need to mutate the source css
         if !matches!(self, Self::CurrentColor) {
-            return;
+            return Ok(());
         }
 
-        for declaration in style.declarations.iter_mut() {
-            self.convert_property(declaration);
-        }
+        self.visit_declaration_block(&mut style.declarations)
     }
 
-    fn convert_property(&self, property: &mut Property) {
-        let mut color = Color::get_colors(property);
-        match color {
-            Color::Single(ref mut color) => self.convert_color(color),
-            Color::Many(mut colors) => colors.iter_mut().for_each(|c| self.convert_color(c)),
-            Color::None => {}
-        };
-    }
+    fn convert_presentation(&mut self, attr: &mut PresentationAttr) -> Result<bool, String> {
+        use lightningcss::visitor::Visitor;
 
-    fn convert_presentation(&self, attr: &mut PresentationAttr) -> bool {
-        let mut color = Color::get_colors_for_attr(attr);
-        match color {
-            Color::Single(ref mut color) => self.convert_color(color),
-            Color::Many(mut colors) => colors.iter_mut().for_each(|c| self.convert_color(c)),
-            Color::None => return false,
+        match attr {
+            PresentationAttr::Color(color)
+            | PresentationAttr::Fill(SVGPaint::Color(color))
+            | PresentationAttr::FloodColor(color)
+            | PresentationAttr::LightingColor(color)
+            | PresentationAttr::StopColor(color)
+            | PresentationAttr::Stroke(SVGPaint::Color(color))
+            | PresentationAttr::TextDecoration(TextDecoration { color, .. }) => {
+                self.visit_color(color)?;
+            }
+            PresentationAttr::Unparsed(UnparsedPresentationAttr {
+                value: TokenList(vec),
+                ..
+            }) => {
+                vec.iter_mut()
+                    .filter_map(|tl| match tl {
+                        TokenOrValue::Color(color) => Some(color),
+                        _ => None,
+                    })
+                    .try_for_each(|color| self.visit_color(color))?;
+            }
+
+            _ => return Ok(false),
         };
-        true
+        Ok(true)
     }
 
     fn convert_color(&self, color: &mut CssColor) {
@@ -221,101 +237,16 @@ impl Method {
     }
 }
 
-impl<'a> Color<'a> {
-    fn get_colors(property: &'a mut Property) -> Self {
-        match property {
-            Property::BackgroundColor(color)
-            | Property::Color(color)
-            | Property::BorderTopColor(color)
-            | Property::BorderBottomColor(color)
-            | Property::BorderLeftColor(color)
-            | Property::BorderRightColor(color)
-            | Property::BorderBlockStartColor(color)
-            | Property::BorderBlockEndColor(color)
-            | Property::BorderInlineStartColor(color)
-            | Property::BorderInlineEndColor(color)
-            | Property::Border(GenericBorder { color, .. })
-            | Property::BorderTop(GenericBorder { color, .. })
-            | Property::BorderBottom(GenericBorder { color, .. })
-            | Property::BorderLeft(GenericBorder { color, .. })
-            | Property::BorderRight(GenericBorder { color, .. })
-            | Property::BorderBlock(GenericBorder { color, .. })
-            | Property::BorderBlockStart(GenericBorder { color, .. })
-            | Property::BorderBlockEnd(GenericBorder { color, .. })
-            | Property::BorderInline(GenericBorder { color, .. })
-            | Property::BorderInlineStart(GenericBorder { color, .. })
-            | Property::BorderInlineEnd(GenericBorder { color, .. })
-            | Property::Outline(GenericBorder { color, .. })
-            | Property::OutlineColor(color)
-            | Property::TextDecorationColor(color, _)
-            | Property::TextDecoration(TextDecoration { color, .. }, _)
-            | Property::TextEmphasisColor(color, _)
-            | Property::TextEmphasis(TextEmphasis { color, .. }, _)
-            | Property::CaretColor(ColorOrAuto::Color(color))
-            | Property::Caret(Caret {
-                color: ColorOrAuto::Color(color),
-                ..
-            })
-            | Property::Fill(SVGPaint::Color(color))
-            | Property::Stroke(SVGPaint::Color(color)) => Color::Single(color),
-            Property::Background(vec) => {
-                Color::Many(vec.into_iter().map(|bg| &mut bg.color).collect())
-            }
-            Property::BoxShadow(vec, _) => {
-                Color::Many(vec.into_iter().map(|bs| &mut bs.color).collect())
-            }
-            Property::BorderColor(border) => Color::Many(vec![
-                &mut border.top,
-                &mut border.right,
-                &mut border.bottom,
-                &mut border.left,
-            ]),
-            Property::BorderBlockColor(BorderBlockColor { start, end })
-            | Property::BorderInlineColor(BorderInlineColor { start, end }) => {
-                Color::Many(vec![start, end])
-            }
-            Property::TextShadow(vec) => {
-                Color::Many(vec.into_iter().map(|ts| &mut ts.color).collect())
-            }
-            Property::Custom(CustomProperty {
-                value: TokenList(vec),
-                ..
-            }) => Color::Many(
-                vec.iter_mut()
-                    .filter_map(|tl| match tl {
-                        TokenOrValue::Color(color) => Some(color),
-                        _ => None,
-                    })
-                    .collect(),
-            ),
-            _ => Color::None,
-        }
+impl lightningcss::visitor::Visitor<'_> for Method {
+    type Error = String;
+
+    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
+        visit_types!(COLORS)
     }
 
-    fn get_colors_for_attr(attr: &'a mut PresentationAttr) -> Self {
-        match attr {
-            PresentationAttr::Color(color)
-            | PresentationAttr::Fill(SVGPaint::Color(color))
-            | PresentationAttr::FloodColor(color)
-            | PresentationAttr::LightingColor(color)
-            | PresentationAttr::StopColor(color)
-            | PresentationAttr::Stroke(SVGPaint::Color(color))
-            | PresentationAttr::TextDecoration(TextDecoration { color, .. }) => {
-                Color::Single(color)
-            }
-            PresentationAttr::Unparsed(UnparsedPresentationAttr {
-                value: TokenList(vec),
-                ..
-            }) => Color::Many(
-                vec.iter_mut()
-                    .filter_map(|tl| match tl {
-                        TokenOrValue::Color(color) => Some(color),
-                        _ => None,
-                    })
-                    .collect(),
-            ),
-            _ => Color::None,
-        }
+    fn visit_color(&mut self, color: &mut CssColor) -> Result<(), Self::Error> {
+        self.convert_color(color);
+        Ok(())
     }
 }
 
