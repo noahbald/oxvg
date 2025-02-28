@@ -4,6 +4,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use cfg_if::cfg_if;
+
 use crate::{
     atom::Atom,
     attribute::{Attr, Attributes},
@@ -13,11 +15,13 @@ use crate::{
     node::{self, Node, Type},
 };
 
-#[cfg(not(feature = "selectors"))]
-pub trait Features {}
-
-#[cfg(feature = "selectors")]
-pub trait Features: selectors::Element {}
+cfg_if! {
+    if #[cfg(feature = "selectors")] {
+        pub trait Features: selectors::Element {}
+    } else {
+        pub trait Features {}
+    }
+}
 
 pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     type Name: Name;

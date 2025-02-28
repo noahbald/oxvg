@@ -22,7 +22,7 @@ repository = "https://github.com/noahbald/oxvg"
 [workspace.dependencies]
 oxvg = { path = "crates/oxvg" }
 oxvg_ast = { path = "crates/oxvg_ast", version = "0.0.1-alpha.1" }
-oxvg_collections = { path = "crates/oxvg_collections", version = "0.0.1-alpha.1" }
+oxvg_collections = { path = "crates/oxvg_collections", version = "0.0.1" }
 oxvg_derive = { path = "derive" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = "0.0.1-alpha.1" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser" }
@@ -30,13 +30,14 @@ oxvg_path = { path = "crates/oxvg_path", version = "0.0.1-beta.4" }
 
 anyhow = "1.0"
 bitflags = { version = "2.7.0" }
+cfg-if = { version = "1.0" }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.34.0"
 derive-where = "1.2"
 itertools = "0.14"
 lazy_static = "1.5"
-lightningcss = { version = "1.0.0-alpha.63", features = [ "visitor" ] }
+lightningcss = { version = "1.0.0-alpha.63", features = ["visitor"] }
 log = "0.4"
 markup5ever = "0.14"
 phf = { version = "0.11", features = ["macros"] }

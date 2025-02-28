@@ -1,13 +1,19 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
+use cfg_if::cfg_if;
+#[cfg(feature = "style")]
 use lightningcss::stylesheet;
 
 use crate::{
     element::Element,
     node::{self, Node},
-    selectors::Selector,
-    style::{self, ComputedStyles, ElementData},
 };
+
+#[cfg(feature = "style")]
+use crate::style::{self, ComputedStyles, ElementData};
+
+#[cfg(feature = "selectors")]
+use crate::selectors::Selector;
 
 #[derive(Debug, Default, Clone)]
 pub struct Info {
@@ -17,28 +23,51 @@ pub struct Info {
 
 #[derive(Debug)]
 pub struct Context<'i, 'o, E: Element> {
+    #[cfg(feature = "style")]
     pub computed_styles: crate::style::ComputedStyles<'i>,
+    #[cfg(feature = "style")]
     pub stylesheet: Option<lightningcss::stylesheet::StyleSheet<'i, 'o>>,
+    #[cfg(feature = "style")]
     pub element_styles: &'i HashMap<E, ElementData<E>>,
     pub root: E,
     pub flags: ContextFlags,
     pub info: &'i Info,
+    #[cfg(not(feature = "style"))]
+    /// Marker to maintain consistent lifetime with `"style"` feature
+    marker: PhantomData<(&'i (), &'o ())>,
 }
 
 impl<'i, E: Element> Context<'i, '_, E> {
-    pub fn new(
-        root: E,
-        flags: ContextFlags,
-        element_styles: &'i HashMap<E, ElementData<E>>,
-        info: &'i Info,
-    ) -> Self {
-        Self {
-            computed_styles: crate::style::ComputedStyles::default(),
-            stylesheet: None,
-            element_styles,
-            root,
-            flags,
-            info,
+    cfg_if! {
+        if #[cfg(feature = "style")] {
+            pub fn new(
+                root: E,
+                flags: ContextFlags,
+                element_styles: &'i HashMap<E, ElementData<E>>,
+                info: &'i Info,
+            ) -> Self {
+                Self {
+                    computed_styles: crate::style::ComputedStyles::default(),
+                    stylesheet: None,
+                    element_styles,
+                    root,
+                    flags,
+                    info,
+                }
+            }
+        } else {
+            pub fn new(
+                root: E,
+                flags: ContextFlags,
+                info: &'i Info,
+            ) -> Self {
+                Self {
+                    root,
+                    flags,
+                    info,
+                    marker: PhantomData::default(),
+                }
+            }
         }
     }
 }
@@ -53,6 +82,7 @@ bitflags! {
     pub struct PrepareOutcome: usize {
         const none = 0b000_0000_0000;
         const skip = 0b000_0000_0001;
+        #[cfg(feature = "style")]
         const use_style = 0b000_0010;
     }
 }
@@ -64,6 +94,7 @@ bitflags! {
         const has_script_ref = 0b0001;
         /// Whether the document has a non-empty stylesheet
         const has_stylesheet = 0b0010;
+        #[cfg(feature = "style")]
         /// Whether the computed styles will be used for each element
         const use_style = 0b0100;
         /// Whether this element is a `foreignObject` or a child of one
@@ -74,10 +105,12 @@ bitflags! {
 }
 
 impl ContextFlags {
+    #[cfg(feature = "selectors")]
     pub fn query_has_script<E: Element>(&mut self, root: &E) {
         self.set(Self::has_script_ref, has_scripts(root));
     }
 
+    #[cfg(feature = "style")]
     pub fn query_has_stylesheet<E: Element>(&mut self, root: &E) {
         self.set(Self::has_stylesheet, !style::root(root).is_empty());
     }
@@ -165,6 +198,7 @@ pub trait Visitor<E: Element> {
         Ok(())
     }
 
+    #[cfg(feature = "style")]
     fn use_style(&mut self, element: &E) -> bool {
         false
     }
@@ -178,31 +212,34 @@ pub trait Visitor<E: Element> {
     /// # Errors
     /// If any of the visitor's methods fail
     fn start(&mut self, root: &mut E, info: &Info) -> Result<PrepareOutcome, Self::Error> {
-        let element_styles = &mut HashMap::new();
         let mut flags = ContextFlags::empty();
         let prepare_outcome = self.prepare(root, &mut flags);
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }
-        if prepare_outcome.contains(PrepareOutcome::use_style) {
-            let style_source = style::root(root);
-            flags.set(ContextFlags::use_style, true);
-            flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
-            let stylesheet = stylesheet::StyleSheet::parse(
-                style_source.as_str(),
-                stylesheet::ParserOptions::default(),
-            )
-            .ok();
-            *element_styles = ElementData::new(root);
-            let mut context = Context::new(root.clone(), flags, element_styles, info);
-            context.stylesheet = stylesheet;
-            self.visit(root, &mut context)?;
-        } else {
-            self.visit(
-                root,
-                &mut Context::new(root.clone(), flags, element_styles, info),
-            )?;
-        };
+        cfg_if! {
+            if #[cfg(feature = "style")] {
+                let element_styles = &mut HashMap::new();
+                if prepare_outcome.contains(PrepareOutcome::use_style) {
+                    let style_source = flag_style_source(&mut flags, root);
+                    let stylesheet = parse_stylesheet(style_source.as_str());
+                    *element_styles = ElementData::new(root);
+                    let mut context = Context::new(root.clone(), flags, element_styles, info);
+                    context.stylesheet = stylesheet;
+                    self.visit(root, &mut context)?;
+                } else {
+                    self.visit(
+                        root,
+                        &mut Context::new(root.clone(), flags, element_styles, info),
+                    )?;
+                };
+            } else {
+                self.visit(
+                    root,
+                    &mut Context::new(root.clone(), flags, info),
+                )?;
+            }
+        }
         Ok(prepare_outcome)
     }
 
@@ -223,16 +260,6 @@ pub trait Visitor<E: Element> {
             }
             node::Type::Element => {
                 log::debug!("visiting {element:?}");
-                let use_style = context.flags.contains(ContextFlags::use_style);
-                if use_style && self.use_style(element) {
-                    context.computed_styles = ComputedStyles::<'i>::default().with_all(
-                        element,
-                        &context.stylesheet,
-                        context.element_styles,
-                    );
-                } else {
-                    context.flags.set(ContextFlags::use_style, false);
-                }
                 let is_root_foreign_object =
                     !context.flags.contains(ContextFlags::within_foreign_object)
                         && element.prefix().is_none()
@@ -240,8 +267,24 @@ pub trait Visitor<E: Element> {
                 if is_root_foreign_object {
                     context.flags.set(ContextFlags::within_foreign_object, true);
                 }
-                self.element(element, context)?;
-                context.flags.set(ContextFlags::use_style, use_style);
+                cfg_if! {
+                    if #[cfg(feature = "style")] {
+                        let use_style = context.flags.contains(ContextFlags::use_style);
+                        if use_style && self.use_style(element) {
+                            context.computed_styles = ComputedStyles::<'i>::default().with_all(
+                                element,
+                                &context.stylesheet,
+                                context.element_styles,
+                            );
+                        } else {
+                            context.flags.set(ContextFlags::use_style, false);
+                        }
+                        self.element(element, context)?;
+                        context.flags.set(ContextFlags::use_style, use_style);
+                    } else {
+                        self.element(element, context)?;
+                    }
+                }
                 if context.flags.contains(ContextFlags::skip_children) {
                     context.flags.set(ContextFlags::skip_children, false);
                 } else {
@@ -293,9 +336,20 @@ pub trait Visitor<E: Element> {
     }
 }
 
-/// # Panics
-///
-/// If the built-in selector fails to construct
+#[cfg(feature = "style")]
+fn parse_stylesheet(code: &str) -> Option<stylesheet::StyleSheet> {
+    stylesheet::StyleSheet::parse(code, stylesheet::ParserOptions::default()).ok()
+}
+
+#[cfg(feature = "style")]
+fn flag_style_source<E: Element>(flags: &mut ContextFlags, root: &E) -> String {
+    let style_source = style::root(root);
+    flags.set(ContextFlags::use_style, true);
+    flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
+    style_source
+}
+
+#[cfg(feature = "selectors")]
 pub fn has_scripts<E: Element>(root: &E) -> bool {
     // PERF: Find a way to lazily evaluate selector
     root

@@ -1,3 +1,4 @@
+use cfg_if::cfg_if;
 use std::fmt::Debug;
 
 use crate::{atom::Atom, element::Element};
@@ -35,21 +36,17 @@ pub enum Type {
     DocumentFragment,
 }
 
-#[cfg(not(feature = "parse"))]
-#[cfg(not(feature = "serialize"))]
-pub trait Features {}
-
-#[cfg(feature = "parse")]
-#[cfg(not(feature = "serialize"))]
-pub trait Features: crate::parse::Node {}
-
-#[cfg(not(feature = "parse"))]
-#[cfg(feature = "serialize")]
-pub trait Features: crate::serialize::Node {}
-
-#[cfg(feature = "parse")]
-#[cfg(feature = "serialize")]
-pub trait Features: crate::parse::Node + crate::serialize::Node {}
+cfg_if! {
+    if #[cfg(all(feature = "parse", feature = "serialize"))] {
+        pub trait Features: crate::parse::Node + crate::serialize::Node {}
+    } else if #[cfg(feature = "parse")] {
+        pub trait Features: crate::parse::Node {}
+    } else if #[cfg(feature = "serialize")] {
+        pub trait Features: crate::serialize::Node {}
+    } else {
+        pub trait Features {}
+    }
+}
 
 /// An XML DOM node upon which other DOM API objects are based
 ///

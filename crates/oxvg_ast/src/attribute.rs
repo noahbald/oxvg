@@ -46,6 +46,7 @@ pub trait Attr: PartialEq + Debug + Sized + Clone {
     /// Overwrites the value of the attribute with a new one.
     fn set_value(&mut self, value: Self::Atom) -> Self::Atom;
 
+    #[cfg(feature = "style")]
     fn presentation(&self) -> Option<crate::style::PresentationAttr>;
 
     fn formatter(&self) -> Formatter<'_, Self> {
