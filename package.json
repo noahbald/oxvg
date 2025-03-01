@@ -1,0 +1,23 @@
+{
+  "name": "oxvg",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm run -r build",
+    "test": "cargo test"
+  },
+  "keywords": [
+    "svg",
+    "optimise",
+    "minify"
+  ],
+  "author": {
+    "name": "Noah Baldwin",
+    "email": "noahwbaldwin@gmail.com",
+    "url": "https://github.com/noahbald"
+  },
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  }
+}

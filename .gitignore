@@ -2,5 +2,6 @@
 
 *.svg
 node_modules
+dist
 **/benches/criterion
 *.zip

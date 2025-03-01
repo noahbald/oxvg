@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "packages/*"]
 
 [workspace.lints.rust]
 missing_docs = { level = "warn" }
@@ -35,9 +35,14 @@ cfg-if = { version = "1.0" }
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.34.0"
 derive-where = "1.2"
+getrandom = { version = "0.2", features = ["js"] }
 itertools = "0.14"
 lazy_static = "1.5"
-lightningcss = { version = "1.0.0-alpha.63", features = ["visitor"] }
+lightningcss = { version = "1.0.0-alpha.63", default-features = false, features = [
+  "grid",
+  "visitor",
+  "nodejs",
+] }
 log = "0.4"
 markup5ever = "0.14"
 phf = { version = "0.11", features = ["macros"] }
