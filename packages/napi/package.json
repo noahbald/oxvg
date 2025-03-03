@@ -1,0 +1,27 @@
+{
+  "name": "@oxvg/napi",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "node ./test.js",
+    "universal": "napi universal",
+    "version": "napi version"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "napi": {
+    "name": "napi",
+    "triples": {}
+  },
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4"
+  }
+}
