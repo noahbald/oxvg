@@ -17,11 +17,11 @@
   "author": "",
   "license": "MIT",
   "napi": {
-    "name": "napi",
+    "name": "oxvg",
     "triples": {}
   },
   "packageManager": "pnpm@10.5.2",
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.4"
+    "@napi-rs/cli": "^3.0.0-alpha.72"
   }
 }

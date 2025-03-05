@@ -1,5 +1,5 @@
 {
-  "name": "oxvg",
+  "name": "@oxvg/oxvg",
   "version": "0.0.1",
   "main": "index.js",
   "scripts": {
@@ -11,13 +11,12 @@
     "optimise",
     "minify"
   ],
-  "author": {
-    "name": "Noah Baldwin",
-    "email": "noahwbaldwin@gmail.com",
-    "url": "https://github.com/noahbald"
-  },
+  "files": [],
+  "author": "Noah Baldwin <noahwbaldwin@gmail.com> (https://github.com/noahbald)",
   "packageManager": "pnpm@10.5.2",
   "devDependencies": {
     "@biomejs/biome": "1.9.4"
-  }
+  },
+  "description": "OXVG is an effort to create high-performance SVG tooling.",
+  "license": "MIT"
 }
