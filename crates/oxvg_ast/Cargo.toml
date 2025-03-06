@@ -36,6 +36,8 @@ lightningcss = { workspace = true, optional = true }
 log = { workspace = true }
 markup5ever = { workspace = true, optional = true }
 precomputed-hash = { workspace = true, optional = true }
+# ensure track_alloc_size for wasm compat
+servo_arc = { version = "0.4", features = ["track_alloc_size"] }
 string_cache = { workspace = true, optional = true }
 rcdom = { workspace = true, optional = true }
 selectors = { workspace = true, optional = true }
