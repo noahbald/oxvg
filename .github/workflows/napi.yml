@@ -1,4 +1,4 @@
-name: CI
+name: napi
 env:
   DEBUG: napi:*
   APP_NAME: oxvg
@@ -129,12 +129,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: .
+          path: packages/napi
       - name: List packages
-        run: ls -R .
+        run: ls -R packages/napi
         shell: bash
       - name: Test bindings
-        run: pnpm test
+        run: pnpm --filter @oxvg/napi test
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -154,11 +154,11 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: packages/napi/artifacts
       - name: Move artifacts
-        run: pnpm artifacts
+        run: pnpm run -r artifacts
       - name: List packages
-        run: ls -R ./npm
+        run: ls -R packages/napi
         shell: bash
       - name: Publish
         run: |
