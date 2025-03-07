@@ -6,21 +6,33 @@ use crate::{
     geometry, positioned, Path,
 };
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
+/// The bounding points (min & max) for a list of points belonging to a path
 pub struct Points {
+    /// The list of points for each command in the path
     pub list: Vec<Point>,
+    /// The x value of the minimum point
     pub min_x: f64,
+    /// The y value of the minimum point
     pub min_y: f64,
+    /// The x value of the maximum point
     pub max_x: f64,
+    /// The y value of the maximum point
     pub max_y: f64,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
+/// The bounding points (min & max) for a list of points belonging to a command's movement
 pub struct Point {
+    /// The list of points for each point in the command
     pub list: Vec<geometry::Point>,
+    /// The x value of the minimum point
     pub min_x: usize,
+    /// The y value of the minimum point
     pub min_y: usize,
+    /// The x value of the maximum point
     pub max_x: usize,
+    /// The y value of the maximum point
     pub max_y: usize,
 }
 
@@ -604,9 +616,9 @@ fn from_positioned() {
     let path = convert::relative(&Path::parse("m10 10 a 6 4 10 1 0 14 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
-        format!("{points:#?}"),
+        format!("{points:.12?}"),
         format!(
-            "{:#?}",
+            "{:.12?}",
             Points {
                 list: vec![Point {
                     list: vec![

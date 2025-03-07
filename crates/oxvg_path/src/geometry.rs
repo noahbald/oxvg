@@ -3,7 +3,7 @@ use crate::{
     math,
 };
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 /// A point is an `[x, y]` coordinate
 pub struct Point(pub [f64; 2]);
 
