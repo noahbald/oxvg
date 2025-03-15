@@ -1,0 +1,32 @@
+[package]
+name = "oxvg_napi"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "napi bindings for oxvg"
+publish = false
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oxvg_optimiser = { workspace = true }
+oxvg_ast = { workspace = true }
+
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
+napi-derive = "2.12.2"
+serde_json = { workspace = true }
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true
+strip = "symbols"

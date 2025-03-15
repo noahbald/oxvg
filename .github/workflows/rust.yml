@@ -1,0 +1,62 @@
+name: rust
+env:
+  CARGO_TERM_COLOR: always
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: null
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: x86_64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - host: macos-latest
+            target: aarch64-apple-darwin
+    name: build - ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.settings.target }}
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            .cargo-cache
+            target/
+          key: ${{ matrix.settings.target }}-cargo-${{ matrix.settings.host }}
+      - name: Run tests
+        run: cargo test --verbose --profile release
+      - name: Build
+        run: cargo build --verbose --bins --profile release
+      - name: List
+        run: ls -R
+        shell: bash
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ contains(matrix.settings.target, 'windows') }}
+        with:
+          name: binary-${{ matrix.settings.target }}
+          path: target/release/oxvg.exe
+          if-no-files-found: error
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ !contains(matrix.settings.target, 'windows') }}
+        with:
+          name: binary-${{ matrix.settings.target }}
+          path: target/release/oxvg
+          if-no-files-found: error

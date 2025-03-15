@@ -1,0 +1,22 @@
+{
+  "name": "@oxvg/oxvg",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm run -r build",
+    "test": "cargo test"
+  },
+  "keywords": [
+    "svg",
+    "optimise",
+    "minify"
+  ],
+  "files": [],
+  "author": "Noah Baldwin <noahwbaldwin@gmail.com> (https://github.com/noahbald)",
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  },
+  "description": "OXVG is an effort to create high-performance SVG tooling.",
+  "license": "MIT"
+}

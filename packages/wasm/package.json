@@ -1,0 +1,38 @@
+{
+  "name": "@oxvg/wasm",
+  "version": "0.0.1",
+  "description": "",
+  "files": [
+    "dist/oxvg_wasm_bg.wasm",
+    "dist/oxvg_wasm.js",
+    "dist/oxvg_wasm.d.ts"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/oxvg_wasm.js",
+      "default": "./dist/oxvg_wasm.d.ts"
+    },
+    "./node": {
+      "types": "./dist/node/oxvg_wasm.js",
+      "default": "./dist/node/oxvg_wasm.d.ts"
+    }
+  },
+  "main": "dist/oxvg_wasm.js",
+  "types": "dist/oxvg_wasm.d.ts",
+  "scripts": {
+    "build": "pnpm run build:web && pnpm run build:node",
+    "build:debug": "pnpm run build:debug:web && pnpm run build:debug:node",
+    "build:web": "wasm-pack build --target web --no-pack --out-dir dist",
+    "build:node": "wasm-pack build --target nodejs --no-pack --out-dir dist/node",
+    "build:debug:web": "wasm-pack build --dev --target web --no-pack --out-dir dist",
+    "build:debug:node": "wasm-pack build --dev --target nodejs --no-pack --out-dir dist/node",
+    "test": "node ./test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "wasm-pack": "^0.13.1"
+  }
+}
