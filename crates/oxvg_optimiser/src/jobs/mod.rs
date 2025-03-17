@@ -51,6 +51,7 @@ macro_rules! jobs {
 
 jobs! {
     // Non default plugins
+    precheck: Precheck,
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
