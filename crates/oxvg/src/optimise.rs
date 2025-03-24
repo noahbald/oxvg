@@ -48,7 +48,7 @@ impl RunCommand for Optimise {
             return Ok(());
         };
         if let Some(jobs) = config.optimise {
-            LOADED_JOBS.set(jobs);
+            LOADED_JOBS.set(jobs.resolve_jobs());
         }
 
         self.handle_paths()

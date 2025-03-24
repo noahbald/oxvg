@@ -25,6 +25,7 @@ derive-where = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }

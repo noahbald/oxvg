@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 /// due to unsupported/unstable features.
 pub struct Precheck {
     /// Whether to exit with an error instead of a log
+    #[serde(default = "default_fail_fast")]
     fail_fast: bool,
     /// Whether to run thorough pre-clean checks as to maintain document correctness
     /// similar to [svgcleaner](https://github.com/RazrFalcon/svgcleaner)
@@ -195,6 +196,10 @@ impl Precheck {
 
         Ok(())
     }
+}
+
+const fn default_fail_fast() -> bool {
+    true
 }
 
 const fn default_preclean_check() -> bool {
