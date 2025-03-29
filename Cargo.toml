@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "packages/*"]
+members = ["crates/*", "packages/wasm", "packages/napi"]
 
 [workspace.lints.rust]
 missing_docs = { level = "warn" }
@@ -63,6 +63,12 @@ criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = "0.11"
 insta = "1.42"
 pretty_assertions = "1.4"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.test.package."*"]
+opt-level = 3
 
 [profile.bench]
 inherits = "release"
