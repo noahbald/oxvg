@@ -16,7 +16,7 @@ use oxvg_optimiser::Jobs;
 
 use crate::{args::RunCommand, config::Config};
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 pub struct Optimise {
     /// The target paths to optimise
     #[clap(value_parser)]
@@ -146,6 +146,9 @@ impl Optimise {
         };
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
+            .hidden(!self.hidden)
+            .git_ignore(!self.hidden)
+            .ignore(!self.hidden)
             .follow_links(true)
             .threads(self.threads)
             .build_parallel()
@@ -155,7 +158,7 @@ impl Optimise {
                     let Ok(path) = path else {
                         return WalkState::Continue;
                     };
-                    if !path.file_type().is_some_and(|f| f.is_file()) {
+                    if path.file_type().is_none_or(|f| !f.is_file()) {
                         return WalkState::Continue;
                     }
                     let path = path.into_path();
