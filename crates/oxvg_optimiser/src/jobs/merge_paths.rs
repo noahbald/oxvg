@@ -79,7 +79,7 @@ impl<E: Element> Visitor<E> for MergePaths {
                 update_previous_path!();
                 continue;
             }
-            let Some(current_path_data) = child
+            let Some(mut current_path_data) = child
                 .get_attribute_local(&d_name)
                 .and_then(|d| Path::parse(d.as_ref()).ok())
             else {
@@ -87,6 +87,11 @@ impl<E: Element> Visitor<E> for MergePaths {
                 update_previous_path!();
                 continue;
             };
+            if let Some(first) = current_path_data.0.first_mut() {
+                if let command::Data::MoveBy(data) = first {
+                    *first = command::Data::MoveTo(*data);
+                }
+            }
 
             let computed_styles = ComputedStyles::default().with_all(
                 child,
