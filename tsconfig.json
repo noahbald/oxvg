@@ -1,0 +1,7 @@
+{
+  "extends": "@tsconfig/node12/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["es2023", "dom"],
+    "checkJs": true
+  }
+}
