@@ -1,4 +1,5 @@
 use std::{
+    borrow::BorrowMut,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::VecDeque,
     fmt::Debug,
@@ -1102,6 +1103,9 @@ impl Element for Element5Ever {
             children: self.node.0.children.clone(),
             data,
         }));
+        for child in clone.child_nodes() {
+            child.0.parent.replace(Some(Rc::downgrade(&clone.0)));
+        }
         self.replace_with(clone);
     }
 
@@ -1688,6 +1692,9 @@ impl selectors::Element for Element5Ever {
         id: &<Self::Impl as selectors::SelectorImpl>::Identifier,
         case_sensitivity: selectors::attr::CaseSensitivity,
     ) -> bool {
+        if self.node_type() != node::Type::Element {
+            return false;
+        }
         let Some(self_id) = self.get_attribute_local(&local_name!("id")) else {
             return false;
         };
