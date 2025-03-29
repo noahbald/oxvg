@@ -586,5 +586,14 @@ fn convert_path_data() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+  <path d="m0,0C2.99994,6.92529,6.92523,3,11.74994,3h5.5c.41406,0,.75.33594.75.75s-.33594.75-.75.75h-5.5c-3.99756,0-7.25,3.25244-7.25,7.25" fill="#222"/>
+</svg>"##
+        )
+    )?);
+
     Ok(())
 }

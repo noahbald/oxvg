@@ -55,10 +55,12 @@ pub fn filter(
 ) -> Path {
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..path.0.len()).for_each(|index| {
+        if index > 0 {
+            state.relative_subpoints[index] = state.relative_subpoints[index - 1];
+        }
         let Some((prev, item_option, next_paths)) = Path::split_mut(&mut new_path, index) else {
             return;
         };
-        state.relative_subpoints[index] = state.relative_subpoints[index - 1];
         let item = item_option
             .as_mut()
             .expect("`split_mut` guard would return if item is `None`");
