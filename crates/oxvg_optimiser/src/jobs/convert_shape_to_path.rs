@@ -331,5 +331,16 @@ fn convert_shape_to_path() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertShapeToPath": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <rect id="rect1" width="120" height="120" />
+  </defs>
+</svg>"#
+        ),
+    )?);
+
     Ok(())
 }
