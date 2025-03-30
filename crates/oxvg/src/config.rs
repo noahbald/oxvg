@@ -1,8 +1,9 @@
+use clap::ValueEnum;
 use oxvg_ast::{element::Element, implementations::markup5ever::Element5Ever};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone, ValueEnum)]
 #[serde(rename_all = "camelCase")]
 /// A preset which the specified jobs can overwrite
 pub enum Extends {
@@ -49,7 +50,7 @@ impl Extends {
     }
 
     /// Creates a configuration with the presets jobs extended by the given jobs.
-    fn extend<E: Element>(&self, jobs: &oxvg_optimiser::Jobs<E>) -> oxvg_optimiser::Jobs<E> {
+    pub fn extend<E: Element>(&self, jobs: &oxvg_optimiser::Jobs<E>) -> oxvg_optimiser::Jobs<E> {
         let mut result = self.jobs();
         result.extend(jobs);
         result

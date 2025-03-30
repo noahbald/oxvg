@@ -14,7 +14,10 @@ use oxvg_ast::{
 };
 use oxvg_optimiser::Jobs;
 
-use crate::{args::RunCommand, config::Config};
+use crate::{
+    args::RunCommand,
+    config::{Config, Extends},
+};
 
 #[derive(clap::Args, Debug)]
 pub struct Optimise {
@@ -39,6 +42,9 @@ pub struct Optimise {
     /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
     #[clap(long, short, default_value = "0")]
     pub threads: usize,
+    /// When running without a config, sets the default preset to run with
+    #[clap(long, short)]
+    pub extends: Option<Extends>,
 }
 
 impl RunCommand for Optimise {
@@ -216,6 +222,14 @@ impl Optimise {
                 )?;
                 Ok(None)
             }
+        } else if let Some(extends) = &self.extends {
+            Ok(Some(Config {
+                optimise: Some(crate::config::Optimise {
+                    extends: Some(extends.clone()),
+                    jobs: Jobs::none(),
+                    omit: None,
+                }),
+            }))
         } else {
             log::debug!("using inferred config");
             Ok(Some(config))
