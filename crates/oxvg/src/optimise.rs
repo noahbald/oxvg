@@ -14,9 +14,12 @@ use oxvg_ast::{
 };
 use oxvg_optimiser::Jobs;
 
-use crate::{args::RunCommand, config::Config};
+use crate::{
+    args::RunCommand,
+    config::{Config, Extends},
+};
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 pub struct Optimise {
     /// The target paths to optimise
     #[clap(value_parser)]
@@ -39,6 +42,9 @@ pub struct Optimise {
     /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
     #[clap(long, short, default_value = "0")]
     pub threads: usize,
+    /// When running without a config, sets the default preset to run with
+    #[clap(long, short)]
+    pub extends: Option<Extends>,
 }
 
 impl RunCommand for Optimise {
@@ -48,7 +54,7 @@ impl RunCommand for Optimise {
             return Ok(());
         };
         if let Some(jobs) = config.optimise {
-            LOADED_JOBS.set(jobs);
+            LOADED_JOBS.set(jobs.resolve_jobs());
         }
 
         self.handle_paths()
@@ -146,6 +152,9 @@ impl Optimise {
         };
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
+            .hidden(!self.hidden)
+            .git_ignore(!self.hidden)
+            .ignore(!self.hidden)
             .follow_links(true)
             .threads(self.threads)
             .build_parallel()
@@ -155,7 +164,7 @@ impl Optimise {
                     let Ok(path) = path else {
                         return WalkState::Continue;
                     };
-                    if !path.file_type().is_some_and(|f| f.is_file()) {
+                    if path.file_type().is_none_or(|f| !f.is_file()) {
                         return WalkState::Continue;
                     }
                     let path = path.into_path();
@@ -213,6 +222,14 @@ impl Optimise {
                 )?;
                 Ok(None)
             }
+        } else if let Some(extends) = &self.extends {
+            Ok(Some(Config {
+                optimise: Some(crate::config::Optimise {
+                    extends: Some(extends.clone()),
+                    jobs: Jobs::none(),
+                    omit: None,
+                }),
+            }))
         } else {
             log::debug!("using inferred config");
             Ok(Some(config))

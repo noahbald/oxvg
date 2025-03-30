@@ -8,7 +8,7 @@ pub fn straight_curve_to_line(
     prev: &Position,
     item: &mut Position,
     next: &mut Option<Position>,
-    s_data: &Option<Curve>,
+    s_data: Option<&Curve>,
     options: &convert::Options,
     state: &filter::State,
 ) {
@@ -20,16 +20,19 @@ pub fn straight_curve_to_line(
         command::Data::CubicBezierBy(ref a) if Curve::is_data_straight(a, *error) => {
             make_specific_longhand(next, &command::ID::SmoothBezierBy, a);
             item.command = command::Data::LineBy([a[4], a[5]]);
+            item.s_data = None;
         }
         command::Data::SmoothBezierBy(ref a)
             if s_data.as_ref().is_some_and(|s| s.is_straight(*error)) =>
         {
             make_specific_longhand(next, &command::ID::SmoothBezierBy, a);
             item.command = command::Data::LineBy([a[2], a[3]]);
+            item.s_data = None;
         }
         command::Data::QuadraticBezierBy(ref a) if Curve::is_data_straight(a, *error) => {
             make_specific_longhand(next, &command::ID::SmoothQuadraticBezierBy, a);
             item.command = command::Data::LineBy([a[2], a[3]]);
+            item.s_data = None;
         }
         command::Data::SmoothQuadraticBezierBy(a)
             if !matches!(
@@ -38,11 +41,13 @@ pub fn straight_curve_to_line(
             ) =>
         {
             item.command = command::Data::LineBy(a);
+            item.s_data = None;
         }
         command::Data::ArcBy(a)
             if a[0] == 0.0 || a[1] == 0.0 || saggita.as_ref().is_some_and(|s| s < error) =>
         {
             item.command = command::Data::LineBy([a[5], a[6]]);
+            item.s_data = None;
         }
         _ => {}
     }

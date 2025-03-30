@@ -1,7 +1,9 @@
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use serde_with::skip_serializing_none;
 
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveComments {

@@ -248,7 +248,9 @@ pub trait Node: Clone + Debug + Features {
     /// [MDN | insertAfter](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertAfter)
     fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
         let len = self.child_nodes().len();
-        let reference_index = self.child_index(reference_node).unwrap_or(len - 2);
+        let reference_index = self
+            .child_index(reference_node)
+            .unwrap_or(len.saturating_sub(2));
         self.insert(reference_index + 1, new_node);
     }
 

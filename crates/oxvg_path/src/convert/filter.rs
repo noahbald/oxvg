@@ -89,7 +89,7 @@ pub fn filter(
         };
         round::relative_coordinates(item, state, options, index);
         round::arc_smart(item, options, state);
-        from::straight_curve_to_line(prev, item, next, &s_data, options, state);
+        from::straight_curve_to_line(prev, item, next, s_data.as_ref(), options, state);
         from::c_to_q(item, next, options, state.error);
         from::line_to_shorthand(item, options);
         if remove::repeated(prev, item, options, info) {

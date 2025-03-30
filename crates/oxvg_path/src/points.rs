@@ -289,8 +289,12 @@ impl Point {
         lower.pop();
 
         let max_x = lower.len();
-        let max_y = (max_x + top) % (upper.len() + lower.len());
         lower.extend(upper);
+        let max_y = if lower.len() == 0 {
+            0
+        } else {
+            (max_x + top) % lower.len()
+        };
 
         Self {
             list: lower,

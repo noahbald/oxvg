@@ -1150,7 +1150,15 @@ impl<'i> Parse<'i> for SVGTransform {
                         }
                         "translate" => {
                             let x = f32::parse(input)?;
+                            input
+                                .try_parse(Parser::expect_comma)
+                                .or_else(|_| input.try_parse(Parser::expect_comma))
+                                .ok();
                             input.skip_whitespace();
+                            input
+                                .try_parse(Parser::expect_comma)
+                                .or_else(|_| input.try_parse(Parser::expect_comma))
+                                .ok();
                             if let Ok(y) = input.try_parse(f32::parse) {
                                 Ok(SVGTransform::Translate(x, y))
                             } else {

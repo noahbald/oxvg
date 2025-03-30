@@ -5,6 +5,7 @@ use oxvg_ast::{
     visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
@@ -12,8 +13,10 @@ macro_rules! jobs {
 
         $(pub use self::$name::$job;)+
 
+        #[skip_serializing_none]
         #[derive(Deserialize, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase", bound = "E: Element")]
+        /// Each task for optimising an SVG document.
         pub struct Jobs<E: Element> {
             $(pub $name: Option<$job $( < $($t),* >)?>),+
         }
@@ -45,12 +48,35 @@ macro_rules! jobs {
                 })+
                 Ok(count)
             }
+
+            /// Overwrites `self`'s fields with the `Some` fields of `other`
+            pub fn extend(&mut self, other: &Self) {
+                $(if other.$name.is_some() {
+                    self.$name = other.$name.clone();
+                })+
+            }
+
+            /// Removes a job from the config via the specified name of the field, in `snake_case`
+            pub fn omit(&mut self, name: &str) {
+                match name {
+                    $(stringify!($name) => self.$name = None,)+
+                    _ => {}
+                }
+            }
+
+            /// Produces a preset with nothing
+            pub fn none() -> Self {
+                Self {
+                    $($name: None),+
+                }
+            }
         }
     };
 }
 
 jobs! {
     // Non default plugins
+    precheck: Precheck,
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
@@ -134,6 +160,14 @@ impl<E: Element> Jobs<E> {
             .map_err(Error::Generic)?;
         log::debug!("completed {count} jobs");
         Ok(())
+    }
+
+    /// Produces a preset focused on correctness
+    pub fn safe() -> Self {
+        Self {
+            precheck: Some(Precheck::default()),
+            ..Self::none()
+        }
     }
 }
 

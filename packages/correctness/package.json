@@ -1,0 +1,22 @@
+{
+  "name": "correctness",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "pnpm run optimise && pnpm run compare",
+    "optimise": "pnpm run optimise:w3c",
+    "optimise:w3c": "cargo run optimise -r -. -o w3c-optimised w3c",
+    "optimise:oxygen": "cargo run optimise -r -. -o oxygen-optimised oxygen",
+    "compare": "pnpm run compare:w3c",
+    "compare:w3c": "node index.js 512 w3c w3c-optimised",
+    "compare:oxygen": "node index.js 512 oxygen oxygen-optimised"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.5.2",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.68"
+  }
+}

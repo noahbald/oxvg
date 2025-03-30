@@ -432,5 +432,15 @@ fn merge_paths() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "mergePaths": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.764 105.935">
+    <path d="M43.119 39.565Zm-.797 3.961c.077.167.257.083.309.177Z"/>
+    <path d="m42.38 43.684-.06.019Z"/>
+</svg>"#
+        ),
+    )?);
+
     Ok(())
 }

@@ -298,6 +298,7 @@ impl Convert {
                 .iter_mut()
                 .for_each(|a| *a = options.round(*a, error));
             relative_subpoint.0[0] += prev_arc_args[5] - prev_args[prev_args.len() - 2];
+            relative_subpoint.0[1] += prev_arc_args[6] - prev_args[prev_args.len() - 1];
             prev.command = command::Data::ArcBy(prev_arc_args.try_into().unwrap());
             prev.end = prev_arc.end;
             item.start = prev_arc.end;

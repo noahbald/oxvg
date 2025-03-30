@@ -15,7 +15,8 @@
   "author": "Noah Baldwin <noahwbaldwin@gmail.com> (https://github.com/noahbald)",
   "packageManager": "pnpm@10.5.2",
   "devDependencies": {
-    "@biomejs/biome": "1.9.4"
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.13.14"
   },
   "description": "OXVG is an effort to create high-performance SVG tooling.",
   "license": "MIT"
