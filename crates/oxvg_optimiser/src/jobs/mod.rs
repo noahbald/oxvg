@@ -99,6 +99,7 @@ jobs! {
     remove_comments: RemoveComments (is_default: true),
     remove_deprecated_attrs: RemoveDeprecatedAttrs (is_default: true),
     remove_metadata: RemoveMetadata (is_default: true),
+    remove_editors_ns_data: RemoveEditorsNSData (is_default: true),
     cleanup_attributes: CleanupAttributes (is_default: true),
     merge_styles: MergeStyles<E> (is_default: true),
     inline_styles: InlineStyles<E> (is_default: true),
