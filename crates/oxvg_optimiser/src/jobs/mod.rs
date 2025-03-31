@@ -92,6 +92,7 @@ jobs! {
     remove_title: RemoveTitle,
     remove_view_box: RemoveViewBox,
     reuse_paths: ReusePaths<E>,
+    remove_x_m_l_n_s: RemoveXMLNS,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
