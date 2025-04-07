@@ -14,7 +14,6 @@ oxvg_ast = { workspace = true, features = [
   "selectors",
   "visitor",
   "style",
-  "parse",
   "serialize",
 ] }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }

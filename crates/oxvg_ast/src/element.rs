@@ -1,10 +1,10 @@
+//! XML element traits.
 use std::{
     cell::{Ref, RefMut},
     collections::VecDeque,
     fmt::Debug,
+    marker::PhantomData,
 };
-
-use cfg_if::cfg_if;
 
 use crate::{
     atom::Atom,
@@ -15,19 +15,15 @@ use crate::{
     node::{self, Node, Type},
 };
 
-cfg_if! {
-    if #[cfg(feature = "selectors")] {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features: selectors::Element {}
-    } else {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features {}
-    }
-}
-
-pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
+/// An xml element with attributes, (e.g. `<a xlink:href="#" />`)
+///
+/// [MDN | Element](https://developer.mozilla.org/en-US/docs/Web/API/Element)
+pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + PartialEq {
+    /// The type representing the tag or attribute name of the element
     type Name: Name;
-    type Attr: Attr<Name = Self::Name, Atom = <Self as Node>::Atom>;
+    /// The type representing a singular attribute of the element's list of attributes
+    type Attr: Attr<Name = Self::Name, Atom = <Self as Node<'arena>>::Atom>;
+    /// The type representing a list of attributes in an element
     type Attributes<'a>: Attributes<'a, Attribute = Self::Attr>;
 
     /// Converts the provided node into an element, if the node type matches an element or document
@@ -39,8 +35,9 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// end up being invalid.
     ///
     /// For other cases, try `element.document()?.as_document()`
-    fn as_document(&self) -> impl Document<Root = Self>;
+    fn as_document(&self) -> impl Document<'arena, Root = Self>;
 
+    /// Creates an element from an element's parent type.
     fn from_parent(node: Self::ParentChild) -> Option<Self>;
 
     /// Returns a collection of the attributes assigned to the element.
@@ -81,12 +78,16 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         self.children().into_iter()
     }
 
+    /// Returns a [`ClassList`] for manipulating the tokens of a class attribute.
     fn class_list(
         &self,
     ) -> impl ClassList<Attribute = <Self::Attributes<'_> as Attributes>::Attribute>;
 
     /// Returns whether a class (e.g. `.my-class` or `my-class`) is in the class attribute
-    fn has_class(&self, token: &Self::Atom) -> bool;
+    fn has_class(&self, token: &Self::Atom) -> bool {
+        let token = token.trim_start_matches('.');
+        self.class_list().contains(&token.into())
+    }
 
     /// Traverses the element and it's parents until it finds an element that matches the specified
     /// local-name
@@ -120,10 +121,12 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         self.children().into_iter().next()
     }
 
-    fn for_each_element_child<F>(&self, f: F)
-    where
-        F: FnMut(Self);
+    /// Returns an node list containing all the child elements of this element
+    fn child_elements_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
+        self.child_nodes_iter().filter_map(Self::new)
+    }
 
+    /// Reorder the children of the element based on the given callback.
     fn sort_child_elements<F>(&self, f: F)
     where
         F: FnMut(Self, Self) -> std::cmp::Ordering;
@@ -152,8 +155,8 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Sets the local name of the element to a new one.
     ///
     /// Note that this is usually done by replacing the element with a clone of itself, so
-    /// references to the old element will be outdated.
-    fn set_local_name(&mut self, name: <Self::Name as Name>::LocalName);
+    /// references to the old element will be detached.
+    fn set_local_name(&self, name: <Self::Name as Name>::LocalName, arena: &Self::Arena);
 
     /// Returns the element immediately following this one in it's parent's child list.
     ///
@@ -205,7 +208,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Inserts a node in the children list of the [Element]'s parent, just after this [Element]
     ///
     /// [MDN | after](https://developer.mozilla.org/en-US/docs/Web/API/Element/after)
-    fn after(&self, node: <Self as Node>::ParentChild) {
+    fn after(&self, node: <Self as Node<'arena>>::ParentChild) {
         let Some(mut parent) = self.parent_node() else {
             return;
         };
@@ -222,7 +225,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// Inserts a node in the children list of the [Element]'s parent, just before this [Element]
     ///
     /// [MDN | before](https://developer.mozilla.org/en-US/docs/Web/API/Element/before)
-    fn before(&self, node: <Self as Node>::ParentChild) -> Option<()> {
+    fn before(&self, node: <Self as Node<'arena>>::ParentChild) -> Option<()> {
         let mut parent = self.parent_node()?;
         node.remove();
         node.set_parent_node(&parent);
@@ -230,7 +233,8 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         Some(())
     }
 
-    fn find_element(node: <Self as Node>::ParentChild) -> Option<Self>;
+    /// From a node, do a breadth-first search for the first element contained within it.
+    fn find_element(node: <Self as Node<'arena>>::ParentChild) -> Option<Self>;
 
     /// Returns the value of an attribute of the element specified by it's qualified name.
     ///
@@ -238,14 +242,26 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     fn get_attribute<'a>(
         &'a self,
         name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<Self::Atom>;
+    ) -> Option<Ref<'a, Self::Atom>>
+    where
+        'arena: 'a,
+    {
+        self.get_attribute_node(name)
+            .map(|a| Ref::map(a, |a| a.value()))
+    }
 
     /// Returns the value of an attribute of the element specified by a local name, only if that
     /// attribute also has no prefix
     fn get_attribute_local<'a>(
         &'a self,
         name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::Atom>;
+    ) -> Option<Ref<'a, Self::Atom>>
+    where
+        'arena: 'a,
+    {
+        self.get_attribute_node_local(name)
+            .map(|a| Ref::map(a, |a| a.value()))
+    }
 
     /// Returns the value of an attribute of the element specified by it's local name and
     /// namespace.
@@ -255,14 +271,29 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Self::Atom>;
+    ) -> Option<Ref<'a, Self::Atom>>
+    where
+        'arena: 'a,
+    {
+        self.get_attribute_node_ns(namespace, name)
+            .map(|a| Ref::map(a, |a| a.value()))
+    }
 
     /// Returns a collection of the attribute names of the element.
     ///
     /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
-    fn get_attribute_names(
-        &self,
-    ) -> Vec<<<Self::Attributes<'_> as Attributes<'_>>::Attribute as Attr>::Name>;
+    fn get_attribute_names<'a, B>(&'a self) -> B
+    where
+        B: FromIterator<
+            Ref<'a, <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name>,
+        >,
+        'arena: 'a,
+    {
+        self.attributes()
+            .into_iter()
+            .map(|attr| Ref::map(attr, |attr| attr.name()))
+            .collect()
+    }
 
     /// Returns the attribute specified by it's qualified name.
     ///
@@ -270,13 +301,17 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     fn get_attribute_node<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item(attr_name)
+    }
 
     /// See [`Attributes::get_attribute_node`]
     fn get_attribute_node_mut<'a>(
         &'a self,
         attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_mut(attr_name)
+    }
 
     /// Returns the attribute of the element specified by a local name, only if that
     /// attribute also has no prefix
@@ -303,7 +338,9 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         &'a self,
         namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
         name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>>;
+    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
+        self.attributes().get_named_item_ns(namespace, name)
+    }
 
     /// Returns whether the element has the specified attribute or not.
     ///
@@ -312,6 +349,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
         N: Name,
+        'arena: 'a,
     {
         self.get_attribute_node(name).is_some()
     }
@@ -322,6 +360,7 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     where
         Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
         N: Atom,
+        'arena: 'a,
     {
         self.get_attribute_node_local(name).is_some()
     }
@@ -375,6 +414,9 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         attrs.remove_named_item_local(attr_name)
     }
 
+    /// Replaces all the children in this element with a new list of children.
+    ///
+    /// [MDN | replaceChildren](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceChildren)
     fn replace_children(&self, children: Vec<Self::Child>);
 
     /// Replaces this element in the children list of it's parent with another.
@@ -415,7 +457,8 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
     /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
     fn parent_element(&self) -> Option<Self>;
 
-    fn breadth_first(&self) -> Iterator<Self> {
+    /// Returns an iterator over the element and it's descendants
+    fn breadth_first(&self) -> Iterator<'arena, Self> {
         Iterator::new(self)
     }
 
@@ -426,44 +469,60 @@ pub trait Element: Node + Features + Debug + std::hash::Hash + Eq + PartialEq {
         &'a self,
         selector: &'a str,
     ) -> Result<
-        crate::selectors::Select<Self>,
+        crate::selectors::Select<'arena, Self>,
         cssparser::ParseError<'a, selectors::parser::SelectorParseErrorKind<'a>>,
     > {
         crate::selectors::Select::new(self, selector)
     }
 
     #[cfg(feature = "selectors")]
+    #[allow(clippy::type_complexity)]
+    /// Selects an element with the given selector.
     fn select_with_selector(
         &self,
-        selector: crate::selectors::Selector<Self>,
-    ) -> crate::selectors::Select<Self> {
+        selector: crate::selectors::Selector<
+            Self::Atom,
+            <Self::Name as Name>::Prefix,
+            <Self::Name as Name>::LocalName,
+            <Self::Name as Name>::Namespace,
+        >,
+    ) -> crate::selectors::Select<'arena, Self> {
         crate::selectors::Select::new_with_selector(self, selector)
     }
+
+    #[cfg(feature = "selectors")]
+    /// Sets the selector flags of an element
+    fn set_selector_flags(&self, flags: selectors::matching::ElementSelectorFlags);
 }
 
 #[derive(Debug)]
-pub struct Iterator<E: crate::element::Element> {
+/// An iterator that goes over an element and it's descendants in a breadth-first fashion
+pub struct Iterator<'arena, E: crate::element::Element<'arena>> {
     queue: VecDeque<E>,
+    marker: PhantomData<&'arena ()>,
 }
 
-impl<E: crate::element::Element> Iterator<E> {
-    /// Returns a depth-first iterator starting at the given element
+impl<'arena, E: crate::element::Element<'arena>> Iterator<'arena, E> {
+    /// Returns a breadth-first iterator starting at the given element
     pub fn new(element: &E) -> Self {
         let mut queue = VecDeque::new();
-        element.for_each_element_child(|e| {
+        element.child_elements_iter().for_each(|e| {
             queue.push_back(e);
         });
 
-        Self { queue }
+        Self {
+            queue,
+            marker: PhantomData,
+        }
     }
 }
 
-impl<E: crate::element::Element> std::iter::Iterator for Iterator<E> {
+impl<'arena, E: crate::element::Element<'arena>> std::iter::Iterator for Iterator<'arena, E> {
     type Item = E;
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.queue.pop_front()?;
-        current.for_each_element_child(|e| {
+        current.child_elements_iter().for_each(|e| {
             self.queue.push_back(e);
         });
         Some(current)

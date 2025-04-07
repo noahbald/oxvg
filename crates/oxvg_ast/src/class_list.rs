@@ -1,6 +1,11 @@
+//! XML DOM token list traits.
 use crate::attribute::Attr;
 
+/// A list observing and manipulating a set of whitespace separated tokens.
+///
+/// [MDN DOMTokenList](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList)
 pub trait ClassList {
+    /// The type of an attribute which the class-list is manipulating.
     type Attribute: Attr;
 
     /// The number of objects stored in the object.
@@ -88,5 +93,6 @@ pub trait ClassList {
         self.iter()
     }
 
+    /// Returns an iterator to go through the tokens in the object.
     fn iter(&self) -> impl DoubleEndedIterator<Item = &<Self::Attribute as Attr>::Atom>;
 }

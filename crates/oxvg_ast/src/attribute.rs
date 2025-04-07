@@ -1,3 +1,4 @@
+//! XML element attribute traits.
 use std::{
     cell::{Ref, RefMut},
     fmt::{Debug, Display},
@@ -10,9 +11,12 @@ use crate::{atom::Atom, name::Name};
 ///
 /// [MDN | Attr](https://developer.mozilla.org/en-US/docs/Web/API/Attr)
 pub trait Attr: PartialEq + Debug + Sized + Clone {
+    /// The type representing the name of an attribute (e.g. `foo` of `foo="bar"`)
     type Name: Name;
+    /// The type representing the value of an attribute (e.g. `"bar"` of `foo="bar"`)
     type Atom: Atom;
 
+    /// Creates a new attribute
     fn new(name: Self::Name, value: Self::Atom) -> Self;
 
     /// Returns the local part of the qualified name of an attribute.
@@ -27,6 +31,7 @@ pub trait Attr: PartialEq + Debug + Sized + Clone {
     /// [MDN | name](https://developer.mozilla.org/en-US/docs/Web/API/Attr/name)
     fn name(&self) -> &Self::Name;
 
+    /// Mutably returns the qualified name of an attribute.
     fn name_mut(&mut self) -> &mut Self::Name;
 
     /// Returns the namespace prefix of the attribute.
@@ -41,27 +46,47 @@ pub trait Attr: PartialEq + Debug + Sized + Clone {
     /// [MDN | value](https://developer.mozilla.org/en-US/docs/Web/API/Attr/value)
     fn value(&self) -> &Self::Atom;
 
+    /// Mutably returns the value of the attribute
     fn value_mut(&mut self) -> &mut Self::Atom;
 
     /// Overwrites the value of the attribute with a new one.
     fn set_value(&mut self, value: Self::Atom) -> Self::Atom;
 
+    /// Pushes to the end of the value.
+    fn push(&mut self, value: &Self::Atom);
+
+    /// Gets a substring of the attribute's value.
+    fn sub_value(&self, offset: u32, length: u32) -> Self::Atom;
+
     #[cfg(feature = "style")]
     /// Returns the attribute as a presentation attribute with a CSS value,
     /// similar to [`lightningcss::properties::Property`]
-    fn presentation(&self) -> Option<crate::style::PresentationAttr>;
+    fn presentation(&self) -> Option<crate::style::PresentationAttr> {
+        if self.prefix().is_some() {
+            return None;
+        }
+        let id = crate::style::PresentationAttrId::from(self.local_name().as_ref());
+        crate::style::PresentationAttr::parse_string(
+            id,
+            self.value(),
+            lightningcss::stylesheet::ParserOptions::default(),
+        )
+        .ok()
+    }
 
+    /// Returns an object that can write an attribute as [Display]
     fn formatter(&self) -> Formatter<'_, Self> {
         Formatter(self)
     }
 }
 
+/// Writes the attribute as a name and quoted value (unescaped) separated by `'='`
 pub struct Formatter<'a, A: Attr>(&'a A);
 
 impl<'a, A: Attr> Display for Formatter<'a, A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "{}={}",
+            r#"{}="{}""#,
             self.0.name().formatter(),
             self.0.value()
         ))
@@ -72,6 +97,7 @@ impl<'a, A: Attr> Display for Formatter<'a, A> {
 ///
 /// [MDN | NamedNodeMap](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap)
 pub trait Attributes<'a>: Debug + Clone {
+    /// The type of an attribute contained by the collection of attributes.
     type Attribute: Attr;
 
     /// The number of attributes stored in the collection.
@@ -154,16 +180,32 @@ pub trait Attributes<'a>: Debug + Clone {
         &self,
         name: <Self::Attribute as Attr>::Name,
         value: <Self::Attribute as Attr>::Atom,
-    ) -> Option<Self::Attribute>;
+    ) -> Option<Self::Attribute> {
+        let attr = Self::Attribute::new(name, value);
+        self.set_named_item(attr)
+    }
 
     /// Returns an new iterator that goes over each attribute in the collection.
-    fn into_iter(self) -> AttributesIter<'a, Self>;
+    fn into_iter(self) -> AttributesIter<'a, Self> {
+        AttributesIter::new(self)
+    }
 
     /// Returns an new iterator that mutably goes over each attribute in the collection.
-    fn into_iter_mut(self) -> AttributesIterMut<'a, Self>;
+    fn into_iter_mut(self) -> AttributesIterMut<'a, Self> {
+        AttributesIterMut::new(self)
+    }
 
+    /// Sorts attributes with the following behaviour.
+    ///
+    /// 1. Keeps the `xmlns` attribute at the front if `xmlns_front` is `true`
+    /// 2. Orders `xmlns` prefixed attributes at the front
+    /// 3. Orders prefixed attributes after `xmlns` prefixed attributes
+    /// 4. Orders attributes matching `order` after based on the order of the list
+    /// 5. Sorts attributes in each order alphabetically
     fn sort(&self, order: &[String], xmlns_front: bool);
 
+    /// Iterates through the attributes and only keeps those where the callback is
+    /// evaluated to be `true`.
     fn retain<F>(&self, f: F)
     where
         F: FnMut(&Self::Attribute) -> bool;

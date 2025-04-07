@@ -20,7 +20,6 @@ oxvg_ast = { workspace = true, features = [
   "markup5ever",
   "selectors",
   "serialize",
-  "parse",
 ] }
 
 anyhow = { workspace = true }

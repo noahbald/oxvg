@@ -1,5 +1,8 @@
+//! XML atom traits.
 use std::{fmt::Display, hash::Hash, ops::Deref};
 
+/// A string representation
+/// It may be an interned string, enum representation, or a mix of both
 pub trait Atom:
     Eq
     + Display
