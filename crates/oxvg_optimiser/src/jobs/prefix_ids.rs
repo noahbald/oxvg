@@ -34,6 +34,19 @@ pub enum PrefixGenerator<'arena, E: Element<'arena>> {
     Default,
 }
 
+impl<'arena, E: Element<'arena>> PrefixGenerator<'arena, E> {
+    fn clone_for_lifetime<'a>(&self) -> PrefixGenerator<'a, E::Lifetimed<'a>> {
+        match self {
+            PrefixGenerator::Generator(..) => {
+                panic!("prefix generator function cannot be used for multiple jobs")
+            }
+            PrefixGenerator::Prefix(s) => PrefixGenerator::Prefix(s.clone()),
+            PrefixGenerator::None => PrefixGenerator::None,
+            PrefixGenerator::Default => PrefixGenerator::Default,
+        }
+    }
+}
+
 fn default_delim() -> String {
     "__".to_string()
 }
@@ -224,6 +237,15 @@ impl<'arena, 'i, E: Element<'arena>> lightningcss::visitor::Visitor<'i>
 }
 
 impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> PrefixIds<'a, E::Lifetimed<'a>> {
+        PrefixIds {
+            delim: self.delim.clone(),
+            prefix_ids: self.prefix_ids.clone(),
+            prefix_class_names: self.prefix_class_names.clone(),
+            prefix: self.prefix.clone_for_lifetime(),
+        }
+    }
+
     fn prefix_selectors(
         &self,
         element: &mut E,

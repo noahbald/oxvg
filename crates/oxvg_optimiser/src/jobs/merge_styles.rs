@@ -20,6 +20,15 @@ pub struct MergeStyles<'arena, E: Element<'arena>> {
     marker: PhantomData<&'arena ()>,
 }
 
+impl<'arena, E: Element<'arena>> MergeStyles<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> MergeStyles<'a, E::Lifetimed<'a>> {
+        MergeStyles {
+            enabled: self.enabled,
+            ..MergeStyles::default()
+        }
+    }
+}
+
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles<'arena, E> {
     type Error = String;
 
@@ -147,9 +156,7 @@ impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for MergeStyles<'arena, E
         let enabled = bool::deserialize(deserializer)?;
         Ok(Self {
             enabled,
-            first_style: None,
-            is_cdata: false,
-            marker: PhantomData,
+            ..Self::default()
         })
     }
 }

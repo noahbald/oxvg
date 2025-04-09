@@ -309,6 +309,14 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
 }
 
 impl<'arena, E: Element<'arena>> InlineStyles<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> InlineStyles<'a, E::Lifetimed<'a>> {
+        InlineStyles {
+            options: self.options.clone(),
+            styles: vec![],
+            removed_tokens: RemovedTokens::default(),
+        }
+    }
+
     fn gather_removed_tokens(
         &self,
         styles: &rules::CssRuleList,

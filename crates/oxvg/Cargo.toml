@@ -26,8 +26,10 @@ anyhow = { workspace = true }
 atty = "0.2.14"
 clap = { version = "4.5.4", features = ["derive"] }
 config = { version = "0.15", features = ["json", "json5"] }
+derive-where = { workspace = true }
+ignore = "0.4"
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
-ignore = "0.4"
+typed-arena = { workspace = true }

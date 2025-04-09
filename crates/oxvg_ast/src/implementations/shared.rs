@@ -1026,6 +1026,7 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
     type Name = QualName;
     type Attributes<'a> = Attributes<'a>;
     type Attr = Attribute;
+    type Lifetimed<'a> = Element<'a>;
 
     fn new(node: Ref<'arena>) -> Option<Self> {
         if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {

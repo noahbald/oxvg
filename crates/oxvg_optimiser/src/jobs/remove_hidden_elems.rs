@@ -226,6 +226,16 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
 }
 
 impl<'arena, E: Element<'arena>> RemoveHiddenElems<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> RemoveHiddenElems<'a, E::Lifetimed<'a>> {
+        RemoveHiddenElems {
+            options: self.options.clone(),
+            data: Data {
+                opacity_zero: self.data.opacity_zero.clone(),
+                ..Data::default()
+            },
+        }
+    }
+
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
         if let Some(id) = element.get_attribute_local(&"id".into()) {
             if self.data.all_references.contains(id.as_ref()) {

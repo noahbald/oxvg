@@ -21,21 +21,19 @@ macro_rules! jobs {
             $(pub $name: Option<$job $( < 'arena, $($t),* >)?>),+
         }
 
-        impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
+        impl<'arena, E: Element<'arena>> Default for Jobs<'arena, E> {
             fn default() -> Self {
                 macro_rules! is_default {
-                    ($_default:ident) => { $_default };
-                    () => { false };
+                    ($_job:ident $_default:ident) => { Some($_job::default()) };
+                    ($_job:ident) => { None };
                 }
                 Self {
-                    $($name: if is_default!($($default)?) {
-                        Some($job::default())
-                    } else {
-                        None
-                    }),+
+                    $($name: is_default!($job $($default)?)),+
                 }
             }
+        }
 
+        impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
             /// Runs each job in the config, returning the number of non-skipped jobs
             fn run_jobs(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
                 let mut count = 0;
@@ -45,6 +43,18 @@ macro_rules! jobs {
                     }
                 })+
                 Ok(count)
+            }
+
+            /// Creates a clone of the jobs configuration for a new lifetime by cleaning up any
+            /// associated data
+            pub fn clone_for_lifetime<'a>(&self) -> Jobs<'a, E::Lifetimed<'a>> {
+                macro_rules! is_lifetimed {
+                    ($_name:ident $_job:ident $_t:ty) => { self.$_name.as_ref().map($_job::clone_for_lifetime) };
+                    ($_name:ident $_job:ident) => { self.$_name.clone() };
+                }
+                Jobs {
+                    $($name: is_lifetimed!($name $job $($($t)*)?)),+
+                }
             }
 
             /// Overwrites `self`'s fields with the `Some` fields of `other`

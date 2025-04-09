@@ -25,6 +25,8 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     type Attr: Attr<Name = Self::Name, Atom = <Self as Node<'arena>>::Atom>;
     /// The type representing a list of attributes in an element
     type Attributes<'a>: Attributes<'a, Attribute = Self::Attr>;
+    /// `Self` with a lifetime argument
+    type Lifetimed<'a>: Element<'a>;
 
     /// Converts the provided node into an element, if the node type matches an element or document
     fn new(node: Self::Child) -> Option<Self>;

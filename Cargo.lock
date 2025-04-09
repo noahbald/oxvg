@@ -1364,6 +1364,7 @@ dependencies = [
  "atty",
  "clap",
  "config",
+ "derive-where",
  "ignore",
  "log",
  "oxvg_ast",
@@ -1371,6 +1372,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "typed-arena",
 ]
 
 [[package]]

@@ -190,6 +190,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
 }
 
 impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> CleanupIds<'a, E::Lifetimed<'a>> {
+        CleanupIds {
+            options: self.options.clone(),
+            ..CleanupIds::default()
+        }
+    }
+
     fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style

@@ -1,4 +1,5 @@
 //! Funcions for serializing XML trees
+use std::io::Write;
 use std::panic;
 
 use xmlwriter::XmlWriter;
@@ -15,6 +16,8 @@ use crate::node;
 pub enum Error {
     /// The serializer panicked while writing the dom to a string.
     SerializerPanicked,
+    /// The serializer packicked while writing to a writer
+    IO(std::io::Error),
 }
 
 /// An XML node serializer
@@ -23,6 +26,12 @@ pub trait Node<'arena> {
     /// If the underlying serialization fails
     fn serialize(&self) -> Result<String, Error> {
         self.serialize_with_options(Options::default())
+    }
+
+    /// # Errors
+    /// If the serialization or write fails
+    fn serialize_into<W: Write>(&self, mut wr: W) -> Result<usize, Error> {
+        wr.write(self.serialize()?.as_bytes()).map_err(Error::IO)
     }
 
     /// # Errors

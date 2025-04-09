@@ -201,6 +201,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths<'arena, E> {
 }
 
 impl<'arena, E: Element<'arena>> ReusePaths<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> ReusePaths<'a, E::Lifetimed<'a>> {
+        ReusePaths {
+            enabled: self.enabled,
+            ..ReusePaths::default()
+        }
+    }
+
     fn add_path(&mut self, element: &E) {
         let Some(d) = element.get_attribute_local(&"d".into()) else {
             return;
