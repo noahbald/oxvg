@@ -13,7 +13,7 @@ use oxvg_ast::{
         markup5ever::{parse, parse_file},
         shared::{Arena, Element, Ref},
     },
-    serialize::Node as _,
+    serialize::{Indent, Node as _, Options},
     visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -67,7 +67,13 @@ impl RunCommand for Optimise {
 
 impl Optimise {
     fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<usize> {
-        Ok(dom.serialize_into(wr)?)
+        Ok(dom.serialize_into(
+            wr,
+            Options {
+                indent: Indent::None,
+                ..Options::default()
+            },
+        )?)
     }
 
     fn handle_stdin<'arena>(

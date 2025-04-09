@@ -4,7 +4,7 @@ use std::panic;
 
 use xmlwriter::XmlWriter;
 
-pub use xmlwriter::Options;
+pub use xmlwriter::{Indent, Options};
 
 use crate::attribute::{Attr as _, Attributes as _};
 use crate::element::Element as _;
@@ -30,8 +30,9 @@ pub trait Node<'arena> {
 
     /// # Errors
     /// If the serialization or write fails
-    fn serialize_into<W: Write>(&self, mut wr: W) -> Result<usize, Error> {
-        wr.write(self.serialize()?.as_bytes()).map_err(Error::IO)
+    fn serialize_into<W: Write>(&self, mut wr: W, options: Options) -> Result<usize, Error> {
+        wr.write(self.serialize_with_options(options)?.as_bytes())
+            .map_err(Error::IO)
     }
 
     /// # Errors
@@ -72,6 +73,9 @@ fn serialize_node<'arena, T: node::Node<'arena>>(node: &T, xml: &mut XmlWriter) 
         }
         node::Type::Comment => {
             xml.write_comment(&node.text_content().unwrap_or_default());
+        }
+        node::Type::ProcessingInstruction => {
+            xml.write_declaration();
         }
         _ => {}
     }

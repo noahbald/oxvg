@@ -61,13 +61,6 @@ pub trait Node<'arena>: Clone + Debug {
     /// Returns an node list containing all the children of this node
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
 
-    /// Returns a read-only node list containing all the children of this node.
-    ///
-    /// [MDN | childNodes](https://developer.mozilla.org/en-US/docs/Web/API/Node/childNodes)
-    fn child_nodes(&self) -> Vec<Self::Child> {
-        self.child_nodes_iter().collect()
-    }
-
     /// Returns the number of child nodes by iteration
     fn child_node_count(&self) -> usize {
         self.child_nodes_iter().count()
@@ -91,9 +84,7 @@ pub trait Node<'arena>: Clone + Debug {
     /// Returns the first child in the node's tree
     ///
     /// [MDN | firstChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/firstChild)
-    fn first_child(&self) -> Option<Self::Child> {
-        self.child_nodes().first().cloned()
-    }
+    fn first_child(&self) -> Option<Self::Child>;
 
     /// Iterates through the children of the node, using the callback to determine which
     /// of the nodes to remove
@@ -104,21 +95,12 @@ pub trait Node<'arena>: Clone + Debug {
     /// Returns the last child in the node's tree
     ///
     /// [MDN | lastChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/lastChild)
-    fn last_child(&self) -> Option<Self::Child> {
-        self.child_nodes().last().cloned()
-    }
+    fn last_child(&self) -> Option<Self::Child>;
 
     /// Returns the node immediately following itself from the parent's list of children
     ///
     /// [MDN | nextSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/nextSibling)
-    fn next_sibling(&self) -> Option<Self::ParentChild> {
-        self.parent_node()?
-            .child_nodes()
-            .iter()
-            .take_while(|n| !n.ptr_eq(self))
-            .next()
-            .map(Node::to_owned)
-    }
+    fn next_sibling(&self) -> Option<Self::ParentChild>;
 
     /// Returns a string containins the name of the [Node]. The structure of the name will differ
     /// with the node type. E.g. An `Element` will contain the name of the corresponding tag, like
@@ -137,6 +119,11 @@ pub trait Node<'arena>: Clone + Debug {
     ///
     /// [MDN | nodeValue](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeValue)
     fn node_value(&self) -> Option<Self::Atom>;
+
+    /// Returns the node immediately before itself from the parent's list of children
+    ///
+    /// [MDN | previousSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/previousSibling)
+    fn previous_sibling(&self) -> Option<Self::ParentChild>;
 
     /// Returns the processing instruction's target and data, if the node is a processing
     /// instruction
@@ -221,22 +208,12 @@ pub trait Node<'arena>: Clone + Debug {
     /// Inserts a node before the reference node as a child of the current node.
     ///
     /// [MDN | insertBefore](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertBefore)
-    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-        let len = self.child_nodes().len();
-        let reference_index = self.child_index(reference_node).unwrap_or(len);
-        self.insert(reference_index - 1, new_node);
-    }
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child);
 
     /// Inserts a node after the reference node as a child of the current node.
     ///
     /// [MDN | insertAfter](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertAfter)
-    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-        let len = self.child_nodes().len();
-        let reference_index = self
-            .child_index(reference_node)
-            .unwrap_or(len.saturating_sub(2));
-        self.insert(reference_index + 1, new_node);
-    }
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child);
 
     /// Returns a node from the child nodes
     ///

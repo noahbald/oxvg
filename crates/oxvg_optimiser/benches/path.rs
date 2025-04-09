@@ -1,10 +1,10 @@
+//! Benchmarks for path processing
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use oxvg_ast::{
-    element::Element,
-    implementations::markup5ever::{Element5Ever, Node5Ever},
-    parse::Node,
+    element::Element as _,
+    implementations::{markup5ever::parse, shared::Element},
     visitor::{Info, Visitor},
 };
 use oxvg_optimiser::ConvertPathData;
@@ -32,11 +32,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 b.iter_custom(|iters| {
                     let mut result = Duration::default();
                     for _ in 0..iters {
-                        let dom = Node5Ever::parse(svg).unwrap();
-                        let mut dom = Element5Ever::from_parent(dom).unwrap();
+                        let arena = typed_arena::Arena::new();
+                        let dom = parse(svg, &arena);
+                        let mut root = Element::from_parent(dom).unwrap();
                         let mut job = ConvertPathData::default();
+                        let info = &Info::new(&arena);
                         let start = Instant::now();
-                        let _ = black_box(job.start(&mut dom, &Info::default()));
+                        let _ = black_box(job.start(&mut root, info));
                         result += start.elapsed();
                     }
                     result

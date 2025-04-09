@@ -691,6 +691,36 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         <Element as element::Element<'arena>>::find_element(*self)
     }
 
+    fn first_child(&self) -> Option<Self::Child> {
+        self.first_child.get()
+    }
+
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
+        new_node.remove();
+        new_node.parent.set(Some(self));
+        let Some(prev_child) = reference_node.previous_sibling.replace(Some(new_node)) else {
+            self.first_child.set(Some(new_node));
+            new_node.next_sibling.set(Some(reference_node));
+            return;
+        };
+        prev_child.next_sibling.set(Some(new_node));
+        new_node.previous_sibling.set(Some(prev_child));
+        new_node.next_sibling.set(Some(reference_node));
+    }
+
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
+        new_node.remove();
+        new_node.parent.set(Some(self));
+        let Some(next_child) = reference_node.next_sibling.replace(Some(new_node)) else {
+            self.last_child.set(Some(new_node));
+            new_node.previous_sibling.set(Some(reference_node));
+            return;
+        };
+        next_child.previous_sibling.set(Some(new_node));
+        new_node.next_sibling.set(Some(next_child));
+        new_node.previous_sibling.set(Some(reference_node));
+    }
+
     fn retain_children<F>(&self, mut f: F)
     where
         F: FnMut(Self::Child) -> bool,
@@ -718,8 +748,20 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         }
     }
 
+    fn last_child(&self) -> Option<Self::Child> {
+        self.last_child.get()
+    }
+
+    fn next_sibling(&self) -> Option<Self::ParentChild> {
+        self.next_sibling.get()
+    }
+
     fn node_type(&self) -> node::Type {
         self.node_data.node_type()
+    }
+
+    fn previous_sibling(&self) -> Option<Self::ParentChild> {
+        self.previous_sibling.get()
     }
 
     fn parent_node(&self) -> Option<Self::Parent> {
@@ -733,6 +775,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn append_child(&self, a_child: Self::Child) {
+        a_child.parent.set(Some(self));
         if let Some(child) = self.last_child.get() {
             child.next_sibling.set(Some(a_child));
             self.last_child.set(Some(a_child));
@@ -874,16 +917,21 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
 impl Debug for Ref<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data = &self.node_data;
-        let mut child = self.first_child.get();
-        let mut child_len = 0;
-        while let Some(current_child) = child {
-            child_len += 1;
-            child = current_child.next_sibling.get();
-        }
+        let child_len = self.child_node_count();
+        let Node {
+            first_child,
+            last_child,
+            parent,
+            ..
+        } = self;
+        let parent = parent.get().is_some();
         f.write_fmt(format_args!(
             "Node {{
     data: {data:?}
     children: {child_len}
+    first_child: {first_child:#?}
+    last_child: {last_child:#?}
+    has_parent: {parent}
 }}"
         ))
     }
@@ -930,6 +978,18 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
         Some(self.clone())
     }
 
+    fn first_child(&self) -> Option<Self::Child> {
+        self.node.first_child()
+    }
+
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
+        self.node.insert_before(new_node, reference_node);
+    }
+
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
+        self.node.insert_after(new_node, reference_node);
+    }
+
     fn retain_children<F>(&self, f: F)
     where
         F: FnMut(Self::Child) -> bool,
@@ -937,12 +997,24 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
         self.node.retain_children(f);
     }
 
+    fn last_child(&self) -> Option<Self::Child> {
+        self.node.last_child()
+    }
+
     fn node_type(&self) -> node::Type {
         self.node.node_type()
     }
 
+    fn next_sibling(&self) -> Option<Self::ParentChild> {
+        self.node.next_sibling()
+    }
+
     fn parent_node(&self) -> Option<Self::Parent> {
         self.node.parent_node()
+    }
+
+    fn previous_sibling(&self) -> Option<Self::ParentChild> {
+        self.node.previous_sibling()
     }
 
     fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Self::Parent> {
@@ -1065,7 +1137,11 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
         for i in 0..children.len() {
             let current = children.get(i).expect("`i` should be within len");
             current.parent.set(Some(self.node));
-            current.previous_sibling.set(children.get(i - 1).copied());
+            if i > 0 {
+                current.previous_sibling.set(children.get(i - 1).copied());
+            } else {
+                current.previous_sibling.set(None);
+            }
             current.next_sibling.set(children.get(i + 1).copied());
         }
     }
@@ -1084,6 +1160,7 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
     }
 
     fn append(&self, node: Self::Child) {
+        node.remove();
         if let Some(last_node) = self.node.last_child.get() {
             last_node.next_sibling.set(Some(node));
             self.node.last_child.set(Some(node));
@@ -1134,9 +1211,10 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
 
     fn flatten(&self) {
         let parent = self.node.parent.take();
-        let current = self.node.first_child.get();
-        while let Some(current) = current {
-            current.parent.set(parent);
+        let mut current = self.node.first_child.get();
+        while let Some(current_child) = current {
+            current_child.parent.set(parent);
+            current = current_child.next_sibling.get();
         }
 
         let previous_sibling = self.node.previous_sibling.take();
@@ -1313,17 +1391,17 @@ impl<'arena> Iterator for ChildNodes<'arena> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.front?;
-        let next = current.next_sibling.get()?;
-        self.front = Some(next);
-        Some(next)
+        let next = current.next_sibling.get();
+        self.front = next;
+        Some(current)
     }
 }
 
 impl DoubleEndedIterator for ChildNodes<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let current = self.end?;
-        let prev = current.previous_sibling.get()?;
-        self.end = Some(prev);
-        Some(prev)
+        let prev = current.previous_sibling.get();
+        self.end = prev;
+        Some(current)
     }
 }

@@ -67,8 +67,7 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     ///
     /// [MDN | children](https://developer.mozilla.org/en-US/docs/Web/API/Element/children)
     fn children(&self) -> Vec<Self> {
-        self.child_nodes()
-            .into_iter()
+        self.child_nodes_iter()
             .filter(|n| matches!(n.node_type(), Type::Element))
             .filter_map(|n| Self::new(n))
             .collect()

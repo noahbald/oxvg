@@ -24,15 +24,16 @@ pub enum Extends {
 
 #[derive_where(Debug, Default)]
 #[derive(Serialize, Deserialize)]
-#[skip_serializing_none]
 #[serde(bound = "E: Element<'arena>")]
 /// The configuration for optimisation
 pub struct Optimise<'arena, E: Element<'arena>> {
     /// The preset the jobs will extend
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<Extends>,
     /// The set of jobs to run
     pub jobs: oxvg_optimiser::Jobs<'arena, E>,
     /// A list of jobs to exclude from running
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub omit: Option<Vec<String>>,
 }
 

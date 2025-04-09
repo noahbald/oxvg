@@ -7,11 +7,16 @@ use std::{
 use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
+    local_name, namespace_url, ns,
     tendril::TendrilSink,
     tree_builder::ElemName,
 };
 
-use crate::node::Node as _;
+use crate::{
+    element::Element as _,
+    implementations::shared::Element,
+    node::{self, Node as _},
+};
 
 use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
 
@@ -95,7 +100,7 @@ impl<'arena> TreeSink for Sink<'arena> {
     }
 
     fn same_node(&self, x: &Self::Handle, y: &Self::Handle) -> bool {
-        x.ptr_eq(y)
+        std::ptr::eq(*x, *y)
     }
 
     fn elem_name<'a>(&'a self, target: &'a Self::Handle) -> Self::ElemName<'a> {
@@ -157,29 +162,80 @@ impl<'arena> TreeSink for Sink<'arena> {
         })
     }
 
-    fn append(&self, parent: &Self::Handle, child: xml5ever::interface::NodeOrText<Self::Handle>) {
+    fn append(&self, parent: &Self::Handle, child: NodeOrText<Self::Handle>) {
         match child {
-            NodeOrText::AppendNode(node) => parent.append_child(node),
-            NodeOrText::AppendText(text) => {
-                parent.append_child(self.new_node(NodeData::Text(RefCell::new(Some(text)))));
+            NodeOrText::AppendNode(node) => {
+                if parent.node_type() == node::Type::Document {
+                    if let Some(element) = Element::new(node) {
+                        let name = element.qual_name();
+                        if !name.ns.is_empty() {
+                            element.attributes().0.borrow_mut().insert(
+                                0,
+                                Attribute {
+                                    name: QualName {
+                                        local: local_name!("xmlns"),
+                                        prefix: None,
+                                        ns: name.ns.clone(),
+                                    },
+                                    value: name.ns.as_ref().into(),
+                                },
+                            );
+                        }
+                    }
+                }
+                parent.append_child(node);
+                debug_assert!(parent
+                    .last_child
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, node)));
+            }
+            NodeOrText::AppendText(mut text) => {
+                text = text.trim().into();
+                if text.is_empty() {
+                    return;
+                }
+                let node = &*self.new_node(NodeData::Text(RefCell::new(Some(text))));
+                parent.append_child(node);
+                debug_assert!(parent
+                    .last_child
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, node)));
             }
         }
     }
 
     fn append_before_sibling(&self, sibling: &Self::Handle, new_node: NodeOrText<Self::Handle>) {
-        let new_node = match new_node {
-            NodeOrText::AppendNode(node) => node,
-            NodeOrText::AppendText(text) => self.new_node(NodeData::Text(RefCell::new(Some(text)))),
-        };
-        let before_sibling = sibling.previous_sibling.replace(Some(new_node));
-        let parent = sibling.parent.get();
-
-        new_node.next_sibling.set(Some(sibling));
-        new_node.parent.set(parent);
-        if let Some(before_sibling) = before_sibling {
-            before_sibling.next_sibling.set(Some(new_node));
-        } else if let Some(parent) = parent {
-            parent.first_child.set(Some(new_node));
+        let mut parent = sibling
+            .parent_node()
+            .expect("parsed sibling should have parent");
+        match new_node {
+            NodeOrText::AppendNode(node) => {
+                parent.insert_before(node, sibling);
+                debug_assert!(sibling
+                    .previous_sibling
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, node)));
+                debug_assert!(node
+                    .next_sibling
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, *sibling)));
+            }
+            NodeOrText::AppendText(mut text) => {
+                text = text.trim().into();
+                if text.is_empty() {
+                    return;
+                }
+                let node = &*self.new_node(NodeData::Text(RefCell::new(Some(text))));
+                parent.insert_before(node, sibling);
+                debug_assert!(sibling
+                    .previous_sibling
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, node)));
+                debug_assert!(node
+                    .next_sibling
+                    .get()
+                    .is_some_and(|child| std::ptr::eq(child, *sibling)));
+            }
         }
     }
 
