@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct RemoveStyleElement(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveStyleElement {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveStyleElement {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -18,7 +18,11 @@ impl<E: Element> Visitor<E> for RemoveStyleElement {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name().as_ref() == "style" {
             element.remove();
             return Ok(());

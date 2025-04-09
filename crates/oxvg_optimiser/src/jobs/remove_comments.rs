@@ -13,17 +13,17 @@ pub struct RemoveComments {
 #[derive(Debug, Clone)]
 pub struct PreservePattern(pub regex::Regex);
 
-impl<E: Element> Visitor<E> for RemoveComments {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
     type Error = String;
 
-    fn comment(&mut self, comment: &mut <E as Node>::Child) -> Result<(), Self::Error> {
+    fn comment(&mut self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         self.remove_comment(comment);
         Ok(())
     }
 }
 
 impl RemoveComments {
-    fn remove_comment(&self, comment: &impl Node) {
+    fn remove_comment<'arena, N: Node<'arena>>(&self, comment: &N) {
         let value = comment
             .node_value()
             .expect("Comment nodes should always have a value");

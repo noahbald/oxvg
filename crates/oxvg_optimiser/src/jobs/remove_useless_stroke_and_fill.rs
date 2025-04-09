@@ -38,7 +38,7 @@ impl Default for RemoveUselessStrokeAndFill {
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFill {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -69,7 +69,11 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
                 .contains(name.local_name().as_ref())
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         if !context.flags.contains(ContextFlags::use_style) {
             log::debug!("use_style indicated non-removable context");
             return Ok(());
@@ -83,7 +87,7 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
     fn exit_element(
         &mut self,
         element: &mut E,
-        _context: &mut Context<E>,
+        _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if self.id_rc_byte.is_some_and(|b| b == element.as_ptr_byte()) {
             log::debug!("unflagged as id root");
@@ -95,7 +99,11 @@ impl<E: Element> Visitor<E> for RemoveUselessStrokeAndFill {
 }
 
 impl RemoveUselessStrokeAndFill {
-    fn remove_stroke<E: Element>(&self, element: &E, context: &mut Context<E>) {
+    fn remove_stroke<'arena, E: Element<'arena>>(
+        &self,
+        element: &E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) {
         if !self.stroke {
             return;
         }
@@ -196,7 +204,11 @@ impl RemoveUselessStrokeAndFill {
         }
     }
 
-    fn remove_fill<E: Element>(&self, element: &E, context: &mut Context<E>) {
+    fn remove_fill<'arena, E: Element<'arena>>(
+        &self,
+        element: &E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) {
         if !self.fill {
             return;
         }

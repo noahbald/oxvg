@@ -20,10 +20,14 @@ pub struct SortAttrs {
     pub xmlns_order: Option<XMLNSOrder>,
 }
 
-impl<E: Element> Visitor<E> for SortAttrs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortAttrs {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let order = self.order.as_ref().unwrap_or_else(|| &DEFAULT_ORDER);
         let xmlns_order = self.xmlns_order.is_none() || self.xmlns_order == Some(XMLNSOrder::Front);
         element.attributes().sort(order, xmlns_order);

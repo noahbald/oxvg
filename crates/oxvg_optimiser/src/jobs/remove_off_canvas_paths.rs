@@ -21,7 +21,7 @@ pub struct ViewBoxData {
     pub height: f64,
 }
 
-impl<E: Element> Visitor<E> for RemoveOffCanvasPaths {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveOffCanvasPaths {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -32,7 +32,11 @@ impl<E: Element> Visitor<E> for RemoveOffCanvasPaths {
         }
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         if element.is_root() && element.prefix().is_none() && element.local_name().as_ref() == "svg"
         {
             self.view_box_data = Self::gather_viewbox_data(element).ok();
@@ -101,7 +105,7 @@ enum GatherViewboxDataError {
 }
 
 impl RemoveOffCanvasPaths {
-    fn gather_viewbox_data<E: Element>(
+    fn gather_viewbox_data<'arena, E: Element<'arena>>(
         element: &mut E,
     ) -> Result<ViewBoxData, GatherViewboxDataError> {
         let width = element.get_attribute_local(&"width".into());

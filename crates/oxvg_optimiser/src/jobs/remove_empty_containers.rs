@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyContainers(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveEmptyContainers {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyContainers {
     type Error = String;
 
     fn prepare(
@@ -33,7 +33,11 @@ impl<E: Element> Visitor<E> for RemoveEmptyContainers {
         element.prefix().is_none() && element.local_name().as_ref() == "g"
     }
 
-    fn exit_element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn exit_element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = &element.qual_name().formatter().to_string();
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);

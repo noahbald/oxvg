@@ -40,7 +40,7 @@ struct Inner {
     collapse_into_one: bool,
 }
 
-impl<E: Element> Visitor<E> for ConvertTransform {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -56,7 +56,11 @@ impl<E: Element> Visitor<E> for ConvertTransform {
         })
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if let Some(transform) = context
             .computed_styles
             .attr
@@ -98,7 +102,7 @@ impl ConvertTransform {
         }
     }
 
-    fn transform_attr(&self, value: &Style, name: &str, element: &impl Element) {
+    fn transform_attr<'arena, E: Element<'arena>>(&self, value: &Style, name: &str, element: &E) {
         log::debug!("transform_attr: found {name} to transform");
         if value.is_unparsed() {
             element.remove_attribute_local(&name.into());

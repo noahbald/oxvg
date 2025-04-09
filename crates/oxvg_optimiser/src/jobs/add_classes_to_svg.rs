@@ -16,10 +16,14 @@ pub struct AddClassesToSVG {
     pub class_name: Option<String>,
 }
 
-impl<E: Element> Visitor<E> for AddClassesToSVG {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddClassesToSVG {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if !element.is_root() || element.local_name().as_ref() != "svg" {
             return Ok(());
         }

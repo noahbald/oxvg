@@ -12,7 +12,7 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["markup5ever", "visitor"]
+default = ["markup5ever", "roxmltree", "visitor"]
 markup5ever = ["dep:rcdom", "dep:xml5ever"]
 roxmltree = ["dep:roxmltree"]
 serialize = ["dep:xmlwriter"]

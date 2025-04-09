@@ -66,7 +66,7 @@ impl Default for ConvertPathData {
 #[derive(Clone, Default, Copy, Debug)]
 pub struct Precision(pub oxvg_path::convert::Precision);
 
-impl<E: Element> Visitor<E> for ConvertPathData {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -78,7 +78,11 @@ impl<E: Element> Visitor<E> for ConvertPathData {
         element.has_attribute_local(&d_name)
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<'_, '_, E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(d) = element.get_attribute_local(&d_localname) else {
             return Ok(());

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SortDefsChildren(pub bool);
 
-impl<E: Element> Visitor<E> for SortDefsChildren {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
     type Error = String;
 
     fn prepare(
@@ -25,13 +25,17 @@ impl<E: Element> Visitor<E> for SortDefsChildren {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_some() || element.local_name().as_ref() != "defs" {
             return Ok(());
         }
 
         let mut frequencies = HashMap::new();
-        element.for_each_element_child(|e| {
+        element.child_elements_iter().for_each(|e| {
             let name = e.qual_name().clone();
             if let Some(frequency) = frequencies.get_mut(&name) {
                 *frequency += 1;

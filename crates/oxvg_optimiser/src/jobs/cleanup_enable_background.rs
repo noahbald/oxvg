@@ -20,7 +20,7 @@ struct EnableBackgroundDimensions<'a> {
     height: &'a str,
 }
 
-impl<E: Element> Visitor<E> for CleanupEnableBackground {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground {
     type Error = String;
 
     fn prepare(&mut self, document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -40,7 +40,11 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
     /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local_mut(style_name) {
             let new_value = ENABLE_BACKGROUND
@@ -81,7 +85,7 @@ impl<E: Element> Visitor<E> for CleanupEnableBackground {
 }
 
 impl CleanupEnableBackground {
-    fn prepare_contains_filter(&mut self, root: &impl Element) {
+    fn prepare_contains_filter<'arena, E: Element<'arena>>(&mut self, root: &E) {
         self.contains_filter = root.select("filter").unwrap().next().is_some();
     }
 
@@ -98,8 +102,8 @@ impl CleanupEnableBackground {
         })
     }
 
-    fn enabled_background_matches(
-        element: &impl Element,
+    fn enabled_background_matches<'arena, E: Element<'arena>>(
+        element: &E,
         dimensions: Option<EnableBackgroundDimensions>,
     ) -> bool {
         let Some(dimensions) = dimensions else {

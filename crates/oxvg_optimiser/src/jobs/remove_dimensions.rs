@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDimensions(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveDimensions {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDimensions {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -19,7 +19,11 @@ impl<E: Element> Visitor<E> for RemoveDimensions {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         if element.prefix().is_some() || element.local_name().as_ref() != "svg" {
             return Ok(());
         }

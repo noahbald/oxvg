@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct MoveElemsAttrsToGroup(pub bool);
 
-impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -25,7 +25,11 @@ impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
         }
     }
 
-    fn exit_element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn exit_element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());
@@ -80,7 +84,7 @@ impl<E: Element> Visitor<E> for MoveElemsAttrsToGroup {
     }
 }
 
-fn get_common_attributes<E: Element>(children: &[E]) -> BTreeMap<E::Name, E::Atom> {
+fn get_common_attributes<'arena, E: Element<'arena>>(children: &[E]) -> BTreeMap<E::Name, E::Atom> {
     let mut child_iter = children.iter().map(Element::attributes);
     let mut common_attributes: BTreeMap<_, _> = child_iter
         .next()

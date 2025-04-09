@@ -52,7 +52,7 @@ impl Default for RemoveUnknownsAndDefaults {
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefaults {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -65,8 +65,8 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
 
     fn processing_instruction(
         &mut self,
-        processing_instruction: &mut <E as oxvg_ast::node::Node>::Child,
-        context: &Context<E>,
+        processing_instruction: &mut <E as oxvg_ast::node::Node<'arena>>::Child,
+        context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if !self.default_markup_declarations {
             return Ok(());
@@ -77,15 +77,20 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
             return Ok(());
         };
         let data = PI_STANDALONE.replace(data.as_str(), "").to_string().into();
-        let new_pi = context
-            .root
-            .as_document()
-            .create_processing_instruction(target.clone(), data);
+        let new_pi = context.root.as_document().create_processing_instruction(
+            target.clone(),
+            data,
+            &context.info.arena,
+        );
         parent.replace_child(new_pi, &processing_instruction.as_parent_child());
         Ok(())
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if context.flags.contains(ContextFlags::within_foreign_object) {
             return Ok(());
         }
@@ -103,7 +108,7 @@ impl<E: Element> Visitor<E> for RemoveUnknownsAndDefaults {
 }
 
 impl RemoveUnknownsAndDefaults {
-    fn remove_unknown_content<E: Element>(&self, element: &E) {
+    fn remove_unknown_content<'arena, E: Element<'arena>>(&self, element: &E) {
         if !self.unknown_content {
             return;
         }
@@ -130,7 +135,7 @@ impl RemoveUnknownsAndDefaults {
         }
     }
 
-    fn remove_unknown_and_default_attrs<E: Element>(
+    fn remove_unknown_and_default_attrs<'arena, E: Element<'arena>>(
         &self,
         element: &E,
         inherited_styles: &HashMap<Id, Style>,

@@ -554,10 +554,7 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
     }
 
     fn is_root(&self) -> bool {
-        let Some(parent) = self.element.parent_node() else {
-            return true;
-        };
-        parent.node_type() == node::Type::Document
+        self.element.is_root()
     }
 
     fn has_custom_state(

@@ -87,14 +87,18 @@ impl Default for RemoveDeprecatedAttrs {
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveDeprecatedAttrs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDeprecatedAttrs {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
         PrepareOutcome::use_style
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         let Some(elem_config) = ELEMS.get(element.qual_name().formatter().to_string().as_str())
         else {
             return Ok(());
@@ -144,7 +148,7 @@ impl<E: Element> Visitor<E> for RemoveDeprecatedAttrs {
 }
 
 impl RemoveDeprecatedAttrs {
-    fn process_attributes<E: Element>(
+    fn process_attributes<'arena, E: Element<'arena>>(
         &self,
         element: &E,
         group_deprecated_safe: Option<&phf::Set<&'static str>>,

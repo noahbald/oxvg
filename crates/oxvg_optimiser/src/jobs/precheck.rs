@@ -22,15 +22,15 @@ pub struct Precheck {
     preclean_checks: bool,
 }
 
-impl<E: Element> Visitor<E> for Precheck {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
     type Error = String;
 
     fn document(
         &mut self,
         document: &mut E,
-        _context: &oxvg_ast::visitor::Context<E>,
+        _context: &oxvg_ast::visitor::Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        document.try_for_each_child(|child| {
+        document.child_nodes_iter().try_for_each(|child| {
             if child.node_type() != node::Type::Comment {
                 return Ok(());
             }
@@ -47,7 +47,7 @@ impl<E: Element> Visitor<E> for Precheck {
     fn element(
         &mut self,
         element: &mut E,
-        _context: &mut oxvg_ast::visitor::Context<E>,
+        _context: &mut oxvg_ast::visitor::Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         self.qual_name::<E>(element.qual_name())?;
 
@@ -74,7 +74,10 @@ impl Precheck {
     const NS_UNSTABLE_ERROR: &str =
         "Document uses a namespace which may have been removed by the parser";
 
-    fn qual_name<E: Element>(&self, name: &E::Name) -> Result<(), <Self as Visitor<E>>::Error> {
+    fn qual_name<'arena, E: Element<'arena>>(
+        &self,
+        name: &E::Name,
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         if let Some(prefix) = name.prefix() {
             if prefix.as_ref() == "xmlns" {
                 self.emit::<E>(Self::XMLNS_PREFIX_ERROR)?;
@@ -89,7 +92,10 @@ impl Precheck {
         Ok(())
     }
 
-    fn emit<E: Element>(&self, message: &str) -> Result<(), <Self as Visitor<E>>::Error> {
+    fn emit<'arena, E: Element<'arena>>(
+        &self,
+        message: &str,
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         if self.fail_fast {
             Err(message.to_string())
         } else {
@@ -106,10 +112,10 @@ impl Precheck {
     const ANIMATION_NOT_SUPPORTED: &str = "animation is not supported";
     const CONDITIONAL_NOT_SUPPORTED: &str = "conditional processing attributes is not supported";
 
-    fn check_for_unsupported_elements<E: Element>(
+    fn check_for_unsupported_elements<'arena, E: Element<'arena>>(
         &self,
         element: &E,
-    ) -> Result<(), <Self as Visitor<E>>::Error> {
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         if element.prefix().is_some() {
             return Ok(());
         }
@@ -123,10 +129,10 @@ impl Precheck {
         }
     }
 
-    fn check_for_script_attributes<E: Element>(
+    fn check_for_script_attributes<'arena, E: Element<'arena>>(
         &self,
         element: &E,
-    ) -> Result<(), <Self as Visitor<E>>::Error> {
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         for attr in element.attributes().into_iter() {
             if attr.name().prefix().is_some() {
                 continue;
@@ -144,10 +150,10 @@ impl Precheck {
         Ok(())
     }
 
-    fn check_for_conditional_attributes<E: Element>(
+    fn check_for_conditional_attributes<'arena, E: Element<'arena>>(
         &self,
         element: &E,
-    ) -> Result<(), <Self as Visitor<E>>::Error> {
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         for attr in element.attributes().into_iter() {
             if attr.name().prefix().is_some() {
                 continue;
@@ -167,10 +173,10 @@ impl Precheck {
         Ok(())
     }
 
-    fn check_for_external_xlink<E: Element>(
+    fn check_for_external_xlink<'arena, E: Element<'arena>>(
         &self,
         element: &E,
-    ) -> Result<(), <Self as Visitor<E>>::Error> {
+    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
         if matches!(
             element.local_name().as_ref(),
             "a" | "image" | "font-face-uri" | "feImage"

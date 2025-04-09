@@ -46,11 +46,11 @@ pub trait Node<'arena>: Clone + Debug {
     /// The text type of a node's content
     type Atom: Atom;
     /// The node type of the child of a node
-    type Child: Node<'arena, Atom = Self::Atom>;
+    type Child: Node<'arena, Atom = Self::Atom, Arena = Self::Arena>;
     /// The node type of the sibling of a node
-    type ParentChild: Node<'arena, Atom = Self::Atom, Parent = Self::Parent>;
+    type ParentChild: Node<'arena, Atom = Self::Atom, Parent = Self::Parent, Arena = Self::Arena>;
     /// The node type of the parent of a node
-    type Parent: Node<'arena, Atom = Self::Atom, Child = Self::ParentChild>;
+    type Parent: Node<'arena, Atom = Self::Atom, Child = Self::ParentChild, Arena = Self::Arena>;
 
     /// Whether the underlying pointer is at the same address as the other
     fn ptr_eq(&self, other: &impl Node<'arena>) -> bool;
@@ -159,10 +159,10 @@ pub trait Node<'arena>: Clone + Debug {
     fn text_content(&self) -> Option<Self::Atom>;
 
     /// Replaces all child nodes with a text node of the given content
-    fn set_text_content(&self, content: Self::Atom, arena: Self::Arena);
+    fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena);
 
     /// Creates a text node with the given content
-    fn text(&self, content: Self::Atom, arena: Self::Arena) -> Self::Child;
+    fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child;
 
     /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
     /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]

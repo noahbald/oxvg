@@ -38,7 +38,7 @@ pub trait Document<'arena> {
     fn create_c_data_section(
         &self,
         data: <Self::Root as Node<'arena>>::Atom,
-        arena: <Self::Root as Node<'arena>>::Arena,
+        arena: &<Self::Root as Node<'arena>>::Arena,
     ) -> <Self::Root as Node<'arena>>::Child;
 
     /// Creates the html element specified by `tag_name`
@@ -47,7 +47,7 @@ pub trait Document<'arena> {
     fn create_element(
         &self,
         tag_name: <Self::Root as Element<'arena>>::Name,
-        arena: <Self::Root as Node<'arena>>::Arena,
+        arena: &<Self::Root as Node<'arena>>::Arena,
     ) -> Self::Root;
 
     /// Generates a new processing instruction node and returns it
@@ -57,7 +57,7 @@ pub trait Document<'arena> {
         &self,
         target: <Self::Root as Node<'arena>>::Atom,
         data: <Self::Root as Node<'arena>>::Atom,
-        arena: <Self::Root as Node<'arena>>::Arena,
+        arena: &<Self::Root as Node<'arena>>::Arena,
     ) -> <<Self::Root as Node<'arena>>::Child as Node<'arena>>::ParentChild;
 
     /// Creates a new text node

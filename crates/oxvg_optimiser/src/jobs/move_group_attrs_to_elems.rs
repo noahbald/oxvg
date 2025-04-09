@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct MoveGroupAttrsToElems(pub bool);
 
-impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveGroupAttrsToElems {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -25,7 +25,11 @@ impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         let name = element.qual_name();
         if name.prefix().is_some() || name.local_name().as_ref() != "g" {
             return Ok(());
@@ -45,7 +49,7 @@ impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
             return Ok(());
         }
         let id_name = &"id".into();
-        if element.any_child(|n| {
+        if element.child_nodes_iter().any(|n| {
             let Some(e) = E::new(n) else {
                 return false;
             };
@@ -56,12 +60,14 @@ impl<E: Element> Visitor<E> for MoveGroupAttrsToElems {
             return Ok(());
         }
 
-        element.for_each_element_child(|e| match e.get_attribute_node_local_mut(&transform_name) {
-            Some(mut child_attr) => {
-                let value = format!("{} {}", transform.as_ref(), child_attr.value());
-                child_attr.set_value(value.into());
+        element.child_elements_iter().for_each(|e| {
+            match e.get_attribute_node_local_mut(&transform_name) {
+                Some(mut child_attr) => {
+                    let value = format!("{} {}", transform.as_ref(), child_attr.value());
+                    child_attr.set_value(value.into());
+                }
+                None => e.set_attribute_local(transform_name.clone(), transform.clone()),
             }
-            None => e.set_attribute_local(transform_name.clone(), transform.clone()),
         });
         drop(transform);
         element.remove_attribute_local(&transform_name);

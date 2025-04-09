@@ -61,7 +61,7 @@ pub struct ConvertColors {
     pub method: Option<Method>,
 }
 
-impl<E: Element> Visitor<E> for ConvertColors {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertColors {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -84,7 +84,11 @@ impl<E: Element> Visitor<E> for ConvertColors {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let mask_localname = &"mask".into();
         let is_masked = element.local_name() == mask_localname
             || element.closest_local(mask_localname).is_some();

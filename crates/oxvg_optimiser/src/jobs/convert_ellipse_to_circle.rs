@@ -10,7 +10,7 @@ use super::ContextFlags;
 #[serde(rename_all = "camelCase")]
 pub struct ConvertEllipseToCircle(pub bool);
 
-impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -22,7 +22,11 @@ impl<E: Element> Visitor<E> for ConvertEllipseToCircle {
     }
 
     #[allow(clippy::similar_names)]
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
             return Ok(());

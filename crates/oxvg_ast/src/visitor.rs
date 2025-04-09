@@ -14,15 +14,31 @@ use crate::style::{self, ComputedStyles, ElementData};
 #[cfg(feature = "selectors")]
 use crate::selectors::Selector;
 
-#[derive(Debug, Default, Clone)]
+#[derive(derive_more::Debug, Clone)]
 /// Additional information about the current run of a visitor and it's context
-pub struct Info {
+pub struct Info<'arena, E: Element<'arena>> {
     /// The path of the file being processed. This should only be used for metadata purposes
     /// and not for any filesystem requests.
     pub path: Option<std::path::PathBuf>,
     /// How many times the document has been processed so far, i.e. when it's processed
     /// multiple times for further optimisation attempts
     pub multipass_count: usize,
+    #[debug(skip)]
+    /// The allocator for the parsed file. Used for storing and creating new nodes within
+    /// the document.
+    pub arena: E::Arena,
+}
+
+impl<'arena, E: Element<'arena>> Info<'arena, E> {
+    /// Creates an instance of info with a reference to `arena` that can be used for allocating
+    /// new nodes
+    pub fn new(arena: E::Arena) -> Self {
+        Self {
+            path: None,
+            multipass_count: 0,
+            arena,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -42,7 +58,7 @@ pub struct Context<'arena, 'i, 'o, E: Element<'arena>> {
     /// A set of boolean flags about the document and the visited node
     pub flags: ContextFlags,
     /// Info about how the program is using the document
-    pub info: &'i Info,
+    pub info: &'i Info<'arena, E>,
     #[cfg(not(feature = "style"))]
     /// Marker to maintain consistent lifetime with `"style"` feature
     marker: std::marker::PhantomData<(&'arena (), &'i (), &'o ())>,
@@ -58,7 +74,7 @@ impl<'arena, 'i, E: Element<'arena>> Context<'arena, 'i, '_, E> {
                 root: E,
                 flags: ContextFlags,
                 element_styles: &'i std::collections::HashMap<E, ElementData<'arena, E>>,
-                info: &'i Info,
+                info: &'i Info<'arena, E>,
             ) -> Self {
                 Self {
                     computed_styles: crate::style::ComputedStyles::default(),
@@ -76,7 +92,7 @@ impl<'arena, 'i, E: Element<'arena>> Context<'arena, 'i, '_, E> {
             pub fn new(
                 root: E,
                 flags: ContextFlags,
-                info: &'i Info,
+                info: &'i Info<'arena>,
             ) -> Self {
                 Self {
                     root,
@@ -254,7 +270,11 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// If any of the visitor's methods fail
-    fn start(&mut self, root: &mut E, info: &Info) -> Result<PrepareOutcome, Self::Error> {
+    fn start(
+        &mut self,
+        root: &mut E,
+        info: &Info<'arena, E>,
+    ) -> Result<PrepareOutcome, Self::Error> {
         let mut flags = ContextFlags::empty();
         let prepare_outcome = self.prepare(root, &mut flags);
         if prepare_outcome.contains(PrepareOutcome::skip) {

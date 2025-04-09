@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveMetadata(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveMetadata {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveMetadata {
     type Error = String;
 
     fn prepare(
@@ -24,7 +24,11 @@ impl<E: Element> Visitor<E> for RemoveMetadata {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());

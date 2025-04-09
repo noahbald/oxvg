@@ -90,7 +90,7 @@ pub enum NodeData {
 #[derive(Clone)]
 /// An XML node type.
 pub struct Node<'arena> {
-    /// THe node's parent.
+    /// The node's parent.
     pub parent: Link<'arena>,
     /// The node before this of the node's parent's children
     pub next_sibling: Link<'arena>,
@@ -390,7 +390,7 @@ impl<'arena> crate::attribute::Attributes<'arena> for Attributes<'arena> {
     }
 }
 
-impl<'arena> Debug for Attributes<'arena> {
+impl Debug for Attributes<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Attributes5Ever { ")?;
         self.0.borrow().iter().try_for_each(|a| {
@@ -476,7 +476,7 @@ impl<'arena> ClassList<'arena> {
     }
 }
 
-impl<'arena> crate::class_list::ClassList for ClassList<'arena> {
+impl crate::class_list::ClassList for ClassList<'_> {
     type Attribute = Attribute;
 
     fn length(&self) -> usize {
@@ -574,8 +574,7 @@ impl<'arena> crate::class_list::ClassList for ClassList<'arena> {
 impl NodeData {
     fn node_type(&self) -> node::Type {
         match self {
-            Self::Document => node::Type::Document,
-            Self::Root => node::Type::Document,
+            Self::Root | Self::Document => node::Type::Document,
             Self::Element { .. } => node::Type::Element,
             Self::PI { .. } => node::Type::ProcessingInstruction,
             Self::Text { .. } => node::Type::Text,
@@ -598,7 +597,7 @@ impl NodeData {
             Self::Comment(value) | Self::Text(value) | Self::PI { value, .. } => {
                 value.borrow().clone()
             }
-            _ => return None,
+            _ => None,
         }
     }
 
@@ -707,7 +706,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
             }
 
             if is_first {
-                self.first_child.set(child.next_sibling.get().clone());
+                self.first_child.set(child.next_sibling.get());
             } else {
                 let prev_child = child
                     .previous_sibling
@@ -724,14 +723,13 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn parent_node(&self) -> Option<Self::Parent> {
-        self.parent.get().map(Element::new).flatten()
+        self.parent.get().and_then(Element::new)
     }
 
     fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Self::Parent> {
         self.parent
             .replace(Some(new_parent.node))
-            .map(Element::new)
-            .flatten()
+            .and_then(Element::new)
     }
 
     fn append_child(&self, a_child: Self::Child) {
@@ -745,7 +743,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn item(&self, index: usize) -> Option<Self::Child> {
-        self.child_nodes_iter().skip(index).next()
+        self.child_nodes_iter().nth(index)
     }
 
     fn node_name(&self) -> Self::Atom {
@@ -777,7 +775,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         }
     }
 
-    fn set_text_content(&self, content: Self::Atom, arena: Self::Arena) {
+    fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena) {
         match self.node_data {
             NodeData::Text(ref value) => {
                 value.replace(Some(content));
@@ -790,7 +788,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         }
     }
 
-    fn text(&self, content: Self::Atom, arena: Self::Arena) -> Self::Child {
+    fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child {
         arena.alloc(Node::new(NodeData::Text(RefCell::new(Some(content)))))
     }
 
@@ -801,12 +799,12 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         if let Some(previous_sibling) = previous_sibling {
             if let Some(next_sibling) = next_sibling {
                 // prev -> ~self~ -> next
-                next_sibling.previous_sibling.set(Some(previous_sibling))
+                next_sibling.previous_sibling.set(Some(previous_sibling));
             } else if let Some(parent) = parent {
                 // prev -> ~self~ -> None
                 parent.last_child.set(Some(previous_sibling));
             }
-            previous_sibling.next_sibling.set(next_sibling)
+            previous_sibling.next_sibling.set(next_sibling);
         } else if let Some(next_sibling) = next_sibling {
             next_sibling.previous_sibling.set(None);
             if let Some(parent) = parent {
@@ -821,7 +819,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
-        let child = self.child_nodes_iter().skip(index).next();
+        let child = self.child_nodes_iter().nth(index);
         child?.remove();
         child
     }
@@ -838,8 +836,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     ) -> Option<Self::Child> {
         let child = self
             .child_nodes_iter()
-            .skip_while(|child| !child.ptr_eq(old_child))
-            .next()?;
+            .find(|child| child.ptr_eq(old_child))?;
         let previous_sibling = child.previous_sibling.take();
         let next_sibling = child.next_sibling.take();
         let parent = child.parent.take();
@@ -874,7 +871,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 }
 
-impl<'arena> Debug for Ref<'arena> {
+impl Debug for Ref<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data = &self.node_data;
         let mut child = self.first_child.get();
@@ -892,7 +889,7 @@ impl<'arena> Debug for Ref<'arena> {
     }
 }
 
-impl<'arena> Element<'arena> {
+impl Element<'_> {
     fn data(&self) -> ElementData {
         if let NodeData::Element { name, attrs, .. } = &self.node.node_data {
             ElementData { name, attrs }
@@ -980,11 +977,11 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
         self.node.text_content()
     }
 
-    fn set_text_content(&self, content: Self::Atom, arena: Self::Arena) {
+    fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena) {
         self.node.set_text_content(content, arena);
     }
 
-    fn text(&self, content: Self::Atom, arena: Self::Arena) -> Self::Child {
+    fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child {
         self.node.text(content, arena)
     }
 
@@ -1062,13 +1059,13 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
     }
 
     fn replace_children(&self, children: Vec<Self::Child>) {
-        self.node.first_child.set(children.first().cloned());
-        self.node.last_child.set(children.last().cloned());
+        self.node.first_child.set(children.first().copied());
+        self.node.last_child.set(children.last().copied());
         for i in 0..children.len() {
             let current = children.get(i).expect("`i` should be within len");
             current.parent.set(Some(self.node));
-            current.previous_sibling.set(children.get(i - 1).cloned());
-            current.next_sibling.set(children.get(i + 1).cloned());
+            current.previous_sibling.set(children.get(i - 1).copied());
+            current.next_sibling.set(children.get(i + 1).copied());
         }
     }
 
@@ -1202,12 +1199,12 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
             f(a, b)
         });
 
-        self.node.first_child.set(children.first().cloned());
-        self.node.last_child.set(children.last().cloned());
+        self.node.first_child.set(children.first().copied());
+        self.node.last_child.set(children.last().copied());
         for i in 0..children.len() {
             let child = children[i];
-            child.previous_sibling.set(children.get(i - 1).cloned());
-            child.next_sibling.set(children.get(i + 1).cloned());
+            child.previous_sibling.set(children.get(i - 1).copied());
+            child.next_sibling.set(children.get(i + 1).copied());
         }
     }
 
@@ -1219,11 +1216,11 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
         else {
             return;
         };
-        selector_flags.set(Some(flags))
+        selector_flags.set(Some(flags));
     }
 }
 
-impl<'arena> Debug for Element<'arena> {
+impl Debug for Element<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.node_type() != node::Type::Element {
             return (&self.node).fmt(f);
@@ -1241,15 +1238,15 @@ impl<'arena> Debug for Element<'arena> {
     }
 }
 
-impl<'arena> std::hash::Hash for Element<'arena> {
+impl std::hash::Hash for Element<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.as_ptr_byte().hash(state);
     }
 }
 
-impl<'arena> Eq for Element<'arena> {}
+impl Eq for Element<'_> {}
 
-impl<'arena> PartialEq for Element<'arena> {
+impl PartialEq for Element<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.ptr_eq(other)
     }
@@ -1265,7 +1262,7 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
     fn create_c_data_section(
         &self,
         data: <Self::Root as node::Node<'arena>>::Atom,
-        arena: <Self::Root as node::Node<'arena>>::Arena,
+        arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> <Self::Root as node::Node<'arena>>::Child {
         self.create_text_node(data, arena)
     }
@@ -1273,7 +1270,7 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
     fn create_element(
         &self,
         tag_name: <Self::Root as element::Element<'arena>>::Name,
-        arena: <Self::Root as node::Node<'arena>>::Arena,
+        arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> Self::Root {
         Element::new(arena.alloc(Node::new(NodeData::Element {
             name: tag_name,
@@ -1288,7 +1285,7 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
         &self,
         target: <Self::Root as node::Node<'arena>>::Atom,
         data: <Self::Root as node::Node<'arena>>::Atom,
-        arena: <Self::Root as node::Node<'arena>>::Arena,
+        arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> <<Self::Root as node::Node<'arena>>::Child as node::Node<'arena>>::ParentChild {
         arena.alloc(Node::new(NodeData::PI {
             target,
@@ -1314,20 +1311,16 @@ impl<'arena> Iterator for ChildNodes<'arena> {
     type Item = Ref<'arena>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(current) = self.front else {
-            return None;
-        };
+        let current = self.front?;
         let next = current.next_sibling.get()?;
         self.front = Some(next);
         Some(next)
     }
 }
 
-impl<'arena> DoubleEndedIterator for ChildNodes<'arena> {
+impl DoubleEndedIterator for ChildNodes<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let Some(current) = self.end else {
-            return None;
-        };
+        let current = self.end?;
         let prev = current.previous_sibling.get()?;
         self.end = Some(prev);
         Some(prev)

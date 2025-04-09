@@ -10,26 +10,41 @@ use crate::element::Element as _;
 use crate::name::Name as _;
 use crate::node;
 
+/// A serialization error.
+#[derive(Debug)]
+pub enum Error {
+    /// The serializer panicked while writing the dom to a string.
+    SerializerPanicked,
+}
+
 /// An XML node serializer
 pub trait Node<'arena> {
     /// # Errors
     /// If the underlying serialization fails
-    fn serialize(&self) -> std::thread::Result<String> {
+    fn serialize(&self) -> Result<String, Error> {
         self.serialize_with_options(Options::default())
     }
 
     /// # Errors
     /// If the underlying serialization fails
-    fn serialize_with_options(&self, options: Options) -> std::thread::Result<String>;
+    fn serialize_with_options(&self, options: Options) -> Result<String, Error>;
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        "The serializer panicked while writing the dom to a string.".fmt(f)
+    }
 }
 
 impl<'arena, T: node::Node<'arena>> Node<'arena> for T {
-    fn serialize_with_options(&self, options: Options) -> std::thread::Result<String> {
+    fn serialize_with_options(&self, options: Options) -> Result<String, Error> {
         let mut xml = XmlWriter::new(options);
 
         serialize_node(self, &mut xml);
 
-        panic::catch_unwind(|| xml.end_document())
+        panic::catch_unwind(|| xml.end_document()).map_err(|_| Error::SerializerPanicked)
     }
 }
 

@@ -21,9 +21,13 @@ pub enum ParseError {
 }
 
 /// parse an xml file using roxmltree as the parser.
+///
+/// # Errors
+///
+/// If the file cannot be read or parsed
 pub fn parse_file<'arena>(
     source: &std::path::Path,
-    arena: &Arena<'arena>,
+    arena: Arena<'arena>,
 ) -> Result<Ref<'arena>, ParseError> {
     parse(
         &std::fs::read_to_string(source).map_err(ParseError::IO)?,
@@ -32,7 +36,11 @@ pub fn parse_file<'arena>(
 }
 
 /// parse an xml document using roxmltree as the parser.
-pub fn parse<'arena>(source: &str, arena: &Arena<'arena>) -> Result<Ref<'arena>, ParseError> {
+///
+/// # Errors
+///
+/// If the string cannot be parsed
+pub fn parse<'arena>(source: &str, arena: Arena<'arena>) -> Result<Ref<'arena>, ParseError> {
     let xml = roxmltree::Document::parse_with_options(
         source,
         roxmltree::ParsingOptions {
@@ -46,9 +54,13 @@ pub fn parse<'arena>(source: &str, arena: &Arena<'arena>) -> Result<Ref<'arena>,
 }
 
 /// parse an xml document already in roxmltree representation
+///
+/// # Errors
+///
+/// If the depth of the tree is too deep
 pub fn parse_roxmltree<'arena>(
     xml: &roxmltree::Document,
-    arena: &Arena<'arena>,
+    arena: Arena<'arena>,
 ) -> Result<Ref<'arena>, ParseError> {
     let mut id_map = HashMap::new();
     for node in xml.descendants() {
@@ -80,14 +92,14 @@ pub fn parse_roxmltree<'arena>(
     parse_xml_node_children(document, arena, xml.root(), 0, &prefix_map)
 }
 
-fn create_root<'arena>(arena: Arena<'arena>) -> &'arena mut Node<'arena> {
+fn create_root(arena: Arena<'_>) -> &mut Node<'_> {
     arena.alloc(Node::new(NodeData::Root))
 }
 
-fn parse_xml_node_children<'arena, 'input>(
+fn parse_xml_node_children<'arena>(
     node: Ref<'arena>,
-    arena: &Arena<'arena>,
-    parent: roxmltree::Node<'_, 'input>,
+    arena: Arena<'arena>,
+    parent: roxmltree::Node<'_, '_>,
     depth: u32,
     prefix_map: &HashMap<&str, &str>,
 ) -> Result<Ref<'arena>, ParseError> {
@@ -112,9 +124,9 @@ fn parse_xml_node_children<'arena, 'input>(
     Ok(node)
 }
 
-fn parse_xml_node<'arena, 'input>(
-    arena: &Arena<'arena>,
-    node: roxmltree::Node<'_, 'input>,
+fn parse_xml_node<'arena>(
+    arena: Arena<'arena>,
+    node: roxmltree::Node<'_, '_>,
     depth: u32,
     prefix_map: &HashMap<&str, &str>,
 ) -> Result<&'arena mut Node<'arena>, ParseError> {
@@ -131,9 +143,9 @@ fn parse_xml_node<'arena, 'input>(
     })
 }
 
-fn parse_element<'arena, 'input>(
-    arena: &Arena<'arena>,
-    xml_node: roxmltree::Node<'_, 'input>,
+fn parse_element<'arena>(
+    arena: Arena<'arena>,
+    xml_node: roxmltree::Node<'_, '_>,
     prefix_map: &HashMap<&str, &str>,
 ) -> &'arena mut Node<'arena> {
     let attrs = xml_node
@@ -149,7 +161,7 @@ fn parse_element<'arena, 'input>(
     }))
 }
 
-fn parse_pi<'arena>(arena: &Arena<'arena>, pi: roxmltree::PI) -> &'arena mut Node<'arena> {
+fn parse_pi<'arena>(arena: Arena<'arena>, pi: roxmltree::PI) -> &'arena mut Node<'arena> {
     arena.alloc(Node::new(NodeData::PI {
         target: pi.target.into(),
         value: RefCell::new(pi.value.map(Into::into)),
@@ -157,7 +169,7 @@ fn parse_pi<'arena>(arena: &Arena<'arena>, pi: roxmltree::PI) -> &'arena mut Nod
 }
 
 fn parse_comment<'arena>(
-    arena: &Arena<'arena>,
+    arena: Arena<'arena>,
     comment: roxmltree::Node,
 ) -> &'arena mut Node<'arena> {
     arena.alloc(Node::new(NodeData::Comment(RefCell::new(
@@ -165,7 +177,7 @@ fn parse_comment<'arena>(
     ))))
 }
 
-fn parse_text<'arena>(arena: &Arena<'arena>, text: roxmltree::Node) -> &'arena mut Node<'arena> {
+fn parse_text<'arena>(arena: Arena<'arena>, text: roxmltree::Node) -> &'arena mut Node<'arena> {
     arena.alloc(Node::new(NodeData::Text(RefCell::new(
         text.text().map(Into::into),
     ))))

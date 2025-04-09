@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RemoveTitle(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveTitle {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveTitle {
     type Error = String;
 
     fn prepare(
@@ -22,7 +22,11 @@ impl<E: Element> Visitor<E> for RemoveTitle {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_some() || element.local_name().as_ref() != "title" {
             return Ok(());
         }

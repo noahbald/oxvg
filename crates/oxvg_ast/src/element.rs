@@ -376,6 +376,14 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
         !self.attributes().is_empty()
     }
 
+    /// Returns whether the element is the root of the document.
+    fn is_root(&self) -> bool {
+        let Some(parent) = self.parent_node() else {
+            return true;
+        };
+        parent.node_type() == node::Type::Document
+    }
+
     /// Inserts the node before the first child of the element.
     ///
     /// [MDN | prepend](https://developer.mozilla.org/en-US/docs/Web/API/Element/prepend)

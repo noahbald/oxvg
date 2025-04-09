@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveEmptyAttrs(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveEmptyAttrs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyAttrs {
     type Error = String;
 
     fn prepare(
@@ -26,7 +26,11 @@ impl<E: Element> Visitor<E> for RemoveEmptyAttrs {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         element.attributes().retain(|a| {
             if a.value().as_ref() != "" {
                 return true;

@@ -14,10 +14,14 @@ pub struct CleanupAttributes {
     pub spaces: Option<bool>,
 }
 
-impl<E: Element> Visitor<E> for CleanupAttributes {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttributes {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         for mut attr in element.attributes().into_iter_mut() {
             let mut value = attr.value().to_string();
             let original_len = value.len();

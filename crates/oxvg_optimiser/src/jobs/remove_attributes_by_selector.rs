@@ -16,10 +16,14 @@ pub struct Selector {
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAttributesBySelector(pub Vec<Selector>);
 
-impl<E: Element> Visitor<E> for RemoveAttributesBySelector {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttributesBySelector {
     type Error = String;
 
-    fn document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), Self::Error> {
+    fn document(
+        &mut self,
+        document: &mut E,
+        _context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         for item in &self.0 {
             let selected = match document.select(&item.selector) {
                 Ok(iter) => iter,

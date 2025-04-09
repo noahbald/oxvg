@@ -15,13 +15,13 @@ macro_rules! jobs {
 
         #[skip_serializing_none]
         #[derive(Deserialize, Serialize, Clone, Debug)]
-        #[serde(rename_all = "camelCase", bound = "E: Element")]
+        #[serde(rename_all = "camelCase", bound = "E: Element<'arena>")]
         /// Each task for optimising an SVG document.
-        pub struct Jobs<E: Element> {
-            $(pub $name: Option<$job $( < $($t),* >)?>),+
+        pub struct Jobs<'arena, E: Element<'arena>> {
+            $(pub $name: Option<$job $( < 'arena, $($t),* >)?>),+
         }
 
-        impl<E: Element> Default for Jobs<E> {
+        impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
             fn default() -> Self {
                 macro_rules! is_default {
                     ($_default:ident) => { $_default };
@@ -35,11 +35,9 @@ macro_rules! jobs {
                     }),+
                 }
             }
-        }
 
-        impl<E: Element> Jobs<E> {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs(&mut self, element: &mut E, info: &Info) -> Result<usize, String> {
+            fn run_jobs(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_mut() {
                     if !job.start(element, info)?.contains(PrepareOutcome::skip) {
@@ -145,10 +143,10 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-impl<E: Element> Jobs<E> {
+impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
     /// # Errors
     /// When any job fails for the first time
-    pub fn run(self, root: &E::ParentChild, info: &Info) -> Result<(), Error> {
+    pub fn run(self, root: &E::ParentChild, info: &Info<'arena, E>) -> Result<(), Error> {
         let Some(mut root_element) = <E as Element>::from_parent(root.clone()) else {
             log::warn!("No elements found in the document, skipping");
             return Ok(());
@@ -190,19 +188,22 @@ pub(crate) fn test_config_default_svg_comment(
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        implementations::markup5ever::{Element5Ever, Node5Ever},
-        parse::Node,
-        serialize,
+        implementations::{markup5ever::parse, shared::Element},
+        serialize::{Node, Options},
     };
 
-    let jobs: Jobs<Element5Ever> = serde_json::from_str(config_json)?;
-    let dom: Node5Ever = Node::parse(svg.unwrap_or(
-        r#"<svg xmlns="http://www.w3.org/2000/svg">
+    let jobs: Jobs<Element> = serde_json::from_str(config_json)?;
+    let arena = typed_arena::Arena::new();
+    let dom = parse(
+        svg.unwrap_or(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
     test
 </svg>"#,
-    ))?;
-    jobs.run(&dom, &Info::default())?;
-    serialize::Node::serialize_with_options(&dom, serialize::Options::new().pretty())
+        ),
+        &arena,
+    );
+    jobs.run(&dom, &Info::new(&arena))?;
+    Ok(dom.serialize_with_options(Options::default())?)
 }
 
 #[test]

@@ -16,9 +16,13 @@ use crate::node::Node as _;
 use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
 
 /// parse an xml file using xml5ever as the parser.
+///
+/// # Errors
+///
+/// If the file cannot be read or parsed
 pub fn parse_file<'arena>(
     source: &std::path::Path,
-    arena: &Arena<'arena>,
+    arena: Arena<'arena>,
 ) -> Result<Ref<'arena>, std::io::Error> {
     parse_document(Sink::new(arena), XmlParseOpts::default())
         .from_utf8()
@@ -26,7 +30,7 @@ pub fn parse_file<'arena>(
 }
 
 /// parse an xml document using xml5ever as the parser.
-pub fn parse<'arena>(source: &str, arena: &Arena<'arena>) -> Ref<'arena> {
+pub fn parse<'arena>(source: &str, arena: Arena<'arena>) -> Ref<'arena> {
     parse_document(Sink::new(arena), XmlParseOpts::default()).one(source)
 }
 
@@ -87,7 +91,7 @@ impl<'arena> TreeSink for Sink<'arena> {
     }
 
     fn set_current_line(&self, line: u64) {
-        self.line.set(line)
+        self.line.set(line);
     }
 
     fn same_node(&self, x: &Self::Handle, y: &Self::Handle) -> bool {
@@ -157,7 +161,7 @@ impl<'arena> TreeSink for Sink<'arena> {
         match child {
             NodeOrText::AppendNode(node) => parent.append_child(node),
             NodeOrText::AppendText(text) => {
-                parent.append_child(self.new_node(NodeData::Text(RefCell::new(Some(text)))))
+                parent.append_child(self.new_node(NodeData::Text(RefCell::new(Some(text)))));
             }
         }
     }
