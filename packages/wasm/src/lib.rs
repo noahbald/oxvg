@@ -1,8 +1,8 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{
-    implementations::markup5ever::{Element5Ever, Node5Ever},
-    parse, serialize,
+    implementations::{markup5ever::parse, shared::Element},
+    serialize,
     visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -22,11 +22,12 @@ pub fn optimise(svg: &str, config_json: Option<String>) -> Result<String, String
     let config = if let Some(config) = config_json {
         serde_json::from_str(&config).map_err(|err| err.to_string())?
     } else {
-        Jobs::<Element5Ever>::default()
+        Jobs::<Element>::default()
     };
-    let dom: Node5Ever = parse::Node::parse(svg).map_err(|err| err.to_string())?;
+    let arena = typed_arena::Arena::new();
+    let dom = parse(svg, &arena);
     config
-        .run(&dom, &Info::default())
+        .run(&dom, &Info::new(&arena))
         .map_err(|err| err.to_string())?;
 
     serialize::Node::serialize(&dom).map_err(|err| err.to_string())

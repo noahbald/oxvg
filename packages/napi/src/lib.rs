@@ -1,8 +1,8 @@
 //! NAPI bindings for OXVG
 use napi::{Error, Status};
 use oxvg_ast::{
-  implementations::markup5ever::{Element5Ever, Node5Ever},
-  parse, serialize,
+  implementations::{markup5ever::parse, shared::Element},
+  serialize,
   visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -21,10 +21,13 @@ pub fn optimise(svg: String, config_json: Option<String>) -> Result<String, Erro
   let config = if let Some(config) = config_json {
     serde_json::from_str(&config).map_err(generic_error)?
   } else {
-    Jobs::<Element5Ever>::default()
+    Jobs::<Element>::default()
   };
-  let dom: Node5Ever = parse::Node::parse(&svg).map_err(generic_error)?;
-  config.run(&dom, &Info::default()).map_err(generic_error)?;
+  let arena = typed_arena::Arena::new();
+  let dom = parse(&svg, &arena);
+  config
+    .run(&dom, &Info::new(&arena))
+    .map_err(generic_error)?;
 
   serialize::Node::serialize(&dom).map_err(generic_error)
 }

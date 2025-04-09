@@ -23,6 +23,7 @@ oxvg_ast = { workspace = true }
 napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
 napi-derive = "2.12.2"
 serde_json = { workspace = true }
+typed-arena = { workspace = true }
 
 [build-dependencies]
 napi-build = "2.0.1"
