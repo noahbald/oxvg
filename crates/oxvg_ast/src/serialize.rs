@@ -75,6 +75,9 @@ fn serialize_node<'arena, T: node::Node<'arena>>(node: &T, xml: &mut XmlWriter) 
             xml.write_comment(&node.text_content().unwrap_or_default());
         }
         node::Type::ProcessingInstruction => {
+            // FIXME: Assuming all declarations are the same, since writer doesn't
+            // support anything custom
+            // let (target, value) = node.processing_instruction().expect("expected pi");
             xml.write_declaration();
         }
         _ => {}

@@ -122,11 +122,13 @@ impl<'arena, E: Element<'arena>> Data<'arena, E> {
                     self.removed_def_ids.insert(id.to_string());
                 }
                 if parent.child_element_count() == 1 {
+                    log::debug!("data: removing parent");
                     parent.remove();
                     return;
                 }
             }
         }
+        log::debug!("data: removing element: {element:?}");
         element.remove();
     }
 }
@@ -145,7 +147,10 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
         document: &mut E,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        self.data.start(document, context.info).map(|_| ())
+        log::debug!("collecting data");
+        self.data.start(document, context.info)?;
+        log::debug!("data collected");
+        Ok(())
     }
 
     fn use_style(&mut self, _element: &E) -> bool {
@@ -171,6 +176,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
             || self.is_hidden_path(element, &name, context)
             || self.is_hidden_poly(element, &name)
         {
+            log::debug!("RemoveHiddenElems: removing hidden");
             self.data.remove_element(element);
             return Ok(());
         }
@@ -199,6 +205,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
         for id in &self.data.removed_def_ids {
             if let Some(refs) = self.data.references_by_id.get(id) {
                 for (node, _parent_node) in refs {
+                    log::debug!("RemoveHiddenElems: remove referenced by id");
                     node.remove();
                 }
             }
@@ -210,6 +217,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
         if !deoptimized {
             for non_rendered_node in &self.data.non_rendered_nodes {
                 if self.can_remove_non_rendering_node(non_rendered_node) {
+                    log::debug!("RemoveHiddenElems: remove non-rendered node");
                     non_rendered_node.remove();
                 }
             }
@@ -217,6 +225,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
 
         for node in &self.data.all_defs {
             if node.is_empty() {
+                log::debug!("RemoveHiddenElems: remove def");
                 node.remove();
             }
         }
@@ -326,6 +335,7 @@ impl<'arena, E: Element<'arena>> RemoveHiddenElems<'arena, E> {
                 .get_attribute_local(&"r".into())
                 .is_some_and(|v| v.as_ref() == "0")
         {
+            log::debug!("RemoveHiddenElement: removing hidden ellipse");
             element.remove();
             return true;
         }

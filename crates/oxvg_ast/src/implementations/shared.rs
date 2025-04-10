@@ -705,6 +705,9 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         prev_child.next_sibling.set(Some(new_node));
         new_node.previous_sibling.set(Some(prev_child));
         new_node.next_sibling.set(Some(reference_node));
+        debug_assert!(new_node.parent.get() == Some(*self));
+        debug_assert!(new_node.next_sibling.get() == Some(*reference_node));
+        debug_assert!(reference_node.previous_sibling.get() == Some(new_node));
     }
 
     fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
@@ -718,6 +721,9 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         next_child.previous_sibling.set(Some(new_node));
         new_node.next_sibling.set(Some(next_child));
         new_node.previous_sibling.set(Some(reference_node));
+        debug_assert!(new_node.parent.get() == Some(*self));
+        debug_assert!(new_node.previous_sibling.get() == Some(*reference_node));
+        debug_assert!(reference_node.next_sibling.get() == Some(new_node));
     }
 
     fn retain_children<F>(&self, mut f: F)
@@ -775,13 +781,15 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
 
     fn append_child(&self, a_child: Self::Child) {
         a_child.parent.set(Some(self));
-        if let Some(child) = self.last_child.get() {
+        if let Some(child) = self.last_child.replace(Some(a_child)) {
             child.next_sibling.set(Some(a_child));
-            self.last_child.set(Some(a_child));
+            a_child.previous_sibling.set(Some(child));
         } else {
             self.first_child.set(Some(a_child));
-            self.last_child.set(Some(a_child));
         }
+        debug_assert!(a_child.parent.get() == Some(*self));
+        debug_assert!(a_child.next_sibling.get().is_none());
+        debug_assert!(self.last_child.get() == Some(a_child));
     }
 
     fn item(&self, index: usize) -> Option<Self::Child> {
@@ -838,9 +846,9 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn remove(&self) {
+        let parent = self.parent.take();
         let previous_sibling = self.previous_sibling.take();
         let next_sibling = self.next_sibling.take();
-        let parent = self.parent.take();
         if let Some(previous_sibling) = previous_sibling {
             if let Some(next_sibling) = next_sibling {
                 // prev -> ~self~ -> next
@@ -861,6 +869,10 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
             parent.first_child.set(None);
             parent.last_child.set(None);
         }
+        debug_assert!(previous_sibling.is_none_or(|n| n.next_sibling.get() == next_sibling));
+        debug_assert!(next_sibling.is_none_or(|n| n.previous_sibling.get() == previous_sibling));
+        debug_assert!(parent.is_none_or(|n| n.first_child.get() != Some(*self)));
+        debug_assert!(parent.is_none_or(|n| n.last_child.get() != Some(*self)));
     }
 
     fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
@@ -913,6 +925,14 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
 
     fn as_parent_child(&self) -> Self::ParentChild {
         self
+    }
+}
+
+impl Eq for Node<'_> {}
+
+impl PartialEq for Node<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
 

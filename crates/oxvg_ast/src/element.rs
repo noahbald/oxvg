@@ -213,8 +213,6 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
         let Some(mut parent) = self.parent_node() else {
             return;
         };
-        node.remove();
-        node.set_parent_node(&parent);
         parent.insert_after(node, &self.as_parent_child());
     }
 

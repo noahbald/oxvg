@@ -116,7 +116,7 @@ impl<'arena> TreeSink for Sink<'arena> {
     }
 
     fn same_node(&self, x: &Self::Handle, y: &Self::Handle) -> bool {
-        std::ptr::eq(*x, *y)
+        x == y
     }
 
     fn elem_name<'a>(&'a self, target: &'a Self::Handle) -> Self::ElemName<'a> {

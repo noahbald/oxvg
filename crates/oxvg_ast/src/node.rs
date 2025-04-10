@@ -200,7 +200,13 @@ pub trait Node<'arena>: Clone + Debug {
     /// Inserts a node as the nth child of the current node's children, updating the `new_node`'s
     /// parent.
     fn insert(&mut self, index: usize, new_node: Self::Child) {
-        if let Some(prev_child) = self.item(index) {
+        if index == 0 {
+            if let Some(first_child) = self.first_child() {
+                self.insert_before(new_node, &first_child);
+            } else {
+                self.append_child(new_node);
+            }
+        } else if let Some(prev_child) = self.item(index - 1) {
             self.insert_after(new_node, &prev_child);
         } else {
             self.append_child(new_node);

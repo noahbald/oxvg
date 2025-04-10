@@ -10,6 +10,7 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     name::Name,
+    serialize::Node as _,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use parcel_selectors::parser::Component;
@@ -161,11 +162,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths<'arena, E> {
                 if path.is_empty() && defs.contains(path) {
                     let attributes = path.attributes();
                     if attributes.is_empty() {
+                        log::debug!("removing empty path");
                         path.remove();
                     }
                     if attributes.len() == 1 {
                         let attr = attributes.into_iter().next().expect("checked length");
                         if attr.prefix().is_none() && attr.local_name().as_ref() == "id" {
+                            log::debug!("removing referenced path");
                             path.remove();
                             let id = attr.value().as_ref();
                             for child in element
