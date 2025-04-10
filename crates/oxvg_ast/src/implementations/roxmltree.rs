@@ -20,6 +20,18 @@ pub enum ParseError {
     IO(std::io::Error),
 }
 
+struct Allocator<'arena> {
+    arena: Arena<'arena>,
+    current_node_id: usize,
+}
+
+impl<'arena> Allocator<'arena> {
+    fn alloc(&mut self, node_data: NodeData) -> &'arena mut Node<'arena> {
+        self.current_node_id += 1;
+        self.arena.alloc(Node::new(node_data, self.current_node_id))
+    }
+}
+
 /// parse an xml file using roxmltree as the parser.
 ///
 /// # Errors
@@ -80,31 +92,28 @@ pub fn parse_roxmltree<'arena>(
         }
     }
 
-    let document = arena.alloc(Node {
-        parent: Cell::new(None),
-        next_sibling: Cell::new(None),
-        previous_sibling: Cell::new(None),
-        first_child: Cell::new(None),
-        last_child: Cell::new(None),
-        node_data: NodeData::Document,
-    });
+    let mut allocator = Allocator {
+        arena,
+        current_node_id: arena.len(),
+    };
+    let document = allocator.alloc(NodeData::Document);
 
-    parse_xml_node_children(document, arena, xml.root(), 0, &prefix_map)
+    parse_xml_node_children(document, &mut allocator, xml.root(), 0, &prefix_map)
 }
 
-fn create_root(arena: Arena<'_>) -> &mut Node<'_> {
-    arena.alloc(Node::new(NodeData::Root))
+fn create_root<'arena>(arena: &mut Allocator<'arena>) -> &'arena mut Node<'arena> {
+    arena.alloc(NodeData::Root)
 }
 
 fn parse_xml_node_children<'arena>(
     node: Ref<'arena>,
-    arena: Arena<'arena>,
+    allocator: &mut Allocator<'arena>,
     parent: roxmltree::Node<'_, '_>,
     depth: u32,
     prefix_map: &HashMap<&str, &str>,
 ) -> Result<Ref<'arena>, ParseError> {
     for child in parent.children() {
-        let child = parse_xml_node(arena, child, depth, prefix_map)?;
+        let child = parse_xml_node(allocator, child, depth, prefix_map)?;
         // parent
         child.parent.set(Some(node));
 
@@ -125,7 +134,7 @@ fn parse_xml_node_children<'arena>(
 }
 
 fn parse_xml_node<'arena>(
-    arena: Arena<'arena>,
+    allocator: &mut Allocator<'arena>,
     node: roxmltree::Node<'_, '_>,
     depth: u32,
     prefix_map: &HashMap<&str, &str>,
@@ -135,16 +144,16 @@ fn parse_xml_node<'arena>(
     }
 
     Ok(match node.node_type() {
-        roxmltree::NodeType::Root => create_root(arena),
-        roxmltree::NodeType::PI => parse_pi(arena, node.pi().unwrap()),
-        roxmltree::NodeType::Element => parse_element(arena, node, prefix_map),
-        roxmltree::NodeType::Comment => parse_comment(arena, node),
-        roxmltree::NodeType::Text => parse_text(arena, node),
+        roxmltree::NodeType::Root => create_root(allocator),
+        roxmltree::NodeType::PI => parse_pi(allocator, node.pi().unwrap()),
+        roxmltree::NodeType::Element => parse_element(allocator, node, prefix_map),
+        roxmltree::NodeType::Comment => parse_comment(allocator, node),
+        roxmltree::NodeType::Text => parse_text(allocator, node),
     })
 }
 
 fn parse_element<'arena>(
-    arena: Arena<'arena>,
+    arena: &mut Allocator<'arena>,
     xml_node: roxmltree::Node<'_, '_>,
     prefix_map: &HashMap<&str, &str>,
 ) -> &'arena mut Node<'arena> {
@@ -153,34 +162,38 @@ fn parse_element<'arena>(
         .map(|attr| Attribute::new(parse_attr_name(attr, prefix_map), attr.value().into()))
         .collect();
 
-    arena.alloc(Node::new(NodeData::Element {
+    arena.alloc(NodeData::Element {
         name: parse_expanded_name(xml_node.tag_name(), prefix_map),
         attrs: RefCell::new(attrs),
         #[cfg(feature = "selectors")]
         selector_flags: Cell::new(None),
-    }))
+    })
 }
 
-fn parse_pi<'arena>(arena: Arena<'arena>, pi: roxmltree::PI) -> &'arena mut Node<'arena> {
-    arena.alloc(Node::new(NodeData::PI {
+fn parse_pi<'arena>(
+    allocator: &mut Allocator<'arena>,
+    pi: roxmltree::PI,
+) -> &'arena mut Node<'arena> {
+    allocator.alloc(NodeData::PI {
         target: pi.target.into(),
         value: RefCell::new(pi.value.map(Into::into)),
-    }))
+    })
 }
 
 fn parse_comment<'arena>(
-    arena: Arena<'arena>,
+    allocator: &mut Allocator<'arena>,
     comment: roxmltree::Node,
 ) -> &'arena mut Node<'arena> {
-    arena.alloc(Node::new(NodeData::Comment(RefCell::new(
+    allocator.alloc(NodeData::Comment(RefCell::new(
         comment.text().map(Into::into),
-    ))))
+    )))
 }
 
-fn parse_text<'arena>(arena: Arena<'arena>, text: roxmltree::Node) -> &'arena mut Node<'arena> {
-    arena.alloc(Node::new(NodeData::Text(RefCell::new(
-        text.text().map(Into::into),
-    ))))
+fn parse_text<'arena>(
+    arena: &mut Allocator<'arena>,
+    text: roxmltree::Node,
+) -> &'arena mut Node<'arena> {
+    arena.alloc(NodeData::Text(RefCell::new(text.text().map(Into::into))))
 }
 
 fn parse_attr_name(attr: roxmltree::Attribute, prefix_map: &HashMap<&str, &str>) -> QualName {

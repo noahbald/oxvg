@@ -58,7 +58,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFi
 
         if element.has_attribute_local(&"id".into()) {
             log::debug!("flagged as id root");
-            self.id_rc_byte = Some(element.as_ptr_byte());
+            self.id_rc_byte = Some(element.id());
             return false;
         }
 
@@ -89,7 +89,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFi
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        if self.id_rc_byte.is_some_and(|b| b == element.as_ptr_byte()) {
+        if self.id_rc_byte.is_some_and(|b| b == element.id()) {
             log::debug!("unflagged as id root");
             self.id_rc_byte = None;
         }

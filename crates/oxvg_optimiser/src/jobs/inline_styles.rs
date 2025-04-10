@@ -232,8 +232,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
             .chain(self.removed_tokens.classes.iter())
             .chain(self.removed_tokens.other.iter())
             .sorted_by(|a, b| a.specificity.cmp(&b.specificity))
-            .sorted_by(|a, b| a.element.as_ptr_byte().cmp(&b.element.as_ptr_byte()))
-            .chunk_by(|r| r.element.as_ptr_byte());
+            .sorted_by(|a, b| a.element.id().cmp(&b.element.id()))
+            .chunk_by(|r| r.element.id());
 
         for (_, chunk) in &style_chunks {
             let mut group_element = None;

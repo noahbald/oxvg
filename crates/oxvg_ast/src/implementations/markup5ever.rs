@@ -7,7 +7,7 @@ use std::{
 use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
-    local_name, namespace_url, ns,
+    local_name,
     tendril::TendrilSink,
     tree_builder::ElemName,
 };
@@ -39,8 +39,21 @@ pub fn parse<'arena>(source: &str, arena: Arena<'arena>) -> Ref<'arena> {
     parse_document(Sink::new(arena), XmlParseOpts::default()).one(source)
 }
 
-struct Sink<'arena> {
+struct Allocator<'arena> {
     arena: Arena<'arena>,
+    current_node_id: Cell<usize>,
+}
+
+impl<'arena> Allocator<'arena> {
+    fn alloc(&self, node_data: NodeData) -> &'arena mut Node<'arena> {
+        self.current_node_id.set(self.current_node_id.get() + 1);
+        self.arena
+            .alloc(Node::new(node_data, self.current_node_id.get()))
+    }
+}
+
+struct Sink<'arena> {
+    allocator: Allocator<'arena>,
     document: Ref<'arena>,
     mode: Cell<QuirksMode>,
     line: Cell<u64>,
@@ -49,8 +62,11 @@ struct Sink<'arena> {
 impl<'arena> Sink<'arena> {
     fn new(arena: Arena<'arena>) -> Self {
         Self {
-            arena,
-            document: arena.alloc(Node::new(NodeData::Document)),
+            allocator: Allocator {
+                arena,
+                current_node_id: Cell::new(arena.len()),
+            },
+            document: arena.alloc(Node::new(NodeData::Document, arena.len())),
             mode: Cell::new(QuirksMode::NoQuirks),
             line: Cell::new(1),
         }
@@ -69,7 +85,7 @@ impl ElemName for &QualName {
 
 impl<'arena> Sink<'arena> {
     fn new_node(&self, data: NodeData) -> &'arena mut Node<'arena> {
-        self.arena.alloc(Node::new(data))
+        self.allocator.alloc(data)
     }
 }
 
@@ -194,7 +210,7 @@ impl<'arena> TreeSink for Sink<'arena> {
                 if text.is_empty() {
                     return;
                 }
-                let node = &*self.new_node(NodeData::Text(RefCell::new(Some(text))));
+                let node = self.new_node(NodeData::Text(RefCell::new(Some(text))));
                 parent.append_child(node);
                 debug_assert!(parent
                     .last_child
@@ -225,7 +241,7 @@ impl<'arena> TreeSink for Sink<'arena> {
                 if text.is_empty() {
                     return;
                 }
-                let node = &*self.new_node(NodeData::Text(RefCell::new(Some(text))));
+                let node = self.new_node(NodeData::Text(RefCell::new(Some(text))));
                 parent.insert_before(node, sibling);
                 debug_assert!(sibling
                     .previous_sibling

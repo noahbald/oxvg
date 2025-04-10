@@ -1633,18 +1633,20 @@ impl<'arena, E: Element<'arena>> ElementData<'arena, E> {
     pub fn new(root: &E) -> HashMap<E, Self> {
         let mut styles = HashMap::new();
         for element in root.breadth_first() {
+            let inline_style = element
+                .get_attribute_local(&"style".into())
+                .map(|attr| attr.clone());
+            let presentation_attrs = element
+                .attributes()
+                .into_iter()
+                .filter(|a| a.prefix().is_none())
+                .map(|a| (a.local_name().clone(), a.value().clone()))
+                .collect();
             styles.insert(
-                element.clone(),
+                element,
                 ElementData {
-                    inline_style: element
-                        .get_attribute_local(&"style".into())
-                        .map(|attr| attr.clone()),
-                    presentation_attrs: element
-                        .attributes()
-                        .into_iter()
-                        .filter(|a| a.prefix().is_none())
-                        .map(|a| (a.local_name().clone(), a.value().clone()))
-                        .collect(),
+                    inline_style,
+                    presentation_attrs,
                 },
             );
         }

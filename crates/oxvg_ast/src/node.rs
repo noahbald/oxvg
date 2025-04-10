@@ -52,11 +52,13 @@ pub trait Node<'arena>: Clone + Debug {
     /// The node type of the parent of a node
     type Parent: Node<'arena, Atom = Self::Atom, Child = Self::ParentChild, Arena = Self::Arena>;
 
-    /// Whether the underlying pointer is at the same address as the other
-    fn ptr_eq(&self, other: &impl Node<'arena>) -> bool;
+    /// Whether the allocation id is the same address as the other
+    fn id_eq(&self, other: &impl Node<'arena>) -> bool {
+        self.id() == other.id()
+    }
 
-    /// The raw pointer address to the data
-    fn as_ptr_byte(&self) -> usize;
+    /// The allocation id
+    fn id(&self) -> usize;
 
     /// Returns an node list containing all the children of this node
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
@@ -188,7 +190,7 @@ pub trait Node<'arena>: Clone + Debug {
     /// [MDN | contains](https://developer.mozilla.org/en-US/docs/Web/API/Node/contains)
     fn contains(&self, other_node: &impl Node<'arena>) -> bool {
         self.child_nodes_iter().any(|c| {
-            if c.as_impl().ptr_eq(other_node) {
+            if c.as_impl().id_eq(other_node) {
                 return true;
             }
             c.contains(other_node)
@@ -261,7 +263,7 @@ pub trait Node<'arena>: Clone + Debug {
         let mut result = None;
         let mut index = 0;
         self.child_nodes_iter().any(|sibling| {
-            if sibling.ptr_eq(child) {
+            if sibling.id_eq(child) {
                 result = Some(index);
                 true
             } else {

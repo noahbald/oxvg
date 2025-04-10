@@ -167,7 +167,7 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
         for sibling in Element::parent_element(self)?.children() {
             if saw_self {
                 return Some(sibling);
-            } else if sibling.ptr_eq(self) {
+            } else if sibling.id_eq(self) {
                 saw_self = true;
             }
         }
@@ -187,7 +187,7 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     fn previous_element_sibling(&self) -> Option<Self> {
         let mut previous = None;
         for sibling in Element::parent_element(self)?.children() {
-            if sibling.ptr_eq(self) {
+            if sibling.id_eq(self) {
                 return previous;
             }
             previous = Some(sibling);

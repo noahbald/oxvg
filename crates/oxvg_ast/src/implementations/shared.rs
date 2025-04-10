@@ -1,6 +1,6 @@
 //! XML types. Has implementations for all the traits in this crate.
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::{self, Cell, RefCell, RefMut},
     collections::VecDeque,
     fmt::Debug,
@@ -102,6 +102,8 @@ pub struct Node<'arena> {
     pub last_child: Link<'arena>,
     /// The node's type and associated data.
     pub node_data: NodeData,
+    /// The node's id, determined by it's allocation
+    id: usize,
 }
 
 #[derive(Clone)]
@@ -640,14 +642,15 @@ impl<'arena> Node<'arena> {
     }
 
     /// Creates a clean node with the given node data.
-    pub fn new(data: NodeData) -> Self {
+    pub fn new(node_data: NodeData, id: usize) -> Self {
         Self {
             parent: Cell::new(None),
             next_sibling: Cell::new(None),
             previous_sibling: Cell::new(None),
             first_child: Cell::new(None),
             last_child: Cell::new(None),
-            node_data: data,
+            node_data,
+            id,
         }
     }
 }
@@ -659,12 +662,8 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     type ParentChild = Ref<'arena>;
     type Parent = Element<'arena>;
 
-    fn ptr_eq(&self, other: &impl node::Node<'arena>) -> bool {
-        self.as_ptr_byte() == other.as_ptr_byte()
-    }
-
-    fn as_ptr_byte(&self) -> usize {
-        &raw const *self as usize
+    fn id(&self) -> usize {
+        self.id
     }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
@@ -832,7 +831,10 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     }
 
     fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child {
-        arena.alloc(Node::new(NodeData::Text(RefCell::new(Some(content)))))
+        arena.alloc(Node::new(
+            NodeData::Text(RefCell::new(Some(content))),
+            arena.len(),
+        ))
     }
 
     fn remove(&self) {
@@ -879,7 +881,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     ) -> Option<Self::Child> {
         let child = self
             .child_nodes_iter()
-            .find(|child| child.ptr_eq(old_child))?;
+            .find(|child| child.id_eq(old_child))?;
         let previous_sibling = child.previous_sibling.take();
         let next_sibling = child.next_sibling.take();
         let parent = child.parent.take();
@@ -916,6 +918,9 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
 
 impl Debug for Ref<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.node_type() == node::Type::Element {
+            return self.element().unwrap().fmt(f);
+        }
         let data = &self.node_data;
         let child_len = self.child_node_count();
         let Node {
@@ -954,12 +959,8 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
     type ParentChild = Ref<'arena>;
     type Parent = Element<'arena>;
 
-    fn ptr_eq(&self, other: &impl node::Node<'arena>) -> bool {
-        self.node.ptr_eq(other)
-    }
-
-    fn as_ptr_byte(&self) -> usize {
-        self.node.as_ptr_byte()
+    fn id(&self) -> usize {
+        self.node.id()
     }
 
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
@@ -1150,12 +1151,15 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
         let NodeData::Element { attrs, .. } = &self.node.node_data else {
             panic!("expected an element!");
         };
-        let replacement = arena.alloc(Node::new(NodeData::Element {
-            name: QualName::new(None, new_name),
-            attrs: attrs.clone(),
-            #[cfg(feature = "selectors")]
-            selector_flags: Cell::new(None),
-        }));
+        let replacement = arena.alloc(Node::new(
+            NodeData::Element {
+                name: QualName::new(None, new_name),
+                attrs: attrs.clone(),
+                #[cfg(feature = "selectors")]
+                selector_flags: Cell::new(None),
+            },
+            arena.len(),
+        ));
         self.replace_with(replacement);
     }
 
@@ -1306,20 +1310,28 @@ impl Debug for Element<'_> {
         }
         let name = self.qual_name().formatter();
         let attributes = self.attributes();
-        let text = self.text_content().map(|s| s.trim().to_string());
-        let child_count = match (&self.node).child_node_count() {
+        let child_node_count = self.child_node_count();
+        let text = match child_node_count {
+            1 => self
+                .text_content()
+                .map(|s| s.trim().to_string())
+                .map(Cow::Owned)
+                .unwrap_or_default(),
+            _ => Cow::Borrowed(""),
+        };
+        let child_count = match child_node_count {
             0 => String::from("/>"),
             len => format!(">{len} child nodes</{name}>"),
         };
         f.write_fmt(format_args!(
-            r"Element {{ <{name} {attributes:?}{child_count} {text:?} }}"
+            r"Element {{ <{name} {attributes:?}{child_count} {text} }}"
         ))
     }
 }
 
 impl std::hash::Hash for Element<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_ptr_byte().hash(state);
+        self.node.id.hash(state);
     }
 }
 
@@ -1327,7 +1339,7 @@ impl Eq for Element<'_> {}
 
 impl PartialEq for Element<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.ptr_eq(other)
+        self.id_eq(other)
     }
 }
 
@@ -1351,12 +1363,15 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
         tag_name: <Self::Root as element::Element<'arena>>::Name,
         arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> Self::Root {
-        Element::new(arena.alloc(Node::new(NodeData::Element {
-            name: tag_name,
-            attrs: RefCell::new(vec![]),
-            #[cfg(feature = "selectors")]
-            selector_flags: Cell::new(None),
-        })))
+        Element::new(arena.alloc(Node::new(
+            NodeData::Element {
+                name: tag_name,
+                attrs: RefCell::new(vec![]),
+                #[cfg(feature = "selectors")]
+                selector_flags: Cell::new(None),
+            },
+            arena.len(),
+        )))
         .expect("created element should be an element")
     }
 
@@ -1366,10 +1381,13 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
         data: <Self::Root as node::Node<'arena>>::Atom,
         arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> <<Self::Root as node::Node<'arena>>::Child as node::Node<'arena>>::ParentChild {
-        arena.alloc(Node::new(NodeData::PI {
-            target,
-            value: RefCell::new(Some(data)),
-        }))
+        arena.alloc(Node::new(
+            NodeData::PI {
+                target,
+                value: RefCell::new(Some(data)),
+            },
+            arena.len(),
+        ))
     }
 
     fn create_text_node(
@@ -1377,7 +1395,10 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
         data: <Self::Root as node::Node<'arena>>::Atom,
         arena: <Self::Root as node::Node<'arena>>::Arena,
     ) -> <Self::Root as node::Node<'arena>>::Child {
-        arena.alloc(Node::new(NodeData::Text(RefCell::new(Some(data)))))
+        arena.alloc(Node::new(
+            NodeData::Text(RefCell::new(Some(data))),
+            arena.len(),
+        ))
     }
 }
 
@@ -1394,6 +1415,20 @@ impl<'arena> Iterator for ChildNodes<'arena> {
         let next = current.next_sibling.get();
         self.front = next;
         Some(current)
+    }
+}
+
+impl ExactSizeIterator for ChildNodes<'_> {
+    fn len(&self) -> usize {
+        let current = self.front;
+        let mut len = 0;
+        while let Some(node) = current {
+            len += 1;
+            if std::ptr::eq(self.end.expect("iterator with start must have end"), node) {
+                break;
+            }
+        }
+        len
     }
 }
 
