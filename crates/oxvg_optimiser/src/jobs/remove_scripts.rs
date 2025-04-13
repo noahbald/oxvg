@@ -3,6 +3,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
+    serialize::Node as _,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::EVENT_ATTRS;
@@ -28,6 +29,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name().as_ref() == "script" {
+            log::debug!("removing script");
             element.remove();
             return Ok(());
         }

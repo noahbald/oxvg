@@ -19,7 +19,7 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"
     </defs>
     <g>
         <circle fill="url(#a)" cx="60" cy="60" r="50"/>
-        <rect fill="url(&apos;#a&apos;)" x="0" y="0" width="500" height="100"/>
+        <rect fill="url('#a')" x="0" y="0" width="500" height="100"/>
         <tref href="#b"/>
     </g>
     <g>

@@ -52,6 +52,7 @@ fn remove_xml_proc_inst() -> anyhow::Result<()> {
         ),
     )?);
 
+    // FIXME: Correctly retained, but serializer uses default PI
     insta::assert_snapshot!(test_config(
         r#"{ "removeXmlProcInst": true }"#,
         Some(

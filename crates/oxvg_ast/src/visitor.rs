@@ -375,8 +375,6 @@ pub trait Visitor<'arena, E: Element<'arena>> {
         parent: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        // NOTE: We use `child_nodes` for a clone instead of using `try_for_each_child`
-        // Otherwise the visitor will not be able to borrow it's parent's children
         parent
             .child_nodes_iter()
             .try_for_each(|mut child| match child.node_type() {

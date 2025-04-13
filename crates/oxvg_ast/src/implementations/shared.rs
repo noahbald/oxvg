@@ -7,6 +7,7 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+use itertools::Itertools;
 use markup5ever::local_name;
 use tendril::StrTendril;
 
@@ -669,6 +670,8 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
         ChildNodes {
             front: self.first_child(),
+            front_next: self.first_child().and_then(|n| n.next_sibling()),
+            end_previous: self.last_child().and_then(|n| n.previous_sibling()),
             end: self.last_child(),
         }
     }
@@ -686,7 +689,8 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
         self.last_child.set(None);
     }
 
-    fn find_element(&self) -> Option<impl element::Element<'arena>> {
+    #[allow(refining_impl_trait)]
+    fn find_element(&self) -> Option<Element<'arena>> {
         <Element as element::Element<'arena>>::find_element(*self)
     }
 
@@ -730,25 +734,23 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     where
         F: FnMut(Self::Child) -> bool,
     {
-        let mut current = self.first_child.get();
-        let mut is_first = true;
+        self.last_child.set(None);
+        let mut current = self.first_child.take();
+        let mut previously_retained = None;
         while let Some(child) = current {
             current = child.next_sibling.get();
             let retain = f(child);
             if retain {
-                is_first = false;
-                continue;
-            }
-
-            if is_first {
-                self.first_child.set(child.next_sibling.get());
+                child.previous_sibling.set(previously_retained);
+                if previously_retained.is_none() {
+                    self.first_child.set(Some(child));
+                }
+                previously_retained = Some(child);
+                self.last_child.set(Some(child));
             } else {
-                let prev_child = child
-                    .previous_sibling
-                    .take()
-                    .expect("non-first child should have previous child");
-                let next_child = child.next_sibling.take();
-                prev_child.next_sibling.set(next_child);
+                child.parent.set(None);
+                child.previous_sibling.set(None);
+                child.next_sibling.set(None);
             }
         }
     }
@@ -888,24 +890,28 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     fn replace_child(
         &mut self,
         new_child: Self::Child,
-        // TODO: remove ref
         old_child: &Self::Child,
     ) -> Option<Self::Child> {
-        let child = self
-            .child_nodes_iter()
-            .find(|child| child.id_eq(old_child))?;
-        let previous_sibling = child.previous_sibling.take();
-        let next_sibling = child.next_sibling.take();
-        let parent = child.parent.take();
+        debug_assert_eq!(old_child.parent.get(), Some(*self));
+        debug_assert!(self.child_nodes_iter().contains(old_child));
+
+        let previous_sibling = old_child.previous_sibling.take();
+        let next_sibling = old_child.next_sibling.take();
+        old_child.parent.set(None);
+
+        new_child.previous_sibling.set(previous_sibling);
+        new_child.next_sibling.set(next_sibling);
+        new_child.parent.set(Some(*self));
+
         if let Some(previous_sibling) = previous_sibling {
             previous_sibling.next_sibling.set(Some(new_child));
-        } else if let Some(parent) = parent {
-            parent.first_child.set(Some(new_child));
+        } else {
+            self.first_child.set(Some(new_child));
         }
         if let Some(next_sibling) = next_sibling {
             next_sibling.previous_sibling.set(Some(new_child));
-        } else if let Some(parent) = parent {
-            parent.last_child.set(Some(new_child));
+        } else {
+            self.last_child.set(Some(new_child));
         }
         Some(*old_child)
     }
@@ -938,27 +944,17 @@ impl PartialEq for Node<'_> {
 
 impl Debug for Ref<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.node_type() == node::Type::Element {
-            return self.element().unwrap().fmt(f);
-        }
         let data = &self.node_data;
-        let child_len = self.child_node_count();
         let Node {
-            first_child,
-            last_child,
-            parent,
-            ..
+            last_child, parent, ..
         } = self;
         let parent = parent.get().is_some();
-        f.write_fmt(format_args!(
-            "Node {{
-    data: {data:?}
-    children: {child_len}
-    first_child: {first_child:#?}
-    last_child: {last_child:#?}
-    has_parent: {parent}
-}}"
-        ))
+        f.debug_struct("Node")
+            .field("data", data)
+            .field("children", &self.child_nodes_iter().collect_vec())
+            .field("last_child", last_child)
+            .field("has_parent", &parent)
+            .finish()
     }
 }
 
@@ -995,8 +991,13 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
         self.node.empty();
     }
 
-    fn find_element(&self) -> Option<impl element::Element<'arena>> {
-        Some(self.clone())
+    #[allow(refining_impl_trait)]
+    fn find_element(&self) -> Option<Self> {
+        if self.node_type() == node::Type::Element {
+            Some(self.clone())
+        } else {
+            self.node.find_element()
+        }
     }
 
     fn first_child(&self) -> Option<Self::Child> {
@@ -1225,7 +1226,9 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
     }
 
     fn document(&self) -> Option<Self> {
-        let parent = self.parent_node()?;
+        let Some(parent) = self.parent_node() else {
+            return Some(self.clone());
+        };
         match self.node.node_data {
             NodeData::Element { .. } => parent.document(),
             NodeData::Document | NodeData::Root => Some(parent),
@@ -1249,16 +1252,19 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
         if let Some(first_child) = first_child {
             if let Some(previous_sibling) = previous_sibling {
                 previous_sibling.next_sibling.set(Some(first_child));
+                first_child.previous_sibling.set(Some(previous_sibling));
             } else if let Some(parent) = parent {
                 parent.first_child.set(Some(first_child));
             }
         } else if let Some(previous_sibling) = previous_sibling {
             previous_sibling.next_sibling.set(next_sibling);
+            next_sibling.inspect(|n| n.previous_sibling.set(Some(previous_sibling)));
         } else if let Some(parent) = parent {
             parent.first_child.set(next_sibling);
         }
         if let Some(last_child) = last_child {
             if let Some(next_sibling) = next_sibling {
+                last_child.next_sibling.set(Some(next_sibling));
                 next_sibling.previous_sibling.set(Some(last_child));
             } else if let Some(parent) = parent {
                 parent.last_child.set(Some(last_child));
@@ -1276,7 +1282,10 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
 
         while let Some(current) = queue.pop_front() {
             let maybe_element = current.element();
-            if maybe_element.is_some() {
+            if maybe_element
+                .as_ref()
+                .is_some_and(|n| n.node_type() == node::Type::Element)
+            {
                 return maybe_element;
             }
 
@@ -1306,7 +1315,9 @@ impl<'arena> element::Element<'arena> for Element<'arena> {
         self.node.last_child.set(children.last().copied());
         for i in 0..children.len() {
             let child = children[i];
-            child.previous_sibling.set(children.get(i - 1).copied());
+            if i > 0 {
+                child.previous_sibling.set(children.get(i - 1).copied());
+            }
             child.next_sibling.set(children.get(i + 1).copied());
         }
     }
@@ -1343,9 +1354,9 @@ impl Debug for Element<'_> {
             0 => String::from("/>"),
             len => format!(">{len} child nodes</{name}>"),
         };
-        f.write_fmt(format_args!(
-            r"Element {{ <{name} {attributes:?}{child_count} {text} }}"
-        ))
+        f.debug_tuple("Element")
+            .field(&format!("<{name} {attributes:?}{child_count} {text}"))
+            .finish()
     }
 }
 
@@ -1424,6 +1435,8 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
 
 struct ChildNodes<'arena> {
     front: Option<Ref<'arena>>,
+    front_next: Option<Ref<'arena>>,
+    end_previous: Option<Ref<'arena>>,
     end: Option<Ref<'arena>>,
 }
 
@@ -1432,31 +1445,53 @@ impl<'arena> Iterator for ChildNodes<'arena> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.front?;
-        let next = current.next_sibling.get();
-        self.front = next;
-        Some(current)
-    }
-}
 
-impl ExactSizeIterator for ChildNodes<'_> {
-    fn len(&self) -> usize {
-        let current = self.front;
-        let mut len = 0;
-        while let Some(node) = current {
-            len += 1;
-            if std::ptr::eq(self.end.expect("iterator with start must have end"), node) {
-                break;
-            }
+        // Move front tracking forwards
+        let new_front_next = self.front_next.and_then(|n| n.next_sibling());
+        self.front = std::mem::replace(&mut self.front_next, new_front_next);
+
+        // End iteration when it collides with end
+        if self.end.is_some_and(|end| end == current) {
+            self.front = None;
+            self.front_next = None;
+            self.end_previous = None;
+            self.end = None;
         }
-        len
+
+        // Done
+        Some(current)
     }
 }
 
 impl DoubleEndedIterator for ChildNodes<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let current = self.end?;
-        let prev = current.previous_sibling.get();
-        self.end = prev;
+
+        let new_end_previous = self.end_previous.and_then(|n| n.next_sibling());
+        self.end = std::mem::replace(&mut self.end_previous, new_end_previous);
+
+        if self.front.is_some_and(|front| front == current) {
+            self.front = None;
+            self.front_next = None;
+            self.end_previous = None;
+            self.end = None;
+        }
+
         Some(current)
+    }
+}
+
+impl ExactSizeIterator for ChildNodes<'_> {
+    fn len(&self) -> usize {
+        let mut current = self.front;
+        let mut len = 0;
+        while let Some(node) = current {
+            current = node.next_sibling();
+            len += 1;
+            if self.end.is_none_or(|end| end == node) {
+                break;
+            }
+        }
+        len
     }
 }

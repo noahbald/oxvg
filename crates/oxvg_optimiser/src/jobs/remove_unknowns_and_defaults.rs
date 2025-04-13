@@ -3,6 +3,7 @@ use oxvg_ast::{
     atom::Atom,
     attribute::{Attr, Attributes},
     node,
+    serialize::Node as _,
     style::{Id, PresentationAttr, PresentationAttrId, Style},
     visitor::{Context, ContextFlags, PrepareOutcome},
 };
@@ -82,6 +83,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefault
             data,
             &context.info.arena,
         );
+        log::debug!("replacing processing instruction");
         parent.replace_child(new_pi, &processing_instruction.as_parent_child());
         Ok(())
     }
@@ -171,7 +173,10 @@ impl RemoveUnknownsAndDefaults {
 
             let name_string = name.formatter().to_string();
             if let Some(allowed_attrs) = allowed_attrs {
-                if self.unknown_attrs && !allowed_attrs.contains(name_string.as_str()) {
+                if self.unknown_attrs
+                    && name_string != "xmlns"
+                    && !allowed_attrs.contains(name_string.as_str())
+                {
                     log::debug!("removing unknown attr");
                     return false;
                 }

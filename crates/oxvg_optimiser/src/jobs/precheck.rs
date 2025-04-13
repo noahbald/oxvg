@@ -49,12 +49,6 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
         element: &mut E,
         _context: &mut oxvg_ast::visitor::Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        self.qual_name::<E>(element.qual_name())?;
-
-        for attr in element.attributes().into_iter() {
-            self.qual_name::<E>(attr.name())?;
-        }
-
         if self.preclean_checks {
             self.check_for_unsupported_elements(element)?;
             self.check_for_script_attributes(element)?;
@@ -69,28 +63,6 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
 impl Precheck {
     const DTD_ENTITY_ERROR: &str =
         "Document appears to contain DTD Entity, which will be stripped by the parser";
-    const XMLNS_PREFIX_ERROR: &str =
-        "Document uses an xmlns prefixed element, which may be moved by the parser";
-    const NS_UNSTABLE_ERROR: &str =
-        "Document uses a namespace which may have been removed by the parser";
-
-    fn qual_name<'arena, E: Element<'arena>>(
-        &self,
-        name: &E::Name,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        if let Some(prefix) = name.prefix() {
-            if prefix.as_ref() == "xmlns" {
-                self.emit::<E>(Self::XMLNS_PREFIX_ERROR)?;
-            }
-        }
-
-        let ns = name.ns().as_ref();
-        if ns.is_empty() {
-            self.emit::<E>(Self::NS_UNSTABLE_ERROR)?;
-        }
-
-        Ok(())
-    }
 
     fn emit<'arena, E: Element<'arena>>(
         &self,
@@ -231,19 +203,6 @@ fn precheck() {
             ),
         ).unwrap_err().to_string(),
         Precheck::DTD_ENTITY_ERROR
-    );
-
-    assert_eq!(
-        &test_config(
-            r#"{ "precheck": { "failFast": true } }"#,
-            Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd">
-    <!-- emit error for xmlns prefix -->
-    <path d="..." sodipodi:nodetypes="cccc"/>
-</svg>"#,
-            ),
-        ).unwrap_err().to_string(),
-        Precheck::NS_UNSTABLE_ERROR
     );
 
     // FIXME: uncomment when xmlns is stable

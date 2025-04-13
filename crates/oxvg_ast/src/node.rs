@@ -230,7 +230,11 @@ pub trait Node<'arena>: Clone + Debug {
 
     /// Returns whether the node has zero child nodes
     fn is_empty(&self) -> bool {
-        self.first_child().is_none()
+        self.first_child().is_none_or(|_| {
+            self.child_nodes_iter().all(|n| {
+                n.node_type() == Type::Text && n.text_content().is_none_or(|t| t.trim().is_empty())
+            })
+        })
     }
 
     /// Removes the current node from it's parent and removes the reference to the parent
