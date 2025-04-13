@@ -2,7 +2,7 @@
 extern crate console_error_panic_hook;
 use oxvg_ast::{
     implementations::{markup5ever::parse, shared::Element},
-    serialize,
+    serialize::{self, Node as _, Options},
     visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -30,5 +30,9 @@ pub fn optimise(svg: &str, config_json: Option<String>) -> Result<String, String
         .run(&dom, &Info::new(&arena))
         .map_err(|err| err.to_string())?;
 
-    serialize::Node::serialize(&dom).map_err(|err| err.to_string())
+    dom.serialize_with_options(Options {
+        indent: serialize::Indent::None,
+        ..Default::default()
+    })
+    .map_err(|err| err.to_string())
 }

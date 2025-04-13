@@ -2,7 +2,7 @@
 use napi::{Error, Status};
 use oxvg_ast::{
   implementations::{markup5ever::parse, shared::Element},
-  serialize,
+  serialize::{self, Node as _, Options},
   visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -29,7 +29,12 @@ pub fn optimise(svg: String, config_json: Option<String>) -> Result<String, Erro
     .run(&dom, &Info::new(&arena))
     .map_err(generic_error)?;
 
-  serialize::Node::serialize(&dom).map_err(generic_error)
+  dom
+    .serialize_with_options(Options {
+      indent: serialize::Indent::None,
+      ..Default::default()
+    })
+    .map_err(generic_error)
 }
 
 #[allow(clippy::needless_pass_by_value)]
