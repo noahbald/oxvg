@@ -2,7 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
 expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- preserve referenced path, even with zero opacity -->\n    <defs>\n        <path id=\"path2\" d=\"M200 200 l50 -300\" style=\"opacity:0\"/>\n    </defs>\n    <text style=\"font-size:24px;\">\n        <textPath xlink:href=\"#path2\">\n        this is path 2\n        </textPath>\n    </text>\n    <path id=\"path1\" d=\"M200 200 l50 -300\" style=\"opacity:0\"/>\n</svg>\"##),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- preserve referenced path, even with zero opacity -->
     <defs>
         <path id="path2" d="M200 200 l50 -300" style="opacity:0"/>

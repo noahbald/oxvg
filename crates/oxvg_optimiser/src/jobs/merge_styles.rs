@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use derive_where::derive_where;
 use oxvg_ast::{
     atom::Atom,
@@ -11,13 +13,23 @@ use serde::{Deserialize, Serialize};
 use super::ContextFlags;
 
 #[derive_where(Debug)]
-pub struct MergeStyles<E: Element> {
+pub struct MergeStyles<'arena, E: Element<'arena>> {
     enabled: bool,
     first_style: Option<E>,
     is_cdata: bool,
+    marker: PhantomData<&'arena ()>,
 }
 
-impl<E: Element> Visitor<E> for MergeStyles<E> {
+impl<'arena, E: Element<'arena>> MergeStyles<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> MergeStyles<'a, E::Lifetimed<'a>> {
+        MergeStyles {
+            enabled: self.enabled,
+            ..MergeStyles::default()
+        }
+    }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles<'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -28,7 +40,11 @@ impl<E: Element> Visitor<E> for MergeStyles<E> {
         }
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name().as_str() != "style" {
             return Ok(());
         }
@@ -46,7 +62,7 @@ impl<E: Element> Visitor<E> for MergeStyles<E> {
         }
 
         let mut css = String::new();
-        element.for_each_child(|node| {
+        element.child_nodes_iter().for_each(|node| {
             if let Some(text) = node.text_content() {
                 css.push_str(&text);
             }
@@ -72,19 +88,24 @@ impl<E: Element> Visitor<E> for MergeStyles<E> {
         };
 
         if let Some(node) = &self.first_style {
-            let mut node = node.clone();
-            node.append_child(node.text(css.into()));
+            node.append_child(node.text(css.into(), &context.info.arena));
             element.remove();
             log::debug!("Merged style");
         } else {
-            element.clone().set_text_content(css.into());
+            element
+                .clone()
+                .set_text_content(css.into(), &context.info.arena);
             self.first_style = Some(element.clone());
             log::debug!("Assigned first style");
         }
         Ok(())
     }
 
-    fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn exit_document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if !self.is_cdata {
             return Ok(());
         }
@@ -96,34 +117,38 @@ impl<E: Element> Visitor<E> for MergeStyles<E> {
             style.remove();
             return Ok(());
         };
-        style.for_each_child(|child| child.remove());
-        let c_data = document.as_document().create_c_data_section(text.into());
+        style.child_nodes_iter().for_each(|child| child.remove());
+        let c_data = document
+            .as_document()
+            .create_c_data_section(text.into(), &context.info.arena);
         style.append_child(c_data);
         Ok(())
     }
 }
 
-impl<E: Element> Default for MergeStyles<E> {
+impl<'arena, E: Element<'arena>> Default for MergeStyles<'arena, E> {
     fn default() -> Self {
         Self {
             enabled: true,
             first_style: None,
             is_cdata: false,
+            marker: PhantomData,
         }
     }
 }
 
-impl<E: Element> Clone for MergeStyles<E> {
+impl<'arena, E: Element<'arena>> Clone for MergeStyles<'arena, E> {
     fn clone(&self) -> Self {
         Self {
             enabled: self.enabled,
             first_style: self.first_style.clone(),
             is_cdata: self.is_cdata,
+            marker: PhantomData,
         }
     }
 }
 
-impl<'de, E: Element> Deserialize<'de> for MergeStyles<E> {
+impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for MergeStyles<'arena, E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -131,13 +156,12 @@ impl<'de, E: Element> Deserialize<'de> for MergeStyles<E> {
         let enabled = bool::deserialize(deserializer)?;
         Ok(Self {
             enabled,
-            first_style: None,
-            is_cdata: false,
+            ..Self::default()
         })
     }
 }
 
-impl<E: Element> Serialize for MergeStyles<E> {
+impl<'arena, E: Element<'arena>> Serialize for MergeStyles<'arena, E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

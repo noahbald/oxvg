@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CollapseGroups(pub bool);
 
-impl<E: Element> Visitor<E> for CollapseGroups {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CollapseGroups {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -27,7 +27,11 @@ impl<E: Element> Visitor<E> for CollapseGroups {
         }
     }
 
-    fn exit_element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn exit_element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
@@ -51,7 +55,7 @@ impl Default for CollapseGroups {
     }
 }
 
-fn move_attributes_to_child(element: &impl Element) {
+fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
     let children = element.children();
@@ -122,7 +126,7 @@ fn move_attributes_to_child(element: &impl Element) {
     }
 }
 
-fn flatten_when_all_attributes_moved(element: &impl Element) {
+fn flatten_when_all_attributes_moved<'arena, E: Element<'arena>>(element: &E) {
     if !element.attributes().is_empty() {
         log::debug!("skipping flatten: has attributes");
         return;
@@ -143,7 +147,7 @@ fn flatten_when_all_attributes_moved(element: &impl Element) {
     element.flatten();
 }
 
-fn has_animated_attr(element: &impl Element, name: &impl Name) -> bool {
+fn has_animated_attr<'arena, E: Element<'arena>>(element: &E, name: &impl Name) -> bool {
     let local_name = name.local_name();
     let node_name: &str = local_name.as_ref();
     for child in std::iter::once(element.clone()).chain(element.breadth_first()) {
@@ -160,13 +164,13 @@ fn has_animated_attr(element: &impl Element, name: &impl Name) -> bool {
     false
 }
 
-fn is_group_identifiable<E: Element>(node: &E, child: &E) -> bool {
+fn is_group_identifiable<'arena, E: Element<'arena>>(node: &E, child: &E) -> bool {
     let class = &"class".into();
     child.has_attribute_local(&"id".into())
         && (!node.has_attribute_local(class) || !child.has_attribute_local(class))
 }
 
-fn is_position_visually_unstable<E: Element>(node: &E, child: &E) -> bool {
+fn is_position_visually_unstable<'arena, E: Element<'arena>>(node: &E, child: &E) -> bool {
     let is_node_clipping =
         node.has_attribute_local(&"clip-path".into()) || node.has_attribute_local(&"mask".into());
     let is_child_transformed_group =
@@ -174,7 +178,7 @@ fn is_position_visually_unstable<E: Element>(node: &E, child: &E) -> bool {
     is_node_clipping || is_child_transformed_group
 }
 
-fn is_node_with_filter(node: &impl Element) -> bool {
+fn is_node_with_filter<'arena, E: Element<'arena>>(node: &E) -> bool {
     node.has_attribute_local(&"filter".into())
         || node
             .get_attribute_local(&"style".into())

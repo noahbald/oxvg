@@ -27,7 +27,7 @@ pub struct MinifyStyles {
     pub remove_unused: Option<RemoveUnused>,
 }
 
-impl<E: Element> Visitor<E> for MinifyStyles {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -41,7 +41,11 @@ impl<E: Element> Visitor<E> for MinifyStyles {
         PrepareOutcome::none
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         self.content(element, context);
         Self::attr(element);
         Ok(())
@@ -49,7 +53,11 @@ impl<E: Element> Visitor<E> for MinifyStyles {
 }
 
 impl MinifyStyles {
-    fn content<E: Element>(&self, element: &E, context: &mut Context<E>) {
+    fn content<'arena, E: Element<'arena>>(
+        &self,
+        element: &E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return;
@@ -97,14 +105,16 @@ impl MinifyStyles {
             log::debug!("removing element: all styles removed");
             element.remove();
         } else {
-            element.clone().set_text_content(css.code.into());
+            element
+                .clone()
+                .set_text_content(css.code.into(), &context.info.arena);
         }
     }
 
-    fn remove_unused_selectors<'a, E: Element>(
+    fn remove_unused_selectors<'arena, 'a, E: Element<'arena>>(
         &self,
         css: &mut CssRuleList<'a>,
-        context: &Context<E>,
+        context: &Context<'arena, '_, '_, E>,
     ) -> Option<CssRuleList<'a>> {
         if self.remove_unused.unwrap_or(DEFAULT_REMOVE_UNUSED) == RemoveUnused::False {
             return None;
@@ -118,7 +128,7 @@ impl MinifyStyles {
         options.take_matching_selectors(css, context)
     }
 
-    fn attr<E: Element>(element: &E) {
+    fn attr<'arena, E: Element<'arena>>(element: &E) {
         let style_name = "style".into();
         let Some(mut style) = element.get_attribute_node_local_mut(&style_name) else {
             return;

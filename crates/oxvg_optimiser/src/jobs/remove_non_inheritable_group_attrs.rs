@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveNonInheritableGroupAttrs(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveNonInheritableGroupAttrs {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -23,7 +23,11 @@ impl<E: Element> Visitor<E> for RemoveNonInheritableGroupAttrs {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         let name = element.qual_name();
         if name.prefix().is_some() || name.local_name().as_ref() != "g" {
             return Ok(());

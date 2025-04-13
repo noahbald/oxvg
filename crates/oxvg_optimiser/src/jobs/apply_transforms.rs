@@ -31,7 +31,7 @@ pub struct ApplyTransforms {
     pub apply_transforms_stroked: Option<bool>,
 }
 
-impl<E: Element> Visitor<E> for ApplyTransforms {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ApplyTransforms {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -42,7 +42,11 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let d_localname = "d".into();
         let Some(path_atom) = element.get_attribute_local(&d_localname) else {
             log::debug!("run: path has no d");
@@ -146,13 +150,13 @@ impl<E: Element> Visitor<E> for ApplyTransforms {
 
 impl ApplyTransforms {
     #[allow(clippy::float_cmp, clippy::cast_possible_truncation)]
-    fn apply_stroked(
+    fn apply_stroked<'arena, E: Element<'arena>>(
         &self,
         matrix: &[f64; 6],
         style: &ComputedStyles,
         stroke: &SVGPaint,
         stroke_width: Option<&DimensionPercentage<LengthValue>>,
-        element: &impl Element,
+        element: &E,
     ) -> bool {
         if matches!(stroke, SVGPaint::None) {
             return false;

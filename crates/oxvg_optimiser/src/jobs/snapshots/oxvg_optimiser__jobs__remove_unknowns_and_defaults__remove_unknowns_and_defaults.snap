@@ -2,7 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
 expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##\"<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:test=\"http://\" attr=\"val\" x=\"0\" y=\"10\" test:attr=\"val\" xml:space=\"preserve\">\n    <!-- preserve xmlns and unknown prefixes -->\n    <!-- preserves id'd attributes -->\n    <rect fill=\"#000\"/>\n    <rect fill=\"#000\" id=\"black-rect\"/>\n</svg>\"##),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" y="10" test:attr="val" xml:space="preserve">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:test="http://" y="10" test:attr="val" xml:space="preserve">
     <!-- preserve xmlns and unknown prefixes -->
     <!-- preserves id'd attributes -->
     <rect/>

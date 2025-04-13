@@ -31,7 +31,7 @@ impl Default for MergePaths {
     }
 }
 
-impl<E: Element> Visitor<E> for MergePaths {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -39,7 +39,11 @@ impl<E: Element> Visitor<E> for MergePaths {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let children = element.children();
         if children.len() <= 1 {
             return Ok(());

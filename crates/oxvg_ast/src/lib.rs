@@ -1,3 +1,5 @@
+//! OXVG uses an ast representation of an XML document for processing SVGs.
+#[cfg(feature = "visitor")]
 #[macro_use]
 extern crate bitflags;
 
@@ -16,9 +18,6 @@ pub mod node;
 
 #[cfg(feature = "visitor")]
 pub mod visitor;
-
-#[cfg(feature = "parse")]
-pub mod parse;
 
 #[cfg(feature = "serialize")]
 pub mod serialize;

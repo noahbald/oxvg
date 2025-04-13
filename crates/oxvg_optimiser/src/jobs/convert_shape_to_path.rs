@@ -3,7 +3,7 @@ use std::f64;
 use itertools::peek_nth;
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, Visitor},
+    visitor::{Context, Info, Visitor},
 };
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
@@ -17,10 +17,14 @@ pub struct ConvertShapeToPath {
     pub float_precision: Option<Precision>,
 }
 
-impl<E: Element> Visitor<E> for ConvertShapeToPath {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let element = &mut element.clone();
         let name = element.local_name();
 
@@ -31,12 +35,12 @@ impl<E: Element> Visitor<E> for ConvertShapeToPath {
         let convert_arcs = self.convert_arcs.unwrap_or(false);
 
         match name.as_ref() {
-            "rect" => Self::rect_to_path(element, path_options),
-            "line" => Self::line_to_path(element, path_options),
-            "polyline" => Self::poly_to_path(element, path_options, false),
-            "polygon" => Self::poly_to_path(element, path_options, true),
-            "circle" if convert_arcs => Self::circle_to_path(element, path_options),
-            "ellipse" if convert_arcs => Self::ellipse_to_path(element, path_options),
+            "rect" => Self::rect_to_path(element, path_options, context.info),
+            "line" => Self::line_to_path(element, path_options, context.info),
+            "polyline" => Self::poly_to_path(element, path_options, false, context.info),
+            "polygon" => Self::poly_to_path(element, path_options, true, context.info),
+            "circle" if convert_arcs => Self::circle_to_path(element, path_options, context.info),
+            "ellipse" if convert_arcs => Self::ellipse_to_path(element, path_options, context.info),
             _ => {}
         }
         Ok(())
@@ -44,7 +48,11 @@ impl<E: Element> Visitor<E> for ConvertShapeToPath {
 }
 
 impl ConvertShapeToPath {
-    fn rect_to_path(element: &mut impl Element, options: &convert::Options) {
+    fn rect_to_path<'arena, E: Element<'arena>>(
+        element: &mut E,
+        options: &convert::Options,
+        info: &Info<'arena, E>,
+    ) {
         if element.has_attribute_local(&"rx".into()) || element.has_attribute_local(&"ry".into()) {
             return;
         }
@@ -95,10 +103,14 @@ impl ConvertShapeToPath {
         element.remove_attribute_local(y_name);
         element.remove_attribute_local(width_name);
         element.remove_attribute_local(height_name);
-        element.set_local_name("path".into());
+        element.set_local_name("path".into(), &info.arena);
     }
 
-    fn line_to_path(element: &mut impl Element, options: &convert::Options) {
+    fn line_to_path<'arena, E: Element<'arena>>(
+        element: &mut E,
+        options: &convert::Options,
+        info: &Info<'arena, E>,
+    ) {
         let x1_name = &"x1".into();
         let y1_name = &"y1".into();
         let x2_name = &"x2".into();
@@ -132,10 +144,15 @@ impl ConvertShapeToPath {
         element.remove_attribute_local(y1_name);
         element.remove_attribute_local(x2_name);
         element.remove_attribute_local(y2_name);
-        element.set_local_name("path".into());
+        element.set_local_name("path".into(), &info.arena);
     }
 
-    fn poly_to_path(element: &mut impl Element, options: &convert::Options, is_polygon: bool) {
+    fn poly_to_path<'arena, E: Element<'arena>>(
+        element: &mut E,
+        options: &convert::Options,
+        is_polygon: bool,
+        info: &Info<'arena, E>,
+    ) {
         let points_name = &"points".into();
         let Some(coords) = element
             .get_attribute_local(points_name)
@@ -178,11 +195,15 @@ impl ConvertShapeToPath {
 
         element.set_attribute_local("d".into(), path.to_string().into());
         element.remove_attribute_local(points_name);
-        element.set_local_name("path".into());
+        element.set_local_name("path".into(), &info.arena);
     }
 
     #[allow(clippy::similar_names)]
-    fn circle_to_path(element: &mut impl Element, options: &convert::Options) {
+    fn circle_to_path<'arena, E: Element<'arena>>(
+        element: &mut E,
+        options: &convert::Options,
+        info: &Info<'arena, E>,
+    ) {
         let cx_name = &"cx".into();
         let cy_name = &"cy".into();
         let r_name = &"r".into();
@@ -212,11 +233,15 @@ impl ConvertShapeToPath {
         element.remove_attribute_local(cx_name);
         element.remove_attribute_local(cy_name);
         element.remove_attribute_local(r_name);
-        element.set_local_name("path".into());
+        element.set_local_name("path".into(), &info.arena);
     }
 
     #[allow(clippy::similar_names)]
-    fn ellipse_to_path(element: &mut impl Element, options: &convert::Options) {
+    fn ellipse_to_path<'arena, E: Element<'arena>>(
+        element: &mut E,
+        options: &convert::Options,
+        info: &Info<'arena, E>,
+    ) {
         let cx_name = &"cx".into();
         let cy_name = &"cy".into();
         let rx_name = &"rx".into();
@@ -252,7 +277,7 @@ impl ConvertShapeToPath {
         element.remove_attribute_local(cy_name);
         element.remove_attribute_local(rx_name);
         element.remove_attribute_local(ry_name);
-        element.set_local_name("path".into());
+        element.set_local_name("path".into(), &info.arena);
     }
 }
 

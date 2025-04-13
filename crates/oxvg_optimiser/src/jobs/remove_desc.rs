@@ -11,17 +11,21 @@ pub struct RemoveDesc {
     pub remove_any: Option<bool>,
 }
 
-impl<E: Element> Visitor<E> for RemoveDesc {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDesc {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_some() || element.local_name().as_ref() != "desc" {
             return Ok(());
         }
 
         if self.remove_any.unwrap_or(false)
             || element.is_empty()
-            || element.any_child(|n| {
+            || element.child_nodes_iter().any(|n| {
                 n.node_type() == node::Type::Text
                     && n.text_content()
                         .is_some_and(|s| STANDARD_DESCS.is_match(&s))

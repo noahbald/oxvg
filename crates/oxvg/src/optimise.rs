@@ -9,7 +9,11 @@ use std::{
 use anyhow::anyhow;
 use ignore::{WalkBuilder, WalkState};
 use oxvg_ast::{
-    implementations::markup5ever::{Element5Ever, Node5Ever},
+    implementations::{
+        markup5ever::{parse, parse_file},
+        shared::{Arena, Element, Ref},
+    },
+    serialize::{Indent, Node as _, Options},
     visitor::Info,
 };
 use oxvg_optimiser::Jobs;
@@ -48,7 +52,7 @@ pub struct Optimise {
 }
 
 impl RunCommand for Optimise {
-    fn run(&self, config: Config) -> anyhow::Result<()> {
+    fn run(&self, config: Config<'static, Element<'static>>) -> anyhow::Result<()> {
         let config = self.handle_config(config)?;
         let Some(config) = config else {
             return Ok(());
@@ -62,22 +66,29 @@ impl RunCommand for Optimise {
 }
 
 impl Optimise {
-    fn handle_out<W: Write>(dom: &Node5Ever, wr: W) -> anyhow::Result<()> {
-        use oxvg_ast::serialize::Node;
-
-        dom.serialize_into(wr)
+    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<usize> {
+        Ok(dom.serialize_into(
+            wr,
+            Options {
+                indent: Indent::None,
+                ..Options::default()
+            },
+        )?)
     }
 
-    fn handle_stdin(&self, jobs: Jobs<Element5Ever>) -> anyhow::Result<()> {
-        use oxvg_ast::parse::Node;
-
-        let mut string = String::new();
-        std::io::stdin().read_to_string(&mut string)?;
-        let dom = Node5Ever::parse(&string)?;
+    fn handle_stdin<'arena>(
+        &self,
+        jobs: Jobs<'arena, Element<'arena>>,
+        arena: Arena<'arena>,
+    ) -> anyhow::Result<()> {
+        let mut source = String::new();
+        std::io::stdin().read_to_string(&mut source)?;
+        let dom = parse(&source, arena);
 
         let info = Info {
             path: None,
             multipass_count: 0,
+            arena,
         };
         jobs.run(&dom, &info)?;
 
@@ -90,32 +101,32 @@ impl Optimise {
                 eprintln!(
                     "Cannot use dir as output for stdin input. Printing result to stdout instead"
                 );
-                Self::handle_out(&dom, std::io::stdout())?;
+                Self::handle_out(dom, std::io::stdout())?;
             } else {
-                Self::handle_out(&dom, file)?;
+                Self::handle_out(dom, file)?;
             }
         } else {
-            Self::handle_out(&dom, std::io::stdout())?;
+            Self::handle_out(dom, std::io::stdout())?;
         }
 
         Ok(())
     }
 
-    fn handle_file(
-        jobs: &Jobs<Element5Ever>,
+    fn handle_file<'arena>(
+        jobs: &Jobs<'arena, Element<'arena>>,
         path: &PathBuf,
         output: Option<&PathBuf>,
+        arena: Arena<'arena>,
     ) -> anyhow::Result<()> {
-        use oxvg_ast::parse::Node;
-
         let file = std::fs::File::open(path)?;
         let input_size = file.metadata()?.len() as f64 / 1000.0;
-        let dom = Node5Ever::parse_file(&file)?;
+        let dom = parse_file(path, arena)?;
         drop(file);
 
         let info = Info {
             path: Some(path.clone()),
             multipass_count: 0,
+            arena,
         };
         jobs.clone().run(&dom, &info)?;
 
@@ -124,7 +135,7 @@ impl Optimise {
                 std::fs::create_dir_all(parent)?;
             }
             let file = std::fs::File::create(output_path)?;
-            Self::handle_out(&dom, file)?;
+            Self::handle_out(dom, file)?;
 
             let output_size = output_path.metadata()?.len() as f64 / 1000.0;
             let change = 100.0 * (input_size - output_size) / input_size;
@@ -136,7 +147,7 @@ impl Optimise {
         } else {
             // Print to stderr, so that stdout is clean for writing
             eprintln!("\n\n\x1b[32m{}\x1b[0m", path.to_string_lossy());
-            Self::handle_out(&dom, std::io::stdout())
+            Self::handle_out(dom, std::io::stdout()).map(|_| ())
         }
     }
 
@@ -160,7 +171,8 @@ impl Optimise {
             .build_parallel()
             .run(|| {
                 Box::new(move |path| {
-                    let jobs = LOADED_JOBS.with_borrow(Clone::clone);
+                    let arena = typed_arena::Arena::new();
+                    let jobs = LOADED_JOBS.with_borrow(Jobs::clone_for_lifetime);
                     let Ok(path) = path else {
                         return WalkState::Continue;
                     };
@@ -174,7 +186,8 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) = Self::handle_file(&jobs, &path, output_path.as_ref()) {
+                    if let Err(err) = Self::handle_file(&jobs, &path, output_path.as_ref(), &arena)
+                    {
                         eprintln!("{err}");
                     };
                     WalkState::Continue
@@ -190,7 +203,9 @@ impl Optimise {
                 .first()
                 .is_none_or(|path| path == &PathBuf::from_str(".").unwrap())
         {
-            return LOADED_JOBS.with(|jobs| self.handle_stdin(jobs.take()));
+            let arena = typed_arena::Arena::new();
+            return LOADED_JOBS
+                .with(|jobs| self.handle_stdin(jobs.take().clone_for_lifetime(), &arena));
         }
         if self.paths.is_empty() {
             return Err(anyhow!(
@@ -204,7 +219,10 @@ impl Optimise {
         Ok(())
     }
 
-    fn handle_config(&self, config: Config) -> anyhow::Result<Option<Config>> {
+    fn handle_config<'arena, E: oxvg_ast::element::Element<'arena>>(
+        &self,
+        config: Config<'arena, E>,
+    ) -> anyhow::Result<Option<Config<'arena, E>>> {
         if let Some(config_paths) = &self.config {
             if let Some(config_path) = config_paths.first() {
                 log::debug!("using specified config");
@@ -238,5 +256,5 @@ impl Optimise {
 }
 
 thread_local! {
-    static LOADED_JOBS: RefCell<Jobs<Element5Ever>> = RefCell::new(Jobs::default());
+    static LOADED_JOBS: RefCell<Jobs<'static, Element<'static>>> = RefCell::new(Jobs::default());
 }

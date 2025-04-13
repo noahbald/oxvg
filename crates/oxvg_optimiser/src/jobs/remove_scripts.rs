@@ -3,6 +3,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
+    serialize::Node as _,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::EVENT_ATTRS;
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct RemoveScripts(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveScripts {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -22,8 +23,13 @@ impl<E: Element> Visitor<E> for RemoveScripts {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if element.prefix().is_none() && element.local_name().as_ref() == "script" {
+            log::debug!("removing script");
             element.remove();
             return Ok(());
         }
@@ -38,7 +44,7 @@ impl<E: Element> Visitor<E> for RemoveScripts {
     fn exit_element(
         &mut self,
         element: &mut E,
-        _context: &mut Context<E>,
+        _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if element.prefix().is_some() && element.local_name().as_ref() != "a" {
             return Ok(());

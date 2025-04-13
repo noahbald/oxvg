@@ -30,10 +30,14 @@ impl Default for CleanupListOfValues {
     }
 }
 
-impl<E: Element> Visitor<E> for CleanupListOfValues {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupListOfValues {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         CleanupValues::element(self, element, context)
     }
 }

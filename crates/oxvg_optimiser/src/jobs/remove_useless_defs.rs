@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveUselessDefs(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveUselessDefs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessDefs {
     type Error = String;
 
     fn prepare(
@@ -26,7 +26,11 @@ impl<E: Element> Visitor<E> for RemoveUselessDefs {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());
@@ -52,8 +56,8 @@ impl<E: Element> Visitor<E> for RemoveUselessDefs {
     }
 }
 
-fn collect_useful_nodes<E: Element>(element: &E, useful_nodes: &mut Vec<E::Child>) {
-    element.for_each_element_child(|child| {
+fn collect_useful_nodes<'arena, E: Element<'arena>>(element: &E, useful_nodes: &mut Vec<E::Child>) {
+    element.child_elements_iter().for_each(|child| {
         if child.prefix().is_none() && child.local_name().as_ref() == "style"
             || child.get_attribute_local(&"id".into()).is_some()
         {

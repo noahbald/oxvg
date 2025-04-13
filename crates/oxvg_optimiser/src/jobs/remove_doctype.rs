@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDoctype(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveDoctype {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDoctype {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -20,7 +20,7 @@ impl<E: Element> Visitor<E> for RemoveDoctype {
         }
     }
 
-    fn doctype(&mut self, doctype: &mut <E as Node>::Child) -> Result<(), Self::Error> {
+    fn doctype(&mut self, doctype: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         doctype.remove();
         Ok(())
     }

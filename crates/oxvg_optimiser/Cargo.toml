@@ -14,7 +14,6 @@ oxvg_ast = { workspace = true, features = [
   "selectors",
   "visitor",
   "style",
-  "parse",
   "serialize",
 ] }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
@@ -32,6 +31,7 @@ log = { workspace = true }
 parcel_selectors = { version = "0.28" }
 phf = { workspace = true }
 regex = { workspace = true }
+typed-arena = { workspace = true }
 urlencoding = "2.1"
 
 [dev-dependencies]

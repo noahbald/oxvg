@@ -14,10 +14,14 @@ pub struct RemoveEmptyText {
     pub tref: Option<bool>,
 }
 
-impl<E: Element> Visitor<E> for RemoveEmptyText {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyText {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         let name = element.qual_name().formatter().to_string();
 
         if self.text.unwrap_or(true) && &name == "text" && element.is_empty() {

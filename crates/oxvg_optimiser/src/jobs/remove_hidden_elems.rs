@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
 
 use derive_where::derive_where;
 use lightningcss::{
@@ -44,23 +47,24 @@ pub struct Options {
 
 #[derive(Clone)]
 #[derive_where(Default, Debug)]
-pub struct RemoveHiddenElems<E: Element> {
+pub struct RemoveHiddenElems<'arena, E: Element<'arena>> {
     options: Options,
-    data: Data<E>,
+    data: Data<'arena, E>,
 }
 
 #[derive(Clone)]
 #[derive_where(Default, Debug)]
-struct Data<E: Element> {
+struct Data<'arena, E: Element<'arena>> {
     opacity_zero: bool,
     non_rendered_nodes: HashSet<E>,
     removed_def_ids: HashSet<String>,
     all_defs: HashSet<E>,
     all_references: HashSet<String>,
     references_by_id: HashMap<String, Vec<(E, E)>>,
+    marker: PhantomData<&'arena ()>,
 }
 
-impl<E: Element> Visitor<E> for Data<E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
@@ -74,7 +78,11 @@ impl<E: Element> Visitor<E> for Data<E> {
         !NON_RENDERING.contains(&name)
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         if !context.flags.contains(ContextFlags::use_style) {
             self.non_rendered_nodes.insert(element.clone());
             context.flags.visit_skip();
@@ -106,7 +114,7 @@ impl<E: Element> Visitor<E> for Data<E> {
     }
 }
 
-impl<E: Element> Data<E> {
+impl<'arena, E: Element<'arena>> Data<'arena, E> {
     fn remove_element(&mut self, element: &E) {
         if let Some(parent) = Element::parent_element(element) {
             if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
@@ -114,16 +122,18 @@ impl<E: Element> Data<E> {
                     self.removed_def_ids.insert(id.to_string());
                 }
                 if parent.child_element_count() == 1 {
+                    log::debug!("data: removing parent");
                     parent.remove();
                     return;
                 }
             }
         }
+        log::debug!("data: removing element: {element:?}");
         element.remove();
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
@@ -132,15 +142,26 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
         PrepareOutcome::use_style
     }
 
-    fn document(&mut self, document: &mut E, context: &Context<E>) -> Result<(), Self::Error> {
-        self.data.start(document, context.info).map(|_| ())
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        log::debug!("collecting data");
+        self.data.start(document, context.info)?;
+        log::debug!("data collected");
+        Ok(())
     }
 
     fn use_style(&mut self, _element: &E) -> bool {
         true
     }
 
-    fn element(&mut self, element: &mut E, context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
@@ -155,6 +176,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
             || self.is_hidden_path(element, &name, context)
             || self.is_hidden_poly(element, &name)
         {
+            log::debug!("RemoveHiddenElems: removing hidden");
             self.data.remove_element(element);
             return Ok(());
         }
@@ -178,11 +200,12 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
     fn exit_document(
         &mut self,
         _document: &mut E,
-        context: &Context<E>,
+        context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         for id in &self.data.removed_def_ids {
             if let Some(refs) = self.data.references_by_id.get(id) {
                 for (node, _parent_node) in refs {
+                    log::debug!("RemoveHiddenElems: remove referenced by id");
                     node.remove();
                 }
             }
@@ -194,6 +217,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
         if !deoptimized {
             for non_rendered_node in &self.data.non_rendered_nodes {
                 if self.can_remove_non_rendering_node(non_rendered_node) {
+                    log::debug!("RemoveHiddenElems: remove non-rendered node");
                     non_rendered_node.remove();
                 }
             }
@@ -201,6 +225,7 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
 
         for node in &self.data.all_defs {
             if node.is_empty() {
+                log::debug!("RemoveHiddenElems: remove def");
                 node.remove();
             }
         }
@@ -209,14 +234,26 @@ impl<E: Element> Visitor<E> for RemoveHiddenElems<E> {
     }
 }
 
-impl<E: Element> RemoveHiddenElems<E> {
+impl<'arena, E: Element<'arena>> RemoveHiddenElems<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> RemoveHiddenElems<'a, E::Lifetimed<'a>> {
+        RemoveHiddenElems {
+            options: self.options.clone(),
+            data: Data {
+                opacity_zero: self.data.opacity_zero.clone(),
+                ..Data::default()
+            },
+        }
+    }
+
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
         if let Some(id) = element.get_attribute_local(&"id".into()) {
             if self.data.all_references.contains(id.as_ref()) {
                 return false;
             }
         }
-        element.all_children(|e| E::new(e).is_none_or(|e| self.can_remove_non_rendering_node(&e)))
+        element
+            .child_nodes_iter()
+            .all(|e| E::new(e).is_none_or(|e| self.can_remove_non_rendering_node(&e)))
     }
 
     fn ref_element(&mut self, element: &E, parent: &E, name: &str) {
@@ -243,7 +280,12 @@ impl<E: Element> RemoveHiddenElems<E> {
         }
     }
 
-    fn is_hidden_style(&self, element: &E, name: &str, context: &Context<E>) -> bool {
+    fn is_hidden_style(
+        &self,
+        element: &E,
+        name: &str,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> bool {
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);
         if self.options.is_hidden.unwrap_or(true) {
@@ -293,6 +335,7 @@ impl<E: Element> RemoveHiddenElems<E> {
                 .get_attribute_local(&"r".into())
                 .is_some_and(|v| v.as_ref() == "0")
         {
+            log::debug!("RemoveHiddenElement: removing hidden ellipse");
             element.remove();
             return true;
         }
@@ -378,7 +421,12 @@ impl<E: Element> RemoveHiddenElems<E> {
         false
     }
 
-    fn is_hidden_path(&self, element: &E, name: &str, context: &Context<E>) -> bool {
+    fn is_hidden_path(
+        &self,
+        element: &E,
+        name: &str,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> bool {
         let computed_styles = &context.computed_styles;
         get_computed_styles_factory!(computed_styles);
         if self.options.path_empty_d.unwrap_or(true) && name == "path" {
@@ -416,7 +464,7 @@ impl<E: Element> RemoveHiddenElems<E> {
     }
 }
 
-impl<'de, E: Element> Deserialize<'de> for RemoveHiddenElems<E> {
+impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for RemoveHiddenElems<'arena, E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -433,7 +481,7 @@ impl<'de, E: Element> Deserialize<'de> for RemoveHiddenElems<E> {
     }
 }
 
-impl<E: Element> Serialize for RemoveHiddenElems<E> {
+impl<'arena, E: Element<'arena>> Serialize for RemoveHiddenElems<'arena, E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

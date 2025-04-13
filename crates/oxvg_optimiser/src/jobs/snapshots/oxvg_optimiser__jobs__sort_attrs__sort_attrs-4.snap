@@ -2,7 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/sort_attrs.rs
 expression: "test_config(r#\"{ \"sortAttrs\": { \"xmlnsOrder\": \"alphabetical\" } }\"#,\nSome(r#\"<svg foo=\"bar\" xmlns=\"http://www.w3.org/2000/svg\" height=\"10\" baz=\"quux\" width=\"10\" hello=\"world\">\n    <!-- optionally sort xmlns attributes alphabetically -->\n    <rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" stroke-width=\"1\" stroke-linejoin=\"round\" fill=\"red\" stroke=\"orange\" xmlns=\"http://www.w3.org/2000/svg\"/>\n    test\n</svg>\"#),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" baz="quux" foo="bar" hello="world">
+<svg width="10" height="10" baz="quux" foo="bar" hello="world" xmlns="http://www.w3.org/2000/svg">
     <!-- optionally sort xmlns attributes alphabetically -->
     <rect width="100" height="100" x="0" y="0" fill="red" stroke="orange" stroke-linejoin="round" stroke-width="1"/>
     test

@@ -23,10 +23,14 @@ impl Default for RemoveElementsByAttr {
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveElementsByAttr {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveElementsByAttr {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if !self.id.is_empty() {
             if let Some(id) = element.get_attribute_local(&"id".into()) {
                 let id: &str = id.as_ref();

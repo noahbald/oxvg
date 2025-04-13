@@ -1,3 +1,4 @@
+//! Style and presentation attribute types.
 use cssparser_lightningcss::{match_ignore_ascii_case, ParseError, Parser, ParserInput, Token};
 use itertools::Itertools;
 use lightningcss::{
@@ -47,12 +48,15 @@ use crate::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    selectors::Selector,
+    selectors::{SelectElement, Selector},
 };
 
 #[derive(Clone, PartialEq, Debug)]
+/// An unparsed presentation attribute
 pub struct UnparsedPresentationAttr<'i> {
+    /// The presentation attribute's ID.
     pub presentation_attr_id: PresentationAttrId<'i>,
+    /// The value of the attribute.
     pub value: TokenList<'i>,
 }
 
@@ -77,8 +81,11 @@ impl<'i> UnparsedPresentationAttr<'i> {
 }
 
 #[derive(Clone, PartialEq, Debug)]
+/// An unknown presentation attribute
 pub struct UnknownPresentationAttr<'i> {
+    /// The name of the attribute.
     pub name: Ident<'i>,
+    /// The value of the attribute.
     pub value: TokenList<'i>,
 }
 
@@ -105,6 +112,7 @@ macro_rules! define_presentation_attrs {
         )+
     ) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        /// A presentation attribute ID.
         pub enum PresentationAttrId<'i> {
             $(
                 #[doc=concat!("The `", $name, "` attribute.")]
@@ -115,6 +123,7 @@ macro_rules! define_presentation_attrs {
         }
 
         impl<'i> PresentationAttrId<'i> {
+            /// Gets the name of the property as a string
             pub fn name(&self) -> &str {
                 match self {
                     $(
@@ -124,6 +133,7 @@ macro_rules! define_presentation_attrs {
                 }
             }
 
+            /// Whether a style is also applied to the element's children
             pub fn inheritable(&self) -> bool {
                 macro_rules! inherit {
                     ($_inherit:ident) => { $_inherit };
@@ -193,6 +203,7 @@ macro_rules! define_presentation_attrs {
         }
 
         #[derive(Debug, Clone, PartialEq)]
+        /// A presentation attribute
         pub enum PresentationAttr<'i> {
             $(
                 #[doc=concat!("The `", $name, "` attribute.")]
@@ -524,15 +535,26 @@ impl ToCss for BaselineShift {
 
 #[derive(Debug, PartialEq, Clone)]
 /// The `dominant-baseline` attribute specifies the dominant baseline, which is the baseline used to align the box's text and inline-level contents.
+///
+/// [MDN | dominant-baseline](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/dominant-baseline)
 pub enum DominantBaseline {
+    /// The computed value depends on the `writing-mode` attribute
     Auto,
+    /// Uses the bottom of the box
     TextBottom,
+    /// Uses the alphabetic baseline
     Alphabetic,
+    /// Uses the ideographic baseline
     Ideographic,
+    /// Uses the middle baseline
     Middle,
+    /// Uses the central baseline
     Central,
+    /// Uses the mathematical baseline
     Mathematical,
+    /// Uses the hanging baseline
     Hanging,
+    /// Uses the top of the box
     TextTop,
 }
 
@@ -576,6 +598,9 @@ impl ToCss for DominantBaseline {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+/// Indicates whether the text is to be rendered using variations of the font's glyphs
+///
+/// [MDN | font-variant](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/font-variant)
 pub struct FontVariant<'i>(TokenList<'i>);
 
 impl<'i> Parse<'i> for FontVariant<'i> {
@@ -635,6 +660,9 @@ impl ToCss for Paint {
 }
 
 #[derive(Debug, Hash, PartialEq, Clone)]
+/// Controls the order in which the steps of painting are done
+///
+/// [MDN | paint-order](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/paint-order)
 pub struct PaintOrder(SmallVec<[Paint; 3]>);
 
 impl<'i> Parse<'i> for PaintOrder {
@@ -680,16 +708,37 @@ impl PaintOrder {
 }
 
 #[derive(Debug, Hash, Clone, PartialEq)]
+/// Determines whether or when an element is the target of a mouse event
+///
+/// [MDN | pointer-events](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/pointer-events)
 pub enum PointerEvents {
+    /// The element can only be the target if the mouse is over the element's bounding box
     BoundingBox,
+    /// The element can only be the target if it's computed `visibility` style is `visible`
+    /// and the mouse is over a painted `fill` or `stroke` portion of the element.
+    ///
+    /// This is equivalent to using `auto`
     VisiblePainted,
+    /// The element can only be the target if it's computed `visibility` style is `visible`
+    /// and the mouse is over a painted `fill` portion of the element.
     VisibleFill,
+    /// The element can only be the target if it's computed `visibility` style is `visible`
+    /// and the mouse is over a painted `stroke` portion of the element.
     VisibleStroke,
+    /// The element can only be the target if it's computed `visibility`.
     Visible,
+    /// The element can only the the target if the mouse is over a painted `fill` or `stroke`
+    /// portion of the element.
     Painted,
+    /// The element can only the the target if the mouse is over a painted `fill` portion of
+    /// the element.
     Fill,
+    /// The element can only the the target if the mouse is over a painted `stroke` portion
+    /// of the element.
     Stroke,
+    /// The element can be the target regardless of `visibility`, `fill`, or `stroke`
     All,
+    /// The element can never be the target
     None,
 }
 
@@ -735,9 +784,15 @@ impl ToCss for PointerEvents {
 }
 
 #[derive(Debug, Hash, Clone, PartialEq)]
+/// Used to align text.
+///
+/// [MDN | text-anchor](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/text-anchor)
 pub enum TextAnchor {
+    /// Render characters so that the start of text is rendered at the element's position.
     Start,
+    /// Render characters so that the middle of the text is rendered at the element's position.
     Middle,
+    /// Render characters so that the end of the text is rendered at the element's position.
     End,
 }
 
@@ -769,13 +824,18 @@ impl ToCss for TextAnchor {
 }
 
 #[derive(Debug)]
+/// Precision options use for rounding different types
 pub struct Precision {
+    /// The precision to use when rounding translations
     pub float: i32,
+    /// The precision to use when rounding degrees
     pub deg: i32,
+    /// The precision to use when rounding transforms
     pub transform: i32,
 }
 
 impl Precision {
+    /// Rounds a number to a given precision
     fn round_arg(precision: i32, data: &mut f32) {
         *data = if (1..20).contains(&precision) {
             Self::smart_round(precision, *data)
@@ -784,7 +844,8 @@ impl Precision {
         }
     }
 
-    pub fn smart_round(precision: i32, data: f32) -> f32 {
+    /// Rounds a number to a given precision
+    fn smart_round(precision: i32, data: f32) -> f32 {
         let tolerance = Self::to_fixed(0.1_f32.powi(precision), precision);
         if Self::to_fixed(data, precision) == data {
             data
@@ -805,6 +866,9 @@ impl Precision {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// A list of transform definitions applied to an element and it's children.
+///
+/// [MDN | transform](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/transform)
 pub struct SVGTransformList(pub Vec<SVGTransform>);
 
 impl SVGTransformList {
@@ -861,6 +925,7 @@ impl SVGTransformList {
         }
     }
 
+    /// Converts the transform to a 3D matrix.
     pub fn to_matrix(&self) -> Option<Matrix3d<CSSNumber>> {
         let mut matrix = Matrix3d::identity();
         for transform in &self.0 {
@@ -878,6 +943,7 @@ impl SVGTransformList {
         Some(matrix)
     }
 
+    /// Attempts to convert the matrix to 2D.
     pub fn to_matrix_2d(&self) -> Option<Matrix<CSSNumber>> {
         self.to_matrix().and_then(|m| m.to_matrix2d())
     }
@@ -899,17 +965,28 @@ impl TryFrom<&TransformList> for SVGTransformList {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// A transform applied to an element and it's children
+///
+/// [MDN | transform](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/transform)
 pub enum SVGTransform {
+    /// A transformation as the matrix of six values
     Matrix(Matrix<f32>),
+    /// A positional transformation in an `x` and/or `y` direction
     Translate(f32, f32),
+    /// A size transformation in an `x` and/or `y` direction
     Scale(f32, f32),
+    /// A rotational transform by `a` degrees around an `x` and `y` origin
     Rotate(f32, f32, f32),
+    /// A skew transform in the `x` direction
     SkewX(f32),
+    /// A skew transform in the `y` direction
     SkewY(f32),
+    /// A transform provided in a CSS format
     CssTransform(Transform),
 }
 
 impl SVGTransform {
+    /// Round the arguments of the transform to a given precision
     pub fn round(&mut self, precision: &Precision) {
         match self {
             SVGTransform::Translate(x, y) => {
@@ -951,6 +1028,7 @@ impl SVGTransform {
             .for_each(|transform| transform.round(precision));
     }
 
+    /// Converts a matrix to the shortest form of a transform
     pub fn matrix_to_transform(&self, precision: &Precision) -> Vec<Self> {
         let mut shortest = vec![self.clone()];
         let Self::Matrix(m) = self else {
@@ -1377,6 +1455,9 @@ impl ToCss for SVGTransformList {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// The vector effect to use when drawing an object
+///
+/// [MDN | vector-effect](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/vector-effect)
 pub enum VectorEffect {
     /// This value specifies that no vector effect shall be applied
     None,
@@ -1422,9 +1503,15 @@ impl ToCss for VectorEffect {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Specifies the mode for a text element in SVG
+///
+/// [MDN | writing-mode](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/writing-mode)
 pub enum WritingMode {
+    /// A top-to-bottom block flow direction.
     HorizontalTb,
+    /// A right-to-left block flow direction.
     VerticalRl,
+    /// A left-to-right block flow direction.
     VerticalLr,
 }
 
@@ -1456,39 +1543,56 @@ impl ToCss for WritingMode {
 }
 
 #[derive(Default, Debug)]
+/// A mode in which a style can be applied to an element
 pub enum Mode {
     #[default]
+    /// The application of a style based on an attribute, style attribute, or static stylesheet selector
     Static,
+    /// The application of a style based on an at-rule or psuedo-class
     Dynamic,
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
+/// A style id for a style applied to an element
 pub enum Id<'i> {
+    /// A CSS property id
     CSS(PropertyId<'i>),
+    /// A presentation attribute id
     Attr(PresentationAttrId<'i>),
 }
 
 #[derive(Debug, Clone)]
+/// A style from either an attribute, style attribute, or static stylesheet selector
 pub enum Static<'i> {
+    /// A style from a style attribute or static stylesheet selector
     Css(Property<'i>),
+    /// A style from an attribute
     Attr(PresentationAttr<'i>),
 }
 
 #[derive(Debug, Clone)]
+/// A style that can be applied to an element, through either an attribute, style attribute, or stylesheet
 pub enum Style<'i> {
-    /// The style is declared directly through an attribute, style attribute, or stylesheet
+    /// The style is declared directly through an attribute, style attribute, or static stylesheet selector
     Static(Static<'i>),
     /// The style is declared within a pseudo-class or at-rule
     Dynamic(Property<'i>),
 }
 
 #[derive(Default, Debug)]
+/// A collection of the different styles and how they're applied to a given element
 pub struct ComputedStyles<'i> {
+    /// Inherited styles (e.g. `p`'s color from `<div style="color: red;"><p /></div>`)
     pub inherited: HashMap<Id<'i>, Style<'i>>,
+    /// Styles (e.g. `<style>p { color: red }</style>`)
     pub declarations: HashMap<PropertyId<'i>, (u32, Style<'i>)>,
+    /// Presentation attributes (e.g. `<p color="red" />`)
     pub attr: HashMap<PresentationAttrId<'i>, Style<'i>>,
+    /// Inline styles (e.g. `<p style="color: red;" />`)
     pub inline: HashMap<PropertyId<'i>, Style<'i>>,
+    /// Important styles (e.g. `<style>p { color: red !important; }</style>`)
     pub important_declarations: HashMap<PropertyId<'i>, (u32, Style<'i>)>,
+    /// Important inline styles (e.g. `<p style="color: red !important;" />`)
     pub inline_important: HashMap<PropertyId<'i>, Style<'i>>,
 }
 
@@ -1497,7 +1601,7 @@ pub struct ComputedStyles<'i> {
 ///
 /// # Panics
 /// If the internal selector is invalid
-pub fn root<E: Element>(root: &E) -> String {
+pub fn root<'arena, E: Element<'arena>>(root: &E) -> String {
     let output = root
         .select("style")
         .expect("`style` should be a valid selector");
@@ -1509,12 +1613,13 @@ pub fn root<E: Element>(root: &E) -> String {
 }
 
 #[derive(Debug)]
-pub struct ElementData<E: Element> {
+/// Contains a collection of style data associated with an element
+pub struct ElementData<'arena, E: Element<'arena>> {
     inline_style: Option<E::Atom>,
-    presentation_attrs: Vec<(<<E as Element>::Name as Name>::LocalName, E::Atom)>,
+    presentation_attrs: Vec<(<<E as Element<'arena>>::Name as Name>::LocalName, E::Atom)>,
 }
 
-impl<E: Element> Default for ElementData<E> {
+impl<'arena, E: Element<'arena>> Default for ElementData<'arena, E> {
     fn default() -> Self {
         Self {
             inline_style: None,
@@ -1523,20 +1628,25 @@ impl<E: Element> Default for ElementData<E> {
     }
 }
 
-impl<E: Element> ElementData<E> {
+impl<'arena, E: Element<'arena>> ElementData<'arena, E> {
+    /// Create's a map of associated data for every descendant of the given element
     pub fn new(root: &E) -> HashMap<E, Self> {
         let mut styles = HashMap::new();
         for element in root.breadth_first() {
+            let inline_style = element
+                .get_attribute_local(&"style".into())
+                .map(|attr| attr.clone());
+            let presentation_attrs = element
+                .attributes()
+                .into_iter()
+                .filter(|a| a.prefix().is_none())
+                .map(|a| (a.local_name().clone(), a.value().clone()))
+                .collect();
             styles.insert(
-                element.clone(),
+                element,
                 ElementData {
-                    inline_style: element.get_attribute_local(&"style".into()).clone(),
-                    presentation_attrs: element
-                        .attributes()
-                        .into_iter()
-                        .filter(|a| a.prefix().is_none())
-                        .map(|a| (a.local_name().clone(), a.value().clone()))
-                        .collect(),
+                    inline_style,
+                    presentation_attrs,
                 },
             );
         }
@@ -1547,11 +1657,11 @@ impl<E: Element> ElementData<E> {
 
 impl<'i> ComputedStyles<'i> {
     /// Include all sources of styles
-    pub fn with_all<E: Element>(
+    pub fn with_all<'arena, E: Element<'arena>>(
         self,
         element: &E,
         styles: &Option<StyleSheet<'i, '_>>,
-        element_styles: &'i HashMap<E, ElementData<E>>,
+        element_styles: &'i HashMap<E, ElementData<'arena, E>>,
     ) -> ComputedStyles<'i> {
         self.with_inline_style(element, element_styles)
             .with_attribute(element, element_styles)
@@ -1560,11 +1670,11 @@ impl<'i> ComputedStyles<'i> {
     }
 
     /// Include the computed styles of a parent element
-    pub fn with_inherited<E: Element>(
+    pub fn with_inherited<'arena, E: Element<'arena>>(
         mut self,
         element: &E,
         styles: &Option<StyleSheet<'i, '_>>,
-        element_styles: &'i HashMap<E, ElementData<E>>,
+        element_styles: &'i HashMap<E, ElementData<'arena, E>>,
     ) -> ComputedStyles<'i> {
         let Some(parent) = Element::parent_element(element) else {
             return self;
@@ -1604,7 +1714,7 @@ impl<'i> ComputedStyles<'i> {
     }
 
     /// Include styles from the `style` attribute
-    pub fn with_style<E: Element>(
+    pub fn with_style<'arena, E: Element<'arena>>(
         mut self,
         element: &E,
         styles: &Option<StyleSheet<'i, '_>>,
@@ -1621,7 +1731,7 @@ impl<'i> ComputedStyles<'i> {
     }
 
     /// Include a style within a style scope
-    fn with_nested_style<E: Element>(
+    fn with_nested_style<'arena, E: Element<'arena>>(
         &mut self,
         element: &E,
         style: &rules::CssRule<'i>,
@@ -1635,10 +1745,10 @@ impl<'i> ComputedStyles<'i> {
                     return;
                 };
                 let selector = format!("{selector}{this_selector}");
-                let Ok(select) = Selector::new(selector.as_str()) else {
+                let Ok(select) = Selector::new::<E>(selector.as_str()) else {
                     return;
                 };
-                if !select.matches_naive(element) {
+                if !select.matches_naive(&SelectElement::new(element.clone())) {
                     return;
                 };
                 let specificity = specificity + s.specificity();
@@ -1655,10 +1765,10 @@ impl<'i> ComputedStyles<'i> {
     }
 
     /// Include styles from a presentable attribute
-    fn with_attribute<E: Element>(
+    fn with_attribute<'arena, E: Element<'arena>>(
         self,
         element: &E,
-        element_styles: &'i HashMap<E, ElementData<E>>,
+        element_styles: &'i HashMap<E, ElementData<'arena, E>>,
     ) -> ComputedStyles<'i> {
         let Some(element_styles) = element_styles.get(element) else {
             return self;
@@ -1680,10 +1790,10 @@ impl<'i> ComputedStyles<'i> {
         ComputedStyles { attr, ..self }
     }
 
-    pub fn with_inline_style<E: Element>(
+    fn with_inline_style<'arena, E: Element<'arena>>(
         self,
         element: &E,
-        element_styles: &'i HashMap<E, ElementData<E>>,
+        element_styles: &'i HashMap<E, ElementData<'arena, E>>,
     ) -> ComputedStyles<'i> {
         let Some(element_styles) = element_styles.get(element) else {
             return self;
@@ -1724,10 +1834,12 @@ impl<'i> ComputedStyles<'i> {
         self.get_important(id).or_else(|| self.get_unimportant(id))
     }
 
+    /// Returns whether the given id is resolved by the computed styles.
     pub fn has(&'i self, id: &Id<'i>) -> bool {
         self.get(id).is_some()
     }
 
+    /// Gets the resolved style from a presentation attribute id.
     pub fn get_with_attr(&'i self, id: PresentationAttrId<'i>) -> Option<&'i Style<'i>> {
         let id = Id::Attr(id);
         if let Some(value) = self.get_important(&id) {
@@ -1739,6 +1851,7 @@ impl<'i> ComputedStyles<'i> {
         }
     }
 
+    /// Gets the resolved style from an id.
     pub fn get_string(&'i self, id: &Id<'i>) -> Option<(Mode, String)> {
         let mut important = false;
         let value = if let Some(value) = self.get_important(id) {
@@ -1792,6 +1905,7 @@ impl<'i> ComputedStyles<'i> {
         self.inherited.get(id)
     }
 
+    /// Gets the resolved static style from an id.
     pub fn get_static<'a>(&'i self, id: &'a Id<'a>) -> Option<&'i Static<'i>>
     where
         'a: 'i,
@@ -1802,6 +1916,7 @@ impl<'i> ComputedStyles<'i> {
         }
     }
 
+    /// Gets the collection of all the resolved styles applied to the element.
     pub fn computed(&'i self) -> HashMap<Id<'i>, &'i Style<'i>> {
         let mut result = HashMap::new();
         let map = |s: &'i (u32, Style<'i>)| &s.1;
@@ -1819,6 +1934,8 @@ impl<'i> ComputedStyles<'i> {
         result
     }
 
+    /// Consumed the [`ComputedStyles`] and creates a collection of all the resolved
+    /// styles applied to the element.
     pub fn into_computed(self) -> HashMap<Id<'i>, Style<'i>> {
         let mut result = HashMap::new();
         let map = |s: (u32, Style<'i>)| s.1;
@@ -1874,6 +1991,8 @@ impl<'i> ComputedStyles<'i> {
 }
 
 #[macro_export]
+/// Creates a macro called `get_computed_styles` that can be used to get the effective
+/// style from [`ComputedStyles`] based on a lightningcss property or presentation attribute
 macro_rules! get_computed_styles_factory {
     ($item:ident) => {
         macro_rules! get_computed_styles {
@@ -1912,6 +2031,8 @@ macro_rules! get_computed_styles_factory {
 }
 
 #[macro_export]
+/// Creates a macro called `get_computed_property` that can be used to get the effective
+/// style from [`ComputedStyles`] based on a lightningcss property
 macro_rules! get_computed_property_factory {
     ($item:ident) => {
         macro_rules! get_computed_property {
@@ -1945,11 +2066,6 @@ macro_rules! get_computed_property_factory {
     };
 }
 
-pub enum SVGStyleError {
-    Unsupported,
-    Parsing,
-}
-
 impl<'i> From<&'i str> for Id<'i> {
     fn from(value: &'i str) -> Self {
         let id = PresentationAttrId::from(value);
@@ -1962,6 +2078,7 @@ impl<'i> From<&'i str> for Id<'i> {
 }
 
 impl<'i> Static<'i> {
+    /// Returns the id of a style
     pub fn id(&self) -> Id<'i> {
         match self {
             Self::Css(property) => Id::CSS(property.property_id()),
@@ -1969,6 +2086,7 @@ impl<'i> Static<'i> {
         }
     }
 
+    /// Serializes the value of a style as a string
     pub fn to_css_string(&self, important: bool, options: PrinterOptions) -> Option<String> {
         match self {
             Self::Css(property) => property.value_to_css_string(options).ok().map(|mut s| {
@@ -1983,6 +2101,7 @@ impl<'i> Static<'i> {
 }
 
 impl<'i> Style<'i> {
+    /// Returns the style as a static style
     pub fn inner(&self) -> Static<'i> {
         match self {
             Self::Static(v) => v.clone(),
@@ -1990,10 +2109,12 @@ impl<'i> Style<'i> {
         }
     }
 
+    /// Returns the id of a style
     pub fn id(&self) -> Id<'i> {
         self.inner().id()
     }
 
+    /// Returns the mode in which the styles are applied to an element. i.e. static or dynamic
     pub fn mode(&self) -> Mode {
         match self {
             Self::Static(_) => Mode::Static,
@@ -2001,14 +2122,17 @@ impl<'i> Style<'i> {
         }
     }
 
+    /// Returns whether the style was part of an attribute or non-dynamic selector
     pub fn is_static(&self) -> bool {
         self.mode().is_static()
     }
 
+    /// Returns whether the style was part of an at-rule or pseudo-class
     pub fn is_dynamic(&self) -> bool {
         self.mode().is_dynamic()
     }
 
+    /// Returns whether the style wasn't able to be parsed
     pub fn is_unparsed(&self) -> bool {
         match self {
             Self::Static(style) => match style {
@@ -2019,11 +2143,13 @@ impl<'i> Style<'i> {
         }
     }
 
+    /// Serializes the value of a style as a string
     pub fn to_css_string(&self, important: bool) -> Option<String> {
         self.inner()
             .to_css_string(important, PrinterOptions::default())
     }
 
+    /// Gets the presentation attribute representation if the style is sourced from an attribute
     pub fn presentation_attr(&self) -> Option<PresentationAttr<'i>> {
         match self.inner() {
             Static::Attr(attr) => Some(attr),
@@ -2031,6 +2157,7 @@ impl<'i> Style<'i> {
         }
     }
 
+    /// Gets the lightningcss representation if the style is sourced from a stylesheet
     pub fn property(&self) -> Option<Property<'i>> {
         match self.inner() {
             Static::Css(css) => Some(css),
@@ -2052,10 +2179,12 @@ impl Mode {
         }
     }
 
+    /// Returns whether the source of a style is from an attribute or not
     pub fn is_static(&self) -> bool {
         matches!(self, Self::Static)
     }
 
+    /// Returns whether the source of a style is from a stylesheet or not
     pub fn is_dynamic(&self) -> bool {
         !self.is_static()
     }

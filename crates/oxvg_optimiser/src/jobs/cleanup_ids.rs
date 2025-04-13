@@ -24,7 +24,7 @@ struct GeneratedId {
 
 #[derive(Debug)]
 #[derive_where(Clone)]
-struct RefRename<E: Element> {
+struct RefRename<'arena, E: Element<'arena>> {
     element_ref: E,
     name: <E::Attr as Attr>::Name,
     referenced_id: String,
@@ -57,16 +57,16 @@ impl Default for Options {
 
 #[derive(Debug)]
 #[derive_where(Clone, Default)]
-pub struct CleanupIds<E: Element> {
+pub struct CleanupIds<'arena, E: Element<'arena>> {
     options: Options,
     ignore_document: bool,
     replaceable_ids: BTreeSet<String>,
     id_renames: BTreeMap<String, String>,
-    ref_renames: Vec<RefRename<E>>,
+    ref_renames: Vec<RefRename<'arena, E>>,
     generated_id: GeneratedId,
 }
 
-impl<E: Element> Visitor<E> for CleanupIds<E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -82,7 +82,11 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
         PrepareOutcome::none
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         if self.ignore_document {
             return Ok(());
         }
@@ -115,7 +119,11 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
         Ok(())
     }
 
-    fn exit_document(&mut self, document: &mut E, _context: &Context<E>) -> Result<(), String> {
+    fn exit_document(
+        &mut self,
+        document: &mut E,
+        _context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let remove = self.options.remove;
 
         let Some(root) = &document.find_element() else {
@@ -181,7 +189,14 @@ impl<E: Element> Visitor<E> for CleanupIds<E> {
     }
 }
 
-impl<E: Element> CleanupIds<E> {
+impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> CleanupIds<'a, E::Lifetimed<'a>> {
+        CleanupIds {
+            options: self.options.clone(),
+            ..CleanupIds::default()
+        }
+    }
+
     fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
@@ -198,7 +213,7 @@ impl<E: Element> CleanupIds<E> {
     /// Prepares tracking of ids for removal/renaming
     /// - Adds non-preserved ids to `self.replaceable_ids`
     /// - Removes any duplicate replaceable ids
-    fn prepare_id_rename(&mut self, root: &impl Element) {
+    fn prepare_id_rename(&mut self, root: &E) {
         let mut preserved_ids = Vec::new();
         log::debug!(
             "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",
@@ -243,7 +258,7 @@ impl<E: Element> CleanupIds<E> {
     }
 }
 
-impl<'de, E: Element> Deserialize<'de> for CleanupIds<E> {
+impl<'de, 'arena, E: Element<'arena>> Deserialize<'de> for CleanupIds<'arena, E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -256,7 +271,7 @@ impl<'de, E: Element> Deserialize<'de> for CleanupIds<E> {
     }
 }
 
-impl<E: Element> Serialize for CleanupIds<E> {
+impl<'arena, E: Element<'arena>> Serialize for CleanupIds<'arena, E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

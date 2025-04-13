@@ -14,10 +14,14 @@ pub struct AddAttributesToSVGElement {
     pub attributes: BTreeMap<String, String>,
 }
 
-impl<E: Element> Visitor<E> for AddAttributesToSVGElement {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddAttributesToSVGElement {
     type Error = String;
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.local_name();
 
         if !element.is_root() || name.as_ref() != "svg" {

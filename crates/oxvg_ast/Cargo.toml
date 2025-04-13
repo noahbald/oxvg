@@ -12,15 +12,10 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["markup5ever", "visitor"]
-markup5ever = [
-  "dep:markup5ever",
-  "dep:rcdom",
-  "dep:xml5ever",
-  "dep:string_cache",
-]
-parse = ["dep:anyhow"]
-serialize = []
+default = ["markup5ever", "roxmltree", "visitor"]
+markup5ever = ["dep:rcdom", "dep:xml5ever"]
+roxmltree = ["dep:roxmltree"]
+serialize = ["dep:xmlwriter"]
 selectors = ["dep:selectors", "dep:cssparser", "dep:precomputed-hash"]
 visitor = ["dep:bitflags"]
 style = ["dep:lightningcss", "dep:cssparser_lightningcss", "dep:smallvec"]
@@ -31,15 +26,20 @@ bitflags = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 cssparser = { workspace = true, optional = true }
 cssparser_lightningcss = { package = "cssparser", version = "0.33", optional = true }
+derive_more = { workspace = true, features = ["debug"] }
 itertools = { workspace = true }
 lightningcss = { workspace = true, optional = true }
 log = { workspace = true }
-markup5ever = { workspace = true, optional = true }
+markup5ever = { workspace = true }
 precomputed-hash = { workspace = true, optional = true }
+rcdom = { workspace = true, optional = true }
+roxmltree = { workspace = true, optional = true }
 # ensure track_alloc_size for wasm compat
 servo_arc = { version = "0.4", features = ["track_alloc_size"] }
-string_cache = { workspace = true, optional = true }
-rcdom = { workspace = true, optional = true }
 selectors = { workspace = true, optional = true }
 smallvec = { version = "1.13.2", optional = true }
+string_cache = { workspace = true }
+tendril = { workspace = true }
+typed-arena = { workspace = true }
 xml5ever = { workspace = true, optional = true }
+xmlwriter = { workspace = true, optional = true }

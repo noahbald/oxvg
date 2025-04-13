@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashSet},
+    marker::PhantomData,
+};
 
 use derive_where::derive_where;
 use lightningcss::{stylesheet::StyleSheet, visit_types};
@@ -7,20 +10,22 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     name::Name,
+    serialize::Node as _,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use parcel_selectors::parser::Component;
 use serde::{Deserialize, Serialize};
 
 #[derive_where(Default, Clone, Debug)]
-pub struct ReusePaths<E: Element> {
+pub struct ReusePaths<'arena, E: Element<'arena>> {
     enabled: bool,
     paths: BTreeMap<String, Vec<E>>,
     defs: Option<E>,
     hrefs: HashSet<String>,
+    marker: PhantomData<&'arena ()>,
 }
 
-impl<E: Element> Visitor<E> for ReusePaths<E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths<'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -31,7 +36,11 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         if element.prefix().is_some() {
             return Ok(());
         }
@@ -74,7 +83,7 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
     fn exit_element(
         &mut self,
         element: &mut E,
-        context: &mut Context<E>,
+        context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if element.prefix().is_some()
             || !element.is_root()
@@ -90,7 +99,8 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
         let defs = if let Some(defs) = &self.defs {
             defs.clone()
         } else {
-            let defs = document.create_element(E::Name::new(None, "defs".into()));
+            let defs =
+                document.create_element(E::Name::new(None, "defs".into()), &context.info.arena);
             element.insert(0, defs.clone().as_child());
             self.defs = Some(defs.clone());
             defs
@@ -107,7 +117,8 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
                 continue;
             }
 
-            let reusable_path = document.create_element(E::Name::new(None, path_name.clone()));
+            let reusable_path =
+                document.create_element(E::Name::new(None, path_name.clone()), &context.info.arena);
             defs.append(reusable_path.as_child());
 
             let mut is_id_protected = false;
@@ -151,11 +162,13 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
                 if path.is_empty() && defs.contains(path) {
                     let attributes = path.attributes();
                     if attributes.is_empty() {
+                        log::debug!("removing empty path");
                         path.remove();
                     }
                     if attributes.len() == 1 {
                         let attr = attributes.into_iter().next().expect("checked length");
                         if attr.prefix().is_none() && attr.local_name().as_ref() == "id" {
+                            log::debug!("removing referenced path");
                             path.remove();
                             let id = attr.value().as_ref();
                             for child in element
@@ -175,7 +188,7 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
                 }
 
                 path.set_attribute(xlink_href_name.clone(), new_id.clone());
-                path.set_local_name(use_name.clone());
+                path.set_local_name(use_name.clone(), &context.info.arena);
             }
         }
 
@@ -190,7 +203,14 @@ impl<E: Element> Visitor<E> for ReusePaths<E> {
     }
 }
 
-impl<E: Element> ReusePaths<E> {
+impl<'arena, E: Element<'arena>> ReusePaths<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> ReusePaths<'a, E::Lifetimed<'a>> {
+        ReusePaths {
+            enabled: self.enabled,
+            ..ReusePaths::default()
+        }
+    }
+
     fn add_path(&mut self, element: &E) {
         let Some(d) = element.get_attribute_local(&"d".into()) else {
             return;
@@ -227,7 +247,7 @@ impl<E: Element> ReusePaths<E> {
     }
 }
 
-impl<'de, E: Element> Deserialize<'de> for ReusePaths<E> {
+impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for ReusePaths<'arena, E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -240,7 +260,7 @@ impl<'de, E: Element> Deserialize<'de> for ReusePaths<E> {
     }
 }
 
-impl<E: Element> Serialize for ReusePaths<E> {
+impl<'arena, E: Element<'arena>> Serialize for ReusePaths<'arena, E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

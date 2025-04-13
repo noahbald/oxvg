@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, marker::PhantomData};
 
 use derive_where::derive_where;
 use itertools::Itertools;
@@ -15,14 +15,15 @@ use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
-struct CapturedStyles<E: Element> {
+struct CapturedStyles<'arena, E: Element<'arena>> {
     node: E,
     css: String,
+    marker: PhantomData<&'arena ()>,
 }
 
 #[derive(Debug)]
 #[derive_where(Clone)]
-struct RemovedToken<E: Element> {
+struct RemovedToken<'arena, E: Element<'arena>> {
     element: E,
     token: Vec<E::Atom>,
     specificity: u32,
@@ -31,10 +32,10 @@ struct RemovedToken<E: Element> {
 
 #[derive(Clone, Debug)]
 #[derive_where(Default)]
-struct RemovedTokens<E: Element> {
-    classes: Vec<RemovedToken<E>>,
-    ids: Vec<RemovedToken<E>>,
-    other: Vec<RemovedToken<E>>,
+struct RemovedTokens<'arena, E: Element<'arena>> {
+    classes: Vec<RemovedToken<'arena, E>>,
+    ids: Vec<RemovedToken<'arena, E>>,
+    other: Vec<RemovedToken<'arena, E>>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -85,10 +86,10 @@ impl Default for Options {
 
 #[derive(Clone)]
 #[derive_where(Default, Debug)]
-pub struct InlineStyles<E: Element> {
+pub struct InlineStyles<'arena, E: Element<'arena>> {
     options: Options,
-    styles: Vec<CapturedStyles<E>>,
-    removed_tokens: RemovedTokens<E>,
+    styles: Vec<CapturedStyles<'arena, E>>,
+    removed_tokens: RemovedTokens<'arena, E>,
 }
 
 enum Token {
@@ -98,13 +99,13 @@ enum Token {
     Other,
 }
 
-impl<E: Element> Visitor<E> for InlineStyles<E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> {
     type Error = String;
 
     fn exit_element(
         &mut self,
         element: &mut E,
-        context: &mut Context<E>,
+        context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if element.prefix().is_some() || element.local_name().as_ref() != "style" {
             return Ok(());
@@ -138,7 +139,9 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
                 minify: true,
                 ..printer::PrinterOptions::default()
             }) {
-                element.clone().set_text_content(css.into());
+                element
+                    .clone()
+                    .set_text_content(css.into(), &context.info.arena);
             }
             log::debug!("Not merging style: foreign-object");
             return Ok(());
@@ -154,6 +157,7 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             self.styles.push(CapturedStyles {
                 node: element.clone(),
                 css: css_string,
+                marker: PhantomData,
             });
         }
         let Some(removed_styles) = matches_styles else {
@@ -181,13 +185,19 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             log::debug!("all styles removed from element");
             element.remove();
         } else {
-            element.clone().set_text_content(css.into());
+            element
+                .clone()
+                .set_text_content(css.into(), &context.info.arena);
         };
         Ok(())
     }
 
     #[allow(clippy::too_many_lines)]
-    fn exit_document(&mut self, _root: &mut E, _context: &Context<E>) -> Result<(), Self::Error> {
+    fn exit_document(
+        &mut self,
+        _root: &mut E,
+        _context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         self.removed_tokens
             .classes
             .iter()
@@ -222,8 +232,8 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
             .chain(self.removed_tokens.classes.iter())
             .chain(self.removed_tokens.other.iter())
             .sorted_by(|a, b| a.specificity.cmp(&b.specificity))
-            .sorted_by(|a, b| a.element.as_ptr_byte().cmp(&b.element.as_ptr_byte()))
-            .chunk_by(|r| r.element.as_ptr_byte());
+            .sorted_by(|a, b| a.element.id().cmp(&b.element.id()))
+            .chunk_by(|r| r.element.id());
 
         for (_, chunk) in &style_chunks {
             let mut group_element = None;
@@ -298,12 +308,20 @@ impl<E: Element> Visitor<E> for InlineStyles<E> {
     }
 }
 
-impl<E: Element> InlineStyles<E> {
+impl<'arena, E: Element<'arena>> InlineStyles<'arena, E> {
+    pub fn clone_for_lifetime<'a>(&self) -> InlineStyles<'a, E::Lifetimed<'a>> {
+        InlineStyles {
+            options: self.options.clone(),
+            styles: vec![],
+            removed_tokens: RemovedTokens::default(),
+        }
+    }
+
     fn gather_removed_tokens(
         &self,
         styles: &rules::CssRuleList,
-        context: &Context<E>,
-    ) -> RemovedTokens<E> {
+        context: &Context<'arena, '_, '_, E>,
+    ) -> RemovedTokens<'arena, E> {
         let mut removed_classes = vec![];
         let mut removed_ids = vec![];
         let mut removed_others = vec![];
@@ -363,7 +381,7 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>>
+    ) -> Option<Vec<RemovedToken<'arena, E>>>
     where
         E: 'a,
     {
@@ -417,7 +435,7 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>>
+    ) -> Option<Vec<RemovedToken<'arena, E>>>
     where
         E: 'a,
     {
@@ -459,7 +477,7 @@ impl<E: Element> InlineStyles<E> {
         selected: impl Iterator<Item = &'a E>,
         style_rule: &rules::style::StyleRule,
         declarations: &str,
-    ) -> Option<Vec<RemovedToken<E>>>
+    ) -> Option<Vec<RemovedToken<'arena, E>>>
     where
         E: 'a,
     {
@@ -510,10 +528,10 @@ fn flatten_media(css: rules::CssRuleList) -> rules::CssRuleList {
 }
 
 impl Options {
-    pub(crate) fn take_matching_selectors<'a, E: Element>(
+    pub(crate) fn take_matching_selectors<'arena, 'a, E: Element<'arena>>(
         &mut self,
         css: &mut rules::CssRuleList<'a>,
-        context: &Context<E>,
+        context: &Context<'arena, '_, '_, E>,
     ) -> Option<rules::CssRuleList<'a>> {
         let mut removed = rules::CssRuleList(vec![]);
         let mut matching_elements = vec![];
@@ -610,7 +628,7 @@ impl Options {
         self.use_mqs.contains(&media_query)
     }
 
-    fn is_selector_removeable<'a, E: Element>(
+    fn is_selector_removeable<'arena, 'a, E: Element<'arena>>(
         &self,
         selector: &mut selector::Selector<'a>,
         removed_selector: &mut rules::style::StyleRule<'a>,
@@ -794,7 +812,7 @@ fn find_parent_attrs(style_rule: &rules::style::StyleRule) -> ParentTokens {
     }
 }
 
-impl<'de, E: Element> Deserialize<'de> for InlineStyles<E> {
+impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for InlineStyles<'arena, E> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -808,7 +826,7 @@ impl<'de, E: Element> Deserialize<'de> for InlineStyles<E> {
     }
 }
 
-impl<E: Element> Serialize for InlineStyles<E> {
+impl<'arena, E: Element<'arena>> Serialize for InlineStyles<'arena, E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -817,11 +835,12 @@ impl<E: Element> Serialize for InlineStyles<E> {
     }
 }
 
-impl<E: Element> Clone for CapturedStyles<E> {
+impl<'arena, E: Element<'arena>> Clone for CapturedStyles<'arena, E> {
     fn clone(&self) -> Self {
         Self {
             node: self.node.clone(),
             css: self.css.clone(),
+            marker: PhantomData,
         }
     }
 }

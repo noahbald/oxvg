@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveViewBox(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveViewBox {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {
     type Error = String;
 
     fn prepare(
@@ -25,7 +25,11 @@ impl<E: Element> Visitor<E> for RemoveViewBox {
         }
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), String> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), String> {
         let name = element.qual_name();
         if name.prefix().is_some() {
             return Ok(());

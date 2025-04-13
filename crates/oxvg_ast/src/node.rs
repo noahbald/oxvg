@@ -1,4 +1,4 @@
-use cfg_if::cfg_if;
+//! XML node traits.
 use std::fmt::Debug;
 
 use crate::{atom::Atom, element::Element};
@@ -36,50 +36,37 @@ pub enum Type {
     DocumentFragment,
 }
 
-cfg_if! {
-    if #[cfg(all(feature = "parse", feature = "serialize"))] {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features: crate::parse::Node + crate::serialize::Node {}
-    } else if #[cfg(feature = "parse")] {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features: crate::parse::Node {}
-    } else if #[cfg(feature = "serialize")] {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features: crate::serialize::Node {}
-    } else {
-        /// This trait provides trait bounds depending on the package's enabled features
-        pub trait Features {}
-    }
-}
-
 /// An XML DOM node upon which other DOM API objects are based
 ///
-/// <https://developer.mozilla.org/en-US/docs/Web/API/Node>
-pub trait Node: Clone + Debug + Features {
+/// [MDN | Node](https://developer.mozilla.org/en-US/docs/Web/API/Node)
+pub trait Node<'arena>: Clone + Debug {
+    /// The type of an allocator for a node. This may be `()` for implementations
+    /// not using an allocator
+    type Arena;
+    /// The text type of a node's content
     type Atom: Atom;
-    type Child: Node<Atom = Self::Atom>;
-    type ParentChild: Node<Atom = Self::Atom, Parent = Self::Parent>;
-    type Parent: Node<Atom = Self::Atom, Child = Self::ParentChild>;
+    /// The node type of the child of a node
+    type Child: Node<'arena, Atom = Self::Atom, Arena = Self::Arena>;
+    /// The node type of the sibling of a node
+    type ParentChild: Node<'arena, Atom = Self::Atom, Parent = Self::Parent, Arena = Self::Arena>;
+    /// The node type of the parent of a node
+    type Parent: Node<'arena, Atom = Self::Atom, Child = Self::ParentChild, Arena = Self::Arena>;
 
-    /// Whether the underlying pointer is at the same address as the other
-    fn ptr_eq(&self, other: &impl Node) -> bool;
+    /// Whether the allocation id is the same address as the other
+    fn id_eq(&self, other: &impl Node<'arena>) -> bool {
+        self.id() == other.id()
+    }
 
-    /// The raw pointer address to the data
-    fn as_ptr_byte(&self) -> usize;
-
-    /// Get the node wrapped in an opaque reference
-    // fn as_ref(&self) -> Box<dyn Ref>;
+    /// The allocation id
+    fn id(&self) -> usize;
 
     /// Returns an node list containing all the children of this node
-    #[deprecated(note = "try use for_each_child, map_each_child, fold_each_child, etc, instead")]
     fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child>;
 
-    /// Returns a read-only node list containing all the children of this node.
-    ///
-    /// [MDN | childNodes](https://developer.mozilla.org/en-US/docs/Web/API/Node/childNodes)
-    fn child_nodes(&self) -> Vec<Self::Child>;
-
-    fn child_node_count(&self) -> usize;
+    /// Returns the number of child nodes by iteration
+    fn child_node_count(&self) -> usize {
+        self.child_nodes_iter().count()
+    }
 
     /// Returns whether the node's list of children is empty or not
     fn has_child_nodes(&self) -> bool {
@@ -87,39 +74,22 @@ pub trait Node: Clone + Debug + Features {
     }
 
     /// Upcasts self as an element
-    fn element(&self) -> Option<impl Element>;
+    fn element(&self) -> Option<impl Element<'arena>>;
 
+    /// Removes all child nodes
     fn empty(&self);
 
     /// Does a breadth-first search to find an element from the current node, returning this node
     /// if it is an element.
-    fn find_element(&self) -> Option<impl Element>;
+    fn find_element(&self) -> Option<impl Element<'arena>>;
 
     /// Returns the first child in the node's tree
     ///
     /// [MDN | firstChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/firstChild)
-    fn first_child(&self) -> Option<impl Node> {
-        self.child_nodes().first().map(Node::to_owned)
-    }
+    fn first_child(&self) -> Option<Self::Child>;
 
-    fn for_each_child<F>(&self, f: F)
-    where
-        F: FnMut(Self::Child);
-
-    /// # Errors
-    /// Stops and returns the error for the first failed child.
-    fn try_for_each_child<F, E>(&self, f: F) -> Result<(), E>
-    where
-        F: FnMut(Self::Child) -> Result<(), E>;
-
-    fn any_child<F>(&self, f: F) -> bool
-    where
-        F: FnMut(Self::Child) -> bool;
-
-    fn all_children<F>(&self, f: F) -> bool
-    where
-        F: FnMut(Self::Child) -> bool;
-
+    /// Iterates through the children of the node, using the callback to determine which
+    /// of the nodes to remove
     fn retain_children<F>(&self, f: F)
     where
         F: FnMut(Self::Child) -> bool;
@@ -127,21 +97,12 @@ pub trait Node: Clone + Debug + Features {
     /// Returns the last child in the node's tree
     ///
     /// [MDN | lastChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/lastChild)
-    fn last_child(&self) -> Option<impl Node> {
-        self.child_nodes().last().map(Node::to_owned)
-    }
+    fn last_child(&self) -> Option<Self::Child>;
 
     /// Returns the node immediately following itself from the parent's list of children
     ///
     /// [MDN | nextSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/nextSibling)
-    fn next_sibling(&self) -> Option<Self::ParentChild> {
-        self.parent_node()?
-            .child_nodes()
-            .iter()
-            .take_while(|n| !n.ptr_eq(self))
-            .next()
-            .map(Node::to_owned)
-    }
+    fn next_sibling(&self) -> Option<Self::ParentChild>;
 
     /// Returns a string containins the name of the [Node]. The structure of the name will differ
     /// with the node type. E.g. An `Element` will contain the name of the corresponding tag, like
@@ -161,6 +122,11 @@ pub trait Node: Clone + Debug + Features {
     /// [MDN | nodeValue](https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeValue)
     fn node_value(&self) -> Option<Self::Atom>;
 
+    /// Returns the node immediately before itself from the parent's list of children
+    ///
+    /// [MDN | previousSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/previousSibling)
+    fn previous_sibling(&self) -> Option<Self::ParentChild>;
+
     /// Returns the processing instruction's target and data, if the node is a processing
     /// instruction
     fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)>;
@@ -179,12 +145,13 @@ pub trait Node: Clone + Debug + Features {
     /// Returns a string representing the text content of a node and it's descendants
     ///
     /// [MDN | textContent](https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent)
-    fn text_content(&self) -> Option<String>;
+    fn text_content(&self) -> Option<Self::Atom>;
 
-    fn set_text_content(&mut self, content: Self::Atom);
+    /// Replaces all child nodes with a text node of the given content
+    fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena);
 
     /// Creates a text node with the given content
-    fn text(&self, content: Self::Atom) -> Self::Child;
+    fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child;
 
     /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
     /// property if the top of the tree or if it doesn't participate in a tree, this returns [None]
@@ -210,7 +177,7 @@ pub trait Node: Clone + Debug + Features {
     /// parent of `a_child`
     ///
     /// [MDN | appendChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild)
-    fn append_child(&mut self, a_child: Self::Child);
+    fn append_child(&self, a_child: Self::Child);
 
     /// Returns a duplicate of the node.
     ///
@@ -221,9 +188,9 @@ pub trait Node: Clone + Debug + Features {
     /// Returns whether some node is a descendant if the current node.
     ///
     /// [MDN | contains](https://developer.mozilla.org/en-US/docs/Web/API/Node/contains)
-    fn contains(&self, other_node: &impl Node) -> bool {
-        self.any_child(|c| {
-            if c.ptr_eq(other_node) {
+    fn contains(&self, other_node: &impl Node<'arena>) -> bool {
+        self.child_nodes_iter().any(|c| {
+            if c.as_impl().id_eq(other_node) {
                 return true;
             }
             c.contains(other_node)
@@ -232,26 +199,42 @@ pub trait Node: Clone + Debug + Features {
 
     /// Inserts a node as the nth child of the current node's children, updating the `new_node`'s
     /// parent.
-    fn insert(&mut self, index: usize, new_node: Self::Child);
+    fn insert(&mut self, index: usize, new_node: Self::Child) {
+        if index == 0 {
+            if let Some(first_child) = self.first_child() {
+                self.insert_before(new_node, &first_child);
+            } else {
+                self.append_child(new_node);
+            }
+        } else if let Some(prev_child) = self.item(index - 1) {
+            self.insert_after(new_node, &prev_child);
+        } else {
+            self.append_child(new_node);
+        }
+    }
 
     /// Inserts a node before the reference node as a child of the current node.
     ///
     /// [MDN | insertBefore](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertBefore)
-    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-        let len = self.child_nodes().len();
-        let reference_index = self.child_index(reference_node).unwrap_or(len);
-        self.insert(reference_index - 1, new_node);
-    }
+    fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child);
 
     /// Inserts a node after the reference node as a child of the current node.
     ///
     /// [MDN | insertAfter](https://developer.mozilla.org/en-US/docs/Web/API/Node/insertAfter)
-    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-        let len = self.child_nodes().len();
-        let reference_index = self
-            .child_index(reference_node)
-            .unwrap_or(len.saturating_sub(2));
-        self.insert(reference_index + 1, new_node);
+    fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child);
+
+    /// Returns a node from the child nodes
+    ///
+    /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/NodeList/item)
+    fn item(&self, index: usize) -> Option<Self::Child>;
+
+    /// Returns whether the node has zero child nodes
+    fn is_empty(&self) -> bool {
+        self.first_child().is_none_or(|_| {
+            self.child_nodes_iter().all(|n| {
+                n.node_type() == Type::Text && n.text_content().is_none_or(|t| t.trim().is_empty())
+            })
+        })
     }
 
     /// Removes the current node from it's parent and removes the reference to the parent
@@ -289,8 +272,8 @@ pub trait Node: Clone + Debug + Features {
     fn child_index(&self, child: &Self::Child) -> Option<usize> {
         let mut result = None;
         let mut index = 0;
-        self.any_child(|sibling| {
-            if sibling.ptr_eq(child) {
+        self.child_nodes_iter().any(|sibling| {
+            if sibling.id_eq(child) {
                 result = Some(index);
                 true
             } else {
@@ -305,8 +288,9 @@ pub trait Node: Clone + Debug + Features {
     fn to_owned(&self) -> Self;
 
     /// Upcast the node as an `impl Node`
-    fn as_impl(&self) -> impl Node;
+    fn as_impl(&self) -> impl Node<'arena>;
 
+    /// Upcase the node as the specified `Child`
     fn as_child(&self) -> Self::Child;
 
     /// Upcast the node as the specified `ParentChild`

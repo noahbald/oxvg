@@ -61,10 +61,14 @@ impl RemoveAttrs {
     }
 }
 
-impl<E: Element> Visitor<E> for RemoveAttrs {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
     type Error = String;
 
-    fn document(&mut self, _document: &mut E, _context: &Context<E>) -> Result<(), Self::Error> {
+    fn document(
+        &mut self,
+        _document: &mut E,
+        _context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
         for pattern in &self.attrs {
             let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
@@ -76,7 +80,11 @@ impl<E: Element> Visitor<E> for RemoveAttrs {
         Ok(())
     }
 
-    fn element(&mut self, element: &mut E, _context: &mut Context<E>) -> Result<(), Self::Error> {
+    fn element(
+        &mut self,
+        element: &mut E,
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
         for pattern in &self.parsed_attrs {
             if !pattern[0].is_match(&element.qual_name().formatter().to_string()) {
                 continue;

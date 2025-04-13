@@ -2,7 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
 expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- preserve non-empty containers -->\n    <defs>\n        <pattern id=\"a\">\n            <rect/>\n        </pattern>\n        <pattern xlink:href=\"url(#a)\" id=\"b\"/>\n    </defs>\n    <g>\n        <marker>\n            <a/>\n        </marker>\n        <path d=\"...\"/>\n    </g>\n</svg>\"#),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- preserve non-empty containers -->
     <defs>
         <pattern id="a">

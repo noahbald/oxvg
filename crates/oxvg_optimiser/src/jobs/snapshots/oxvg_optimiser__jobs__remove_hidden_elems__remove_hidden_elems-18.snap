@@ -2,7 +2,7 @@
 source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
 expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n    <!-- preserve defs with referenced path -->\n    <g id=\"test-body-content\">\n        <defs>\n            <path id=\"reference\" d=\"M240 1h239v358H240z\"/>\n        </defs>\n        <use xlink:href=\"#reference\" id=\"use\" fill=\"gray\" onclick=\"test(evt)\"/>\n    </g>\n</svg>\"##),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- preserve defs with referenced path -->
     <g id="test-body-content">
         <defs>

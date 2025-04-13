@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RemoveXMLProcInst(pub bool);
 
-impl<E: Element> Visitor<E> for RemoveXMLProcInst {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLProcInst {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -22,8 +22,8 @@ impl<E: Element> Visitor<E> for RemoveXMLProcInst {
 
     fn processing_instruction(
         &mut self,
-        processing_instruction: &mut <E as Node>::Child,
-        _context: &Context<E>,
+        processing_instruction: &mut <E as Node<'arena>>::Child,
+        _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if processing_instruction.node_name() == "xml".into() {
             processing_instruction.remove();
@@ -52,6 +52,7 @@ fn remove_xml_proc_inst() -> anyhow::Result<()> {
         ),
     )?);
 
+    // FIXME: Correctly retained, but serializer uses default PI
     insta::assert_snapshot!(test_config(
         r#"{ "removeXmlProcInst": true }"#,
         Some(
