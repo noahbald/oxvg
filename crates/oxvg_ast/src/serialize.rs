@@ -69,7 +69,12 @@ fn serialize_node<'arena, T: node::Node<'arena>>(node: &T, xml: &mut XmlWriter) 
             }
         }
         node::Type::Text => {
-            xml.write_text(&node.text_content().unwrap_or_default());
+            if let Some(text) = node.text_content() {
+                let text = text.trim();
+                if !text.is_empty() {
+                    xml.write_text(text);
+                }
+            }
         }
         node::Type::Comment => {
             xml.write_comment(&node.text_content().unwrap_or_default());
