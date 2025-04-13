@@ -7,15 +7,17 @@ use std::{
 use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
-    local_name,
+    local_name, namespace_prefix,
     tendril::TendrilSink,
-    tree_builder::ElemName,
+    tree_builder::{ElemName, NamespaceMap},
 };
 
 use crate::{
+    attribute::{Attr, Attributes},
     element::Element as _,
     implementations::shared::Element,
-    node::{self, Node as _},
+    name::Name,
+    node::Node as _,
 };
 
 use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
@@ -55,6 +57,7 @@ impl<'arena> Allocator<'arena> {
 struct Sink<'arena> {
     allocator: Allocator<'arena>,
     document: Ref<'arena>,
+    namespace_map: RefCell<NamespaceMap>,
     mode: Cell<QuirksMode>,
     line: Cell<u64>,
 }
@@ -67,8 +70,79 @@ impl<'arena> Sink<'arena> {
                 current_node_id: Cell::new(arena.len()),
             },
             document: arena.alloc(Node::new(NodeData::Document, arena.len())),
+            namespace_map: RefCell::new(NamespaceMap::empty()),
             mode: Cell::new(QuirksMode::NoQuirks),
             line: Cell::new(1),
+        }
+    }
+
+    /// Checks whether a namespace is already in the document
+    fn find_xml_uri(&self, name: &QualName) -> bool {
+        if let Some(Some(el)) = self.namespace_map.borrow().get(&name.prefix) {
+            *el == name.ns
+        } else {
+            false
+        }
+    }
+
+    /// If a new namespace is found, add it to namespace map and return attribute to add to element
+    fn find_new_xmlns(&self, name: &QualName) -> Option<Attribute> {
+        if (name.prefix.is_some() || !name.ns.is_empty()) && !self.find_xml_uri(name) {
+            self.namespace_map.borrow_mut().insert(&xml5ever::QualName {
+                prefix: name.prefix.clone(),
+                ns: name.ns.clone(),
+                local: name.local.clone(),
+            });
+            Some(Attribute {
+                name: QualName {
+                    local: if let Some(prefix) = &name.prefix {
+                        prefix.as_ref().into()
+                    } else {
+                        local_name!("xmlns")
+                    },
+                    prefix: name.prefix.as_ref().map(|_| namespace_prefix!("xmlns")),
+                    ns: name.ns.clone(),
+                },
+                value: name.ns.as_ref().into(),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Adds `xmlns` attributes to the current element and `xmlns`-prefixed attributes to the root
+    fn add_xmlns(&self, child: &<Self as TreeSink>::Handle) {
+        if let NodeData::Element { name, attrs, .. } = &child.node_data {
+            let root: Element = Element::new(child)
+                .unwrap()
+                .document()
+                .and_then(|n| n.find_element())
+                .unwrap_or_else(|| Element::new(child).unwrap());
+            if let Some(attr_to_insert) = self.find_new_xmlns(name) {
+                if attr_to_insert.name.prefix.is_none() {
+                    attrs.borrow_mut().insert(0, attr_to_insert);
+                } else {
+                    root.attributes().set_named_item(attr_to_insert);
+                }
+            };
+
+            let attrs_ref = attrs.borrow();
+            let root_attrs_to_insert: Vec<_> = attrs_ref
+                .iter()
+                .filter_map(|attr| self.find_new_xmlns(&attr.name))
+                .collect();
+            drop(attrs_ref);
+
+            let mut root_attrs = root.attributes().0.borrow_mut();
+            let has_xmlns = root_attrs.first().is_some_and(|attr| {
+                attr.name.prefix.is_none() && attr.name.local == local_name!("xmlns")
+            });
+            for (i, attr) in root_attrs_to_insert.into_iter().enumerate() {
+                if attr.name.local.as_ref() == "xml" {
+                    continue;
+                }
+                root_attrs.insert(if has_xmlns { i + 1 } else { i }, attr);
+            }
         }
     }
 }
@@ -181,34 +255,26 @@ impl<'arena> TreeSink for Sink<'arena> {
     fn append(&self, parent: &Self::Handle, child: NodeOrText<Self::Handle>) {
         match child {
             NodeOrText::AppendNode(node) => {
-                if parent.node_type() == node::Type::Document {
-                    if let Some(element) = Element::new(node) {
-                        let name = element.qual_name();
-                        if !name.ns.is_empty() {
-                            element.attributes().0.borrow_mut().insert(
-                                0,
-                                Attribute {
-                                    name: QualName {
-                                        local: local_name!("xmlns"),
-                                        prefix: None,
-                                        ns: name.ns.clone(),
-                                    },
-                                    value: name.ns.as_ref().into(),
-                                },
-                            );
-                        }
-                    }
-                }
                 parent.append_child(node);
+                self.add_xmlns(&node);
                 debug_assert!(parent
                     .last_child
                     .get()
                     .is_some_and(|child| std::ptr::eq(child, node)));
             }
-            NodeOrText::AppendText(mut text) => {
-                text = text.trim().into();
+            NodeOrText::AppendText(text) => {
                 if text.is_empty() {
                     return;
+                }
+                if let Some(Node {
+                    node_data: NodeData::Text(prev_text),
+                    ..
+                }) = parent.last_child()
+                {
+                    if let Some(prev_text) = &mut *prev_text.borrow_mut() {
+                        prev_text.push_tendril(&text);
+                        return;
+                    }
                 }
                 let node = self.new_node(NodeData::Text(RefCell::new(Some(text))));
                 parent.append_child(node);
