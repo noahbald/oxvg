@@ -39,8 +39,7 @@ fn remove_style_element() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "removeStyleElement": true }"#,
         Some(
-            r#"<?xml version="1.0" encoding="utf-16"?>
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 100 100" style="enable-background:new 0 0 100 100;" xml:space="preserve">
+            r#"<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 100 100" style="enable-background:new 0 0 100 100;" xml:space="preserve">
     <style type="text/css">
     .st0 {
         fill: #231F20;

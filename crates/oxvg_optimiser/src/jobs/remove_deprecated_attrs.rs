@@ -239,7 +239,6 @@ fn remove_attrs() -> anyhow::Result<()> {
         )
     )?);
 
-    // FIXME: markup5ever removes `lang`
     insta::assert_snapshot!(test_config(
         r#"{ "removeDeprecatedAttrs": {} }"#,
         Some(

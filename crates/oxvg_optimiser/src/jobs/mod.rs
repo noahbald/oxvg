@@ -198,7 +198,7 @@ pub(crate) fn test_config_default_svg_comment(
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        implementations::{markup5ever::parse, shared::Element},
+        implementations::{roxmltree::parse, shared::Element},
         serialize::{Node, Options},
     };
 
@@ -211,7 +211,8 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
 </svg>"#,
         ),
         &arena,
-    );
+    )
+    .unwrap();
     jobs.run(&dom, &Info::new(&arena))?;
     Ok(dom.serialize_with_options(Options::default())?)
 }

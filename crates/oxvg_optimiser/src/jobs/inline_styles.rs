@@ -1157,9 +1157,8 @@ fn inline_styles() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(
-            r#"<?xml version="1.0" standalone="no"?>
+            r#"<svg viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <!-- ignores deprecated shadow-dom selectors -->
-<svg viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs xmlns="http://www.w3.org/1999/xhtml">
         <style type="text/css">
             html /deep/ [layout][horizontal], html /deep/ [layout][vertical] { display: flex; }
@@ -1260,9 +1259,8 @@ fn inline_styles() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": { "onlyMatchedOnce": true } }"#,
         Some(
-            r#"<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 21.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            r#"<!-- Generator: Adobe Illustrator 21.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Logo" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
 	 viewBox="0 0 24 24" style="enable-background:new 0 0 24 24;" xml:space="preserve">
     <!-- multiple matches are unmoved -->
     <style type="text/css">

@@ -81,7 +81,7 @@ fn add_attributes_to_svg_element() -> anyhow::Result<()> {
         } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- Ignore nested <svg> elements
+    <!-- Ignore nested <svg> elements -->
     test
     <svg />
 </svg>"#

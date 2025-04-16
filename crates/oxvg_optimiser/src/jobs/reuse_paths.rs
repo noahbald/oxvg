@@ -364,8 +364,7 @@ fn reuse_paths() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "reusePaths": true }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-29.947 60.987 69.975 102.505">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-29.947 60.987 69.975 102.505">
   <defs></defs>
   <path fill="#000" d="M0 0v1h.5Z"/>
   <path fill="#000" d="M0 0v1h.5Z"/>
