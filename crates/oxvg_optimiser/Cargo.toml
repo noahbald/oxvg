@@ -41,6 +41,10 @@ env_logger = { workspace = true }
 insta = { workspace = true }
 
 [[bench]]
+name = "parse"
+harness = false
+
+[[bench]]
 name = "default_jobs"
 harness = false
 

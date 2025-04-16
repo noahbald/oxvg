@@ -10,7 +10,7 @@ use anyhow::anyhow;
 use ignore::{WalkBuilder, WalkState};
 use oxvg_ast::{
     implementations::{
-        markup5ever::{parse, parse_file},
+        roxmltree::{parse, parse_file},
         shared::{Arena, Element, Ref},
     },
     serialize::{Indent, Node as _, Options},
@@ -83,7 +83,7 @@ impl Optimise {
     ) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
-        let dom = parse(&source, arena);
+        let dom = parse(&source, arena)?;
 
         let info = Info {
             path: None,

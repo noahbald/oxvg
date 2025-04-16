@@ -1,7 +1,7 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{
-    implementations::{markup5ever::parse, shared::Element},
+    implementations::{roxmltree::parse, shared::Element},
     serialize::{self, Node as _, Options},
     visitor::Info,
 };
@@ -25,7 +25,7 @@ pub fn optimise(svg: &str, config_json: Option<String>) -> Result<String, String
         Jobs::<Element>::default()
     };
     let arena = typed_arena::Arena::new();
-    let dom = parse(svg, &arena);
+    let dom = parse(svg, &arena).map_err(|e| e.to_string())?;
     config
         .run(&dom, &Info::new(&arena))
         .map_err(|err| err.to_string())?;

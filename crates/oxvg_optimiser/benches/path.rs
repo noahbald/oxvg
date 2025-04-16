@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use oxvg_ast::{
     element::Element as _,
-    implementations::{markup5ever::parse, shared::Element},
+    implementations::{roxmltree::parse, shared::Element},
     visitor::{Info, Visitor},
 };
 use oxvg_optimiser::ConvertPathData;
