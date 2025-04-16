@@ -1,4 +1,10 @@
 //! Parsing methods using xml5ever
+//!
+//! # Quirks
+//!
+//! xml5ever has some notable quirks
+//!
+//! - Unused namespaces are skipped
 use std::{
     cell::{Cell, RefCell},
     collections::HashSet,

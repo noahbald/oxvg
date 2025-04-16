@@ -1,4 +1,11 @@
 //! Parsing methods using roxmltree
+//!
+//! # Quirks
+//!
+//! Roxmltree has some notable quirks
+//!
+//! - Default PI is skipped
+//! - Duplicate namespace uris are merged
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
