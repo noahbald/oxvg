@@ -13,8 +13,8 @@
     "compare": "pnpm run compare:w3c",
     "compare:w3c": "node index.js 512 w3c w3c-optimised",
     "compare:oxygen": "node index.js 512 oxygen oxygen-optimised",
-    "compare:w3c": "node index.js 512 w3c w3c-none",
-    "compare:oxygen": "node index.js 512 oxygen oxygen-none"
+    "compare:w3c:none": "node index.js 512 w3c w3c-none",
+    "compare:oxygen:none": "node index.js 512 oxygen oxygen-none"
   },
   "keywords": [],
   "author": "",

@@ -125,15 +125,13 @@ const check = async (item) => {
 	const [original, optimised] = await Promise.all([
 		loadImage(item.original)
 			.then(drawSVG)
-			.catch(() => console.error(item.original, "broken")),
+			.catch((e) => console.error(item.original, "missing:", e)),
 		loadImage(item.optimised)
 			.then(drawSVG)
-			.catch(() => console.error(item.optimised, "broken")),
+			.catch((e) => console.error(item.optimised, "ignored:", e)),
 	]);
-	if (!original) {
+	if (!original || !optimised) {
 		return "ignore";
-	} else if (!optimised) {
-		return "broken";
 	}
 	const result = compare(original, optimised);
 	if (result) {
@@ -148,7 +146,7 @@ const check = async (item) => {
 	const svgs = await svgFileTree();
 
 	const results = await Promise.all(svgs.map(check));
-	const brokenCount = results.filter((result) => result !== "ok").length;
+	const brokenCount = results.filter((result) => result === "broken").length;
 
 	if (svgs.length > 1) {
 		console.log(

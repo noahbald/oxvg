@@ -21,12 +21,12 @@ pub fn optimise(svg: String, config_json: Option<String>) -> Result<String, Erro
   let config = if let Some(config) = config_json {
     serde_json::from_str(&config).map_err(generic_error)?
   } else {
-    Jobs::<Element>::default()
+    Jobs::default()
   };
   let arena = typed_arena::Arena::new();
   let dom = parse(&svg, &arena).map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?;
   config
-    .run(&dom, &Info::new(&arena))
+    .run(&dom, &Info::<Element>::new(&arena))
     .map_err(generic_error)?;
 
   dom

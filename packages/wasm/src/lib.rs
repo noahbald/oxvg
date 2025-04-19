@@ -22,12 +22,12 @@ pub fn optimise(svg: &str, config_json: Option<String>) -> Result<String, String
     let config = if let Some(config) = config_json {
         serde_json::from_str(&config).map_err(|err| err.to_string())?
     } else {
-        Jobs::<Element>::default()
+        Jobs::default()
     };
     let arena = typed_arena::Arena::new();
     let dom = parse(svg, &arena).map_err(|e| e.to_string())?;
     config
-        .run(&dom, &Info::new(&arena))
+        .run(&dom, &Info::<Element>::new(&arena))
         .map_err(|err| err.to_string())?;
 
     dom.serialize_with_options(Options {

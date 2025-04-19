@@ -1,6 +1,5 @@
 //! Traits and types for handling the command line arguments for OXVG.
 use clap::{Parser, Subcommand};
-use oxvg_ast::implementations::shared::Element;
 
 use crate::{config::Config, optimise::Optimise};
 
@@ -13,7 +12,7 @@ pub trait RunCommand {
     /// If any part of the lifecycle fails
     /// * Fails to read or parse any files
     /// * Fails to write or serialize to any files
-    fn run(&self, config: Config<'static, Element<'static>>) -> anyhow::Result<()>;
+    fn run(&self, config: Config) -> anyhow::Result<()>;
 }
 
 #[derive(Parser)]

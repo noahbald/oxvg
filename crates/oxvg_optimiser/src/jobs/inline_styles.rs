@@ -45,9 +45,19 @@ pub struct ParentTokens {
     ids: BTreeSet<String>,
 }
 
+pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
+    pub options: &'o InlineStyles,
+    pub styles: Vec<CapturedStyles<'arena, E>>,
+    pub removed_tokens: RemovedTokens<'arena, E>,
+    /// After running, a record of matching tokens in a selector that are an ancestor of a matching
+    /// element.
+    /// e.g. `.foo .bar` would record `.foo` as a parent token.
+    pub parent_tokens: ParentTokens,
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Options {
+pub struct InlineStyles {
     /// If to only inline styles if the selector matches one element.
     #[serde(default = "default_only_matched_once")]
     pub only_matched_once: bool,
@@ -65,31 +75,17 @@ pub struct Options {
     /// Using `["*"]` will match all pseudo-elements
     #[serde(default = "default_use_pseudos")]
     pub use_pseudos: Vec<String>,
-    #[serde(skip_deserializing, skip_serializing)]
-    /// After running, a record of matching tokens in a selector that are an ancestor of a matching
-    /// element.
-    /// e.g. `.foo .bar` would record `.foo` as a parent token.
-    pub parent_tokens: ParentTokens,
 }
 
-impl Default for Options {
+impl Default for InlineStyles {
     fn default() -> Self {
-        Options {
+        InlineStyles {
             only_matched_once: default_only_matched_once(),
             remove_matched_selectors: default_remove_matched_selectors(),
             use_mqs: default_use_mqs(),
             use_pseudos: default_use_pseudos(),
-            parent_tokens: ParentTokens::default(),
         }
     }
-}
-
-#[derive(Clone)]
-#[derive_where(Default, Debug)]
-pub struct InlineStyles<'arena, E: Element<'arena>> {
-    options: Options,
-    styles: Vec<CapturedStyles<'arena, E>>,
-    removed_tokens: RemovedTokens<'arena, E>,
 }
 
 enum Token {
@@ -99,7 +95,19 @@ enum Token {
     Other,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles {
+    type Error = String;
+
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        State::new(&self).start(document, context.info).map(|_| ())
+    }
+}
+
+impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E> {
     type Error = String;
 
     fn exit_element(
@@ -149,7 +157,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
 
         let matches_styles = self
             .options
-            .take_matching_selectors(&mut css.rules, context);
+            .take_matching_selectors(&mut css.rules, context, self);
         if let Ok(css_string) = css.rules.to_css_string(printer::PrinterOptions {
             minify: true,
             ..printer::PrinterOptions::default()
@@ -204,7 +212,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
             .for_each(|RemovedToken { element, token, .. }| {
                 let mut class_list = element.class_list();
                 for token in token {
-                    if self.options.parent_tokens.classes.contains(token.as_str()) {
+                    if self.parent_tokens.classes.contains(token.as_str()) {
                         continue;
                     }
                     class_list.remove(token);
@@ -217,7 +225,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
             .for_each(|RemovedToken { element, token, .. }| {
                 if token
                     .iter()
-                    .any(|t| self.options.parent_tokens.ids.contains(t.as_str()))
+                    .any(|t| self.parent_tokens.ids.contains(t.as_str()))
                 {
                     return;
                 }
@@ -292,7 +300,6 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
                         return;
                     }
                     if self
-                        .options
                         .parent_tokens
                         .presentation_attrs
                         .iter()
@@ -308,12 +315,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles<'arena, E> 
     }
 }
 
-impl<'arena, E: Element<'arena>> InlineStyles<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> InlineStyles<'a, E::Lifetimed<'a>> {
-        InlineStyles {
-            options: self.options.clone(),
+impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
+    pub fn new(options: &'o InlineStyles) -> Self {
+        Self {
+            options,
             styles: vec![],
             removed_tokens: RemovedTokens::default(),
+            parent_tokens: ParentTokens::default(),
         }
     }
 
@@ -527,11 +535,12 @@ fn flatten_media(css: rules::CssRuleList) -> rules::CssRuleList {
     )
 }
 
-impl Options {
-    pub(crate) fn take_matching_selectors<'arena, 'a, E: Element<'arena>>(
-        &mut self,
+impl InlineStyles {
+    pub(crate) fn take_matching_selectors<'arena, 'a, 'o, E: Element<'arena>>(
+        &self,
         css: &mut rules::CssRuleList<'a>,
         context: &Context<'arena, '_, '_, E>,
+        state: &mut State<'o, 'arena, E>,
     ) -> Option<rules::CssRuleList<'a>> {
         let mut removed = rules::CssRuleList(vec![]);
         let mut matching_elements = vec![];
@@ -545,7 +554,7 @@ impl Options {
                     return true;
                 }
                 let Some(removed_media) =
-                    self.take_matching_selectors(&mut media_rule.rules, context)
+                    self.take_matching_selectors(&mut media_rule.rules, context, state)
                 else {
                     log::debug!("nothing removed from query: {debug_query:?}");
                     return true;
@@ -576,10 +585,14 @@ impl Options {
                     }
                 };
                 let new_parent_tokens = find_parent_attrs(style_rule);
-                self.parent_tokens.classes.extend(new_parent_tokens.classes);
-                self.parent_tokens.ids.extend(new_parent_tokens.ids);
+                state
+                    .parent_tokens
+                    .classes
+                    .extend(new_parent_tokens.classes);
+                state.parent_tokens.ids.extend(new_parent_tokens.ids);
                 if !new_parent_tokens.presentation_attrs.is_empty() {
-                    self.parent_tokens
+                    state
+                        .parent_tokens
                         .presentation_attrs
                         .extend(new_parent_tokens.presentation_attrs);
                     log::debug!("selector has presentation attr");
@@ -809,29 +822,6 @@ fn find_parent_attrs(style_rule: &rules::style::StyleRule) -> ParentTokens {
                 ids
             })
             .collect(),
-    }
-}
-
-impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for InlineStyles<'arena, E> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let options = Options::deserialize(deserializer)?;
-        Ok(Self {
-            options,
-            styles: vec![],
-            removed_tokens: RemovedTokens::default(),
-        })
-    }
-}
-
-impl<'arena, E: Element<'arena>> Serialize for InlineStyles<'arena, E> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.options.serialize(serializer)
     }
 }
 

@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     ffi::OsStr,
     io::{IsTerminal, Read, Write},
     path::PathBuf,
@@ -52,16 +51,18 @@ pub struct Optimise {
 }
 
 impl RunCommand for Optimise {
-    fn run(&self, config: Config<'static, Element<'static>>) -> anyhow::Result<()> {
+    fn run(&self, config: Config) -> anyhow::Result<()> {
         let config = self.handle_config(config)?;
         let Some(config) = config else {
             return Ok(());
         };
-        if let Some(jobs) = config.optimise {
-            LOADED_JOBS.set(jobs.resolve_jobs());
-        }
 
-        self.handle_paths()
+        self.handle_paths(
+            config
+                .optimise
+                .map(|j| j.resolve_jobs())
+                .unwrap_or_default(),
+        )
     }
 }
 
@@ -76,16 +77,12 @@ impl Optimise {
         )?)
     }
 
-    fn handle_stdin<'arena>(
-        &self,
-        jobs: Jobs<'arena, Element<'arena>>,
-        arena: Arena<'arena>,
-    ) -> anyhow::Result<()> {
+    fn handle_stdin<'arena>(&self, jobs: Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
         let dom = parse(&source, arena)?;
 
-        let info = Info {
+        let info: Info<'arena, Element<'arena>> = Info {
             path: None,
             multipass_count: 0,
             arena,
@@ -113,7 +110,7 @@ impl Optimise {
     }
 
     fn handle_file<'arena>(
-        jobs: &Jobs<'arena, Element<'arena>>,
+        jobs: &Jobs,
         path: &PathBuf,
         output: Option<&PathBuf>,
         arena: Arena<'arena>,
@@ -123,7 +120,7 @@ impl Optimise {
         let dom = parse_file(path, arena)?;
         drop(file);
 
-        let info = Info {
+        let info: Info<'arena, Element<'arena>> = Info {
             path: Some(path.clone()),
             multipass_count: 0,
             arena,
@@ -151,7 +148,7 @@ impl Optimise {
         }
     }
 
-    fn handle_path(&self, path: &PathBuf) {
+    fn handle_path(&self, path: &PathBuf, jobs: &Jobs) {
         let output_path = |input: &PathBuf| {
             let Some(output) = self.output.as_ref() else {
                 return Ok(None);
@@ -172,7 +169,6 @@ impl Optimise {
             .run(|| {
                 Box::new(move |path| {
                     let arena = typed_arena::Arena::new();
-                    let jobs = LOADED_JOBS.with_borrow(Jobs::clone_for_lifetime);
                     let Ok(path) = path else {
                         return WalkState::Continue;
                     };
@@ -186,16 +182,18 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) = Self::handle_file(&jobs, &path, output_path.as_ref(), &arena)
-                    {
-                        eprintln!("{err}");
+                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref(), &arena) {
+                        eprintln!(
+                            "{}: \x1b[31m{err}\x1b[0m",
+                            path.to_str().unwrap_or_default()
+                        );
                     };
                     WalkState::Continue
                 })
             });
     }
 
-    fn handle_paths(&self) -> anyhow::Result<()> {
+    fn handle_paths(&self, jobs: Jobs) -> anyhow::Result<()> {
         if !std::io::stdin().is_terminal()
             && self.paths.len() <= 1
             && self
@@ -204,8 +202,7 @@ impl Optimise {
                 .is_none_or(|path| path == &PathBuf::from_str(".").unwrap())
         {
             let arena = typed_arena::Arena::new();
-            return LOADED_JOBS
-                .with(|jobs| self.handle_stdin(jobs.take().clone_for_lifetime(), &arena));
+            return self.handle_stdin(jobs, &arena);
         }
         if self.paths.is_empty() {
             return Err(anyhow!(
@@ -214,15 +211,12 @@ impl Optimise {
         }
 
         for path in &self.paths {
-            self.handle_path(path);
+            self.handle_path(path, &jobs);
         }
         Ok(())
     }
 
-    fn handle_config<'arena, E: oxvg_ast::element::Element<'arena>>(
-        &self,
-        config: Config<'arena, E>,
-    ) -> anyhow::Result<Option<Config<'arena, E>>> {
+    fn handle_config(&self, config: Config) -> anyhow::Result<Option<Config>> {
         if let Some(config_paths) = &self.config {
             if let Some(config_path) = config_paths.first() {
                 log::debug!("using specified config");
@@ -253,8 +247,4 @@ impl Optimise {
             Ok(Some(config))
         }
     }
-}
-
-thread_local! {
-    static LOADED_JOBS: RefCell<Jobs<'static, Element<'static>>> = RefCell::new(Jobs::default());
 }

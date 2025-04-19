@@ -1,9 +1,6 @@
 //! Types for the configuration file usable by OXVG
 use clap::ValueEnum;
-use derive_where::derive_where;
-use oxvg_ast::element::Element;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone, ValueEnum)]
 #[serde(rename_all = "camelCase")]
@@ -22,55 +19,48 @@ pub enum Extends {
     // TODO: File(Path),
 }
 
-#[derive_where(Debug, Default)]
-#[derive(Serialize, Deserialize)]
-#[serde(bound = "E: Element<'arena>")]
+#[derive(Serialize, Deserialize, Debug, Default)]
 /// The configuration for optimisation
-pub struct Optimise<'arena, E: Element<'arena>> {
+pub struct Optimise {
     /// The preset the jobs will extend
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<Extends>,
     /// The set of jobs to run
-    pub jobs: oxvg_optimiser::Jobs<'arena, E>,
+    pub jobs: oxvg_optimiser::Jobs,
     /// A list of jobs to exclude from running
     #[serde(skip_serializing_if = "Option::is_none")]
     pub omit: Option<Vec<String>>,
 }
 
-#[derive_where(Debug, Default)]
-#[derive(Deserialize, Serialize)]
-#[serde(bound = "E: Element<'arena>")]
+#[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 /// The config for the CLI usage of OXVG
-pub struct Config<'arena, E: Element<'arena>> {
+pub struct Config {
     /// The options for each job to override the specified preset.
-    pub optimise: Option<Optimise<'arena, E>>,
+    pub optimise: Option<Optimise>,
 }
 
 impl Extends {
-    fn jobs<'arena, E: Element<'arena>>(&self) -> oxvg_optimiser::Jobs<'arena, E> {
+    fn jobs(&self) -> oxvg_optimiser::Jobs {
         match self {
-            Extends::None => oxvg_optimiser::Jobs::<E>::none(),
-            Extends::Default => oxvg_optimiser::Jobs::<E>::default(),
-            Extends::Safe => oxvg_optimiser::Jobs::<E>::safe(),
+            Extends::None => oxvg_optimiser::Jobs::none(),
+            Extends::Default => oxvg_optimiser::Jobs::default(),
+            Extends::Safe => oxvg_optimiser::Jobs::safe(),
         }
     }
 
     /// Creates a configuration with the presets jobs extended by the given jobs.
-    pub fn extend<'arena, E: Element<'arena>>(
-        &self,
-        jobs: &oxvg_optimiser::Jobs<'arena, E>,
-    ) -> oxvg_optimiser::Jobs<'arena, E> {
+    pub fn extend(&self, jobs: &oxvg_optimiser::Jobs) -> oxvg_optimiser::Jobs {
         let mut result = self.jobs();
         result.extend(jobs);
         result
     }
 }
 
-impl<'arena, E: Element<'arena>> Optimise<'arena, E> {
+impl Optimise {
     /// Creates a job configuration where the user-configured jobs extends the preset
     /// specified in `extends`
-    pub fn resolve_jobs(&self) -> oxvg_optimiser::Jobs<'arena, E> {
+    pub fn resolve_jobs(&self) -> oxvg_optimiser::Jobs {
         let Some(extends) = &self.extends else {
             return self.jobs.clone();
         };
@@ -86,7 +76,7 @@ impl<'arena, E: Element<'arena>> Optimise<'arena, E> {
 
 #[test]
 fn serde() -> anyhow::Result<()> {
-    let config: Optimise<oxvg_ast::implementations::shared::Element> = serde_json::from_str(
+    let config: Optimise = serde_json::from_str(
         r#"{
         "extends": "default",
         "jobs": {
@@ -112,7 +102,7 @@ fn resolve_jobs() {
         jobs: oxvg_optimiser::Jobs {
             precheck: Some(Default::default()),
             remove_scripts: Some(Default::default()),
-            ..oxvg_optimiser::Jobs::<oxvg_ast::implementations::shared::Element>::none()
+            ..oxvg_optimiser::Jobs::none()
         },
         omit: Some(vec![
             String::from("precheck"),

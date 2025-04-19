@@ -30,9 +30,20 @@ struct RefRename<'arena, E: Element<'arena>> {
     referenced_id: String,
 }
 
+#[derive(Debug)]
+#[derive_where(Clone)]
+struct State<'o, 'arena, E: Element<'arena>> {
+    options: &'o CleanupIds,
+    ignore_document: bool,
+    replaceable_ids: BTreeSet<String>,
+    id_renames: BTreeMap<String, String>,
+    ref_renames: Vec<RefRename<'arena, E>>,
+    generated_id: GeneratedId,
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Options {
+pub struct CleanupIds {
     #[serde(default = "default_remove")]
     pub remove: bool,
     #[serde(default = "default_minify")]
@@ -43,9 +54,9 @@ struct Options {
     pub force: bool,
 }
 
-impl Default for Options {
+impl Default for CleanupIds {
     fn default() -> Self {
-        Options {
+        CleanupIds {
             remove: default_remove(),
             minify: default_minify(),
             preserve: None,
@@ -55,18 +66,28 @@ impl Default for Options {
     }
 }
 
-#[derive(Debug)]
-#[derive_where(Clone, Default)]
-pub struct CleanupIds<'arena, E: Element<'arena>> {
-    options: Options,
-    ignore_document: bool,
-    replaceable_ids: BTreeSet<String>,
-    id_renames: BTreeMap<String, String>,
-    ref_renames: Vec<RefRename<'arena, E>>,
-    generated_id: GeneratedId,
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
+    type Error = String;
+
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        State {
+            options: &self,
+            ignore_document: false,
+            replaceable_ids: BTreeSet::new(),
+            id_renames: BTreeMap::new(),
+            ref_renames: Vec::new(),
+            generated_id: GeneratedId::default(),
+        }
+        .start(document, context.info)
+        .map(|_| ())
+    }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
+impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -189,14 +210,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> CleanupIds<'a, E::Lifetimed<'a>> {
-        CleanupIds {
-            options: self.options.clone(),
-            ..CleanupIds::default()
-        }
-    }
-
+impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
     fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
@@ -255,28 +269,6 @@ impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
             }
         }
         self.generated_id.set_prevent_collision(preserved_ids);
-    }
-}
-
-impl<'de, 'arena, E: Element<'arena>> Deserialize<'de> for CleanupIds<'arena, E> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let options = Options::deserialize(deserializer)?;
-        Ok(Self {
-            options,
-            ..Self::default()
-        })
-    }
-}
-
-impl<'arena, E: Element<'arena>> Serialize for CleanupIds<'arena, E> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.options.serialize(serializer)
     }
 }
 

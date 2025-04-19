@@ -32,9 +32,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     let mut result = Duration::default();
                     for _ in 0..iters {
                         let arena = typed_arena::Arena::new();
-                        let dom = parse(svg, &arena);
-                        let jobs = Jobs::<Element>::default();
-                        let info = &Info::new(&arena);
+                        let dom = parse(svg, &arena).unwrap();
+                        let jobs = Jobs::default();
+                        let info = &Info::<Element>::new(&arena);
                         let start = Instant::now();
                         let _ = black_box(jobs.run(&dom, info));
                         result += start.elapsed();

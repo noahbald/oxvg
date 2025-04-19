@@ -269,10 +269,11 @@ fn parse_expanded_name(
     name: roxmltree::ExpandedName,
     prefix_map: &HashMap<&str, &str>,
 ) -> QualName {
-    let mut ns = name.namespace();
-    if ns.is_some_and(str::is_empty) {
-        ns = None;
-    }
+    let ns = name.namespace();
+    let ns = match ns {
+        Some("http://www.w3.org/2000/svg" | "") => None,
+        _ => ns,
+    };
     if let Some(ns) = ns {
         QualName {
             prefix: prefix_map.get(ns).map(|prefix| (*prefix).into()),
