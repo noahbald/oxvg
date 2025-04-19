@@ -120,12 +120,13 @@ impl MinifyStyles {
             return None;
         }
 
-        let mut options = inline_styles::Options {
+        let options = inline_styles::InlineStyles {
             use_mqs: vec!["*".to_string()],
             use_pseudos: vec!["*".to_string()],
-            ..inline_styles::Options::default()
+            ..inline_styles::InlineStyles::default()
         };
-        options.take_matching_selectors(css, context)
+        let mut state = inline_styles::State::new(&options);
+        options.take_matching_selectors(css, context, &mut state)
     }
 
     fn attr<'arena, E: Element<'arena>>(element: &E) {

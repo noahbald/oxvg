@@ -30,9 +30,20 @@ struct RefRename<'arena, E: Element<'arena>> {
     referenced_id: String,
 }
 
+#[derive(Debug)]
+#[derive_where(Clone)]
+struct State<'o, 'arena, E: Element<'arena>> {
+    options: &'o CleanupIds,
+    ignore_document: bool,
+    replaceable_ids: BTreeSet<String>,
+    id_renames: BTreeMap<String, String>,
+    ref_renames: Vec<RefRename<'arena, E>>,
+    generated_id: GeneratedId,
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Options {
+pub struct CleanupIds {
     #[serde(default = "default_remove")]
     pub remove: bool,
     #[serde(default = "default_minify")]
@@ -43,9 +54,9 @@ struct Options {
     pub force: bool,
 }
 
-impl Default for Options {
+impl Default for CleanupIds {
     fn default() -> Self {
-        Options {
+        CleanupIds {
             remove: default_remove(),
             minify: default_minify(),
             preserve: None,
@@ -55,18 +66,28 @@ impl Default for Options {
     }
 }
 
-#[derive(Debug)]
-#[derive_where(Clone, Default)]
-pub struct CleanupIds<'arena, E: Element<'arena>> {
-    options: Options,
-    ignore_document: bool,
-    replaceable_ids: BTreeSet<String>,
-    id_renames: BTreeMap<String, String>,
-    ref_renames: Vec<RefRename<'arena, E>>,
-    generated_id: GeneratedId,
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
+    type Error = String;
+
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        State {
+            options: &self,
+            ignore_document: false,
+            replaceable_ids: BTreeSet::new(),
+            id_renames: BTreeMap::new(),
+            ref_renames: Vec::new(),
+            generated_id: GeneratedId::default(),
+        }
+        .start(document, context.info)
+        .map(|_| ())
+    }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
+impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
     type Error = String;
 
     fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -189,14 +210,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds<'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> CleanupIds<'a, E::Lifetimed<'a>> {
-        CleanupIds {
-            options: self.options.clone(),
-            ..CleanupIds::default()
-        }
-    }
-
+impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
     fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
@@ -255,28 +269,6 @@ impl<'arena, E: Element<'arena>> CleanupIds<'arena, E> {
             }
         }
         self.generated_id.set_prevent_collision(preserved_ids);
-    }
-}
-
-impl<'de, 'arena, E: Element<'arena>> Deserialize<'de> for CleanupIds<'arena, E> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let options = Options::deserialize(deserializer)?;
-        Ok(Self {
-            options,
-            ..Self::default()
-        })
-    }
-}
-
-impl<'arena, E: Element<'arena>> Serialize for CleanupIds<'arena, E> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.options.serialize(serializer)
     }
 }
 
@@ -404,7 +396,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Minify ids and references to ids -->
     <defs>
         <linearGradient id="gradient001">
@@ -436,7 +428,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Ignore when <style> is present -->
     <style>
         .cls-1 { fill: #fff; }
@@ -449,7 +441,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Ignore when <script> is present -->
     <script>
         …
@@ -462,7 +454,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/1999/xlink">
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Minify ids and references to ids -->
     <defs>
         <g id="mid-line"/>
@@ -488,7 +480,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "force": true
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Allow minification when force is given, regardless of `<style>` -->
     <style>
         …
@@ -503,7 +495,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "force": true
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Allow minification when force is given, regardless of `<script>` -->
     <script>
         …
@@ -518,7 +510,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preserve": ["circle", "rect"]
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
     <!-- Prevent modifications on preserved ids -->
     <circle id="circle001" fill="red" cx="60" cy="60" r="50"/>
     <rect id="rect001" fill="blue" x="120" y="10" width="100" height="100"/>
@@ -534,7 +526,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preserve": ["circle", "rect"]
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
     <!-- Prevent modification on preserved ids, even in forced mode -->
     <style>
         svg .hidden { display: none; }
@@ -552,7 +544,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preserve": ["figure"]
         } }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
     <!-- Prevent modification on preserved ids, even in forced mode -->
     <style>
         svg .hidden { display: none; }
@@ -589,7 +581,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
         "preservePrefixes": ["xyz"]
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
     <!-- Prevent modification of preserved id prefixes -->
     <circle id="garbage1" fill="red" cx="60" cy="60" r="50"/>
     <rect id="garbage2" fill="blue" x="120" y="10" width="100" height="100"/>
@@ -605,7 +597,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preservePrefixes": ["pre1_", "pre2_"]
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
     <!-- Prevent modification of preserved id prefixes, even in forced mode -->
     <style>
         svg .hidden { display: none; }
@@ -647,7 +639,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preservePrefixes": ["suffix", "rect"]
         } }"#,
         Some(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
     <!-- Preserve both preserved names and prefixes -->
     <circle id="circle" fill="red" cx="60" cy="60" r="50"/>
     <rect id="rect" fill="blue" x="120" y="10" width="100" height="100"/>
@@ -679,7 +671,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preservePrefixes": ["a"]
         } }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
     <!-- Don't collide minification with preserved prefixes -->
     <defs>
         <circle id="a" fill="red" cx="60" cy="60" r="50"/>
@@ -699,7 +691,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
             "preservePrefixes": ["a"]
         } }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 120">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 120">
     <!-- Don't collide minification with preserved prefixes -->
     <defs>
         <circle id="abc" fill="red" cx="60" cy="60" r="50"/>
@@ -714,7 +706,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
     <!-- Allow minification when <style> is empty -->
     <defs>
         <style></style>
@@ -757,7 +749,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r##"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r##"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <!-- Remove unreferenced ids -->
     <circle id="6" cx="110.5" cy="5.5" r="5.5">
         <animate begin="2.5s" attributeName="fill" calcMode="discrete" values="#6ebe28;#D8D8D8" dur="5s" keyTimes="0;0.15" repeatCount="indefinite"/>
@@ -872,7 +864,7 @@ fn cleanup_ids_check_rename() -> anyhow::Result<()> {
         // Minifies ids should sequences from "a..z", "A..Z", "aa..az", and so on
         r#"{ "cleanupIds": {} }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
     <defs>
         <text id="__proto__">
             referenced text

@@ -3,7 +3,6 @@ use oxvg_ast::{
     atom::Atom,
     attribute::{Attr, Attributes},
     node,
-    serialize::Node as _,
     style::{Id, PresentationAttr, PresentationAttrId, Style},
     visitor::{Context, ContextFlags, PrepareOutcome},
 };
@@ -555,8 +554,7 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "removeUnknownsAndDefaults": {} }"#,
         Some(
-            r#"<?xml version="1.0" standalone="no"?>
-<svg width="64" height="18" xmlns="http://www.w3.org/2000/svg">
+            r#"<svg width="64" height="18" xmlns="http://www.w3.org/2000/svg">
     <!-- removes `standalone="no" from xml declaration -->
     <text x="4" y="18">uwu</text>
 </svg>"#

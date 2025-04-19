@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, path::PathBuf};
 
 use itertools::Itertools;
 use lightningcss::{
@@ -11,6 +11,7 @@ use lightningcss::{
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
+    name::Name,
     node::{self, Node},
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
@@ -19,12 +20,9 @@ use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug)]
-pub enum PrefixGenerator<'arena, E: Element<'arena>> {
+pub enum PrefixGenerator {
     /// A function to create a dynamic prefix
-    Generator(
-        Box<fn(E, &Info<'arena, E>) -> &'arena str>,
-        PhantomData<&'arena ()>,
-    ),
+    Generator(Box<fn(PrefixGeneratorInfo) -> String>),
     /// A string to use as a prefix
     Prefix(String),
     /// No prefix
@@ -34,17 +32,10 @@ pub enum PrefixGenerator<'arena, E: Element<'arena>> {
     Default,
 }
 
-impl<'arena, E: Element<'arena>> PrefixGenerator<'arena, E> {
-    fn clone_for_lifetime<'a>(&self) -> PrefixGenerator<'a, E::Lifetimed<'a>> {
-        match self {
-            PrefixGenerator::Generator(..) => {
-                panic!("prefix generator function cannot be used for multiple jobs")
-            }
-            PrefixGenerator::Prefix(s) => PrefixGenerator::Prefix(s.clone()),
-            PrefixGenerator::None => PrefixGenerator::None,
-            PrefixGenerator::Default => PrefixGenerator::Default,
-        }
-    }
+pub struct PrefixGeneratorInfo {
+    pub path: Option<PathBuf>,
+    pub name: String,
+    pub attributes: Vec<(String, String)>,
 }
 
 fn default_delim() -> String {
@@ -61,19 +52,18 @@ const fn default_prefix_class_names() -> bool {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-#[serde(bound = "E: Element<'arena>")]
-pub struct PrefixIds<'arena, E: Element<'arena>> {
+pub struct PrefixIds {
     #[serde(default = "default_delim")]
     pub delim: String,
     #[serde(default)]
-    pub prefix: PrefixGenerator<'arena, E>,
+    pub prefix: PrefixGenerator,
     #[serde(default = "default_prefix_ids")]
     pub prefix_ids: bool,
     #[serde(default = "default_prefix_class_names")]
     pub prefix_class_names: bool,
 }
 
-impl<'arena, E: Element<'arena>> Default for PrefixIds<'arena, E> {
+impl Default for PrefixIds {
     fn default() -> Self {
         PrefixIds {
             delim: default_delim(),
@@ -90,7 +80,7 @@ struct CssVisitor<'arena, 'a, 'b, E: Element<'arena>> {
     class_names: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds<'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
@@ -116,7 +106,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds<'arena, E> {
         if element.prefix().is_none()
             && element.local_name().as_ref() == "style"
             && self
-                .prefix_selectors(element, &mut prefix_generator, &context.info)
+                .prefix_selectors(element, &mut prefix_generator, context.info)
                 .is_none()
         {
             return Ok(());
@@ -236,17 +226,8 @@ impl<'arena, 'i, E: Element<'arena>> lightningcss::visitor::Visitor<'i>
     }
 }
 
-impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> PrefixIds<'a, E::Lifetimed<'a>> {
-        PrefixIds {
-            delim: self.delim.clone(),
-            prefix_ids: self.prefix_ids.clone(),
-            prefix_class_names: self.prefix_class_names.clone(),
-            prefix: self.prefix.clone_for_lifetime(),
-        }
-    }
-
-    fn prefix_selectors(
+impl PrefixIds {
+    fn prefix_selectors<'arena, E: Element<'arena>>(
         &self,
         element: &mut E,
         prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
@@ -285,7 +266,7 @@ impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
         Some(())
     }
 
-    fn prefix_styles(
+    fn prefix_styles<'arena, E: Element<'arena>>(
         &self,
         css: &mut StyleSheet,
         prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
@@ -300,7 +281,7 @@ impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
         let _ = visitor.visit_stylesheet(css);
     }
 
-    fn prefix_id(
+    fn prefix_id<'arena, E: Element<'arena>>(
         ident: &str,
         prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
     ) -> Option<String> {
@@ -311,7 +292,7 @@ impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
         Some(format!("{prefix}{ident}"))
     }
 
-    fn prefix_reference(
+    fn prefix_reference<'arena, E: Element<'arena>>(
         url: &str,
         prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
     ) -> Option<String> {
@@ -324,7 +305,7 @@ impl<'arena, E: Element<'arena>> PrefixIds<'arena, E> {
     }
 }
 
-impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for PrefixGenerator<'arena, E> {
+impl<'de> Deserialize<'de> for PrefixGenerator {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -348,7 +329,7 @@ impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for PrefixGenerator<'aren
     }
 }
 
-impl<'arena, E: Element<'arena>> Serialize for PrefixGenerator<'arena, E> {
+impl Serialize for PrefixGenerator {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -368,21 +349,30 @@ impl<'arena, E: Element<'arena>> Serialize for PrefixGenerator<'arena, E> {
 struct GeneratePrefix<'arena, 'a, E: Element<'arena>> {
     node: E,
     info: &'a Info<'arena, E>,
-    prefix_generator: &'a PrefixGenerator<'arena, E>,
+    prefix_generator: &'a PrefixGenerator,
     delim: &'a str,
-    history: HashMap<String, &'a str>,
+    history: HashMap<String, String>,
 }
 
 impl<'arena, E: Element<'arena>> GeneratePrefix<'arena, '_, E> {
     fn generate(&mut self, body: &str) -> String {
         match self.prefix_generator {
-            PrefixGenerator::Generator(f, _) => {
+            PrefixGenerator::Generator(f) => {
                 if let Some(prefix) = self.history.get(body) {
                     return (*prefix).to_string();
                 };
-                let prefix = f(self.node.clone(), self.info);
-                self.history.insert(body.to_string(), prefix);
-                prefix.to_string()
+                let prefix = f(PrefixGeneratorInfo {
+                    path: self.info.path.clone(),
+                    name: self.node.qual_name().formatter().to_string(),
+                    attributes: self
+                        .node
+                        .attributes()
+                        .into_iter()
+                        .map(|a| (a.name().formatter().to_string(), a.value().to_string()))
+                        .collect(),
+                });
+                self.history.insert(body.to_string(), prefix.clone());
+                prefix
             }
             PrefixGenerator::Prefix(s) => format!("{s}{}", self.delim),
             PrefixGenerator::None => String::new(),

@@ -15,13 +15,13 @@ macro_rules! jobs {
 
         #[skip_serializing_none]
         #[derive(Deserialize, Serialize, Clone, Debug)]
-        #[serde(rename_all = "camelCase", bound = "E: Element<'arena>")]
+        #[serde(rename_all = "camelCase")]
         /// Each task for optimising an SVG document.
-        pub struct Jobs<'arena, E: Element<'arena>> {
+        pub struct Jobs {
             $(pub $name: Option<$job $( < 'arena, $($t),* >)?>),+
         }
 
-        impl<'arena, E: Element<'arena>> Default for Jobs<'arena, E> {
+        impl Default for Jobs {
             fn default() -> Self {
                 macro_rules! is_default {
                     ($_job:ident $_default:ident) => { Some($_job::default()) };
@@ -33,9 +33,9 @@ macro_rules! jobs {
             }
         }
 
-        impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
+        impl Jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
+            fn run_jobs<'arena, E: Element<'arena>>(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_mut() {
                     if !job.start(element, info)?.contains(PrepareOutcome::skip) {
@@ -43,18 +43,6 @@ macro_rules! jobs {
                     }
                 })+
                 Ok(count)
-            }
-
-            /// Creates a clone of the jobs configuration for a new lifetime by cleaning up any
-            /// associated data
-            pub fn clone_for_lifetime<'a>(&self) -> Jobs<'a, E::Lifetimed<'a>> {
-                macro_rules! is_lifetimed {
-                    ($_name:ident $_job:ident $_t:ty) => { self.$_name.as_ref().map($_job::clone_for_lifetime) };
-                    ($_name:ident $_job:ident) => { self.$_name.clone() };
-                }
-                Jobs {
-                    $($name: is_lifetimed!($name $job $($($t)*)?)),+
-                }
             }
 
             /// Overwrites `self`'s fields with the `Some` fields of `other`
@@ -88,7 +76,7 @@ jobs! {
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
-    prefix_ids: PrefixIds<E>,
+    prefix_ids: PrefixIds,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
     remove_dimensions: RemoveDimensions,
@@ -99,7 +87,7 @@ jobs! {
     remove_style_element: RemoveStyleElement,
     remove_title: RemoveTitle,
     remove_view_box: RemoveViewBox,
-    reuse_paths: ReusePaths<E>,
+    reuse_paths: ReusePaths,
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
@@ -108,10 +96,10 @@ jobs! {
     remove_deprecated_attrs: RemoveDeprecatedAttrs (is_default: true),
     remove_metadata: RemoveMetadata (is_default: true),
     cleanup_attributes: CleanupAttributes (is_default: true),
-    merge_styles: MergeStyles<E> (is_default: true),
-    inline_styles: InlineStyles<E> (is_default: true),
+    merge_styles: MergeStyles (is_default: true),
+    inline_styles: InlineStyles (is_default: true),
     minify_styles: MinifyStyles (is_default: true),
-    cleanup_ids: CleanupIds<E> (is_default: true),
+    cleanup_ids: CleanupIds (is_default: true),
     remove_useless_defs: RemoveUselessDefs (is_default: true),
     cleanup_numeric_values: CleanupNumericValues (is_default: true),
     convert_colors: ConvertColors (is_default: true),
@@ -119,7 +107,7 @@ jobs! {
     remove_non_inheritable_group_attrs: RemoveNonInheritableGroupAttrs (is_default: true),
     remove_useless_stroke_and_fill: RemoveUselessStrokeAndFill (is_default: true),
     cleanup_enable_background: CleanupEnableBackground (is_default: true),
-    remove_hidden_elems: RemoveHiddenElems<E> (is_default: true),
+    remove_hidden_elems: RemoveHiddenElems (is_default: true),
     remove_empty_text: RemoveEmptyText (is_default: true),
     convert_shape_to_path: ConvertShapeToPath (is_default: true),
     convert_ellipse_to_circle: ConvertEllipseToCircle (is_default: true),
@@ -153,10 +141,14 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-impl<'arena, E: Element<'arena>> Jobs<'arena, E> {
+impl Jobs {
     /// # Errors
     /// When any job fails for the first time
-    pub fn run(self, root: &E::ParentChild, info: &Info<'arena, E>) -> Result<(), Error> {
+    pub fn run<'arena, E: Element<'arena>>(
+        self,
+        root: &E::ParentChild,
+        info: &Info<'arena, E>,
+    ) -> Result<(), Error> {
         let Some(mut root_element) = <E as Element>::from_parent(root.clone()) else {
             log::warn!("No elements found in the document, skipping");
             return Ok(());
@@ -198,11 +190,11 @@ pub(crate) fn test_config_default_svg_comment(
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        implementations::{markup5ever::parse, shared::Element},
+        implementations::{roxmltree::parse, shared::Element},
         serialize::{Node, Options},
     };
 
-    let jobs: Jobs<Element> = serde_json::from_str(config_json)?;
+    let jobs: Jobs = serde_json::from_str(config_json)?;
     let arena = typed_arena::Arena::new();
     let dom = parse(
         svg.unwrap_or(
@@ -211,8 +203,9 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
 </svg>"#,
         ),
         &arena,
-    );
-    jobs.run(&dom, &Info::new(&arena))?;
+    )
+    .unwrap();
+    jobs.run(&dom, &Info::<Element>::new(&arena))?;
     Ok(dom.serialize_with_options(Options::default())?)
 }
 

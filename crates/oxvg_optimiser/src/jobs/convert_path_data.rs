@@ -456,7 +456,7 @@ fn convert_path_data() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "convertPathData": { "floatPrecision": 8 } }"#,
         Some(
-            r#"<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+            r#"<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <path d="M33.027833,1.96545901 C33.097408,2.03503401 38.0413624,6.97898843 38.0413624,6.97898842 C38.0413625,6.97898834 38.0094318,4.0346712 38.0094318,4.0346712 L34,0.0252395624 L34,0 L13,0 L13,2 L33.062374,2 Z"></path>
 </svg>"#
         )

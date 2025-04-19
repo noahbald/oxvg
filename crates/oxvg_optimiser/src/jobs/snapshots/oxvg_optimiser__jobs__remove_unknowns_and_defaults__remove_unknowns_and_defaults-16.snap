@@ -1,8 +1,7 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
-expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<?xml version=\"1.0\" standalone=\"no\"?>\n<svg width=\"64\" height=\"18\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- removes `standalone=\"no\" from xml declaration -->\n    <text x=\"4\" y=\"18\">uwu</text>\n</svg>\"#),)?"
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<svg width=\"64\" height=\"18\" xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- removes `standalone=\"no\" from xml declaration -->\n    <text x=\"4\" y=\"18\">uwu</text>\n</svg>\"#),)?"
 ---
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="18">
     <!-- removes `standalone="no" from xml declaration -->
     <text x="4" y="18">

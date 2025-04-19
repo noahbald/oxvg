@@ -8,9 +8,13 @@
     "optimise": "pnpm run optimise:w3c",
     "optimise:w3c": "cargo run optimise -r -. -o w3c-optimised w3c",
     "optimise:oxygen": "cargo run optimise -r -. -o oxygen-optimised oxygen",
+    "optimise:w3c:none": "cargo run optimise --extends none -r -. -o w3c-none w3c",
+    "optimise:oxygen:none": "cargo run optimise --extends none -r -. -o oxygen-none oxygen",
     "compare": "pnpm run compare:w3c",
     "compare:w3c": "node index.js 512 w3c w3c-optimised",
-    "compare:oxygen": "node index.js 512 oxygen oxygen-optimised"
+    "compare:oxygen": "node index.js 512 oxygen oxygen-optimised",
+    "compare:w3c:none": "node index.js 512 w3c w3c-none",
+    "compare:oxygen:none": "node index.js 512 oxygen oxygen-none"
   },
   "keywords": [],
   "author": "",

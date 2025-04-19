@@ -13,32 +13,37 @@ use serde::{Deserialize, Serialize};
 use super::ContextFlags;
 
 #[derive_where(Debug)]
-pub struct MergeStyles<'arena, E: Element<'arena>> {
-    enabled: bool,
+struct State<'arena, E: Element<'arena>> {
     first_style: Option<E>,
     is_cdata: bool,
     marker: PhantomData<&'arena ()>,
 }
 
-impl<'arena, E: Element<'arena>> MergeStyles<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> MergeStyles<'a, E::Lifetimed<'a>> {
-        MergeStyles {
-            enabled: self.enabled,
-            ..MergeStyles::default()
-        }
-    }
-}
+#[derive(Debug, Clone)]
+pub struct MergeStyles(bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles<'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.enabled {
+        if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
         }
     }
+
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        State::default().start(document, context.info).map(|_| ())
+    }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
+    type Error = String;
 
     fn element(
         &mut self,
@@ -120,16 +125,21 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles<'arena, E> {
         style.child_nodes_iter().for_each(|child| child.remove());
         let c_data = document
             .as_document()
-            .create_c_data_section(text.into(), &context.info.arena);
+            .create_c_data_section(text, &context.info.arena);
         style.append_child(c_data);
         Ok(())
     }
 }
 
-impl<'arena, E: Element<'arena>> Default for MergeStyles<'arena, E> {
+impl Default for MergeStyles {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
+impl<'arena, E: Element<'arena>> Default for State<'arena, E> {
     fn default() -> Self {
         Self {
-            enabled: true,
             first_style: None,
             is_cdata: false,
             marker: PhantomData,
@@ -137,36 +147,22 @@ impl<'arena, E: Element<'arena>> Default for MergeStyles<'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> Clone for MergeStyles<'arena, E> {
-    fn clone(&self) -> Self {
-        Self {
-            enabled: self.enabled,
-            first_style: self.first_style.clone(),
-            is_cdata: self.is_cdata,
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for MergeStyles<'arena, E> {
+impl<'de> Deserialize<'de> for MergeStyles {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let enabled = bool::deserialize(deserializer)?;
-        Ok(Self {
-            enabled,
-            ..Self::default()
-        })
+        Ok(Self(enabled))
     }
 }
 
-impl<'arena, E: Element<'arena>> Serialize for MergeStyles<'arena, E> {
+impl Serialize for MergeStyles {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        self.enabled.serialize(serializer)
+        self.0.serialize(serializer)
     }
 }
 

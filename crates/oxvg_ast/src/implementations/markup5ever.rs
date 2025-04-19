@@ -1,4 +1,10 @@
 //! Parsing methods using xml5ever
+//!
+//! # Quirks
+//!
+//! xml5ever has some notable quirks
+//!
+//! - Unused namespaces are skipped
 use std::{
     cell::{Cell, RefCell},
     collections::HashSet,
@@ -7,17 +13,13 @@ use std::{
 use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
-    local_name, namespace_prefix,
+    local_name, namespace_prefix, namespace_url, ns,
     tendril::TendrilSink,
     tree_builder::{ElemName, NamespaceMap},
 };
 
 use crate::{
-    attribute::{Attr, Attributes},
-    element::Element as _,
-    implementations::shared::Element,
-    name::Name,
-    node::Node as _,
+    attribute::Attributes, element::Element as _, implementations::shared::Element, node::Node as _,
 };
 
 use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
@@ -101,7 +103,7 @@ impl<'arena> Sink<'arena> {
                         local_name!("xmlns")
                     },
                     prefix: name.prefix.as_ref().map(|_| namespace_prefix!("xmlns")),
-                    ns: name.ns.clone(),
+                    ns: ns!(xml),
                 },
                 value: name.ns.as_ref().into(),
             })
@@ -112,37 +114,39 @@ impl<'arena> Sink<'arena> {
 
     /// Adds `xmlns` attributes to the current element and `xmlns`-prefixed attributes to the root
     fn add_xmlns(&self, child: &<Self as TreeSink>::Handle) {
-        if let NodeData::Element { name, attrs, .. } = &child.node_data {
-            let root: Element = Element::new(child)
-                .unwrap()
-                .document()
-                .and_then(|n| n.find_element())
-                .unwrap_or_else(|| Element::new(child).unwrap());
-            if let Some(attr_to_insert) = self.find_new_xmlns(name) {
-                if attr_to_insert.name.prefix.is_none() {
-                    attrs.borrow_mut().insert(0, attr_to_insert);
-                } else {
-                    root.attributes().set_named_item(attr_to_insert);
-                }
-            };
+        let NodeData::Element { name, attrs, .. } = &child.node_data else {
+            return;
+        };
 
-            let attrs_ref = attrs.borrow();
-            let root_attrs_to_insert: Vec<_> = attrs_ref
-                .iter()
-                .filter_map(|attr| self.find_new_xmlns(&attr.name))
-                .collect();
-            drop(attrs_ref);
-
-            let mut root_attrs = root.attributes().0.borrow_mut();
-            let has_xmlns = root_attrs.first().is_some_and(|attr| {
-                attr.name.prefix.is_none() && attr.name.local == local_name!("xmlns")
-            });
-            for (i, attr) in root_attrs_to_insert.into_iter().enumerate() {
-                if attr.name.local.as_ref() == "xml" {
-                    continue;
-                }
-                root_attrs.insert(if has_xmlns { i + 1 } else { i }, attr);
+        let root: Element = Element::new(child)
+            .unwrap()
+            .document()
+            .and_then(|n| n.find_element())
+            .unwrap_or_else(|| Element::new(child).unwrap());
+        if let Some(attr_to_insert) = self.find_new_xmlns(name) {
+            if attr_to_insert.name.prefix.is_none() {
+                attrs.borrow_mut().insert(0, attr_to_insert);
+            } else {
+                root.attributes().set_named_item(attr_to_insert);
             }
+        };
+
+        let attrs_ref = attrs.borrow();
+        let root_attrs_to_insert: Vec<_> = attrs_ref
+            .iter()
+            .filter_map(|attr| self.find_new_xmlns(&attr.name))
+            .collect();
+        drop(attrs_ref);
+
+        let mut root_attrs = root.attributes().0.borrow_mut();
+        let has_xmlns = root_attrs.first().is_some_and(|attr| {
+            attr.name.prefix.is_none() && attr.name.local == local_name!("xmlns")
+        });
+        for (i, attr) in root_attrs_to_insert.into_iter().enumerate() {
+            if attr.name.local.as_ref() == "xml" {
+                continue;
+            }
+            root_attrs.insert(if has_xmlns { i + 1 } else { i }, attr);
         }
     }
 }

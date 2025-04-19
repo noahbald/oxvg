@@ -10,31 +10,44 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     name::Name,
-    serialize::Node as _,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use parcel_selectors::parser::Component;
 use serde::{Deserialize, Serialize};
 
 #[derive_where(Default, Clone, Debug)]
-pub struct ReusePaths<'arena, E: Element<'arena>> {
-    enabled: bool,
+struct State<'arena, E: Element<'arena>> {
     paths: BTreeMap<String, Vec<E>>,
     defs: Option<E>,
     hrefs: HashSet<String>,
     marker: PhantomData<&'arena ()>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths<'arena, E> {
+#[derive(Default, Clone, Debug)]
+pub struct ReusePaths(bool);
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths {
     type Error = String;
 
     fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.enabled {
+        if self.0 {
             PrepareOutcome::use_style
         } else {
             PrepareOutcome::skip
         }
     }
+
+    fn document(
+        &mut self,
+        document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        State::default().start(document, context.info).map(|_| ())
+    }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
+    type Error = String;
 
     fn element(
         &mut self,
@@ -203,14 +216,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths<'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> ReusePaths<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> ReusePaths<'a, E::Lifetimed<'a>> {
-        ReusePaths {
-            enabled: self.enabled,
-            ..ReusePaths::default()
-        }
-    }
-
+impl<'arena, E: Element<'arena>> State<'arena, E> {
     fn add_path(&mut self, element: &E) {
         let Some(d) = element.get_attribute_local(&"d".into()) else {
             return;
@@ -247,25 +253,22 @@ impl<'arena, E: Element<'arena>> ReusePaths<'arena, E> {
     }
 }
 
-impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for ReusePaths<'arena, E> {
+impl<'de> Deserialize<'de> for ReusePaths {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let enabled = bool::deserialize(deserializer)?;
-        Ok(Self {
-            enabled,
-            ..Self::default()
-        })
+        Ok(Self(enabled))
     }
 }
 
-impl<'arena, E: Element<'arena>> Serialize for ReusePaths<'arena, E> {
+impl Serialize for ReusePaths {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        self.enabled.serialize(serializer)
+        self.0.serialize(serializer)
     }
 }
 
@@ -364,8 +367,7 @@ fn reuse_paths() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r#"{ "reusePaths": true }"#,
         Some(
-            r##"<svg xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-29.947 60.987 69.975 102.505">
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-29.947 60.987 69.975 102.505">
   <defs></defs>
   <path fill="#000" d="M0 0v1h.5Z"/>
   <path fill="#000" d="M0 0v1h.5Z"/>

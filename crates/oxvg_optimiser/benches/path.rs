@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use oxvg_ast::{
     element::Element as _,
-    implementations::{markup5ever::parse, shared::Element},
+    implementations::{roxmltree::parse, shared::Element},
     visitor::{Info, Visitor},
 };
 use oxvg_optimiser::ConvertPathData;
@@ -33,7 +33,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     let mut result = Duration::default();
                     for _ in 0..iters {
                         let arena = typed_arena::Arena::new();
-                        let dom = parse(svg, &arena);
+                        let dom = parse(svg, &arena).unwrap();
                         let mut root = Element::from_parent(dom).unwrap();
                         let mut job = ConvertPathData::default();
                         let info = &Info::new(&arena);

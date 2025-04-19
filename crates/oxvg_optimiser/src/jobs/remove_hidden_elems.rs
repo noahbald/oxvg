@@ -27,7 +27,7 @@ use crate::utils::find_references;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Options {
+pub struct RemoveHiddenElems {
     pub is_hidden: Option<bool>,
     pub display_none: Option<bool>,
     pub opacity_zero: Option<bool>,
@@ -47,13 +47,6 @@ pub struct Options {
 
 #[derive(Clone)]
 #[derive_where(Default, Debug)]
-pub struct RemoveHiddenElems<'arena, E: Element<'arena>> {
-    options: Options,
-    data: Data<'arena, E>,
-}
-
-#[derive(Clone)]
-#[derive_where(Default, Debug)]
 struct Data<'arena, E: Element<'arena>> {
     opacity_zero: bool,
     non_rendered_nodes: HashSet<E>,
@@ -62,6 +55,11 @@ struct Data<'arena, E: Element<'arena>> {
     all_references: HashSet<String>,
     references_by_id: HashMap<String, Vec<(E, E)>>,
     marker: PhantomData<&'arena ()>,
+}
+
+struct State<'o, 'arena, E: Element<'arena>> {
+    options: &'o RemoveHiddenElems,
+    data: &'o mut Data<'arena, E>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
@@ -133,14 +131,8 @@ impl<'arena, E: Element<'arena>> Data<'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems {
     type Error = String;
-
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
-        context_flags.query_has_script(document);
-        context_flags.query_has_stylesheet(document);
-        PrepareOutcome::use_style
-    }
 
     fn document(
         &mut self,
@@ -148,9 +140,28 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         log::debug!("collecting data");
-        self.data.start(document, context.info)?;
+        let mut data = Data {
+            opacity_zero: self.opacity_zero.unwrap_or(true),
+            ..Data::default()
+        };
+        data.start(document, context.info)?;
         log::debug!("data collected");
-        Ok(())
+        State {
+            options: &self,
+            data: &mut data,
+        }
+        .start(document, context.info)
+        .map(|_| ())
+    }
+}
+
+impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
+    type Error = String;
+
+    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
+        context_flags.query_has_script(document);
+        context_flags.query_has_stylesheet(document);
+        PrepareOutcome::use_style
     }
 
     fn use_style(&mut self, _element: &E) -> bool {
@@ -234,17 +245,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems<'arena
     }
 }
 
-impl<'arena, E: Element<'arena>> RemoveHiddenElems<'arena, E> {
-    pub fn clone_for_lifetime<'a>(&self) -> RemoveHiddenElems<'a, E::Lifetimed<'a>> {
-        RemoveHiddenElems {
-            options: self.options.clone(),
-            data: Data {
-                opacity_zero: self.data.opacity_zero.clone(),
-                ..Data::default()
-            },
-        }
-    }
-
+impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
         if let Some(id) = element.get_attribute_local(&"id".into()) {
             if self.data.all_references.contains(id.as_ref()) {
@@ -461,32 +462,6 @@ impl<'arena, E: Element<'arena>> RemoveHiddenElems<'arena, E> {
             return true;
         }
         false
-    }
-}
-
-impl<'arena, 'de, E: Element<'arena>> Deserialize<'de> for RemoveHiddenElems<'arena, E> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let options = Options::deserialize(deserializer)?;
-        let opacity_zero = options.opacity_zero.unwrap_or(true);
-        Ok(RemoveHiddenElems {
-            options,
-            data: Data {
-                opacity_zero,
-                ..Data::default()
-            },
-        })
-    }
-}
-
-impl<'arena, E: Element<'arena>> Serialize for RemoveHiddenElems<'arena, E> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.options.serialize(serializer)
     }
 }
 
