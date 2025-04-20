@@ -339,7 +339,9 @@ pub trait Visitor<'arena, E: Element<'arena>> {
                                 &context.stylesheet,
                                 context.element_styles,
                             );
+                            context.flags.set(ContextFlags::use_style, true);
                         } else {
+                            context.computed_styles = ComputedStyles::default();
                             context.flags.set(ContextFlags::use_style, false);
                         }
                         self.element(element, context)?;

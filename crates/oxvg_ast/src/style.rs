@@ -72,8 +72,8 @@ impl<'i> UnparsedPresentationAttr<'i> {
     ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let value = CustomProperty::parse(CustomPropertyName::Unknown("".into()), input, options)?;
         input.expect_exhausted()?; // !important is not supported in presentation attributes
-        // TODO: Port to lightningcss as
-        // let value = input.parse_entirely(|input| TokenList::parse(input, options, 0))?;
+                                   // TODO: Port to lightningcss as
+                                   // let value = input.parse_entirely(|input| TokenList::parse(input, options, 0))?;
         Ok(UnparsedPresentationAttr {
             presentation_attr_id,
             value: value.value,
@@ -1674,6 +1674,7 @@ impl<'i> ComputedStyles<'i> {
             return self;
         };
         let parent_styles = ComputedStyles::default().with_all(&parent, styles, element_styles);
+        self.inherited.extend(parent_styles.inherited);
         self.inherited.extend(
             parent_styles
                 .attr
