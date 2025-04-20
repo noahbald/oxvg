@@ -127,6 +127,9 @@ jobs! {
     sort_attrs: SortAttrs (is_default: true),
     sort_defs_children: SortDefsChildren (is_default: true),
     remove_desc: RemoveDesc (is_default: true),
+
+    // Final non-default plugins
+    remove_xlink: RemoveXlink,
 }
 
 #[derive(Debug)]
