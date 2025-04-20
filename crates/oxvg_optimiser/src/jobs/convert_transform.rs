@@ -138,16 +138,11 @@ impl ConvertTransform {
 
     fn transform(&self, value: &Style) -> Option<SVGTransformList> {
         let transform = match value {
-            Style::Static(Static::Attr(PresentationAttr::Transform(transform))) => {
-                transform.clone()
-            }
             Style::Static(Static::Attr(
-                PresentationAttr::GradientTransform(transform)
+                PresentationAttr::Transform(transform)
+                | PresentationAttr::GradientTransform(transform)
                 | PresentationAttr::PatternTransform(transform),
-            )) => match transform.try_into() {
-                Ok(transform) => transform,
-                Err(()) => return None,
-            },
+            )) => transform.clone(),
             Style::Static(Static::Attr(PresentationAttr::Unparsed(_))) => return None,
             _ => unreachable!("dynamic or non-transform style provided"),
         };

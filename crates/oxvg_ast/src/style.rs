@@ -386,8 +386,8 @@ define_presentation_attrs! {
     // NOTE: I think these may technically may not be presentation attrs, but they contain css so
     // may be worth considering
     // TODO: If so, maybe `is_presentation` method would be needed
-    "gradientTransform": GradientTransform(TransformList) / false,
-    "patternTransform": PatternTransform(TransformList) / false,
+    "gradientTransform": GradientTransform(SVGTransformList) / false,
+    "patternTransform": PatternTransform(SVGTransformList) / false,
 
     // NOTE: We could include `d`, as is done with https://github.com/parcel-bundler/lightningcss/pull/868
     // "d": Definition(PathData) / false,
@@ -1192,51 +1192,38 @@ impl<'i> Parse<'i> for SVGTransform {
     fn parse<'t>(input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         input
             .try_parse(|input| {
-                let function = input.expect_function()?.clone();
+                // SVG transforms allow whitespace between the function name and arguments, unlike CSS functions.
+                // So this may tokenize either as a function, or as an ident followed by a parenthesis block.
+                let function = input
+                    .try_parse(|input| input.expect_function().map(|f| f.clone()))
+                    .or_else(|_| -> Result<_, ParseError<_>> {
+                        let name = input.expect_ident_cloned()?;
+                        input.skip_whitespace();
+                        input.expect_parenthesis_block()?;
+                        Ok(name)
+                    })?;
+
                 let function_case_sensitive: &str = &function;
                 input.parse_nested_block(|input| {
                     let location = input.current_source_location();
                     match function_case_sensitive {
                         "matrix" => {
                             let a = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             let b = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             let c = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             let d = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             let e = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             let f = f32::parse(input)?;
                             Ok(SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))
                         }
                         "translate" => {
                             let x = f32::parse(input)?;
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
-                            input.skip_whitespace();
-                            input
-                                .try_parse(Parser::expect_comma)
-                                .or_else(|_| input.try_parse(Parser::expect_comma))
-                                .ok();
+                            skip_comma_and_whitespace(input);
                             if let Ok(y) = input.try_parse(f32::parse) {
                                 Ok(SVGTransform::Translate(x, y))
                             } else {
@@ -1245,7 +1232,7 @@ impl<'i> Parse<'i> for SVGTransform {
                         }
                         "scale" => {
                             let x = f32::parse(input)?;
-                            input.skip_whitespace();
+                            skip_comma_and_whitespace(input);
                             if let Ok(y) = input.try_parse(f32::parse) {
                                 Ok(SVGTransform::Scale(x, y))
                             } else {
@@ -1254,9 +1241,9 @@ impl<'i> Parse<'i> for SVGTransform {
                         }
                         "rotate" => {
                             let angle = f32::parse(input)?;
-                            input.skip_whitespace();
+                            skip_comma_and_whitespace(input);
                             if let Ok(x) = input.try_parse(f32::parse) {
-                                input.skip_whitespace();
+                                skip_comma_and_whitespace(input);
                                 let y = f32::parse(input)?;
                                 Ok(SVGTransform::Rotate(angle, x, y))
                             } else {
@@ -1279,6 +1266,12 @@ impl<'i> Parse<'i> for SVGTransform {
             })
             .or_else(|_| Ok(SVGTransform::CssTransform(Transform::parse(input)?)))
     }
+}
+
+fn skip_comma_and_whitespace<'i, 't>(input: &mut Parser<'i, 't>) {
+    input.skip_whitespace();
+    let _ = input.try_parse(Parser::expect_comma);
+    input.skip_whitespace();
 }
 
 impl ToCss for SVGTransform {
