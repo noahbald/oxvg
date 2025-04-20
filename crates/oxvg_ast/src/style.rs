@@ -71,6 +71,7 @@ impl<'i> UnparsedPresentationAttr<'i> {
         options: &ParserOptions<'_, 'i>,
     ) -> Result<Self, ParseError<'i, ParserError<'i>>> {
         let value = CustomProperty::parse(CustomPropertyName::Unknown("".into()), input, options)?;
+        input.expect_exhausted()?; // !important is not supported in presentation attributes
         // TODO: Port to lightningcss as
         // let value = input.parse_entirely(|input| TokenList::parse(input, options, 0))?;
         Ok(UnparsedPresentationAttr {
