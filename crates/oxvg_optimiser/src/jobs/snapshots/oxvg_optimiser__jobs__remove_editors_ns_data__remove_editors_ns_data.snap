@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_editors_ns_data.rs
+expression: "test_config(r#\"{ \"removeEditorsNsData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd\">\n    <sodipodi:namedview>\n        ...\n    </sodipodi:namedview>\n\n    <path d=\"...\" sodipodi:nodetypes=\"cccc\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="..."/>
+</svg>
