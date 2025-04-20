@@ -3,8 +3,8 @@ use phf::{phf_map, phf_set};
 use crate::collections::{
     ANIMATION, ANIMATION_ADDITION, ANIMATION_ATTRIBUTE_TARGET, ANIMATION_EVENT, ANIMATION_TIMING,
     ANIMATION_VALUE, CONDITIONAL_PROCESSING, CORE, DESCRIPTIVE, DOCUMENT_EVENT, FILTER_PRIMITIVE,
-    GRAPHICAL_EVENT, LIGHT_SOURCE, PAINT_SERVER, PRESENTATION, SHAPE, STRUCTURAL,
-    TEXT_CONTENT_CHILD, TRANSFER_FUNCTION, X_LINK,
+    FILTER_PRIMITIVE_ATTRS, GRAPHICAL_EVENT, LIGHT_SOURCE, PAINT_SERVER, PRESENTATION, SHAPE,
+    STRUCTURAL, TEXT_CONTENT_CHILD, TRANSFER_FUNCTION, X_LINK,
 };
 
 pub struct AllowedContent {
@@ -344,7 +344,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "in2", "mode")),
         defaults: Some(phf_map!{"mode" => "normal"}),
@@ -357,7 +357,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "type", "values")),
         defaults: Some(phf_map!{"type" => "matrix"}),
@@ -370,7 +370,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in")),
         defaults: None,
@@ -383,7 +383,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class", "in", "in2", "k1", "k2", "k3", "k4", "operator", "style",
@@ -404,7 +404,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class",
@@ -435,7 +435,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class",
@@ -462,7 +462,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class",
@@ -496,7 +496,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style")),
         defaults: None,
