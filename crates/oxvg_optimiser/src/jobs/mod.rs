@@ -145,7 +145,7 @@ impl Jobs {
     /// # Errors
     /// When any job fails for the first time
     pub fn run<'arena, E: Element<'arena>>(
-        self,
+        &mut self,
         root: &E::ParentChild,
         info: &Info<'arena, E>,
     ) -> Result<(), Error> {
@@ -154,8 +154,7 @@ impl Jobs {
             return Ok(());
         };
 
-        let mut jobs = self.clone();
-        let count = jobs
+        let count = self
             .run_jobs(&mut root_element, info)
             .map_err(Error::Generic)?;
         log::debug!("completed {count} jobs");
@@ -194,7 +193,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
         serialize::{Node, Options},
     };
 
-    let jobs: Jobs = serde_json::from_str(config_json)?;
+    let mut jobs: Jobs = serde_json::from_str(config_json)?;
     let arena = typed_arena::Arena::new();
     let dom = parse(
         svg.unwrap_or(

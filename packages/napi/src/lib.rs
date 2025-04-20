@@ -18,7 +18,7 @@ extern crate napi_derive;
 /// - If any of the optimisations fail
 /// - If the optimised document fails to serialize
 pub fn optimise(svg: String, config_json: Option<String>) -> Result<String, Error<Status>> {
-  let config = if let Some(config) = config_json {
+  let mut config = if let Some(config) = config_json {
     serde_json::from_str(&config).map_err(generic_error)?
   } else {
     Jobs::default()

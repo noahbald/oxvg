@@ -19,7 +19,7 @@ use wasm_bindgen::prelude::*;
 pub fn optimise(svg: &str, config_json: Option<String>) -> Result<String, String> {
     console_error_panic_hook::set_once();
 
-    let config = if let Some(config) = config_json {
+    let mut config = if let Some(config) = config_json {
         serde_json::from_str(&config).map_err(|err| err.to_string())?
     } else {
         Jobs::default()

@@ -77,7 +77,7 @@ impl Optimise {
         )?)
     }
 
-    fn handle_stdin<'arena>(&self, jobs: Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
+    fn handle_stdin<'arena>(&self, mut jobs: Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
         let dom = parse(&source, arena)?;
@@ -110,7 +110,7 @@ impl Optimise {
     }
 
     fn handle_file<'arena>(
-        jobs: &Jobs,
+        jobs: &mut Jobs,
         path: &PathBuf,
         output: Option<&PathBuf>,
         arena: Arena<'arena>,
@@ -125,7 +125,7 @@ impl Optimise {
             multipass_count: 0,
             arena,
         };
-        jobs.clone().run(&dom, &info)?;
+        jobs.run(&dom, &info)?;
 
         if let Some(output_path) = output {
             if let Some(parent) = output_path.parent() {
@@ -182,7 +182,9 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref(), &arena) {
+                    if let Err(err) =
+                        Self::handle_file(&mut jobs.clone(), &path, output_path.as_ref(), &arena)
+                    {
                         eprintln!(
                             "{}: \x1b[31m{err}\x1b[0m",
                             path.to_str().unwrap_or_default()
