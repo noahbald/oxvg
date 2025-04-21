@@ -15,7 +15,7 @@ workspace = true
 default = ["markup5ever", "roxmltree", "visitor"]
 markup5ever = ["dep:rcdom", "dep:xml5ever"]
 roxmltree = ["dep:roxmltree"]
-serialize = ["dep:xmlwriter"]
+serialize = []
 selectors = ["dep:selectors", "dep:cssparser", "dep:precomputed-hash"]
 visitor = ["dep:bitflags"]
 style = ["dep:lightningcss", "dep:cssparser_lightningcss", "dep:smallvec"]
@@ -42,4 +42,3 @@ string_cache = { workspace = true }
 tendril = { workspace = true }
 typed-arena = { workspace = true }
 xml5ever = { workspace = true, optional = true }
-xmlwriter = { workspace = true, optional = true }

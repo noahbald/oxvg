@@ -4,5 +4,5 @@ expression: "test_config(r#\"{ \"cleanupAttributes\": {\n            \"newlines\
 ---
 <svg xmlns="http://www.w3.org/2000/svg" attr="a b">
     <!-- Should remove all unnecessary whitespace from attributes -->
-    test & &lt;& > ' " &
+    test &amp; &lt;&amp; &gt; ' " &amp;
 </svg>

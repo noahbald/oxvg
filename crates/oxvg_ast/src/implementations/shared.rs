@@ -662,6 +662,7 @@ impl<'arena> node::Node<'arena> for Ref<'arena> {
     type Child = Ref<'arena>;
     type ParentChild = Ref<'arena>;
     type Parent = Element<'arena>;
+    type Name = QualName;
 
     fn id(&self) -> usize {
         self.id
@@ -974,6 +975,7 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
     type Child = Ref<'arena>;
     type ParentChild = Ref<'arena>;
     type Parent = Element<'arena>;
+    type Name = QualName;
 
     fn id(&self) -> usize {
         self.node.id()
@@ -983,7 +985,8 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
         self.node.child_nodes_iter()
     }
 
-    fn element(&self) -> Option<impl element::Element<'arena>> {
+    #[allow(refining_impl_trait)]
+    fn element(&self) -> Option<Self> {
         Some(self.clone())
     }
 
@@ -1117,7 +1120,6 @@ impl<'arena> node::Node<'arena> for Element<'arena> {
 }
 
 impl<'arena> element::Element<'arena> for Element<'arena> {
-    type Name = QualName;
     type Attributes<'a> = Attributes<'a>;
     type Attr = Attribute;
     type Lifetimed<'a> = Element<'a>;
@@ -1391,7 +1393,7 @@ impl<'arena> document::Document<'arena> for Document<'arena> {
 
     fn create_element(
         &self,
-        tag_name: <Self::Root as element::Element<'arena>>::Name,
+        tag_name: <Self::Root as node::Node<'arena>>::Name,
         arena: &<Self::Root as node::Node<'arena>>::Arena,
     ) -> Self::Root {
         Element::new(arena.alloc(Node::new(

@@ -46,7 +46,7 @@ pub trait Document<'arena> {
     /// [MDN | createElement](https://developer.mozilla.org/en-US/docs/Web/API/Document/createElement)
     fn create_element(
         &self,
-        tag_name: <Self::Root as Element<'arena>>::Name,
+        tag_name: <Self::Root as Node<'arena>>::Name,
         arena: &<Self::Root as Node<'arena>>::Arena,
     ) -> Self::Root;
 

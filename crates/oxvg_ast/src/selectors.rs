@@ -369,9 +369,9 @@ impl<'arena, E: element::Element<'arena>> SelectElement<'arena, E> {
 impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'arena, E> {
     type Impl = SelectorImpl<
         <E as node::Node<'arena>>::Atom,
-        <<E as element::Element<'arena>>::Name as Name>::Prefix,
-        <<E as element::Element<'arena>>::Name as Name>::LocalName,
-        <<E as element::Element<'arena>>::Name as Name>::Namespace,
+        <<E as node::Node<'arena>>::Name as Name>::Prefix,
+        <<E as node::Node<'arena>>::Name as Name>::LocalName,
+        <<E as node::Node<'arena>>::Name as Name>::Namespace,
     >;
 
     fn opaque(&self) -> selectors::OpaqueElement {

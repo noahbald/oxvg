@@ -60,7 +60,6 @@ tendril = "0.4"
 typed-arena = "2.0"
 quick-xml = "0.31"
 xml5ever = "0.20"
-xmlwriter = "0.1"
 
 # Developer dependencies
 ctor = "0.2"
