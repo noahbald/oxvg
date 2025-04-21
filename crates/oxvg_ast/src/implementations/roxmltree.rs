@@ -15,9 +15,9 @@ use std::{
 use tendril::StrTendril;
 use xml5ever::{local_name, namespace_prefix, namespace_url, ns, Prefix};
 
-use crate::{attribute::Attr, node::Node as _};
+use crate::attribute::Attr;
 
-use super::shared::{Arena, Attribute, Element, Node, NodeData, QualName, Ref};
+use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
 
 #[derive(Debug)]
 /// The errors which may occur while parsing a document with roxmltree.
@@ -137,14 +137,8 @@ pub fn parse_roxmltree<'arena>(
     };
     let document = allocator.alloc(NodeData::Document);
 
-    let result = parse_xml_node_children(
-        document,
-        &mut allocator,
-        xml.root(),
-        0,
-        &mut namespace_map,
-        None,
-    );
+    let result =
+        parse_xml_node_children(document, &mut allocator, xml.root(), 0, &mut namespace_map);
     result
 }
 
@@ -158,10 +152,9 @@ fn parse_xml_node_children<'arena>(
     parent: roxmltree::Node<'_, '_>,
     depth: u32,
     namespace_map: &mut NamespaceMap,
-    root: Option<&Element<'arena>>,
 ) -> Result<Ref<'arena>, ParseError> {
     for xml_child in parent.children() {
-        let child = parse_xml_node(allocator, xml_child, depth, namespace_map, root.cloned())?;
+        let child = parse_xml_node(allocator, xml_child, depth, namespace_map)?;
 
         // parent
         child.parent.set(Some(node));
@@ -187,7 +180,6 @@ fn parse_xml_node<'arena>(
     node: roxmltree::Node<'_, '_>,
     depth: u32,
     namespace_map: &mut NamespaceMap,
-    root: Option<Element<'arena>>,
 ) -> Result<&'arena Node<'arena>, ParseError> {
     if depth > 1024 {
         return Err(ParseError::NodesLimitReached);
@@ -203,19 +195,7 @@ fn parse_xml_node<'arena>(
         roxmltree::NodeType::Comment => parse_comment(allocator, node),
         roxmltree::NodeType::Text => parse_text(allocator, node),
     };
-    let root = if root.is_some() {
-        root
-    } else {
-        child.element()
-    };
-    parse_xml_node_children(
-        child,
-        allocator,
-        node,
-        depth + 1,
-        namespace_map,
-        root.as_ref(),
-    )?;
+    parse_xml_node_children(child, allocator, node, depth + 1, namespace_map)?;
     for (prefix, value) in popped_ns {
         namespace_map.insert(prefix, value);
     }
