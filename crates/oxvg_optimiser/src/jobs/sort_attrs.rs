@@ -80,18 +80,16 @@ fn sort_attrs() -> anyhow::Result<()> {
         ),
     )?);
 
-    // FIXME: rcdom is breaking this
     insta::assert_snapshot!(test_config(
         r#"{ "sortAttrs": {} }"#,
         Some(
-            r#"<svg xmlns:editor2="link2" fill="" b="" xmlns:xlink="" xmlns:editor1="link1" xmlns="" d="">
+            r#"<svg xmlns:editor2="link2" fill="" b="" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:editor1="link1" xmlns="" d="">
     <!-- put xmlns and namespace attributes before others by default -->
     <rect editor2:b="" editor1:b="" editor2:a="" editor1:a="" />
 </svg>"#
         ),
     )?);
 
-    // FIXME: rcdom is breaking this
     insta::assert_snapshot!(test_config(
         r#"{ "sortAttrs": { "xmlnsOrder": "alphabetical" } }"#,
         Some(

@@ -26,7 +26,7 @@ pub type Ref<'arena> = &'arena Node<'arena>;
 /// A settable reference to a node
 pub type Link<'arena> = Cell<Option<Ref<'arena>>>;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
+#[derive(Debug, Clone)]
 /// A qualified name used for the names of tags and attributes.
 pub struct QualName {
     /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
@@ -35,6 +35,27 @@ pub struct QualName {
     pub prefix: Option<string_cache::Atom<markup5ever::PrefixStaticSet>>,
     /// The resolved uri of the name
     pub ns: string_cache::Atom<markup5ever::NamespaceStaticSet>,
+}
+
+impl PartialEq for QualName {
+    fn eq(&self, other: &Self) -> bool {
+        self.local == other.local && self.prefix == other.prefix
+    }
+}
+impl Eq for QualName {}
+
+impl PartialOrd for QualName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for QualName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.local.cmp(&other.local) {
+            std::cmp::Ordering::Equal => self.prefix.cmp(&other.prefix),
+            ord => ord,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -151,10 +172,9 @@ impl Name for QualName {
 
 impl std::hash::Hash for QualName {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let Self { prefix, ns, local } = self;
+        let Self { prefix, local, .. } = self;
 
         prefix.hash(state);
-        ns.hash(state);
         local.hash(state);
     }
 }

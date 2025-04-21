@@ -449,6 +449,9 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
 
         let value = match ns {
             NamespaceConstraint::Any => self.element.get_attribute_local(&local_name.0),
+            NamespaceConstraint::Specific(ns) if ns.0.is_empty() => {
+                self.element.get_attribute_local(&local_name.0)
+            }
             NamespaceConstraint::Specific(ns) => {
                 self.element.get_attribute_ns(&ns.0, &local_name.0)
             }
