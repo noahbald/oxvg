@@ -19,8 +19,6 @@ use crate::{
 ///
 /// [MDN | Element](https://developer.mozilla.org/en-US/docs/Web/API/Element)
 pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + PartialEq {
-    /// The type representing the tag or attribute name of the element
-    type Name: Name;
     /// The type representing a singular attribute of the element's list of attributes
     type Attr: Attr<Name = Self::Name, Atom = <Self as Node<'arena>>::Atom>;
     /// The type representing a list of attributes in an element

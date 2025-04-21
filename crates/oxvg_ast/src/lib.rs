@@ -21,6 +21,8 @@ pub mod visitor;
 
 #[cfg(feature = "serialize")]
 pub mod serialize;
+#[cfg(feature = "serialize")]
+pub mod xmlwriter;
 
 #[cfg(feature = "selectors")]
 pub mod selectors;

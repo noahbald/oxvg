@@ -1,7 +1,7 @@
 //! XML node traits.
 use std::fmt::Debug;
 
-use crate::{atom::Atom, element::Element};
+use crate::{atom::Atom, element::Element, name::Name};
 
 #[derive(PartialEq, Debug)]
 /// An enum which specifies the type of node.
@@ -50,7 +50,15 @@ pub trait Node<'arena>: Clone + Debug {
     /// The node type of the sibling of a node
     type ParentChild: Node<'arena, Atom = Self::Atom, Parent = Self::Parent, Arena = Self::Arena>;
     /// The node type of the parent of a node
-    type Parent: Node<'arena, Atom = Self::Atom, Child = Self::ParentChild, Arena = Self::Arena>;
+    type Parent: Node<
+        'arena,
+        Atom = Self::Atom,
+        Child = Self::ParentChild,
+        Arena = Self::Arena,
+        Name = Self::Name,
+    >;
+    /// The type representing the tag or attribute name of the element
+    type Name: Name;
 
     /// Whether the allocation id is the same address as the other
     fn id_eq(&self, other: &impl Node<'arena>) -> bool {
@@ -74,7 +82,7 @@ pub trait Node<'arena>: Clone + Debug {
     }
 
     /// Upcasts self as an element
-    fn element(&self) -> Option<impl Element<'arena>>;
+    fn element(&self) -> Option<impl Element<'arena, Name = Self::Name>>;
 
     /// Removes all child nodes
     fn empty(&self);
