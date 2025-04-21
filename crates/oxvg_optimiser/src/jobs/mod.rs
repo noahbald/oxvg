@@ -7,6 +7,8 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+pub use prefix_ids::PrefixGenerator;
+
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
         $(mod $name;)+
