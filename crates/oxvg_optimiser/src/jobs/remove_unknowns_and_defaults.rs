@@ -561,5 +561,19 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeUnknownsAndDefaults": {} }"#,
+        Some(
+            r##"<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+    <!-- do not remove default when inherited value differs -->
+    <g fill="#fff">
+      <g>
+        <rect x="0" y="0" width="50" height="50" fill="#000" />
+      </g>
+    </g>
+</svg>"##
+        ),
+    )?);
+
     Ok(())
 }

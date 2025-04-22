@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_transform.rs
+expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\" viewBox=\"0 0 480 360\">\n    <!-- ignore inherited styles on children -->\n    <g transform=\"translate(30,-10)\">\n      <rect x=\"0\" y=\"0\" width=\"10\" height=\"20\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 480 360">
+    <!-- ignore inherited styles on children -->
+    <g transform="translate(30 -10)">
+        <rect x="0" y="0" width="10" height="20"/>
+    </g>
+</svg>

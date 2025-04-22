@@ -489,5 +489,17 @@ fn convert_transform() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertTransform": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 480 360">
+    <!-- ignore inherited styles on children -->
+    <g transform="translate(30,-10)">
+      <rect x="0" y="0" width="10" height="20"/>
+    </g>
+</svg>"#
+        ),
+    )?);
+
     Ok(())
 }
