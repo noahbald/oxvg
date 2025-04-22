@@ -57,9 +57,9 @@ pub trait Name:
 
     /// Calls `f` with a borrowed string, to prevent allocation in the case that
     /// the name doesn't have a prefix
-    fn with_str<F>(&self, mut f: F)
+    fn with_str<F, R>(&self, mut f: F) -> R
     where
-        F: FnMut(&str),
+        F: FnMut(&str) -> R,
     {
         match self.prefix() {
             Some(p) => {

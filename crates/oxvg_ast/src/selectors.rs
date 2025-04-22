@@ -369,9 +369,9 @@ impl<'arena, E: element::Element<'arena>> SelectElement<'arena, E> {
 impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'arena, E> {
     type Impl = SelectorImpl<
         <E as node::Node<'arena>>::Atom,
-        <<E as element::Element<'arena>>::Name as Name>::Prefix,
-        <<E as element::Element<'arena>>::Name as Name>::LocalName,
-        <<E as element::Element<'arena>>::Name as Name>::Namespace,
+        <<E as node::Node<'arena>>::Name as Name>::Prefix,
+        <<E as node::Node<'arena>>::Name as Name>::LocalName,
+        <<E as node::Node<'arena>>::Name as Name>::Namespace,
     >;
 
     fn opaque(&self) -> selectors::OpaqueElement {
@@ -449,6 +449,9 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
 
         let value = match ns {
             NamespaceConstraint::Any => self.element.get_attribute_local(&local_name.0),
+            NamespaceConstraint::Specific(ns) if ns.0.is_empty() => {
+                self.element.get_attribute_local(&local_name.0)
+            }
             NamespaceConstraint::Specific(ns) => {
                 self.element.get_attribute_ns(&ns.0, &local_name.0)
             }

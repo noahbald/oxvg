@@ -48,6 +48,7 @@ use crate::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
+    node,
     selectors::{SelectElement, Selector},
 };
 
@@ -1610,7 +1611,10 @@ pub fn root<'arena, E: Element<'arena>>(root: &E) -> String {
 /// Contains a collection of style data associated with an element
 pub struct ElementData<'arena, E: Element<'arena>> {
     inline_style: Option<E::Atom>,
-    presentation_attrs: Vec<(<<E as Element<'arena>>::Name as Name>::LocalName, E::Atom)>,
+    presentation_attrs: Vec<(
+        <<E as node::Node<'arena>>::Name as Name>::LocalName,
+        E::Atom,
+    )>,
 }
 
 impl<'arena, E: Element<'arena>> Default for ElementData<'arena, E> {

@@ -67,7 +67,7 @@ impl RunCommand for Optimise {
 }
 
 impl Optimise {
-    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<usize> {
+    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<W> {
         Ok(dom.serialize_into(
             wr,
             Options {
