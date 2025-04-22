@@ -110,7 +110,7 @@ impl Optimise {
     }
 
     fn handle_file<'arena>(
-        jobs: &mut Jobs,
+        jobs: &Jobs,
         path: &PathBuf,
         output: Option<&PathBuf>,
         arena: Arena<'arena>,
@@ -182,8 +182,7 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) =
-                        Self::handle_file(&mut jobs.clone(), &path, output_path.as_ref(), &arena)
+                    if let Err(err) = Self::handle_file(&jobs, &path, output_path.as_ref(), &arena)
                     {
                         eprintln!(
                             "{}: \x1b[31m{err}\x1b[0m",

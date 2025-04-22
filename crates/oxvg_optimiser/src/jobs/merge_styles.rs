@@ -1,4 +1,7 @@
-use std::marker::PhantomData;
+use std::{
+    cell::{Cell, RefCell},
+    marker::PhantomData,
+};
 
 use derive_where::derive_where;
 use oxvg_ast::{
@@ -6,7 +9,7 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     node::{self, Node},
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,8 +17,8 @@ use super::ContextFlags;
 
 #[derive_where(Debug)]
 struct State<'arena, E: Element<'arena>> {
-    first_style: Option<E>,
-    is_cdata: bool,
+    first_style: RefCell<Option<E>>,
+    is_cdata: Cell<bool>,
     marker: PhantomData<&'arena ()>,
 }
 
@@ -25,20 +28,16 @@ pub struct MergeStyles(bool);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
-            PrepareOutcome::none
-        } else {
-            PrepareOutcome::skip
+            State::default().start(&mut document.clone(), info, None)?;
         }
-    }
-
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State::default().start(document, context.info).map(|_| ())
+        Ok(PrepareOutcome::skip)
     }
 }
 
@@ -46,7 +45,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -72,7 +71,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
                 css.push_str(&text);
             }
             if node.node_type() == node::Type::CDataSection {
-                self.is_cdata = true;
+                self.is_cdata.set(true);
             }
         });
         let css = css.trim();
@@ -92,30 +91,32 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
             css.to_string()
         };
 
-        if let Some(node) = &self.first_style {
+        let first_style = self.first_style.borrow();
+        if let Some(node) = &*first_style {
             node.append_child(node.text(css.into(), &context.info.arena));
             element.remove();
             log::debug!("Merged style");
         } else {
+            drop(first_style);
             element
                 .clone()
                 .set_text_content(css.into(), &context.info.arena);
-            self.first_style = Some(element.clone());
+            self.first_style.replace(Some(element.clone()));
             log::debug!("Assigned first style");
         }
         Ok(())
     }
 
     fn exit_document(
-        &mut self,
+        &self,
         document: &mut E,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
-        if !self.is_cdata {
+        if !self.is_cdata.get() {
             return Ok(());
         }
 
-        let Some(style) = self.first_style.as_mut() else {
+        let Some(style) = &mut *self.first_style.borrow_mut() else {
             return Ok(());
         };
         let Some(text) = style.text_content() else {
@@ -140,8 +141,8 @@ impl Default for MergeStyles {
 impl<'arena, E: Element<'arena>> Default for State<'arena, E> {
     fn default() -> Self {
         Self {
-            first_style: None,
-            is_cdata: false,
+            first_style: RefCell::new(None),
+            is_cdata: Cell::new(false),
             marker: PhantomData,
         }
     }

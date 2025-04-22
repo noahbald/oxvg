@@ -18,7 +18,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttributes {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

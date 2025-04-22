@@ -2,7 +2,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,19 +14,20 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {
     type Error = String;
 
     fn prepare(
-        &mut self,
+        &self,
         _document: &E,
+        _info: &Info<'arena, E>,
         _context_flags: &mut ContextFlags,
-    ) -> super::PrepareOutcome {
-        if self.0 {
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

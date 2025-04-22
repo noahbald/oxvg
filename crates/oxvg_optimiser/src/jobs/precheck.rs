@@ -2,7 +2,6 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    node::{self, Node},
     visitor::Visitor,
 };
 use oxvg_collections::collections::{ANIMATION_EVENT, DOCUMENT_EVENT, GRAPHICAL_EVENT};
@@ -26,7 +25,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut oxvg_ast::visitor::Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

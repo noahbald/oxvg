@@ -1,14 +1,17 @@
+use std::cell::RefCell;
+
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug)]
-pub struct RemoveOffCanvasPaths {
-    pub enabled: bool,
-    pub view_box_data: Option<ViewBoxData>,
+pub struct RemoveOffCanvasPaths(bool);
+
+struct State {
+    view_box_data: RefCell<Option<ViewBoxData>>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -24,22 +27,34 @@ pub struct ViewBoxData {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveOffCanvasPaths {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.enabled {
-            PrepareOutcome::none
-        } else {
-            PrepareOutcome::skip
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        if self.0 {
+            State {
+                view_box_data: RefCell::new(None),
+            }
+            .start(&mut document.clone(), info, None)?;
         }
+        Ok(PrepareOutcome::skip)
     }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
+    type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if element.is_root() && element.prefix().is_none() && element.local_name().as_ref() == "svg"
         {
-            self.view_box_data = Self::gather_viewbox_data(element).ok();
+            self.view_box_data
+                .replace(ViewBoxData::gather(element).ok());
         }
 
         if element.has_attribute_local(&"transform".into()) {
@@ -50,7 +65,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveOffCanvasPaths {
         if element.prefix().is_some() || element.local_name().as_ref() != "path" {
             return Ok(());
         }
-        let Some(view_box_data) = self.view_box_data.as_ref() else {
+        let view_box_data = self.view_box_data.borrow();
+        let Some(view_box_data) = view_box_data.as_ref() else {
             return Ok(());
         };
         let Some(d) = element.get_attribute_local(&"d".into()) else {
@@ -104,10 +120,8 @@ enum GatherViewboxDataError {
     MissingViewbox,
 }
 
-impl RemoveOffCanvasPaths {
-    fn gather_viewbox_data<'arena, E: Element<'arena>>(
-        element: &mut E,
-    ) -> Result<ViewBoxData, GatherViewboxDataError> {
+impl ViewBoxData {
+    fn gather<'arena, E: Element<'arena>>(element: &mut E) -> Result<Self, GatherViewboxDataError> {
         let width = element.get_attribute_local(&"width".into());
         let height = element.get_attribute_local(&"height".into());
         let Some(viewbox) = element.get_attribute_local(&"viewBox".into()) else {
@@ -173,10 +187,7 @@ impl<'de> Deserialize<'de> for RemoveOffCanvasPaths {
         D: serde::Deserializer<'de>,
     {
         let enabled = bool::deserialize(deserializer)?;
-        Ok(Self {
-            enabled,
-            view_box_data: None,
-        })
+        Ok(Self(enabled))
     }
 }
 
@@ -185,7 +196,7 @@ impl Serialize for RemoveOffCanvasPaths {
     where
         S: serde::Serializer,
     {
-        self.enabled.serialize(serializer)
+        self.0.serialize(serializer)
     }
 }
 

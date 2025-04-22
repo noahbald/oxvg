@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, marker::PhantomData};
+use std::{cell::RefCell, collections::BTreeSet, marker::PhantomData};
 
 use derive_where::derive_where;
 use itertools::Itertools;
@@ -9,7 +9,7 @@ use oxvg_ast::{
     class_list::ClassList,
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
 use serde::{Deserialize, Serialize};
@@ -47,12 +47,12 @@ pub struct ParentTokens {
 
 pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
     pub options: &'o InlineStyles,
-    pub styles: Vec<CapturedStyles<'arena, E>>,
-    pub removed_tokens: RemovedTokens<'arena, E>,
+    pub styles: RefCell<Vec<CapturedStyles<'arena, E>>>,
+    pub removed_tokens: RefCell<RemovedTokens<'arena, E>>,
     /// After running, a record of matching tokens in a selector that are an ancestor of a matching
     /// element.
     /// e.g. `.foo .bar` would record `.foo` as a parent token.
-    pub parent_tokens: ParentTokens,
+    pub parent_tokens: RefCell<ParentTokens>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -98,12 +98,14 @@ enum Token {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State::new(&self).start(document, context.info).map(|_| ())
+    fn prepare(
+        &self,
+        document: &E,
+        info: &oxvg_ast::visitor::Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        State::new(&self).start(&mut document.clone(), info, None)?;
+        Ok(PrepareOutcome::skip)
     }
 }
 
@@ -111,7 +113,7 @@ impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E>
     type Error = String;
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -162,7 +164,7 @@ impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E>
             minify: true,
             ..printer::PrinterOptions::default()
         }) {
-            self.styles.push(CapturedStyles {
+            self.styles.borrow_mut().push(CapturedStyles {
                 node: element.clone(),
                 css: css_string,
                 marker: PhantomData,
@@ -175,11 +177,10 @@ impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E>
         let removed_styles = flatten_media(removed_styles);
 
         let new_removed_tokens = self.gather_removed_tokens(&removed_styles, context);
-        self.removed_tokens
-            .classes
-            .extend(new_removed_tokens.classes);
-        self.removed_tokens.ids.extend(new_removed_tokens.ids);
-        self.removed_tokens.other.extend(new_removed_tokens.other);
+        let mut removed_tokens = self.removed_tokens.borrow_mut();
+        removed_tokens.classes.extend(new_removed_tokens.classes);
+        removed_tokens.ids.extend(new_removed_tokens.ids);
+        removed_tokens.other.extend(new_removed_tokens.other);
 
         // For any styles that didn't match, keep them in `<style>`
         let css: String = css
@@ -202,43 +203,41 @@ impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E>
 
     #[allow(clippy::too_many_lines)]
     fn exit_document(
-        &mut self,
+        &self,
         _root: &mut E,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        self.removed_tokens
+        let removed_tokens = self.removed_tokens.borrow();
+        let parent_tokens = self.parent_tokens.borrow();
+        removed_tokens
             .classes
             .iter()
             .for_each(|RemovedToken { element, token, .. }| {
                 let mut class_list = element.class_list();
                 for token in token {
-                    if self.parent_tokens.classes.contains(token.as_str()) {
+                    if parent_tokens.classes.contains(token.as_str()) {
                         continue;
                     }
                     class_list.remove(token);
                 }
             });
         let id_name = &"id".into();
-        self.removed_tokens
+        removed_tokens
             .ids
             .iter()
             .for_each(|RemovedToken { element, token, .. }| {
-                if token
-                    .iter()
-                    .any(|t| self.parent_tokens.ids.contains(t.as_str()))
-                {
+                if token.iter().any(|t| parent_tokens.ids.contains(t.as_str())) {
                     return;
                 }
                 element.remove_attribute_local(id_name);
             });
 
         // declarations, sorted by specificity, grouped by element
-        let style_chunks = self
-            .removed_tokens
+        let style_chunks = removed_tokens
             .ids
             .iter()
-            .chain(self.removed_tokens.classes.iter())
-            .chain(self.removed_tokens.other.iter())
+            .chain(removed_tokens.classes.iter())
+            .chain(removed_tokens.other.iter())
             .sorted_by(|a, b| a.specificity.cmp(&b.specificity))
             .sorted_by(|a, b| a.element.id().cmp(&b.element.id()))
             .chunk_by(|r| r.element.id());
@@ -299,12 +298,7 @@ impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E>
                     if !PRESENTATION.contains(name) {
                         return;
                     }
-                    if self
-                        .parent_tokens
-                        .presentation_attrs
-                        .iter()
-                        .any(|s| s == name)
-                    {
+                    if parent_tokens.presentation_attrs.iter().any(|s| s == name) {
                         return;
                     }
                     let name = <E::Attr as Attr>::Name::parse(name);
@@ -319,9 +313,9 @@ impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
     pub fn new(options: &'o InlineStyles) -> Self {
         Self {
             options,
-            styles: vec![],
-            removed_tokens: RemovedTokens::default(),
-            parent_tokens: ParentTokens::default(),
+            styles: RefCell::new(vec![]),
+            removed_tokens: RefCell::new(RemovedTokens::default()),
+            parent_tokens: RefCell::new(ParentTokens::default()),
         }
     }
 
@@ -540,7 +534,7 @@ impl InlineStyles {
         &self,
         css: &mut rules::CssRuleList<'a>,
         context: &Context<'arena, '_, '_, E>,
-        state: &mut State<'o, 'arena, E>,
+        state: &State<'o, 'arena, E>,
     ) -> Option<rules::CssRuleList<'a>> {
         let mut removed = rules::CssRuleList(vec![]);
         let mut matching_elements = vec![];
@@ -570,6 +564,7 @@ impl InlineStyles {
             }
             #[allow(clippy::default_trait_access)]
             rules::CssRule::Style(style_rule) => {
+                let mut parent_tokens = state.parent_tokens.borrow_mut();
                 let mut removed_selector = style_rule.clone();
                 let mut selector = format!("{}", style_rule.selectors);
                 selector = self.strip_allowed_pseudos(selector);
@@ -585,14 +580,10 @@ impl InlineStyles {
                     }
                 };
                 let new_parent_tokens = find_parent_attrs(style_rule);
-                state
-                    .parent_tokens
-                    .classes
-                    .extend(new_parent_tokens.classes);
-                state.parent_tokens.ids.extend(new_parent_tokens.ids);
+                parent_tokens.classes.extend(new_parent_tokens.classes);
+                parent_tokens.ids.extend(new_parent_tokens.ids);
                 if !new_parent_tokens.presentation_attrs.is_empty() {
-                    state
-                        .parent_tokens
+                    parent_tokens
                         .presentation_attrs
                         .extend(new_parent_tokens.presentation_attrs);
                     log::debug!("selector has presentation attr");

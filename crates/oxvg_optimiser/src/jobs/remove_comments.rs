@@ -16,7 +16,7 @@ pub struct PreservePattern(pub regex::Regex);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
     type Error = String;
 
-    fn comment(&mut self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         self.remove_comment(comment);
         Ok(())
     }

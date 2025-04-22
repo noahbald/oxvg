@@ -174,7 +174,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// Whether the visitor fails
     fn document(
-        &mut self,
+        &self,
         document: &mut E,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -186,7 +186,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// Whether the visitor fails
     fn exit_document(
-        &mut self,
+        &self,
         document: &mut E,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -198,7 +198,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// Whether the visitor fails
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -210,7 +210,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// Whether the visitor fails
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -221,7 +221,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn doctype(&mut self, doctype: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn doctype(&self, doctype: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -229,7 +229,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn text_or_cdata(&mut self, node: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn text_or_cdata(&self, node: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -237,7 +237,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn comment(&mut self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -246,7 +246,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// Whether the visitor fails
     fn processing_instruction(
-        &mut self,
+        &self,
         processing_instruction: &mut <E as Node<'arena>>::Child,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -256,14 +256,22 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     #[cfg(feature = "style")]
     /// For implementors, determines whether style information should
     /// be gathered and added to context prior to visiting an element.
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         false
     }
 
     /// After analysing the document, determines whether any extra features such as
     /// style parsing or ignoring the tree is needed
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::none
+    ///
+    /// # Errors
+    /// Whether the visitor fails
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::none)
     }
 
     /// Creates context for root and visits it
@@ -271,12 +279,13 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// If any of the visitor's methods fail
     fn start(
-        &mut self,
+        &self,
         root: &mut E,
         info: &Info<'arena, E>,
+        flags: Option<ContextFlags>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        let mut flags = ContextFlags::empty();
-        let prepare_outcome = self.prepare(root, &mut flags);
+        let mut flags = flags.unwrap_or_default();
+        let prepare_outcome = self.prepare(root, info, &mut flags)?;
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }
@@ -311,7 +320,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// If any of the visitor's methods fail
     fn visit<'i>(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, 'i, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -372,7 +381,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// # Errors
     /// If any of the visitor's methods fail
     fn visit_children(
-        &mut self,
+        &self,
         parent: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

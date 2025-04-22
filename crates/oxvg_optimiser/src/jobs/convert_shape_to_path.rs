@@ -21,7 +21,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

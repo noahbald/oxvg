@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
@@ -23,7 +25,7 @@ pub struct RemoveAttrs {
     #[serde(default = "default_preserve_current_color")]
     pub preserve_current_color: bool,
     #[serde(skip_deserializing, skip_serializing)]
-    pub parsed_attrs: Vec<[regex::Regex; 3]>,
+    parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
 }
 
 impl Default for RemoveAttrs {
@@ -32,7 +34,7 @@ impl Default for RemoveAttrs {
             attrs: Default::default(),
             elem_separator: default_elem_separator(),
             preserve_current_color: default_preserve_current_color(),
-            parsed_attrs: Default::default(),
+            parsed_attrs_memo: Default::default(),
         }
     }
 }
@@ -64,28 +66,24 @@ impl RemoveAttrs {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
     type Error = String;
 
-    fn document(
-        &mut self,
-        _document: &mut E,
-        _context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
-        for pattern in &self.attrs {
-            let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
-            parsed_attrs.push(list);
-        }
-
-        self.parsed_attrs = parsed_attrs;
-
-        Ok(())
-    }
-
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        for pattern in &self.parsed_attrs {
+        let parsed_attrs = self.parsed_attrs_memo.get_or_init(|| {
+            let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
+            for pattern in &self.attrs {
+                let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
+                parsed_attrs.push(list);
+            }
+            Ok(parsed_attrs)
+        });
+        let parsed_attrs = match parsed_attrs {
+            Ok(a) => a,
+            Err(e) => return Err(e.clone()),
+        };
+        for pattern in parsed_attrs {
             if !pattern[0].is_match(&element.qual_name().formatter().to_string()) {
                 continue;
             }

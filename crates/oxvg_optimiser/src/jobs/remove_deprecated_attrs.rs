@@ -4,7 +4,7 @@ use lightningcss::{stylesheet::StyleSheet, values::ident::Ident, visit_types};
 use oxvg_ast::{
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
     allowed_content::{attrs_group_deprecated_unsafe, ELEMS},
@@ -90,12 +90,17 @@ impl Default for RemoveDeprecatedAttrs {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDeprecatedAttrs {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

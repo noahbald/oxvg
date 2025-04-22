@@ -20,7 +20,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttributesBySelect
     type Error = String;
 
     fn document(
-        &mut self,
+        &self,
         document: &mut E,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

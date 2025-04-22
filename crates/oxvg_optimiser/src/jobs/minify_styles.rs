@@ -8,7 +8,7 @@ use oxvg_ast::{
     attribute::Attr,
     element::Element,
     name::Name,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -30,19 +30,18 @@ pub struct MinifyStyles {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        _info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_script(document);
-        if self.remove_unused != Some(RemoveUnused::Force)
-            && context_flags.contains(ContextFlags::has_script_ref)
-        {
-            self.remove_unused = Some(RemoveUnused::False);
-        }
-
-        PrepareOutcome::none
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -116,7 +115,14 @@ impl MinifyStyles {
         css: &mut CssRuleList<'a>,
         context: &Context<'arena, '_, '_, E>,
     ) -> Option<CssRuleList<'a>> {
-        if self.remove_unused.unwrap_or(DEFAULT_REMOVE_UNUSED) == RemoveUnused::False {
+        let remove_unused = if self.remove_unused != Some(RemoveUnused::Force)
+            && context.flags.contains(ContextFlags::has_script_ref)
+        {
+            Some(RemoveUnused::False)
+        } else {
+            self.remove_unused
+        };
+        if remove_unused.unwrap_or(DEFAULT_REMOVE_UNUSED) == RemoveUnused::False {
             return None;
         }
 
