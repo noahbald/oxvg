@@ -138,16 +138,11 @@ impl ConvertTransform {
 
     fn transform(&self, value: &Style) -> Option<SVGTransformList> {
         let transform = match value {
-            Style::Static(Static::Attr(PresentationAttr::Transform(transform))) => {
-                transform.clone()
-            }
             Style::Static(Static::Attr(
-                PresentationAttr::GradientTransform(transform)
+                PresentationAttr::Transform(transform)
+                | PresentationAttr::GradientTransform(transform)
                 | PresentationAttr::PatternTransform(transform),
-            )) => match transform.try_into() {
-                Ok(transform) => transform,
-                Err(()) => return None,
-            },
+            )) => transform.clone(),
             Style::Static(Static::Attr(PresentationAttr::Unparsed(_))) => return None,
             _ => unreachable!("dynamic or non-transform style provided"),
         };
@@ -490,6 +485,18 @@ fn convert_transform() -> anyhow::Result<()> {
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 100 150">
     <rect x="0" y="10" width="5" height="8" fill="red" transform="translate(5,70) scale(.4 0)"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertTransform": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 480 360">
+    <!-- ignore inherited styles on children -->
+    <g transform="translate(30,-10)">
+      <rect x="0" y="0" width="10" height="20"/>
+    </g>
 </svg>"#
         ),
     )?);

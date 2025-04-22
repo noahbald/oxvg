@@ -14,5 +14,5 @@ expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xml
     <g/>
     <g/>
     <g/>
-    <g/>
+    <g transform="rotate(45 34 34)"/>
 </svg>

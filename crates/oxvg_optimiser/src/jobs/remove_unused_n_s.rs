@@ -67,11 +67,10 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         if self.unused_namespaces.is_empty() {
             return Ok(());
         }
-        let Some(prefix) = element.prefix() else {
-            return Ok(());
-        };
+        if let Some(prefix) = element.prefix() {
+            self.unused_namespaces.remove(&prefix.as_ref().into());
+        }
 
-        self.unused_namespaces.remove(&prefix.as_ref().into());
         for attr in element.attributes().into_iter() {
             if let Some(prefix) = attr.prefix() {
                 self.unused_namespaces.remove(&prefix.as_ref().into());
