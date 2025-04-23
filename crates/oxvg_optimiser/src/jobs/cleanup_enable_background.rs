@@ -1,17 +1,17 @@
 use oxvg_ast::{
     attribute::Attr,
     element::Element,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanupEnableBackground {
-    #[serde(skip_deserializing, skip_serializing)]
+#[derive(Debug, Clone)]
+pub struct CleanupEnableBackground(bool);
+
+struct State {
     contains_filter: bool,
 }
 
@@ -23,13 +23,26 @@ struct EnableBackgroundDimensions<'a> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        let Some(root) = document.find_element() else {
-            return PrepareOutcome::none;
-        };
-        self.prepare_contains_filter(&root);
-        PrepareOutcome::none
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        if !self.0 {
+            return Ok(PrepareOutcome::skip);
+        }
+        if let Some(root) = document.find_element() {
+            State::new(&root)
+                .start(&mut document.clone(), info, None)
+                .map(|_| ());
+        }
+        Ok(PrepareOutcome::skip)
     }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
+    type Error = String;
 
     /// Cleans up `enable-background`, unless document uses `<filter>` elements.
     ///
@@ -41,7 +54,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
     /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
     ///   node's width and height
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -71,9 +84,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
         let name = element.local_name();
 
         let enabled_background_dimensions =
-            Self::get_enabled_background_dimensions(enable_background.as_ref());
-        let matches_dimensions =
-            Self::enabled_background_matches(element, enabled_background_dimensions);
+            EnableBackgroundDimensions::get(enable_background.as_ref());
+        let matches_dimensions = EnableBackgroundDimensions::enabled_background_matches(
+            element,
+            enabled_background_dimensions,
+        );
         drop(enable_background);
         if matches_dimensions && name.as_ref() == "svg" {
             element.remove_attribute_local(&enable_background_localname);
@@ -84,12 +99,16 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
     }
 }
 
-impl CleanupEnableBackground {
-    fn prepare_contains_filter<'arena, E: Element<'arena>>(&mut self, root: &E) {
-        self.contains_filter = root.select("filter").unwrap().next().is_some();
+impl State {
+    fn new<'arena, E: Element<'arena>>(root: &E) -> Self {
+        Self {
+            contains_filter: root.select("filter").unwrap().next().is_some(),
+        }
     }
+}
 
-    fn get_enabled_background_dimensions(attr: &str) -> Option<EnableBackgroundDimensions> {
+impl<'a> EnableBackgroundDimensions<'a> {
+    fn get(attr: &str) -> Option<EnableBackgroundDimensions> {
         let parameters: Vec<_> = attr.split_whitespace().collect();
         // Only allow `new <x> <y> <width> <height>`
         if parameters.len() != 5 {
@@ -119,6 +138,31 @@ impl CleanupEnableBackground {
     }
 }
 
+impl Default for CleanupEnableBackground {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
+impl<'de> Deserialize<'de> for CleanupEnableBackground {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let enabled = bool::deserialize(deserializer)?;
+        Ok(Self(enabled))
+    }
+}
+
+impl Serialize for CleanupEnableBackground {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
 lazy_static! {
     static ref ENABLE_BACKGROUND: Regex =
         Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*").unwrap();
@@ -129,7 +173,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupEnableBackground": {} }"#,
+        r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height=".5" enable-background="new 0 0 100.5 .5">
     <!-- Remove svg's enable-background on matching size -->
@@ -144,7 +188,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupEnableBackground": {} }"#,
+        r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" enable-background="new 0 0 100 50">
     <!-- Keep svg's enable-background on mis-matching size -->
@@ -159,7 +203,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupEnableBackground": {} }"#,
+        r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Replace matching mask or pattern's enable-background with "new" -->
@@ -176,7 +220,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupEnableBackground": {} }"#,
+        r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Remove enable-background when no filter is present -->
@@ -190,7 +234,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         // TODO: Should apply to inline styles as well, removing the style attribute if it all
         // declarations are removed.
-        r#"{ "cleanupEnableBackground": {} }"#,
+        r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r##"<svg height="100" width="100" style="enable-background:new 0 0 100 100">
   <circle cx="50" cy="50" r="40" stroke="#000" stroke-width="3" fill="red"/>

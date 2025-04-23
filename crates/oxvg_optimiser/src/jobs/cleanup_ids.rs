@@ -1,11 +1,14 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+};
 
 use derive_where::derive_where;
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,8 +40,8 @@ struct State<'o, 'arena, E: Element<'arena>> {
     ignore_document: bool,
     replaceable_ids: BTreeSet<String>,
     id_renames: BTreeMap<String, String>,
-    ref_renames: Vec<RefRename<'arena, E>>,
-    generated_id: GeneratedId,
+    ref_renames: RefCell<Vec<RefRename<'arena, E>>>,
+    generated_id: RefCell<GeneratedId>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -69,42 +72,38 @@ impl Default for CleanupIds {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        context_flags.query_has_stylesheet(document);
+        context_flags.query_has_script(document);
+        let mut state = State {
             options: &self,
             ignore_document: false,
             replaceable_ids: BTreeSet::new(),
             id_renames: BTreeMap::new(),
-            ref_renames: Vec::new(),
-            generated_id: GeneratedId::default(),
+            ref_renames: RefCell::new(Vec::new()),
+            generated_id: RefCell::new(GeneratedId::default()),
+        };
+        if state.prepare_ignore_document(document, context_flags) {
+            log::debug!("CleanupIds::prepare: skipping");
+            return Ok(PrepareOutcome::skip);
         }
-        .start(document, context.info)
-        .map(|_| ())
+
+        state.prepare_id_rename(document);
+        state.start(&mut document.clone(), info, Some(context_flags.clone()));
+        Ok(PrepareOutcome::skip) // work done with `state`
     }
 }
 
 impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
-        context_flags.query_has_stylesheet(document);
-        context_flags.query_has_script(document);
-        self.prepare_ignore_document(document, context_flags);
-        if self.ignore_document {
-            log::debug!("CleanupIds::prepare: skipping");
-            return PrepareOutcome::skip;
-        }
-
-        self.prepare_id_rename(document);
-        PrepareOutcome::none
-    }
-
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -120,20 +119,22 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
             let Some(matches) = find_references(local_name.as_ref(), value.as_ref()) else {
                 continue;
             };
+            let mut ref_renames = self.ref_renames.borrow_mut();
+            let mut generated_id = self.generated_id.borrow_mut();
             matches
                 .filter_map(|item| item.get(1))
                 .map(|item| item.as_str())
                 .for_each(|item| {
                     if self.replaceable_ids.contains(item) {
                         log::debug!("CleanupIds::run: found potential reference: {item}");
-                        self.ref_renames.push(RefRename {
+                        ref_renames.push(RefRename {
                             element_ref: element.clone(),
                             name: name.clone(),
                             referenced_id: item.to_string(),
                         });
                     } else {
                         log::debug!("CleanupIds::run: found unmatched reference: {item}");
-                        self.generated_id.insert_prevent_collision(item.to_string());
+                        generated_id.insert_prevent_collision(item.to_string());
                     }
                 });
         }
@@ -141,7 +142,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
     }
 
     fn exit_document(
-        &mut self,
+        &self,
         document: &mut E,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -152,23 +153,24 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
         };
         // Generate renames for references
         let mut used_ids = BTreeMap::new();
+        let mut generated_id = self.generated_id.borrow_mut();
         for RefRename {
             element_ref,
             name,
             referenced_id,
-        } in &self.ref_renames
+        } in &*self.ref_renames.borrow()
         {
             let element = element_ref;
-            let Some(ref mut attr) = element.get_attribute_node_mut(name) else {
+            let Some(ref mut attr) = element.get_attribute_node_mut(&name) else {
                 log::debug!("CleanupIds::breakdown: {name:?} attribute missing");
                 continue;
             };
             let minified_id = used_ids
                 .get(referenced_id)
-                .unwrap_or(&self.generated_id.current)
+                .unwrap_or(&generated_id.current)
                 .clone();
             let replacements =
-                replace_id_in_attr(attr.value().to_string(), referenced_id, &minified_id);
+                replace_id_in_attr(attr.value().to_string(), &referenced_id, &minified_id);
             if replacements.count() == &0 {
                 continue;
             }
@@ -176,7 +178,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
                 .insert(referenced_id.clone(), minified_id.clone())
                 .is_none();
             if is_new {
-                self.generated_id.next();
+                generated_id.next();
             }
             if self.options.minify {
                 log::debug!(
@@ -211,17 +213,16 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
 }
 
 impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
-    fn prepare_ignore_document(&mut self, root: &E, context_flags: &ContextFlags) {
+    fn prepare_ignore_document(&self, root: &E, context_flags: &ContextFlags) -> bool {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
-            self.ignore_document = false;
-            return;
+            return false;
         }
 
         let contains_unpredictable_refs = context_flags.contains(ContextFlags::has_stylesheet)
             || context_flags.contains(ContextFlags::has_script_ref);
         let contains_only_defs = root.select("svg > :not(defs)").unwrap().next().is_none();
-        self.ignore_document = contains_unpredictable_refs || contains_only_defs;
+        contains_unpredictable_refs || contains_only_defs
     }
 
     /// Prepares tracking of ids for removal/renaming
@@ -268,7 +269,9 @@ impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
                 self.replaceable_ids.insert(encoded_id.to_string());
             }
         }
-        self.generated_id.set_prevent_collision(preserved_ids);
+        self.generated_id
+            .borrow_mut()
+            .set_prevent_collision(preserved_ids);
     }
 }
 

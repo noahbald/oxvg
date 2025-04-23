@@ -3,7 +3,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     style::PresentationAttrId,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{AttrsGroups, Group, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS};
 use serde::{Deserialize, Serialize};
@@ -15,16 +15,21 @@ pub struct RemoveNonInheritableGroupAttrs(pub bool);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveNonInheritableGroupAttrs {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.0 {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

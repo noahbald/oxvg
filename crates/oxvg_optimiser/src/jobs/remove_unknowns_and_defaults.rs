@@ -4,7 +4,7 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     node,
     style::{Id, PresentationAttr, PresentationAttrId, Style},
-    visitor::{Context, ContextFlags, PrepareOutcome},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -55,16 +55,21 @@ impl Default for RemoveUnknownsAndDefaults {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefaults {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.attributes().len() > 0
     }
 
     fn processing_instruction(
-        &mut self,
+        &self,
         processing_instruction: &mut <E as oxvg_ast::node::Node<'arena>>::Child,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -88,7 +93,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefault
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

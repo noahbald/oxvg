@@ -10,7 +10,7 @@ use oxvg_ast::{
         Id, Precision, PresentationAttr, PresentationAttrId, SVGTransform, SVGTransformList,
         Static, Style,
     },
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -43,11 +43,16 @@ struct Inner {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.attributes().into_iter().any(|attr| {
             matches!(
                 attr.local_name().as_ref(),
@@ -57,7 +62,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

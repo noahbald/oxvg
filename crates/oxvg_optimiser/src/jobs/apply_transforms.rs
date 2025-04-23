@@ -17,7 +17,7 @@ use oxvg_ast::{
     element::Element,
     get_computed_styles_factory,
     style::{self, ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
@@ -34,16 +34,21 @@ pub struct ApplyTransforms {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ApplyTransforms {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

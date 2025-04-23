@@ -15,7 +15,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDesc {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

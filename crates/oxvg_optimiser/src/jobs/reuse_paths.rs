@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, HashSet},
     marker::PhantomData,
 };
@@ -10,16 +11,16 @@ use oxvg_ast::{
     document::Document,
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use parcel_selectors::parser::Component;
 use serde::{Deserialize, Serialize};
 
 #[derive_where(Default, Clone, Debug)]
 struct State<'arena, E: Element<'arena>> {
-    paths: BTreeMap<String, Vec<E>>,
-    defs: Option<E>,
-    hrefs: HashSet<String>,
+    paths: RefCell<BTreeMap<String, Vec<E>>>,
+    defs: RefCell<Option<E>>,
+    hrefs: RefCell<HashSet<String>>,
     marker: PhantomData<&'arena ()>,
 }
 
@@ -29,28 +30,33 @@ pub struct ReusePaths(bool);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
-            PrepareOutcome::use_style
-        } else {
-            PrepareOutcome::skip
+            State::default().start(&mut document.clone(), info, None)?;
         }
-    }
-
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State::default().start(document, context.info).map(|_| ())
+        Ok(PrepareOutcome::skip)
     }
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     type Error = String;
 
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
+    }
+
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -62,15 +68,16 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
             self.add_path(element);
         }
 
-        if self.defs.is_none()
+        if self.defs.borrow().is_none()
             && element.local_name().as_ref() == "defs"
             && Element::parent_element(element)
                 .is_some_and(|e| e.prefix().is_none() && e.local_name().as_ref() == "svg")
         {
-            self.defs = Some(element.clone());
+            self.defs.replace(Some(element.clone()));
         }
 
         if element.local_name().as_ref() == "use" {
+            let mut hrefs = self.hrefs.borrow_mut();
             for attr in element.attributes().into_iter() {
                 if attr
                     .prefix()
@@ -84,7 +91,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
                 }
                 let value = attr.value().as_ref();
                 if value.len() > 1 && value.starts_with('#') {
-                    self.hrefs.insert(value[1..].to_string());
+                    hrefs.insert(value[1..].to_string());
                 }
             }
         }
@@ -94,7 +101,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 
     #[allow(clippy::too_many_lines)]
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -104,28 +111,32 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         {
             return Ok(());
         }
-        if self.paths.is_empty() {
+        let mut paths = self.paths.borrow_mut();
+        if paths.is_empty() {
             return Ok(());
         }
 
         let document = context.root.as_document();
-        let defs = if let Some(defs) = &self.defs {
+        let defs = self.defs.borrow();
+        let defs = if let Some(defs) = &*defs {
             defs.clone()
         } else {
+            drop(defs);
             let defs =
                 document.create_element(E::Name::new(None, "defs".into()), &context.info.arena);
             element.insert(0, defs.clone().as_child());
-            self.defs = Some(defs.clone());
+            self.defs.replace(Some(defs.clone()));
             defs
         };
 
         let mut index = 0;
+        let hrefs = self.hrefs.borrow();
         let path_name: <E::Name as Name>::LocalName = "path".into();
         let id_name: <E::Name as Name>::LocalName = "id".into();
         let d_name = "d".into();
         let stroke_name = "stroke".into();
         let fill_name = "fill".into();
-        for list in self.paths.values_mut() {
+        for list in paths.values_mut() {
             if list.len() == 1 {
                 continue;
             }
@@ -142,7 +153,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 
                 let value: &str = attr.value().as_ref();
                 if attr.local_name().as_ref() == "id"
-                    && !self.hrefs.contains(value)
+                    && !hrefs.contains(value)
                     && !HasId::has_id(&mut context.stylesheet, value)?
                 {
                     is_id_protected = true;
@@ -217,7 +228,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 }
 
 impl<'arena, E: Element<'arena>> State<'arena, E> {
-    fn add_path(&mut self, element: &E) {
+    fn add_path(&self, element: &E) {
         let Some(d) = element.get_attribute_local(&"d".into()) else {
             return;
         };
@@ -243,11 +254,12 @@ impl<'arena, E: Element<'arena>> State<'arena, E> {
             key.push_str(fill.as_ref());
         }
 
-        let list = self.paths.get_mut(&key);
+        let mut paths = self.paths.borrow_mut();
+        let list = paths.get_mut(&key);
         match list {
             Some(list) => list.push(element.clone()),
             None => {
-                self.paths.insert(key, vec![element.clone()]);
+                paths.insert(key, vec![element.clone()]);
             }
         }
     }

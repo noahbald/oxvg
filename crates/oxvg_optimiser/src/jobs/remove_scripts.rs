@@ -3,8 +3,7 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::{self, Node},
-    serialize::Node as _,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
@@ -15,16 +14,21 @@ pub struct RemoveScripts(pub bool);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.0 {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -42,7 +46,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

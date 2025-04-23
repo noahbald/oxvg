@@ -16,7 +16,7 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     style::{PresentationAttr, UnparsedPresentationAttr},
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -64,8 +64,13 @@ pub struct ConvertColors {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertColors {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        match self.method {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(match self.method {
             Some(Method::Value {
                 names_2_hex,
                 rgb_2_hex,
@@ -81,11 +86,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertColors {
                 }
             }
             _ => PrepareOutcome::none,
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

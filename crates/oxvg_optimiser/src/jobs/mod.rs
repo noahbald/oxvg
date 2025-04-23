@@ -35,10 +35,10 @@ macro_rules! jobs {
 
         impl Jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs<'arena, E: Element<'arena>>(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
+            fn run_jobs<'arena, E: Element<'arena>>(&self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
                 let mut count = 0;
-                $(if let Some(job) = self.$name.as_mut() {
-                    if !job.start(element, info)?.contains(PrepareOutcome::skip) {
+                $(if let Some(job) = self.$name.as_ref() {
+                    if !job.start(element, info, None)?.contains(PrepareOutcome::skip) {
                         count += 1;
                     }
                 })+
@@ -151,7 +151,7 @@ impl Jobs {
     /// # Errors
     /// When any job fails for the first time
     pub fn run<'arena, E: Element<'arena>>(
-        &mut self,
+        &self,
         root: &E::ParentChild,
         info: &Info<'arena, E>,
     ) -> Result<(), Error> {

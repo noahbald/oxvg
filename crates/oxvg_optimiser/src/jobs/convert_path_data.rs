@@ -1,6 +1,6 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
@@ -69,17 +69,22 @@ pub struct Precision(pub oxvg_path::convert::Precision);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         let d_name = "d".into();
         element.has_attribute_local(&d_name)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -118,8 +123,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     }
 }
 
-impl From<&mut ConvertPathData> for convert::Flags {
-    fn from(val: &mut ConvertPathData) -> Self {
+impl From<&ConvertPathData> for convert::Flags {
+    fn from(val: &ConvertPathData) -> Self {
         use convert::Flags;
 
         let mut output = convert::Flags::default();

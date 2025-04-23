@@ -11,7 +11,7 @@ use oxvg_ast::{
     element::Element,
     get_computed_property_factory, get_computed_styles_factory,
     style::{ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_path::{command, Path};
 use serde::{Deserialize, Serialize};
@@ -34,13 +34,18 @@ impl Default for MergePaths {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
     #[allow(clippy::too_many_lines)]
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

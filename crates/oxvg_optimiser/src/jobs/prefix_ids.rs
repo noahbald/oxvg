@@ -83,16 +83,21 @@ struct CssVisitor<'arena, 'a, 'b, E: Element<'arena>> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if !self.prefix_ids && !self.prefix_class_names {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if !self.prefix_ids && !self.prefix_class_names {
             PrepareOutcome::skip
         } else {
             PrepareOutcome::none
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

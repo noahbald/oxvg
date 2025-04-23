@@ -1,7 +1,7 @@
 use oxvg_ast::{
     element::Element,
     node::Node,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -12,16 +12,21 @@ pub struct RemoveXMLProcInst(pub bool);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLProcInst {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.0 {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn processing_instruction(
-        &mut self,
+        &self,
         processing_instruction: &mut <E as Node<'arena>>::Child,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
