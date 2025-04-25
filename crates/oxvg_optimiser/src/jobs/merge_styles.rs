@@ -340,7 +340,7 @@ fn merge_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // WARN: CData not supported by rcdom implementation
+    // WARN: CData not supported by implementations
     // insta::assert_snapshot!(test_config(
     //     r#"{ "mergeStyles": true }"#,
     //     Some(
