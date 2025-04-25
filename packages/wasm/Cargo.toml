@@ -20,6 +20,7 @@ oxvg_optimiser = { workspace = true }
 oxvg_ast = { workspace = true }
 
 console_error_panic_hook = "0.1.7"
+getrandom = { workspace = true }
 serde_json = { workspace = true }
 typed-arena = { workspace = true }
 wasm-bindgen = "=0.2.100"
