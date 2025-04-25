@@ -7,16 +7,35 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// The method for ordering xmlns attributes
 pub enum XMLNSOrder {
+    /// Sort xmlns attributes alphabetically
     Alphabetical,
     #[default]
+    /// Keep xmlns attributes at the front of the list
     Front,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Sorts attributes into a predictable order.
+///
+/// This doesn't affect the size of a document but will likely improve readability
+/// and compression of the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct SortAttrs {
+    /// A list of attributes in a given order.
     pub order: Option<Vec<String>>,
+    /// The method for ordering xmlns attributes
     pub xmlns_order: Option<XMLNSOrder>,
 }
 

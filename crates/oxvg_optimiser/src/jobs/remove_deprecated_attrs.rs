@@ -74,8 +74,23 @@ impl<'a> AttrStylesheet<'a> {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes deprecated attributes from elements.
+///
+/// # Correctnesss
+///
+/// By default this job should never visually change the document.
+///
+/// Specifying `remove_unsafe` may remove attributes which visually change
+/// the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDeprecatedAttrs {
     #[serde(default = "default_remove_unsafe")]
+    /// Whether to remove deprecated presentation attributes
     pub remove_unsafe: bool,
 }
 

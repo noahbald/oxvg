@@ -15,7 +15,7 @@ use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
-struct CapturedStyles<'arena, E: Element<'arena>> {
+pub(crate) struct CapturedStyles<'arena, E: Element<'arena>> {
     node: E,
     css: String,
     marker: PhantomData<&'arena ()>,
@@ -32,7 +32,7 @@ struct RemovedToken<'arena, E: Element<'arena>> {
 
 #[derive(Clone, Debug)]
 #[derive_where(Default)]
-struct RemovedTokens<'arena, E: Element<'arena>> {
+pub(crate) struct RemovedTokens<'arena, E: Element<'arena>> {
     classes: Vec<RemovedToken<'arena, E>>,
     ids: Vec<RemovedToken<'arena, E>>,
     other: Vec<RemovedToken<'arena, E>>,
@@ -57,6 +57,21 @@ pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Merges styles from a `<style>` element to the `style` attribute of matching elements.
+///
+/// # Differences to SVGO
+///
+/// Styles are minified via lightningcss when merged.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct InlineStyles {
     /// If to only inline styles if the selector matches one element.
     #[serde(default = "default_only_matched_once")]
@@ -104,12 +119,12 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles {
         info: &oxvg_ast::visitor::Info<'arena, E>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
-        State::new(&self).start(&mut document.clone(), info, None)?;
+        State::new(self).start(&mut document.clone(), info, None)?;
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'a, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'a, 'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
     fn exit_element(
@@ -895,7 +910,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(
@@ -910,7 +924,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(
@@ -929,7 +942,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": { "onlyMatchedOnce": false } }"#,
         Some(
@@ -949,7 +961,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(
@@ -968,7 +979,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(
@@ -987,7 +997,6 @@ fn inline_styles() -> anyhow::Result<()> {
         ),
     )?);
 
-    // BUG: Duplicate properties are not removed
     insta::assert_snapshot!(test_config(
         r#"{ "inlineStyles": {} }"#,
         Some(

@@ -1,3 +1,4 @@
+//! Type of shaped used for processing path data.
 use crate::{
     command::{self, Position},
     math,
@@ -23,8 +24,11 @@ pub struct Point(pub [f64; 2]);
 pub struct Curve(pub [f64; 6]);
 
 #[derive(Debug, Clone)]
+/// A circle shape
 pub struct Circle {
+    /// The centre point of the circle.
     pub center: Point,
+    /// The length from the centre of the circle to the edge.
     pub radius: f64,
 }
 
@@ -32,7 +36,9 @@ pub struct Circle {
 #[derive(Clone, Debug)]
 /// When running calculations against arcs, the level of error tolerated
 pub struct MakeArcs {
+    /// When calculating tolerance, controls the bound compared to error
     pub threshold: f64,
+    /// When calculating tolerance, controls the bound compared to the radius
     pub tolerance: f64,
 }
 
@@ -196,22 +202,27 @@ impl Point {
         Self([2.0 * base.0[0] - self.0[0], 2.0 * base.0[1] - self.0[1]])
     }
 
+    /// The subtraction of two points
     pub fn sub(&self, Self(v2): Self) -> Self {
         Self([self.0[0] - v2[0], self.0[1] - v2[1]])
     }
 
+    /// The dot product of two points
     pub fn dot(&self, Self(v2): &Self) -> f64 {
         self.0[0] * v2[0] + self.0[1] * v2[1]
     }
 
+    /// The cross product of two points
     pub fn cross(Self(o): Self, Self(a): Self, Self(b): &Self) -> f64 {
         (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
     }
 
+    /// The inverse of a point, by multiplying by `-1`
     pub fn minus(&self) -> Self {
         Self([-self.0[0], -self.0[1]])
     }
 
+    /// The orthogonal of a point
     pub fn orth(&self, from: &Self) -> Self {
         let o = Self([-self.0[1], self.0[0]]);
         if o.dot(&from.minus()) < 0.0 {
@@ -221,6 +232,8 @@ impl Point {
         }
     }
 
+    /// As part of the GJK algorithm, takes the current simplex (a polygon) and search direction
+    /// in order to find the direction and subset of the simplex to try next.
     pub fn process_simplex(simplex: &mut Vec<Self>, Self(direction): &mut Self) -> bool {
         // We only need to handle to 1-simplex and 2-simplex
         if simplex.len() == 2 {

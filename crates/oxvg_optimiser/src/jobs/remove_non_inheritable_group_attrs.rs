@@ -10,6 +10,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Remove attributes on groups that won't be inherited by it's children.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveNonInheritableGroupAttrs(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveNonInheritableGroupAttrs {

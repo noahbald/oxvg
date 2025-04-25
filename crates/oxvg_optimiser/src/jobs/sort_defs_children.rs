@@ -8,6 +8,20 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+/// Sorts the children of `<defs>` into a predictable order.
+///
+/// This doesn't affect the size of a document but will likely improve readability
+/// and compression of the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct SortDefsChildren(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
@@ -47,8 +61,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
         element.sort_child_elements(|a, b| {
             let a_name = a.qual_name();
             let b_name = b.qual_name();
-            let a_frequency = frequencies.get(&a_name);
-            let b_frequency = frequencies.get(&b_name);
+            let a_frequency = frequencies.get(a_name);
+            let b_frequency = frequencies.get(b_name);
             if let Some(a_frequency) = a_frequency {
                 if let Some(b_frequency) = b_frequency {
                     let frequency_ord = b_frequency.cmp(a_frequency);
@@ -61,7 +75,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
             if len_ord != Ordering::Equal {
                 return len_ord;
             }
-            b_name.cmp(&a_name)
+            b_name.cmp(a_name)
         });
 
         Ok(())

@@ -9,6 +9,26 @@ use serde::{Deserialize, Serialize};
 use super::ContextFlags;
 
 #[derive(Debug, Clone)]
+/// Cleans up `enable-background` attributes and styles. It will only remove it if
+/// - The document has no `<filter>` element; and
+/// - The value matches the document's width and height; or
+/// - Replace `new` when it matches the width and height of a `<mask>` or `<pattern>`
+///
+/// This job will:
+/// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
+/// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
+///   node's width and height
+///
+/// # Correctness
+///
+/// This attribute is deprecated and won't visually affect documents in most renderers. For outdated
+/// renderers that still support it, there may be a visual change.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CleanupEnableBackground(bool);
 
 struct State {
@@ -33,9 +53,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
             return Ok(PrepareOutcome::skip);
         }
         if let Some(root) = document.find_element() {
-            State::new(&root)
-                .start(&mut document.clone(), info, None)
-                .map(|_| ());
+            State::new(&root).start(&mut document.clone(), info, None)?;
         }
         Ok(PrepareOutcome::skip)
     }
@@ -44,15 +62,6 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
     type Error = String;
 
-    /// Cleans up `enable-background`, unless document uses `<filter>` elements.
-    ///
-    /// Only cleans up attribute values
-    /// TODO: Clean up inline-styles
-    ///
-    /// This job will:
-    /// - Drop `enable-background` on `<svg>` node, if it matches the node's width and height
-    /// - Set `enable-background` to `"new"` on `<mask>` or `<pattern>` nodes, if it matches the
-    ///   node's width and height
     fn element(
         &self,
         element: &mut E,
@@ -60,6 +69,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
     ) -> Result<(), String> {
         let style_name = &"style".into();
         if let Some(mut style) = element.get_attribute_node_local_mut(style_name) {
+            // TODO: use lightningcss visitor instead
+            // TODO: update `<style>` elements
             let new_value = ENABLE_BACKGROUND
                 .replace_all(style.value().as_ref(), "")
                 .to_string();
@@ -107,7 +118,7 @@ impl State {
     }
 }
 
-impl<'a> EnableBackgroundDimensions<'a> {
+impl EnableBackgroundDimensions<'_> {
     fn get(attr: &str) -> Option<EnableBackgroundDimensions> {
         let parameters: Vec<_> = attr.split_whitespace().collect();
         // Only allow `new <x> <y> <width> <height>`

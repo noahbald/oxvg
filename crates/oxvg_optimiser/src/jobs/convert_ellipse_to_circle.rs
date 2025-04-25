@@ -8,6 +8,17 @@ use super::ContextFlags;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Converts non-eccentric `<ellipse>` to `<circle>` elements.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertEllipseToCircle(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {

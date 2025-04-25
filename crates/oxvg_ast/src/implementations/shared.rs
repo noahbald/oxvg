@@ -8,8 +8,8 @@ use std::{
 
 use cfg_if::cfg_if;
 use itertools::Itertools;
-use markup5ever::local_name;
 use tendril::StrTendril;
+use xml5ever::local_name;
 
 use crate::{
     attribute::{Attr, Attributes as _},
@@ -30,11 +30,11 @@ pub type Link<'arena> = Cell<Option<Ref<'arena>>>;
 /// A qualified name used for the names of tags and attributes.
 pub struct QualName {
     /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
-    pub local: string_cache::Atom<markup5ever::LocalNameStaticSet>,
+    pub local: string_cache::Atom<xml5ever::LocalNameStaticSet>,
     /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
-    pub prefix: Option<string_cache::Atom<markup5ever::PrefixStaticSet>>,
+    pub prefix: Option<string_cache::Atom<xml5ever::PrefixStaticSet>>,
     /// The resolved uri of the name
-    pub ns: string_cache::Atom<markup5ever::NamespaceStaticSet>,
+    pub ns: string_cache::Atom<xml5ever::NamespaceStaticSet>,
 }
 
 impl PartialEq for QualName {
@@ -145,9 +145,9 @@ pub struct ElementData<'a> {
 pub struct Document<'arena>(Element<'arena>);
 
 impl Name for QualName {
-    type LocalName = string_cache::Atom<markup5ever::LocalNameStaticSet>;
-    type Prefix = string_cache::Atom<markup5ever::PrefixStaticSet>;
-    type Namespace = string_cache::Atom<markup5ever::NamespaceStaticSet>;
+    type LocalName = string_cache::Atom<xml5ever::LocalNameStaticSet>;
+    type Prefix = string_cache::Atom<xml5ever::PrefixStaticSet>;
+    type Namespace = string_cache::Atom<xml5ever::NamespaceStaticSet>;
 
     fn new(prefix: Option<Self::Prefix>, local: Self::LocalName) -> Self {
         QualName {

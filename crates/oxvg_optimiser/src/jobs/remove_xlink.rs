@@ -13,9 +13,24 @@ use phf::{phf_map, phf_set};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
+/// Replaces `xlink` prefixed attributes to the native SVG equivalent.
+///
+/// # Correctness
+///
+/// This job may break compatibility with the SVG 1.1 spec.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXlink {
     #[serde(default = "bool::default")]
-    include_legacy: bool,
+    /// Whether to also convert xlink attributes for legacy elements which don't
+    /// support the SVG 2 `href` attribute (e.g. `<cursor>`).
+    ///
+    /// This is safe to enable for SVGs to inline in HTML documents.
+    pub include_legacy: bool,
 }
 
 struct State<'o, 'arena, E: Element<'arena>> {
@@ -36,7 +51,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXlink {
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         State {
-            options: &*self,
+            options: self,
             xlink_prefixes: RefCell::new(vec![]),
             overridden_prefixes: RefCell::new(vec![]),
             used_in_legacy_element: RefCell::new(vec![]),

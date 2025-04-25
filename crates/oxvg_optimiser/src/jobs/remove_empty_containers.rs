@@ -12,6 +12,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes container elements with no functional children or meaningful attributes.
+///
+/// # Correctness
+///
+/// This job shouldn't visually change the document. Removing whitespace may have
+/// an effect on `inline` or `inline-block` elements.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyContainers(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyContainers {

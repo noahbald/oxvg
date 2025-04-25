@@ -2,6 +2,7 @@ use strum::IntoEnumIterator;
 
 use crate::Actions;
 
+/// Generates a string listing available actions
 pub fn action_list() -> String {
     let output: Vec<String> = Actions::iter()
         .map(|a| format!("{a:?} : {}\n", a.describe()))

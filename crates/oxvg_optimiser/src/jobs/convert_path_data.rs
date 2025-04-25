@@ -9,38 +9,71 @@ use serde_json::Value;
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
+/// Converts paths found in `<path>`, `<glyph>`, and `<missing-glyph>` elements. Path
+/// commands are used within the `d` attributes of these elements.
+///
+/// The plugin runs the following process to reduce path length.
+///
+/// - Convert all paths to relative
+/// - Filter redundant commands
+/// - Merge commands which can be represented as one
+/// - Map commands to shorter form commands where possible
+/// - Convert commands back to absolute when shorter than relative
+///
+/// This plugin is best used with [`super::ApplyTransforms`] for increased optimisation.
+///
+/// # Differences to SVGO
+///
+/// In SVGO [`super::ApplyTransforms`] runs based on the `applyTransforms` option.
+///
+/// Path data might result in slightly different values because of how Rust handles numbers.
+///  
+/// # Correctness
+///
+/// Rounding errors may result in slight visual differences.
+///
 pub struct ConvertPathData {
     #[serde(default = "flag_default_true")]
+    /// Whether to remove redundant path commands.
     pub remove_useless: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to round the radius of circular arcs when the effective change is under error bounds.
     pub smart_arc_rounding: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert straight curves to lines
     pub straight_curves: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert complex curves that look like cubic beziers (q) into them.
     pub convert_to_q: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert normal lines that move in one direction to a vertical or horizontal line command.
     pub line_shorthands: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether merge repeated commands into one.
     pub collapse_repeated: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert complex curves that look like smooth curves into them.
     pub curve_smooth_shorthands: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert lines that close a curve to a close command (z).
     pub convert_to_z: bool,
     #[serde(default = "bool::default")]
+    /// Whether to always convert relative paths to absolute, even if larger.
     pub force_absolute_path: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to weakly force absolute commands, when slightly suboptimal
     pub negative_extra_space: bool,
     #[serde(default = "MakeArcs::default")]
+    /// Controls whether to convert from curves to arcs
     pub make_arcs: MakeArcs,
     #[serde(default = "Precision::default")]
+    /// Number of decimal places to round to.
+    ///
+    /// Precisions larger than 20 will be treated as 0.
     pub float_precision: Precision,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert from relative to absolute, when shorter.
     pub utilize_absolute: bool,
-    // TODO: Do we want to have apply_transforms as an option, or is it better to have this as a plugin
-    // just *before* this one
-    // apply_transforms: Option<bool>,
-    // apply_transforms_stroked: Option<bool>,
-    // transform_precision: Option<usize>,
 }
 
 impl Default for ConvertPathData {

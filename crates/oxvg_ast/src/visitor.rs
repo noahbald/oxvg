@@ -14,7 +14,7 @@ use crate::style::{self, ComputedStyles, ElementData};
 #[cfg(feature = "selectors")]
 use crate::selectors::Selector;
 
-#[derive(derive_more::Debug, Clone)]
+#[derive(derive_more::Debug, Clone, Default)]
 /// Additional information about the current run of a visitor and it's context
 pub struct Info<'arena, E: Element<'arena>> {
     /// The path of the file being processed. This should only be used for metadata purposes

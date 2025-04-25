@@ -8,6 +8,19 @@ use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug)]
+/// For SVGs with a `viewBox` attribute, removes `<path>` element outside of it's bounds.
+///
+/// Elements with `transform` are ignored, as they may be affected by animations.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveOffCanvasPaths(bool);
 
 struct State {

@@ -18,7 +18,10 @@ macro_rules! jobs {
         #[serde(rename_all = "camelCase")]
         /// Each task for optimising an SVG document.
         pub struct Jobs {
-            $(pub $name: Option<$job $( < 'arena, $($t),* >)?>),+
+            $(
+                #[doc=concat!("See [`", stringify!($job), "`]")]
+                pub $name: Option<$job $( < 'arena, $($t),* >)?>
+            ),+
         }
 
         impl Default for Jobs {
@@ -76,7 +79,6 @@ jobs! {
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
-    prefix_ids: PrefixIds,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
     remove_dimensions: RemoveDimensions,
@@ -129,11 +131,14 @@ jobs! {
     remove_desc: RemoveDesc (is_default: true),
 
     // Final non-default plugins
-    remove_xlink: RemoveXlink,
+    prefix_ids: PrefixIds, // Should run after `cleanup_ids`
+    remove_xlink: RemoveXlink, // Should remove xlinks added by other jobs
 }
 
 #[derive(Debug)]
+/// The type of errors which may occur while optimising a document.
 pub enum Error {
+    /// A basic error message created by one of the jobs.
     Generic(String),
 }
 
@@ -199,7 +204,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
         serialize::{Node, Options},
     };
 
-    let mut jobs: Jobs = serde_json::from_str(config_json)?;
+    let jobs: Jobs = serde_json::from_str(config_json)?;
     let arena = typed_arena::Arena::new();
     let dom = parse(
         svg.unwrap_or(

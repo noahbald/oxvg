@@ -18,11 +18,47 @@ const fn default_preserve_current_color() -> bool {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Remove attributes based on whether it matches a pattern.
+///
+/// The patterns syntax is `[ element* : attribute* : value* ]`; where
+///
+/// - A regular expression matching an element's name. An asterisk or omission matches all.
+/// - A regular expression matching an attribute's name.
+/// - A regular expression matching an attribute's value. An asterisk or omission matches all.
+///
+/// # Example
+///
+/// Match `fill` attribute in `<path>` elements
+///
+/// ```
+/// use oxvg_optimiser::{Jobs, RemoveAttrs};
+///
+/// let mut remove_attrs = RemoveAttrs::default();
+/// remove_attrs.attrs = vec![String::from("path:fill")];
+/// let jobs = Jobs {
+///   remove_attrs: Some(remove_attrs),
+///   ..Jobs::none()
+/// };
+/// ```
+/// # Correctness
+///
+/// Removing attributes may visually change the document if they're
+/// presentation attributes or selected with CSS.
+///
+/// # Errors
+///
+/// If the regex fails to parse.
 pub struct RemoveAttrs {
+    // FIXME: We really don't need the complexity of a DSL here.
+    /// A list of patterns that match attributes.
     pub attrs: Vec<String>,
     #[serde(default = "default_elem_separator")]
+    /// The seperator for different parts of the pattern. By default this is `":"`.
+    ///
+    /// You may need to use this if you need to match attributes with a `:` (i.e. prefixed attributes).
     pub elem_separator: String,
     #[serde(default = "default_preserve_current_color")]
+    /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
     #[serde(skip_deserializing, skip_serializing)]
     parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
@@ -31,10 +67,10 @@ pub struct RemoveAttrs {
 impl Default for RemoveAttrs {
     fn default() -> Self {
         RemoveAttrs {
-            attrs: Default::default(),
+            attrs: Vec::default(),
             elem_separator: default_elem_separator(),
             preserve_current_color: default_preserve_current_color(),
-            parsed_attrs_memo: Default::default(),
+            parsed_attrs_memo: OnceLock::default(),
         }
     }
 }

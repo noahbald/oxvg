@@ -18,12 +18,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes useless `stroke` and `fill` attributes
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]
+    /// Whether to remove redundant strokes
     pub stroke: bool,
     #[serde(default = "default_fill")]
+    /// Whether to remove redundant fills
     pub fill: bool,
     #[serde(default = "default_remove_none")]
+    /// Whether to remove elements with no stroke or fill
     pub remove_none: bool,
 }
 

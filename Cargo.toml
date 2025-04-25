@@ -58,7 +58,6 @@ serde_with = "3.12"
 string_cache = "0.8"
 tendril = "0.4"
 typed-arena = "2.0"
-quick-xml = "0.31"
 xml5ever = "0.20"
 
 # Developer dependencies
@@ -80,3 +79,9 @@ inherits = "release"
 [profile.profiling]
 inherits = "release"
 debug = true
+
+[profile.release]
+lto = true
+
+[profile.release.package.oxvg_napi]
+strip = "symbols"

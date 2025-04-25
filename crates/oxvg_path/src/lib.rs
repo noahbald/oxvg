@@ -80,6 +80,7 @@ impl Path {
         let points_1 = Points::from_positioned(&convert::relative(self));
         let points_2 = Points::from_positioned(&convert::relative(other));
 
+        // First check whether their bounding box intersects
         if points_1.max_x <= points_2.min_x
             || points_2.max_x <= points_1.min_x
             || points_1.max_y <= points_2.min_y
@@ -97,6 +98,7 @@ impl Path {
             return false;
         }
 
+        // i.e. https://en.wikipedia.org/wiki/Gilbert%E2%80%93Johnson%E2%80%93Keerthi_distance_algorithm
         let mut hull_nest_1 = points_1.list.iter().map(Point::convex_hull);
         let hull_nest_2: Vec<_> = points_2.list.iter().map(Point::convex_hull).collect();
 

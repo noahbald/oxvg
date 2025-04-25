@@ -11,8 +11,23 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Removes all xml namespaces associated with editing software.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// Editor namespaces may be used by the editor and contain data that might be
+/// lost if you try to edit the file after optimising.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEditorsNSData {
-    additional_namespaces: Option<HashSet<String>>,
+    /// A list of additional namespaces URIs you may want to remove.
+    pub additional_namespaces: Option<HashSet<String>>,
 }
 
 struct State<'o, 'arena, E: Element<'arena>> {
@@ -31,7 +46,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEditorsNSData {
         _context_flags: &mut oxvg_ast::visitor::ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         let mut state = State {
-            options: &*self,
+            options: self,
             prefixes: HashSet::new(),
             marker: PhantomData,
         };

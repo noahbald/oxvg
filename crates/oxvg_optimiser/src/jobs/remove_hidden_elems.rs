@@ -28,21 +28,49 @@ use crate::utils::find_references;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Removes hidden or invisible elements from the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// Animations on removed element may end up breaking.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveHiddenElems {
+    /// Whether to remove elements with `visibility` set to `hidden`
     pub is_hidden: Option<bool>,
+    /// Whether to remove elements with `display` set to `none`
     pub display_none: Option<bool>,
+    /// Whether to remove elements with `opacity` set to `0`
     pub opacity_zero: Option<bool>,
+    /// Whether to remove `<circle>` with `radius` set to `0`
     pub circle_r_zero: Option<bool>,
+    /// Whether to remove `<ellipse>` with `rx` set to `0`
     pub ellipse_rx_zero: Option<bool>,
+    /// Whether to remove `<ellipse>` with `ry` set to `0`
     pub ellipse_ry_zero: Option<bool>,
+    /// Whether to remove `<rect>` with `width` set to `0`
     pub rect_width_zero: Option<bool>,
+    /// Whether to remove `<rect>` with `height` set to `0`
     pub rect_height_zero: Option<bool>,
+    /// Whether to remove `<pattern>` with `width` set to `0`
     pub pattern_width_zero: Option<bool>,
+    /// Whether to remove `<pattern>` with `height` set to `0`
     pub pattern_height_zero: Option<bool>,
+    /// Whether to remove `<image>` with `width` set to `0`
     pub image_width_zero: Option<bool>,
+    /// Whether to remove `<image>` with `height` set to `0`
     pub image_height_zero: Option<bool>,
+    /// Whether to remove `<path>` with empty `d`
     pub path_empty_d: Option<bool>,
+    /// Whether to remove `<polyline>` with empty `points`
     pub polyline_empty_points: Option<bool>,
+    /// Whether to remove `<polygon>` with empty `points`
     pub polygon_empty_points: Option<bool>,
 }
 
@@ -157,7 +185,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems {
         data.start(document, info, Some(context_flags.clone()))?;
         log::debug!("data collected");
         State {
-            options: &self,
+            options: self,
             data: &mut data,
         }
         .start(document, info, Some(context_flags.clone()))?;
@@ -165,7 +193,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems {
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
     fn prepare(
@@ -259,7 +287,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
         if let Some(id) = element.get_attribute_local(&"id".into()) {
             if self.data.all_references.borrow().contains(id.as_ref()) {
