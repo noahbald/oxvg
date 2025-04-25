@@ -18,8 +18,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Merge multipe paths into one
+///
+/// # Differences to SVGO
+///
+/// There's no need to specify precision or spacing for path serialization.
+///
+/// # Correctness
+///
+/// By default this job should never visually change the document.
+///
+/// Running with `force` may cause intersecting paths to be incorrectly merged.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MergePaths {
     #[serde(default = "default_force")]
+    /// Whether to merge paths despite intersections
     pub force: bool,
 }
 

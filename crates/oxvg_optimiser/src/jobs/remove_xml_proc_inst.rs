@@ -7,6 +7,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes the xml declaration from the document.
+///
+/// # Correctness
+///
+/// This job may affect clients which expect XML (not SVG) and can't detect the MIME-type
+/// as `image/svg+xml`
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXMLProcInst(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLProcInst {

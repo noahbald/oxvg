@@ -10,6 +10,17 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
+/// Removes `xmlns` prefixed elements that are never referenced by a qualified name.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUnusedNS {
     enabled: bool,
 }

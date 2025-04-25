@@ -7,6 +7,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Removes inline JPEGs, PNGs, and GIFs from the document.
+///
+/// # Correctness
+///
+/// This job may visually change documents with images inlined in them.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveRasterImages(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveRasterImages {

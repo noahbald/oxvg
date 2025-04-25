@@ -5,6 +5,19 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
+/// Removes the `xmlns` attribute from `<svg>`.
+///
+/// This can be useful for SVGs that will be inlined.
+///
+/// # Correctness
+///
+/// This job may break document when used outside of HTML.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXMLNS(bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLNS {

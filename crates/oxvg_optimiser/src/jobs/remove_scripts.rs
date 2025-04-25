@@ -9,6 +9,21 @@ use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
+/// Removes `<script>` elements, event attributes, and javascript `href`s from the document.
+///
+/// This can help remove the risk of Cross-site scripting (XSS) attacks.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// It's likely to break interactive documents.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveScripts(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {

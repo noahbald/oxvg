@@ -1,3 +1,4 @@
+//! A collection of allowed content for SVG elements
 use phf::{phf_map, phf_set};
 
 use crate::collections::{
@@ -7,16 +8,25 @@ use crate::collections::{
     STRUCTURAL, TEXT_CONTENT_CHILD, TRANSFER_FUNCTION, X_LINK,
 };
 
+/// Stores data about what content is allowed for a given element
 pub struct AllowedContent {
+    /// Allowed attribute groups for an element
     pub attrs_groups: &'static [&'static phf::Set<&'static str>],
+    /// Allowed attributes for an element
     pub attrs: Option<phf::Set<&'static str>>,
+    /// Defaults for an element's attributes
     pub defaults: Option<phf::Map<&'static str, &'static str>>,
+    /// Deprecated attributes for an element that are safe to remove
     pub deprecated_safe: Option<phf::Set<&'static str>>,
+    /// Deprecated attributes for an element that are not safe to remove
     pub deprecated_unsafe: Option<phf::Set<&'static str>>,
+    /// Allowed child element groups for an element
     pub content_groups: Option<&'static [&'static phf::Set<&'static str>]>,
+    /// Allowed child elements for an element
     pub content: Option<phf::Set<&'static str>>,
 }
 
+/// Allowed content for each element name
 pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
     "a" => AllowedContent {
         attrs_groups: &[
@@ -2049,18 +2059,22 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
     },
 };
 
+/// Deprecated animation attribute target attributes
 pub static ANIMATION_ATTRIBUTE_TARGET_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "attributeType"
 };
 
+/// Deprecated conditional processing attributes
 pub static CONDITIONAL_PROCESSING_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "requiredFeatures"
 };
 
+/// Deprecated core attributes
 pub static CORE_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "xml:base", "xml:lang", "xml:space"
 };
 
+/// Deprecated presentation attributes
 pub static PRESENTATION_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "clip",
     "color-profile",
@@ -2070,6 +2084,7 @@ pub static PRESENTATION_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "kerning"
 };
 
+/// For an attribute group's static set, returns the static set of deprecated attributes
 pub fn attrs_group_deprecated_unsafe<'a>(
     attrs_group: &'static phf::Set<&'static str>,
 ) -> Option<&'a phf::Set<&'static str>> {

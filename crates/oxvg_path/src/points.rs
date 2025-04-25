@@ -1,3 +1,4 @@
+//! Types used for processing polygons
 use core::f64;
 
 use crate::{
@@ -37,10 +38,13 @@ pub struct Point {
 }
 
 impl Points {
+    /// Creates the list of points from a path.
     pub fn from_path(path: &Path) -> Self {
         Self::from_positioned(&convert::relative(path))
     }
+
     #[allow(clippy::too_many_lines)]
+    /// Creates the list of points from a positioned path.
     pub fn from_positioned(path: &positioned::Path) -> Self {
         let mut points = Self::default();
         let mut prev_ctrl_point = [0.0; 2];
@@ -219,7 +223,7 @@ impl Points {
                                             add_point(&mut sub_path, prev_ctrl_point);
                                         }
                                     }
-                                    add_point(&mut sub_path, [data[5], data[6]])
+                                    add_point(&mut sub_path, [data[5], data[6]]);
                                 }
                             }
                             Data::LineTo(data) => add_point(&mut sub_path, data),
@@ -290,7 +294,7 @@ impl Point {
 
         let max_x = lower.len();
         lower.extend(upper);
-        let max_y = if lower.len() == 0 {
+        let max_y = if lower.is_empty() {
             0
         } else {
             (max_x + top) % lower.len()
@@ -305,11 +309,13 @@ impl Point {
         }
     }
 
+    /// Gets the support point of the Minowski difference of two shapes.
     pub fn get_support(&self, other: &Point, direction: geometry::Point) -> geometry::Point {
         self.support_point(direction)
             .sub(other.support_point(direction.minus()))
     }
 
+    /// Get the supporting point of a polygon, the furthest point in a given direction.
     pub fn support_point(&self, geometry::Point(direction): geometry::Point) -> geometry::Point {
         let mut index = if direction[1] >= 0.0 {
             if direction[0] < 0.0 {

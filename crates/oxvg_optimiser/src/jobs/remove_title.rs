@@ -5,6 +5,20 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+/// Removes the `<title>` element from the document.
+///
+/// This may affect the accessibility of documents, where the title is used
+/// to describe a non-decorative SVG.
+///
+/// # Correctness
+///
+/// This job may visually change documents with images inlined in them.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveTitle(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveTitle {

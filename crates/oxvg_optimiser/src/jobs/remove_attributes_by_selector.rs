@@ -7,13 +7,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// A selector and set of attributes to remove.
 pub struct Selector {
+    /// A CSS selector.
     selector: String,
+    /// A list of qualified attribute names.
     attributes: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes attributes from elements that match a selector.
+///
+/// # Correctness
+///
+/// Removing attributes may visually change the document if they're
+/// presentation attributes or selected with CSS.
+///
+/// # Errors
+///
+/// If the selector fails to parse.
 pub struct RemoveAttributesBySelector(pub Vec<Selector>);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttributesBySelector {

@@ -46,14 +46,36 @@ struct State<'o, 'arena, E: Element<'arena>> {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes unused ids and minifies used ids.
+///
+/// # Correctness
+///
+/// By default documents with scripts or style elements are skipped, so the ids aren't selected
+/// and can't affect the document's appearance or behaviour.
+///
+/// When inlined there's a good chance that existing id selectors will no longer match the ids.
+/// Additionally, when inlining multiple SVGs it's likely ids will overlap.
+///
+/// You can choose to disable `minify` or use the `prefixIds` job to help with workarounds.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CleanupIds {
     #[serde(default = "default_remove")]
+    /// Whether to remove unreferenced ids.
     pub remove: bool,
     #[serde(default = "default_minify")]
+    /// Whether to minify ids
     pub minify: bool,
+    /// Skips ids that match an item in the list
     pub preserve: Option<Vec<String>>,
+    /// Skips ids that start with a string matching a prefix in the list
     pub preserve_prefixes: Option<Vec<String>>,
     #[serde(default = "bool::default")]
+    /// Whether to run despite `<script>` or `<style>`
     pub force: bool,
 }
 
@@ -81,7 +103,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
         context_flags.query_has_stylesheet(document);
         context_flags.query_has_script(document);
         let mut state = State {
-            options: &self,
+            options: self,
             ignore_document: false,
             replaceable_ids: BTreeSet::new(),
             id_renames: BTreeMap::new(),
@@ -94,12 +116,12 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
         }
 
         state.prepare_id_rename(document);
-        state.start(&mut document.clone(), info, Some(context_flags.clone()));
+        state.start(&mut document.clone(), info, Some(context_flags.clone()))?;
         Ok(PrepareOutcome::skip) // work done with `state`
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
     fn element(
@@ -161,7 +183,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
         } in &*self.ref_renames.borrow()
         {
             let element = element_ref;
-            let Some(ref mut attr) = element.get_attribute_node_mut(&name) else {
+            let Some(ref mut attr) = element.get_attribute_node_mut(name) else {
                 log::debug!("CleanupIds::breakdown: {name:?} attribute missing");
                 continue;
             };
@@ -170,7 +192,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
                 .unwrap_or(&generated_id.current)
                 .clone();
             let replacements =
-                replace_id_in_attr(attr.value().to_string(), &referenced_id, &minified_id);
+                replace_id_in_attr(attr.value().to_string(), referenced_id, &minified_id);
             if replacements.count() == &0 {
                 continue;
             }
@@ -212,7 +234,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     fn prepare_ignore_document(&self, root: &E, context_flags: &ContextFlags) -> bool {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style

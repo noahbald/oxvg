@@ -6,6 +6,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Removes `width` and `height` from the `<svg>` and replaces it with `viewBox` if missing.
+///
+/// This job is the opposite of [`super::RemoveViewBox`] and should be disabled before
+/// using this one.
+///
+/// # Correctness
+///
+/// This job may affect the appearance of the document if the width/height does not match
+/// the view-box.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDimensions(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDimensions {

@@ -8,6 +8,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes the `viewBox` attribute when it matches the `width` and `height`.
+///
+/// # Correctness
+///
+/// This job should never visually change the document but may affect how the document
+/// scales in applications.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveViewBox(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {

@@ -1,3 +1,4 @@
+//! Filters and merges path data into a shorter form.
 pub mod arc;
 mod from;
 mod remove;
@@ -13,17 +14,21 @@ use crate::{
 use super::StyleInfo;
 
 #[derive(Clone)]
+/// The processor for filtering path data.
 pub struct State<'a> {
     options: &'a convert::Options,
     info: &'a StyleInfo,
+    /// For each command, the relative error creates as they are processed.
     pub relative_subpoints: Vec<[f64; 2]>,
     base_path: [f64; 2],
     prev_q_control_point: Option<Point>,
     saggita: Option<f64>,
+    /// The error for rounding path data.
     pub error: f64,
 }
 
 impl<'a> State<'a> {
+    /// Creates an initial state from a given path, options, and context info
     pub fn new(path: &Path, options: &'a convert::Options, info: &'a StyleInfo) -> Self {
         let mut state = Self {
             options,

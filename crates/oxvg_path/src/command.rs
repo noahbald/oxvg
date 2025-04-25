@@ -1,3 +1,4 @@
+//! Definitions for the commands of path data.
 use crate::{
     geometry::{Curve, Point},
     math,
@@ -7,6 +8,7 @@ use std::fmt::Write;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
+/// Data for a path command
 pub enum Data {
     /// M
     /// Move the current point to coordinate `x`, `y`. Any subsequent coordinate pair(s) are
@@ -48,10 +50,12 @@ pub enum Data {
     ArcTo([f64; 7]),
     /// a
     ArcBy([f64; 7]),
+    /// An implicit command, which should match the previous command
     Implicit(Box<Data>),
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+/// A type of path command.
 pub enum ID {
     /// M
     /// Move the current point to coordinate `x`, `y`. Any subsequent coordinate pair(s) are
@@ -96,12 +100,14 @@ pub enum ID {
     /// The absence of any command
     #[default]
     None,
+    /// An implicit command, which should match the previous command
     Implicit(Box<ID>),
 }
 
 #[derive(Debug, Clone)]
 /// The equivalent of a [Path](crate::Path), but with additional positional information
 pub struct Position {
+    /// The path command.
     pub command: Data,
     /// The base point of the command
     pub start: Point,
@@ -112,6 +118,7 @@ pub struct Position {
 }
 
 impl Data {
+    /// Returns the id for the command
     pub fn id(&self) -> ID {
         match self {
             Self::MoveTo(..) => ID::MoveTo,
@@ -137,6 +144,7 @@ impl Data {
         }
     }
 
+    /// Returns the arguments for the command
     pub fn args(&self) -> &[f64] {
         match self {
             Self::MoveTo(a)
@@ -160,6 +168,7 @@ impl Data {
         }
     }
 
+    /// Returns a mutable reference to the command's arguments
     pub fn args_mut(&mut self) -> &mut [f64] {
         match self {
             Self::MoveTo(a)
@@ -196,10 +205,12 @@ impl Data {
         args[index] = value;
     }
 
+    /// Returns whether the command is implicit
     pub fn is_implicit(&self) -> bool {
         matches!(self, Self::Implicit(_))
     }
 
+    /// Returns the command, converting from implicit if necessary
     pub fn as_explicit(&self) -> &Self {
         if let Self::Implicit(inner) = self {
             return inner.as_explicit();
@@ -207,6 +218,7 @@ impl Data {
         self
     }
 
+    /// Returns whether the command goes to an absolute position.
     pub fn is_to(&self) -> bool {
         match self {
             Self::MoveTo(_)
@@ -224,6 +236,7 @@ impl Data {
         }
     }
 
+    /// Returns whether the command goes to a relative position.
     pub fn is_by(&self) -> bool {
         matches!(self, Self::ClosePath) || !self.is_to()
     }
@@ -344,6 +357,7 @@ impl std::fmt::Display for Data {
     }
 }
 
+/// Formats a command's argument into it's shortest possible form
 pub fn short_number<F>(n: F) -> String
 where
     F: ryu::Float,
@@ -372,6 +386,7 @@ where
 }
 
 impl ID {
+    /// Returns the length of a command's arguments
     pub fn args(&self) -> usize {
         match self {
             Self::ClosePath | Self::None => 0,
@@ -395,14 +410,19 @@ impl ID {
         }
     }
 
+    /// Returns whether the command is `None`, i.e. a non-representable command.
+    ///
+    /// This may be used to represent a command that couldn't/hasn't been parsed.
     pub fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
 
+    /// Returns whether the command is implicit, based on the previous command.
     pub fn is_implicit(&self) -> bool {
         matches!(self, Self::Implicit(_))
     }
 
+    /// Converts the command if it's implicit
     pub fn as_explicit(&self) -> &Self {
         if let Self::Implicit(inner) = self {
             return inner.as_explicit();
@@ -410,6 +430,7 @@ impl ID {
         self
     }
 
+    /// Returns the expected command to follow this one if it's implicit
     pub fn next_implicit(&self) -> Self {
         match self {
             Self::MoveTo => Self::LineTo,

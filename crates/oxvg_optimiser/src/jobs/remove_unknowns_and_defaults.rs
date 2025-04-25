@@ -18,22 +18,44 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
+/// Removes elements and attributes that are not expected in an SVG document. Removes
+/// attributes that are not expected on a given element. Removes attributes that are
+/// the default for a given element. Removes elements that are not expected as a child
+/// for a given element.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUnknownsAndDefaults {
     #[serde(default = "default_unknown_content")]
+    /// Whether to remove elements that are unknown or unknown for it's parent element.
     pub unknown_content: bool,
     #[serde(default = "default_unknown_attrs")]
+    /// Whether to remove attributes that are unknown or unknown for it's element.
     pub unknown_attrs: bool,
     #[serde(default = "default_default_attrs")]
+    /// Whether to remove attributes that are equivalent to the default for it's element.
     pub default_attrs: bool,
     #[serde(default = "default_default_markup_declarations")]
+    /// Whether to remove xml declarations equivalent to the default.
     pub default_markup_declarations: bool,
     #[serde(default = "default_useless_overrides")]
+    /// Whether to remove attributes equivalent to it's inherited value.
     pub useless_overrides: bool,
     #[serde(default = "default_keep_data_attrs")]
+    /// Whether to keep attributes prefixed with `data-`
     pub keep_data_attrs: bool,
     #[serde(default = "default_keep_aria_attrs")]
+    /// Whether to keep attributes prefixed with `aria-`
     pub keep_aria_attrs: bool,
     #[serde(default = "default_keep_role_attr")]
+    /// Whether to keep the `role` attribute
     pub keep_role_attr: bool,
 }
 
@@ -543,7 +565,6 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
         ),
     )?);
 
-    // WARN: removes xmlns:xlink
     insta::assert_snapshot!(test_config(
         r#"{ "removeUnknownsAndDefaults": {} }"#,
         Some(

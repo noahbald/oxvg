@@ -5,6 +5,17 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
+/// Removes all `<style>` elements from the document.
+///
+/// # Correctness
+///
+/// This job is likely to visually affect documents with style elements in them.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveStyleElement(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveStyleElement {

@@ -1,3 +1,4 @@
+//! Path representations with positional information
 use crate::command::Position;
 
 #[derive(Debug, Clone)]

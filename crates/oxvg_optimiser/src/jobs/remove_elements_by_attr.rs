@@ -6,21 +6,25 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Default, Deserialize, Serialize, Debug, Clone)]
+/// Remove elements by ID or classname
+///
+/// # Correctness
+///
+/// Removing arbitrary elements may affect the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveElementsByAttr {
     #[serde(default = "Vec::new")]
+    /// Ids of elements to be removed
     pub id: Vec<String>,
     #[serde(default = "Vec::new")]
+    /// Class-names of elements to be removed
     pub class: Vec<String>,
-}
-
-impl Default for RemoveElementsByAttr {
-    fn default() -> Self {
-        RemoveElementsByAttr {
-            id: Vec::new(),
-            class: Vec::new(),
-        }
-    }
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveElementsByAttr {

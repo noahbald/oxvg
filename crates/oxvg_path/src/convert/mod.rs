@@ -94,8 +94,11 @@ pub enum Precision {
 #[derive(Debug, Default)]
 /// The main options for controlling how the path optimisations are completed.
 pub struct Options {
+    /// See [`Flags`]
     pub flags: Flags,
+    /// See [`MakeArcs`]
     pub make_arcs: MakeArcs,
+    /// See [`Precision`]
     pub precision: Precision,
 }
 

@@ -1,3 +1,4 @@
+//! Methods for filtering arc commands
 use core::f64;
 
 use crate::{

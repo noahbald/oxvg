@@ -80,3 +80,9 @@ inherits = "release"
 [profile.profiling]
 inherits = "release"
 debug = true
+
+[profile.release]
+lto = true
+
+[profile.release.package.oxvg_napi]
+strip = "symbols"
