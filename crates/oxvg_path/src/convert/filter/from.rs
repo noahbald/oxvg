@@ -100,16 +100,16 @@ pub fn c_to_q(
     make_specific_longhand(next, &command::ID::SmoothBezierBy, &new_args);
 }
 
-pub fn line_to_shorthand(item: &mut Position, options: &convert::Options) {
+pub fn line_to_shorthand(item: &mut Position, options: &convert::Options, error: f64) {
     if !options.flags.line_shorthands() {
         return;
     }
     let command::Data::LineBy(args) = item.command else {
         return;
     };
-    if args[1] == 0.0 {
+    if options.round(args[1], error) == 0.0 {
         item.command = command::Data::HorizontalLineBy([args[0]]);
-    } else if args[0] == 0.0 {
+    } else if options.round(args[0], error) == 0.0 {
         item.command = command::Data::VerticalLineBy([args[1]]);
     }
 }

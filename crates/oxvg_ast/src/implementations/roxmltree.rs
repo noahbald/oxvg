@@ -312,9 +312,13 @@ fn find_new_xmlns(
     if (ns.name().is_some() || !ns.uri().is_empty()) && !find_xml_uri(ns, namespace_map) {
         let prefix = ns.name().map(Into::into);
         let uri: StrTendril = ns.uri().into();
-        let popped = namespace_map.insert(prefix.clone(), Some(uri.clone()));
-        if let Some(popped) = popped {
-            popped_ns.push(popped);
+        if prefix.is_none()
+            || (prefix.is_some() && namespace_map.get_by_prefix(&None) != Some(&Some(uri.clone())))
+        {
+            let popped = namespace_map.insert(prefix.clone(), Some(uri.clone()));
+            if let Some(popped) = popped {
+                popped_ns.push(popped);
+            }
         }
         Some(Attribute {
             name: QualName {

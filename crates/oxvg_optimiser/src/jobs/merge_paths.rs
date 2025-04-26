@@ -117,6 +117,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
             if let Some(first) = current_path_data.0.first_mut() {
                 if let command::Data::MoveBy(data) = first {
                     *first = command::Data::MoveTo(*data);
+
+                    if let Some(second) = current_path_data.0.get_mut(1) {
+                        if second.is_implicit() && second.as_explicit().id() != command::ID::LineTo
+                        {
+                            *second = second.as_explicit().clone();
+                        }
+                    }
                 }
             }
 
@@ -167,13 +174,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
                 continue;
             }
 
-            let attrs_are_equal = attrs.into_iter().any(|a| {
+            let are_any_attr_diff = attrs.into_iter().any(|a| {
                 (a.prefix().is_some() || a.local_name().as_ref() != "d")
                     && prev_attrs
                         .get_named_item(a.name())
-                        .is_some_and(|p| p.value() != a.value())
+                        .is_none_or(|p| p.value() != a.value())
             });
-            if attrs_are_equal {
+            if are_any_attr_diff {
                 log::debug!("ending merge, current attrs equal to prev");
                 update_previous_path!();
                 continue;

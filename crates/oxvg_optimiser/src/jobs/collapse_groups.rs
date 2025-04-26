@@ -135,7 +135,8 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
             child_attr.set_value(value.clone());
         } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
             log::debug!("collapse_groups: removing {name:?}: inheritable attr is not inherited");
-            return;
+            removals.pop();
+            break;
         }
     }
 

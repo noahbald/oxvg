@@ -17,7 +17,7 @@ pub struct Convert {
     angle: f64,
     suffix: String,
     relative_circle: Circle,
-    relative_subpoint: Point,
+    pub(crate) relative_subpoint: Point,
     output: Vec<Position>,
     arc_curves: Vec<Position>,
     has_prev: usize,
