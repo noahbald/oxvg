@@ -1,11 +1,12 @@
 [package]
 name = "oxvg_collections"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "selectors implementation for rcdom"
+keywords = ["svg"]
+description = "Collections of data and utilities about SVG"
 
 [lints]
 workspace = true
