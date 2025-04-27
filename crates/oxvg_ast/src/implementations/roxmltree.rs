@@ -6,11 +6,7 @@
 //!
 //! - Default PI is skipped
 //! - Duplicate namespace uris are merged
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-    fmt::Display,
-};
+use std::{cell::RefCell, collections::HashMap, fmt::Display};
 
 use tendril::StrTendril;
 use xml5ever::{local_name, namespace_prefix, namespace_url, ns, Prefix};
@@ -224,7 +220,7 @@ fn parse_element<'arena>(
         name: parse_expanded_name(xml_node.tag_name(), namespace_map),
         attrs: RefCell::new(attrs),
         #[cfg(feature = "selectors")]
-        selector_flags: Cell::new(None),
+        selector_flags: std::cell::Cell::new(None),
     })
 }
 

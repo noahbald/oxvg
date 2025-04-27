@@ -1,10 +1,11 @@
 [package]
 name = "oxvg_ast"
-version = "0.0.1-beta.1"
+version = "0.0.2"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+keywords = ["xml", "ast", "selectors", "css", "svg"]
 description = "Trait representation for concrete ASTs"
 
 [lints]

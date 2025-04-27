@@ -1216,7 +1216,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -1242,7 +1242,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.1-beta.1"
+version = "0.0.2"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -1265,7 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lazy_static",
  "oxvg_ast",
@@ -1298,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "criterion",
@@ -1325,7 +1325,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.1-beta.4"
+version = "0.0.2"
 dependencies = [
  "bitflags",
  "insta",

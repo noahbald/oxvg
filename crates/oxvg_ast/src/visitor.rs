@@ -92,7 +92,7 @@ impl<'arena, 'i, E: Element<'arena>> Context<'arena, 'i, '_, E> {
             pub fn new(
                 root: E,
                 flags: ContextFlags,
-                info: &'i Info<'arena>,
+                info: &'i Info<'arena, E>,
             ) -> Self {
                 Self {
                     root,

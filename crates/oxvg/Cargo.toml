@@ -1,8 +1,12 @@
 [package]
 name = "oxvg"
-version = "0.1.0"
+version = "0.0.2"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
+keywords = ["svg", "svgo", "optimisation"]
+description = "Vector image toolchain."
 
 [lints]
 workspace = true
@@ -17,7 +21,7 @@ test = false
 [dependencies]
 oxvg_optimiser = { workspace = true }
 oxvg_ast = { workspace = true, features = [
-  "markup5ever",
+  "roxmltree",
   "selectors",
   "serialize",
 ] }
