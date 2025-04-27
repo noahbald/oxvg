@@ -7,16 +7,35 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// The method for ordering xmlns attributes
 pub enum XMLNSOrder {
+    /// Sort xmlns attributes alphabetically
     Alphabetical,
     #[default]
+    /// Keep xmlns attributes at the front of the list
     Front,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Sorts attributes into a predictable order.
+///
+/// This doesn't affect the size of a document but will likely improve readability
+/// and compression of the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct SortAttrs {
+    /// A list of attributes in a given order.
     pub order: Option<Vec<String>>,
+    /// The method for ordering xmlns attributes
     pub xmlns_order: Option<XMLNSOrder>,
 }
 
@@ -24,7 +43,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortAttrs {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -80,18 +99,16 @@ fn sort_attrs() -> anyhow::Result<()> {
         ),
     )?);
 
-    // FIXME: rcdom is breaking this
     insta::assert_snapshot!(test_config(
         r#"{ "sortAttrs": {} }"#,
         Some(
-            r#"<svg xmlns:editor2="link2" fill="" b="" xmlns:xlink="" xmlns:editor1="link1" xmlns="" d="">
+            r#"<svg xmlns:editor2="link2" fill="" b="" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:editor1="link1" xmlns="" d="">
     <!-- put xmlns and namespace attributes before others by default -->
     <rect editor2:b="" editor1:b="" editor2:a="" editor1:a="" />
 </svg>"#
         ),
     )?);
 
-    // FIXME: rcdom is breaking this
     insta::assert_snapshot!(test_config(
         r#"{ "sortAttrs": { "xmlnsOrder": "alphabetical" } }"#,
         Some(

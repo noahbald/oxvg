@@ -4,7 +4,7 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     node,
     style::{Id, PresentationAttr, PresentationAttrId, Style},
-    visitor::{Context, ContextFlags, PrepareOutcome},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -18,22 +18,44 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
+/// Removes elements and attributes that are not expected in an SVG document. Removes
+/// attributes that are not expected on a given element. Removes attributes that are
+/// the default for a given element. Removes elements that are not expected as a child
+/// for a given element.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUnknownsAndDefaults {
     #[serde(default = "default_unknown_content")]
+    /// Whether to remove elements that are unknown or unknown for it's parent element.
     pub unknown_content: bool,
     #[serde(default = "default_unknown_attrs")]
+    /// Whether to remove attributes that are unknown or unknown for it's element.
     pub unknown_attrs: bool,
     #[serde(default = "default_default_attrs")]
+    /// Whether to remove attributes that are equivalent to the default for it's element.
     pub default_attrs: bool,
     #[serde(default = "default_default_markup_declarations")]
+    /// Whether to remove xml declarations equivalent to the default.
     pub default_markup_declarations: bool,
     #[serde(default = "default_useless_overrides")]
+    /// Whether to remove attributes equivalent to it's inherited value.
     pub useless_overrides: bool,
     #[serde(default = "default_keep_data_attrs")]
+    /// Whether to keep attributes prefixed with `data-`
     pub keep_data_attrs: bool,
     #[serde(default = "default_keep_aria_attrs")]
+    /// Whether to keep attributes prefixed with `aria-`
     pub keep_aria_attrs: bool,
     #[serde(default = "default_keep_role_attr")]
+    /// Whether to keep the `role` attribute
     pub keep_role_attr: bool,
 }
 
@@ -55,16 +77,21 @@ impl Default for RemoveUnknownsAndDefaults {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefaults {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.attributes().len() > 0
     }
 
     fn processing_instruction(
-        &mut self,
+        &self,
         processing_instruction: &mut <E as oxvg_ast::node::Node<'arena>>::Child,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -88,7 +115,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefault
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -538,7 +565,6 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
         ),
     )?);
 
-    // WARN: removes xmlns:xlink
     insta::assert_snapshot!(test_config(
         r#"{ "removeUnknownsAndDefaults": {} }"#,
         Some(
@@ -558,6 +584,20 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
     <!-- removes `standalone="no" from xml declaration -->
     <text x="4" y="18">uwu</text>
 </svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeUnknownsAndDefaults": {} }"#,
+        Some(
+            r##"<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+    <!-- do not remove default when inherited value differs -->
+    <g fill="#fff">
+      <g>
+        <rect x="0" y="0" width="50" height="50" fill="#000" />
+      </g>
+    </g>
+</svg>"##
         ),
     )?);
 

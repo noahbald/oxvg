@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{cell::RefCell, marker::PhantomData};
 
 use oxvg_ast::{
     attribute::{Attr, Attributes},
@@ -6,43 +6,59 @@ use oxvg_ast::{
     element::Element,
     name::Name,
     node::Node,
-    visitor::{Context, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::allowed_content::ELEMS;
 use phf::{phf_map, phf_set};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
+/// Replaces `xlink` prefixed attributes to the native SVG equivalent.
+///
+/// # Correctness
+///
+/// This job may break compatibility with the SVG 1.1 spec.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXlink {
     #[serde(default = "bool::default")]
-    include_legacy: bool,
+    /// Whether to also convert xlink attributes for legacy elements which don't
+    /// support the SVG 2 `href` attribute (e.g. `<cursor>`).
+    ///
+    /// This is safe to enable for SVGs to inline in HTML documents.
+    pub include_legacy: bool,
 }
 
 struct State<'o, 'arena, E: Element<'arena>> {
     options: &'o RemoveXlink,
-    xlink_prefixes: Vec<<E::Name as Name>::Prefix>,
-    overridden_prefixes: Vec<<E::Name as Name>::Prefix>,
-    used_in_legacy_element: Vec<<E::Name as Name>::Prefix>,
+    xlink_prefixes: RefCell<Vec<<E::Name as Name>::Prefix>>,
+    overridden_prefixes: RefCell<Vec<<E::Name as Name>::Prefix>>,
+    used_in_legacy_element: RefCell<Vec<<E::Name as Name>::Prefix>>,
     marker: PhantomData<&'arena ()>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXlink {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         State {
-            options: &*self,
-            xlink_prefixes: vec![],
-            overridden_prefixes: vec![],
-            used_in_legacy_element: vec![],
+            options: self,
+            xlink_prefixes: RefCell::new(vec![]),
+            overridden_prefixes: RefCell::new(vec![]),
+            used_in_legacy_element: RefCell::new(vec![]),
             marker: PhantomData,
         }
-        .start(document, context.info)
-        .map(|_| ())
+        .start(&mut document.clone(), info, None)?;
+        Ok(PrepareOutcome::skip)
     }
 }
 
@@ -50,10 +66,12 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
+        let mut xlink_prefixes = self.xlink_prefixes.borrow_mut();
+        let mut overridden_prefixes = self.overridden_prefixes.borrow_mut();
         for attr in element.attributes().into_iter() {
             if let Some(prefix) = attr.prefix() {
                 if prefix.as_ref() != "xmlns" {
@@ -62,20 +80,21 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
 
                 let prefix_name = attr.local_name().as_ref().into();
                 if attr.value().as_ref() == XLINK_NAMESPACE {
-                    self.xlink_prefixes.push(prefix_name);
-                } else if self.xlink_prefixes.contains(&prefix_name) {
-                    self.overridden_prefixes.push(prefix_name);
+                    xlink_prefixes.push(prefix_name);
+                } else if xlink_prefixes.contains(&prefix_name) {
+                    overridden_prefixes.push(prefix_name);
                 }
             }
         }
 
-        if self
-            .overridden_prefixes
+        if overridden_prefixes
             .iter()
-            .any(|p| self.xlink_prefixes.contains(p))
+            .any(|p| xlink_prefixes.contains(p))
         {
             return Ok(());
         }
+        drop(xlink_prefixes);
+        drop(overridden_prefixes);
 
         self.handle_show(element);
         self.handle_title(element, context);
@@ -85,7 +104,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -94,24 +113,27 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
                 return true;
             };
 
+            let mut xlink_prefixes = self.xlink_prefixes.borrow_mut();
+            let mut overridden_prefixes = self.overridden_prefixes.borrow_mut();
+            let used_in_legacy_element = self.used_in_legacy_element.borrow();
             if !self.options.include_legacy
-                && self.xlink_prefixes.contains(prefix)
-                && !self.overridden_prefixes.contains(prefix)
-                && !self.used_in_legacy_element.contains(prefix)
+                && xlink_prefixes.contains(prefix)
+                && !overridden_prefixes.contains(prefix)
+                && !used_in_legacy_element.contains(prefix)
             {
                 return false;
             }
 
             let value = attr.value();
             if prefix.as_ref() == "xmlns"
-                && !self.used_in_legacy_element.contains(&value.as_ref().into())
+                && !used_in_legacy_element.contains(&value.as_ref().into())
             {
                 if value.as_ref() == XLINK_NAMESPACE {
-                    self.xlink_prefixes.retain(|p| p.as_ref() != value.as_ref());
+                    xlink_prefixes.retain(|p| p.as_ref() != value.as_ref());
                     return false;
                 }
 
-                self.overridden_prefixes.retain(|p| p != prefix);
+                overridden_prefixes.retain(|p| p != prefix);
             }
 
             true
@@ -123,6 +145,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
 
 impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     fn handle_show(&self, element: &E) {
+        let xlink_prefixes = self.xlink_prefixes.borrow();
         let element_name = element.qual_name().formatter().to_string();
         let target_name = "target".into();
         let mut show_handled = element.has_attribute_local(&target_name);
@@ -131,7 +154,7 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
             let Some(prefix) = attr.prefix() else {
                 return true;
             };
-            if attr.local_name().as_ref() != "show" || !self.xlink_prefixes.contains(prefix) {
+            if attr.local_name().as_ref() != "show" || !xlink_prefixes.contains(prefix) {
                 return true;
             }
             if show_handled {
@@ -158,11 +181,12 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     }
 
     fn handle_title(&self, element: &E, context: &Context<'arena, '_, '_, E>) {
+        let xlink_prefixes = self.xlink_prefixes.borrow();
         element.attributes().retain(|attr| {
             let Some(prefix) = attr.prefix() else {
                 return true;
             };
-            if attr.local_name().as_ref() != "title" || !self.xlink_prefixes.contains(prefix) {
+            if attr.local_name().as_ref() != "title" || !xlink_prefixes.contains(prefix) {
                 return true;
             }
 
@@ -185,7 +209,9 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
         });
     }
 
-    fn handle_href(&mut self, element: &E) {
+    fn handle_href(&self, element: &E) {
+        let mut used_in_legacy_element = self.used_in_legacy_element.borrow_mut();
+        let xlink_prefixes = self.xlink_prefixes.borrow();
         let exclude_legacy = !self.options.include_legacy
             && element.prefix().is_none()
             && LEGACY_ELEMENTS.contains(element.local_name());
@@ -196,12 +222,12 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
                 has_href = has_href || attr.value().as_ref() == "href";
                 return true;
             };
-            if attr.local_name().as_ref() != "href" || !self.xlink_prefixes.contains(prefix) {
+            if attr.local_name().as_ref() != "href" || !xlink_prefixes.contains(prefix) {
                 log::debug!("retaining {:?}, not a recorded prefix", attr);
                 return true;
             }
             if exclude_legacy {
-                self.used_in_legacy_element.push(prefix.clone());
+                used_in_legacy_element.push(prefix.clone());
                 return true;
             }
 

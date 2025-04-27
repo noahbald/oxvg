@@ -5,36 +5,49 @@ use oxvg_ast::{
     get_computed_styles_factory,
     name::Name,
     style::{Id, PresentationAttrId},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::CONTAINER;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes container elements with no functional children or meaningful attributes.
+///
+/// # Correctness
+///
+/// This job shouldn't visually change the document. Removing whitespace may have
+/// an effect on `inline` or `inline-block` elements.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyContainers(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyContainers {
     type Error = String;
 
     fn prepare(
-        &mut self,
+        &self,
         _document: &E,
+        _info: &Info<'arena, E>,
         _context_flags: &mut ContextFlags,
-    ) -> super::PrepareOutcome {
-        if self.0 {
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::use_style
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.prefix().is_none() && element.local_name().as_ref() == "g"
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

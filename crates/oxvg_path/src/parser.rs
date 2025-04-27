@@ -1,3 +1,4 @@
+//! Types used for parsing a string of path data.
 use crate::{command, Path};
 
 #[derive(Default)]
@@ -15,13 +16,21 @@ pub(crate) struct Parser {
 }
 
 #[derive(Debug)]
+/// An error that can occur while parsing path data
 pub enum Error {
+    /// A command ended before it's expected length of arguments was reached
     CommandEndedTooEarly(usize),
+    /// A command was not given when expected
     NoCommand,
+    /// Multiple commas were found between arguments
     DuplicateComma,
+    /// A non move command was provided first
     InvalidFirstCommand,
+    /// A sign (`+`/`-`) was given with one of the first two arc arguments
     InvalidArcSign,
+    /// An arc command was invalid
     InvalidArc,
+    /// A command argument was invalid
     InvalidNumber(std::num::ParseFloatError),
 }
 
@@ -171,7 +180,7 @@ impl Parser {
                     }
                     '0' if (3..=4).contains(&self.args_len) => 0.0,
                     '1' if (3..=4).contains(&self.args_len) => 1.0,
-                    '+' | '-' | '.' => {
+                    '+' | '-' | '.' | 'e' => {
                         self.current_number.push(char);
                         continue;
                     }

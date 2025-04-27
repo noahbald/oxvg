@@ -1,25 +1,43 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
+/// Removes the `xmlns` attribute from `<svg>`.
+///
+/// This can be useful for SVGs that will be inlined.
+///
+/// # Correctness
+///
+/// This job may break document when used outside of HTML.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXMLNS(bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLNS {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.0 {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

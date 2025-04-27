@@ -4,29 +4,47 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Move an element's attributes to it's enclosing group.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MoveElemsAttrsToGroup(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        _info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_stylesheet(document);
-        if self.0 && !context_flags.contains(ContextFlags::has_stylesheet) {
-            PrepareOutcome::none
-        } else {
-            PrepareOutcome::skip
-        }
+        Ok(
+            if self.0 && !context_flags.contains(ContextFlags::has_stylesheet) {
+                PrepareOutcome::none
+            } else {
+                PrepareOutcome::skip
+            },
+        )
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

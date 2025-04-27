@@ -25,7 +25,7 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
 
         let error = options.error();
         let mut absolute_command = to_absolute(item);
-        options.round_data(absolute_command.args_mut(), error);
+        options.round_absolute_command_data(absolute_command.args_mut(), error, &item.start.0);
         let mut relative_command = item.command.clone();
         options.round_data(relative_command.args_mut(), error);
 
@@ -70,36 +70,29 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
     result
 }
 
+/// Converts an absolute/relative command with positional information into an absolute command
 pub fn to_absolute(item: &Position) -> command::Data {
+    let s = &item.start.0;
     match item.command {
-        command::Data::MoveBy(_)
-        | command::Data::LineBy(_)
-        | command::Data::SmoothQuadraticBezierBy(_)
-        | command::Data::QuadraticBezierBy(_)
-        | command::Data::SmoothBezierBy(_)
-        | command::Data::CubicBezierBy(_) => {
-            let mut a = item.command.args().to_vec();
-            for i in (0..a.len()).rev() {
-                a[i] += item.start.0[i % 2];
-            }
-            match item.command {
-                command::Data::MoveBy(_) => command::Data::MoveTo(a.try_into().unwrap()),
-                command::Data::LineBy(_) => command::Data::LineTo(a.try_into().unwrap()),
-                command::Data::SmoothQuadraticBezierBy(_) => {
-                    command::Data::SmoothQuadraticBezierTo(a.try_into().unwrap())
-                }
-                command::Data::QuadraticBezierBy(_) => {
-                    command::Data::QuadraticBezierTo(a.try_into().unwrap())
-                }
-                command::Data::SmoothBezierBy(_) => {
-                    command::Data::SmoothBezierTo(a.try_into().unwrap())
-                }
-                command::Data::CubicBezierBy(_) => {
-                    command::Data::CubicBezierTo(a.try_into().unwrap())
-                }
-                _ => unreachable!(),
-            }
+        command::Data::MoveBy(a) => command::Data::MoveTo([a[0] + s[0], a[1] + s[1]]),
+        command::Data::LineBy(a) => command::Data::LineTo([a[0] + s[0], a[1] + s[1]]),
+        command::Data::SmoothQuadraticBezierBy(a) => {
+            command::Data::SmoothQuadraticBezierTo([a[0] + s[0], a[1] + s[1]])
         }
+        command::Data::QuadraticBezierBy(a) => {
+            command::Data::QuadraticBezierTo([a[0] + s[0], a[1] + s[1], a[2] + s[0], a[3] + s[1]])
+        }
+        command::Data::SmoothBezierBy(a) => {
+            command::Data::SmoothBezierTo([a[0] + s[0], a[1] + s[1], a[2] + s[0], a[3] + s[1]])
+        }
+        command::Data::CubicBezierBy(a) => command::Data::CubicBezierTo([
+            a[0] + s[0],
+            a[1] + s[1],
+            a[2] + s[0],
+            a[3] + s[1],
+            a[4] + s[0],
+            a[5] + s[1],
+        ]),
         command::Data::HorizontalLineBy(a) => {
             command::Data::HorizontalLineTo([a[0] + item.start.0[0]])
         }

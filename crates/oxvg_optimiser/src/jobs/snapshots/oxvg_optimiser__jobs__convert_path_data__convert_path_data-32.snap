@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"128\" height=\"128\" version=\"1.0\">\n  <g>\n    <path d=\"M 0,0 L 32.18947,37.000171 C 34.29163,37.026741 36.22002,38.384781 36.87778,40.499991 C 37.69522,43.128611 36.23312,45.923781 33.60449,46.741224 C 30.97588,47.558656 28.18058,46.095687 27.36317,43.467071 C 26.78202,41.598291 27.3604,39.639051 28.68591,38.371931 L 27.6936,35.237101 C 22.13671,36.990401 18.19,38.235211 17.91168,38.323001\" fill=\"#f00\"/>\n  </g>\n</svg>\"##))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="128" height="128" version="1.0">
+    <g>
+        <path d="m0 0 32.19 37a4.97 4.97 0 0 1 4.688 3.5 4.983 4.983 0 1 1-8.192-2.128l-.992-3.135-9.782 3.086" fill="#f00"/>
+    </g>
+</svg>

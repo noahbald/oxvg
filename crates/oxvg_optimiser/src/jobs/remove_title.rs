@@ -1,29 +1,44 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+/// Removes the `<title>` element from the document.
+///
+/// This may affect the accessibility of documents, where the title is used
+/// to describe a non-decorative SVG.
+///
+/// # Correctness
+///
+/// This job may visually change documents with images inlined in them.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveTitle(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveTitle {
     type Error = String;
 
     fn prepare(
-        &mut self,
+        &self,
         _document: &E,
-        _context_flags: &mut oxvg_ast::visitor::ContextFlags,
-    ) -> oxvg_ast::visitor::PrepareOutcome {
-        if self.0 {
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

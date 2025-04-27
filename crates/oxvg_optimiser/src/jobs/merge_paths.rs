@@ -11,15 +11,33 @@ use oxvg_ast::{
     element::Element,
     get_computed_property_factory, get_computed_styles_factory,
     style::{ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_path::{command, Path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Merge multipe paths into one
+///
+/// # Differences to SVGO
+///
+/// There's no need to specify precision or spacing for path serialization.
+///
+/// # Correctness
+///
+/// By default this job should never visually change the document.
+///
+/// Running with `force` may cause intersecting paths to be incorrectly merged.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MergePaths {
     #[serde(default = "default_force")]
+    /// Whether to merge paths despite intersections
     pub force: bool,
 }
 
@@ -34,13 +52,18 @@ impl Default for MergePaths {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
     #[allow(clippy::too_many_lines)]
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -94,6 +117,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
             if let Some(first) = current_path_data.0.first_mut() {
                 if let command::Data::MoveBy(data) = first {
                     *first = command::Data::MoveTo(*data);
+
+                    if let Some(second) = current_path_data.0.get_mut(1) {
+                        if second.is_implicit() && second.as_explicit().id() != command::ID::LineTo
+                        {
+                            *second = second.as_explicit().clone();
+                        }
+                    }
                 }
             }
 
@@ -144,13 +174,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
                 continue;
             }
 
-            let attrs_are_equal = attrs.into_iter().any(|a| {
+            let are_any_attr_diff = attrs.into_iter().any(|a| {
                 (a.prefix().is_some() || a.local_name().as_ref() != "d")
                     && prev_attrs
                         .get_named_item(a.name())
-                        .is_some_and(|p| p.value() != a.value())
+                        .is_none_or(|p| p.value() != a.value())
             });
-            if attrs_are_equal {
+            if are_any_attr_diff {
                 log::debug!("ending merge, current attrs equal to prev");
                 update_previous_path!();
                 continue;

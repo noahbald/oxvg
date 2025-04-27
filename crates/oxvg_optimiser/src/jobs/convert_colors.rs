@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::mem;
 
 use lightningcss::{
@@ -16,7 +18,7 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     style::{PresentationAttr, UnparsedPresentationAttr},
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -30,14 +32,15 @@ pub enum ConvertCase {
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// How the type will be converted.
 pub enum Method {
-    /// Use lightningcss for conversion
+    /// Use lightningcss for conversion.
     #[default]
     Lightning,
     /// Convert all colors to `currentcolor`.
     CurrentColor,
-    /// WARN: These options don't do anything right now, but exist in SVGO and may reluctantly be
-    /// implemented here too
+    /// Options matching SVGO, for ease in migration.
+    #[deprecated = "These options don't do anything and will likely be removed in the future."]
     Value {
         names_2_hex: bool,
         rgb_2_hex: bool,
@@ -52,20 +55,36 @@ pub enum Method {
 /// Converts color references to their shortest equivalent.
 ///
 /// Colors are minified using lightningcss' [minification](https://lightningcss.dev/minification.html#minify-colors).
+///
+/// # Differences to SVGO
+///
+/// There's fewer options for colour conversion in exchange for more effective conversions.
+///
+/// # Correctness
+///
+/// By default this job should never visually change the document.
+///
+/// If the [`Method::CurrentColor`] is used all colours will inherit their text colour, which
+/// may be different to original.
+///
+/// # Errors
+///
+/// If lightningcss fails to parse or serialize CSS values.
 pub struct ConvertColors {
-    /// Whether to convert all instances of a color to `currentcolor`. This means all colors will match the foreground color, in HTML this would be the closest [`color`](https://developer.mozilla.org/docs/Web/CSS/color) property in CSS.
-    ///
-    /// The default method is "lightning". Other options are
-    /// - `"currentColor"` to convert all colors to `currentcolor`
-    /// - `"value": { ... }` is a reserved option for SVGO compatibility, it will prevent the plugin from running if any of [SVGO's parameters](https://svgo.dev/docs/plugins/convertColors/#parameters) are set.
+    /// Specifies how colours should be converted.
     pub method: Option<Method>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertColors {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        match self.method {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(match self.method {
             Some(Method::Value {
                 names_2_hex,
                 rgb_2_hex,
@@ -81,11 +100,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertColors {
                 }
             }
             _ => PrepareOutcome::none,
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

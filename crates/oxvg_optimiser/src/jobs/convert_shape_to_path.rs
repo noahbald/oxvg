@@ -12,16 +12,31 @@ use super::convert_path_data::Precision;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Converts basic shapes to `<path>` elements
+///
+/// # Correctness
+///
+/// Rounding errors may cause slight changes in visual appearance.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertShapeToPath {
-    pub convert_arcs: Option<bool>,
-    pub float_precision: Option<Precision>,
+    /// Whether to convert `<circle>` and `<ellipses>` to paths.
+    #[serde(default = "default_convert_arcs")]
+    pub convert_arcs: bool,
+    /// The number of decimal places to round to
+    #[serde(default = "Precision::default")]
+    pub float_precision: Precision,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -29,10 +44,10 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
         let name = element.local_name();
 
         let path_options = &convert::Options {
-            precision: self.float_precision.unwrap_or_default().0,
+            precision: self.float_precision.0,
             ..convert::Options::default()
         };
-        let convert_arcs = self.convert_arcs.unwrap_or(false);
+        let convert_arcs = self.convert_arcs;
 
         match name.as_ref() {
             "rect" => Self::rect_to_path(element, path_options, context.info),
@@ -279,6 +294,10 @@ impl ConvertShapeToPath {
         element.remove_attribute_local(ry_name);
         element.set_local_name("path".into(), &info.arena);
     }
+}
+
+const fn default_convert_arcs() -> bool {
+    false
 }
 
 #[test]

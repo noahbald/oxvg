@@ -4,8 +4,8 @@ expression: "test_config(r#\"{ \"convertEllipseToCircle\": true }\"#,\nSome(r#\"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Convert circular ellipses to circles -->
-    <ellipse r="5"/>
-    <ellipse r="5"/>
-    <ellipse r="5"/>
-    <ellipse r="0"/>
+    <circle r="5"/>
+    <circle r="5"/>
+    <circle r="5"/>
+    <circle r="0"/>
 </svg>

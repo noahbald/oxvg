@@ -8,14 +8,29 @@ use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Rounds number and removes default `px` unit in attributes specified with a number number.
+///
+/// # Correctness
+///
+/// Rounding errors may cause slight changes in visual appearance.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CleanupNumericValues {
     #[serde(default = "default_float_precision")]
+    /// The number of decimal places to round to
     pub float_precision: usize,
     #[serde(default = "default_leading_zero")]
+    /// Whether to trim leading zeros
     pub leading_zero: bool,
     #[serde(default = "default_default_px")]
+    /// Whether to remove `"px"` from the units
     pub default_px: bool,
     #[serde(default = "default_convert_to_px")]
+    /// Whether to convert absolute units to `"px"`
     pub convert_to_px: bool,
 }
 
@@ -34,7 +49,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupNumericValues {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

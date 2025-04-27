@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use lightningcss::{
     properties::{svg::SVGPaint, Property, PropertyId},
     traits::Zero,
@@ -9,56 +11,88 @@ use oxvg_ast::{
     get_computed_styles_factory,
     name::Name,
     style::{Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Removes useless `stroke` and `fill` attributes
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUselessStrokeAndFill {
     #[serde(default = "default_stroke")]
+    /// Whether to remove redundant strokes
     pub stroke: bool,
     #[serde(default = "default_fill")]
+    /// Whether to remove redundant fills
     pub fill: bool,
     #[serde(default = "default_remove_none")]
+    /// Whether to remove elements with no stroke or fill
     pub remove_none: bool,
-    #[serde(skip_deserializing, skip_serializing)]
-    pub id_rc_byte: Option<usize>,
 }
 
-impl Default for RemoveUselessStrokeAndFill {
-    fn default() -> Self {
-        RemoveUselessStrokeAndFill {
-            stroke: default_stroke(),
-            fill: default_fill(),
-            remove_none: default_remove_none(),
-            id_rc_byte: None,
-        }
-    }
+struct State<'o> {
+    options: &'o RemoveUselessStrokeAndFill,
+    id_rc_byte: Cell<Option<usize>>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFill {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_script(document);
         context_flags.query_has_stylesheet(document);
-        if context_flags.intersects(ContextFlags::has_stylesheet | ContextFlags::has_script_ref) {
-            PrepareOutcome::skip
-        } else {
-            PrepareOutcome::use_style
+        State {
+            options: self,
+            id_rc_byte: Cell::new(None),
         }
+        .start(&mut document.clone(), info, Some(context_flags.clone()))?;
+        Ok(PrepareOutcome::skip)
+    }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_> {
+    type Error = String;
+
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(
+            if context_flags.intersects(ContextFlags::has_stylesheet | ContextFlags::has_script_ref)
+            {
+                PrepareOutcome::skip
+            } else {
+                PrepareOutcome::use_style
+            },
+        )
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
-        if self.id_rc_byte.is_some() {
+    fn use_style(&self, element: &E) -> bool {
+        if self.id_rc_byte.get().is_some() {
             return false;
         }
 
         if element.has_attribute_local(&"id".into()) {
             log::debug!("flagged as id root");
-            self.id_rc_byte = Some(element.id());
+            self.id_rc_byte.set(Some(element.id()));
             return false;
         }
 
@@ -70,7 +104,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFi
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -85,26 +119,26 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFi
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        if self.id_rc_byte.is_some_and(|b| b == element.id()) {
+        if self.id_rc_byte.get().is_some_and(|b| b == element.id()) {
             log::debug!("unflagged as id root");
-            self.id_rc_byte = None;
+            self.id_rc_byte.set(None);
         }
 
         Ok(())
     }
 }
 
-impl RemoveUselessStrokeAndFill {
+impl State<'_> {
     fn remove_stroke<'arena, E: Element<'arena>>(
         &self,
         element: &E,
         context: &mut Context<'arena, '_, '_, E>,
     ) {
-        if !self.stroke {
+        if !self.options.stroke {
             return;
         }
 
@@ -198,7 +232,7 @@ impl RemoveUselessStrokeAndFill {
             }
         }
 
-        if is_stroke_eq_none && self.remove_none {
+        if is_stroke_eq_none && self.options.remove_none {
             log::debug!("removing element with no stroke");
             element.remove();
         }
@@ -209,7 +243,7 @@ impl RemoveUselessStrokeAndFill {
         element: &E,
         context: &mut Context<'arena, '_, '_, E>,
     ) {
-        if !self.fill {
+        if !self.options.fill {
             return;
         }
 
@@ -250,9 +284,19 @@ impl RemoveUselessStrokeAndFill {
             }
         }
 
-        if is_fill_eq_none && self.remove_none {
+        if is_fill_eq_none && self.options.remove_none {
             log::debug!("removing element with no fill");
             element.remove();
+        }
+    }
+}
+
+impl Default for RemoveUselessStrokeAndFill {
+    fn default() -> Self {
+        RemoveUselessStrokeAndFill {
+            stroke: default_stroke(),
+            fill: default_fill(),
+            remove_none: default_remove_none(),
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     marker::PhantomData,
 };
@@ -17,7 +18,7 @@ use oxvg_ast::{
     get_computed_styles_factory,
     name::Name,
     style::{Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::NON_RENDERING;
 use oxvg_path::Path;
@@ -27,21 +28,49 @@ use crate::utils::find_references;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Removes hidden or invisible elements from the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// Animations on removed element may end up breaking.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveHiddenElems {
+    /// Whether to remove elements with `visibility` set to `hidden`
     pub is_hidden: Option<bool>,
+    /// Whether to remove elements with `display` set to `none`
     pub display_none: Option<bool>,
+    /// Whether to remove elements with `opacity` set to `0`
     pub opacity_zero: Option<bool>,
+    /// Whether to remove `<circle>` with `radius` set to `0`
     pub circle_r_zero: Option<bool>,
+    /// Whether to remove `<ellipse>` with `rx` set to `0`
     pub ellipse_rx_zero: Option<bool>,
+    /// Whether to remove `<ellipse>` with `ry` set to `0`
     pub ellipse_ry_zero: Option<bool>,
+    /// Whether to remove `<rect>` with `width` set to `0`
     pub rect_width_zero: Option<bool>,
+    /// Whether to remove `<rect>` with `height` set to `0`
     pub rect_height_zero: Option<bool>,
+    /// Whether to remove `<pattern>` with `width` set to `0`
     pub pattern_width_zero: Option<bool>,
+    /// Whether to remove `<pattern>` with `height` set to `0`
     pub pattern_height_zero: Option<bool>,
+    /// Whether to remove `<image>` with `width` set to `0`
     pub image_width_zero: Option<bool>,
+    /// Whether to remove `<image>` with `height` set to `0`
     pub image_height_zero: Option<bool>,
+    /// Whether to remove `<path>` with empty `d`
     pub path_empty_d: Option<bool>,
+    /// Whether to remove `<polyline>` with empty `points`
     pub polyline_empty_points: Option<bool>,
+    /// Whether to remove `<polygon>` with empty `points`
     pub polygon_empty_points: Option<bool>,
 }
 
@@ -49,11 +78,11 @@ pub struct RemoveHiddenElems {
 #[derive_where(Default, Debug)]
 struct Data<'arena, E: Element<'arena>> {
     opacity_zero: bool,
-    non_rendered_nodes: HashSet<E>,
-    removed_def_ids: HashSet<String>,
-    all_defs: HashSet<E>,
-    all_references: HashSet<String>,
-    references_by_id: HashMap<String, Vec<(E, E)>>,
+    non_rendered_nodes: RefCell<HashSet<E>>,
+    removed_def_ids: RefCell<HashSet<String>>,
+    all_defs: RefCell<HashSet<E>>,
+    all_references: RefCell<HashSet<String>>,
+    references_by_id: RefCell<HashMap<String, Vec<(E, E)>>>,
     marker: PhantomData<&'arena ()>,
 }
 
@@ -65,24 +94,29 @@ struct State<'o, 'arena, E: Element<'arena>> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        _info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_script(document);
         context_flags.query_has_stylesheet(document);
-        PrepareOutcome::use_style
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         let name = element.qual_name().formatter().to_string();
         !NON_RENDERING.contains(&name)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
         if !context.flags.contains(ContextFlags::use_style) {
-            self.non_rendered_nodes.insert(element.clone());
+            self.non_rendered_nodes.borrow_mut().insert(element.clone());
             context.flags.visit_skip();
             return Ok(());
         }
@@ -100,7 +134,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
                 {
                     let name = element.qual_name();
                     if name.prefix().is_none() && name.local_name().as_ref() == "path" {
-                        self.non_rendered_nodes.insert(element.clone());
+                        self.non_rendered_nodes.borrow_mut().insert(element.clone());
                         context.flags.visit_skip();
                         return Ok(());
                     }
@@ -113,11 +147,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
 }
 
 impl<'arena, E: Element<'arena>> Data<'arena, E> {
-    fn remove_element(&mut self, element: &E) {
+    fn remove_element(&self, element: &E) {
         if let Some(parent) = Element::parent_element(element) {
             if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
                 if let Some(id) = element.get_attribute_local(&"id".into()) {
-                    self.removed_def_ids.insert(id.to_string());
+                    self.removed_def_ids.borrow_mut().insert(id.to_string());
                 }
                 if parent.child_element_count() == 1 {
                     log::debug!("data: removing parent");
@@ -134,42 +168,49 @@ impl<'arena, E: Element<'arena>> Data<'arena, E> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         log::debug!("collecting data");
+        context_flags.query_has_script(document);
+        context_flags.query_has_stylesheet(document);
+        let document = &mut document.clone();
         let mut data = Data {
             opacity_zero: self.opacity_zero.unwrap_or(true),
             ..Data::default()
         };
-        data.start(document, context.info)?;
+        data.start(document, info, Some(context_flags.clone()))?;
         log::debug!("data collected");
         State {
-            options: &self,
+            options: self,
             data: &mut data,
         }
-        .start(document, context.info)
-        .map(|_| ())
+        .start(document, info, Some(context_flags.clone()))?;
+        Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> super::PrepareOutcome {
-        context_flags.query_has_script(document);
-        context_flags.query_has_stylesheet(document);
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, _element: &E) -> bool {
+    fn use_style(&self, _element: &E) -> bool {
         true
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -198,10 +239,11 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
 
             let ids = find_references(local_name.as_ref(), value.as_ref());
             if let Some(ids) = ids {
+                let mut all_references = self.data.all_references.borrow_mut();
                 ids.filter_map(|id| id.get(1))
                     .map(|id| id.as_str().to_string())
                     .for_each(|id| {
-                        self.data.all_references.insert(id);
+                        all_references.insert(id);
                     });
             }
         }
@@ -209,12 +251,12 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
     }
 
     fn exit_document(
-        &mut self,
+        &self,
         _document: &mut E,
         context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        for id in &self.data.removed_def_ids {
-            if let Some(refs) = self.data.references_by_id.get(id) {
+        for id in &*self.data.removed_def_ids.borrow() {
+            if let Some(refs) = self.data.references_by_id.borrow().get(id) {
                 for (node, _parent_node) in refs {
                     log::debug!("RemoveHiddenElems: remove referenced by id");
                     node.remove();
@@ -226,7 +268,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
             .flags
             .intersects(ContextFlags::has_stylesheet & ContextFlags::has_script_ref);
         if !deoptimized {
-            for non_rendered_node in &self.data.non_rendered_nodes {
+            for non_rendered_node in &*self.data.non_rendered_nodes.borrow() {
                 if self.can_remove_non_rendering_node(non_rendered_node) {
                     log::debug!("RemoveHiddenElems: remove non-rendered node");
                     non_rendered_node.remove();
@@ -234,7 +276,7 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
             }
         }
 
-        for node in &self.data.all_defs {
+        for node in &*self.data.all_defs.borrow() {
             if node.is_empty() {
                 log::debug!("RemoveHiddenElems: remove def");
                 node.remove();
@@ -245,10 +287,10 @@ impl<'o, 'arena, E: Element<'arena>> Visitor<'arena, E> for State<'o, 'arena, E>
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
+impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     fn can_remove_non_rendering_node(&self, element: &E) -> bool {
         if let Some(id) = element.get_attribute_local(&"id".into()) {
-            if self.data.all_references.contains(id.as_ref()) {
+            if self.data.all_references.borrow().contains(id.as_ref()) {
                 return false;
             }
         }
@@ -257,9 +299,9 @@ impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
             .all(|e| E::new(e).is_none_or(|e| self.can_remove_non_rendering_node(&e)))
     }
 
-    fn ref_element(&mut self, element: &E, parent: &E, name: &str) {
+    fn ref_element(&self, element: &E, parent: &E, name: &str) {
         if name == "defs" {
-            self.data.all_defs.insert(element.clone());
+            self.data.all_defs.borrow_mut().insert(element.clone());
         } else if name == "use" {
             for attr in element.attributes().into_iter() {
                 if attr.local_name().as_ref() != "href" {
@@ -268,12 +310,12 @@ impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
                 let value = attr.value();
                 let id = &value.as_ref()[1..];
 
-                let refs = self.data.references_by_id.get_mut(id);
+                let mut references_by_id = self.data.references_by_id.borrow_mut();
+                let refs = references_by_id.get_mut(id);
                 match refs {
                     Some(refs) => refs.push((element.clone(), parent.clone())),
                     None => {
-                        self.data
-                            .references_by_id
+                        references_by_id
                             .insert(id.to_string(), vec![(element.clone(), parent.clone())]);
                     }
                 }

@@ -1,5 +1,4 @@
 use super::Rule;
-use oxvg_diagnostics::SVGError;
 use rcdom::Node;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -13,7 +12,7 @@ struct Rules {
 }
 
 impl Rule for Rules {
-    fn execute(&self, element: &Node) -> Vec<SVGError> {
+    fn execute(&self, element: &Node) -> Vec<String> {
         if let Some(e) = self.order(element) {
             vec![e]
         } else {
@@ -23,7 +22,7 @@ impl Rule for Rules {
 }
 
 impl Rules {
-    pub fn order(&self, node: &Node) -> Option<SVGError> {
+    pub fn order(&self, node: &Node) -> Option<String> {
         use rcdom::NodeData::Element;
 
         let Element { attrs, .. } = &node.data else {
@@ -57,11 +56,8 @@ impl Rules {
             }
 
             let found = &pair[1];
-            return Some(SVGError::new(
-                &format!(
-                    "Wrong ordering of attributes, found \"{found}\", expected \"{order:#?}\""
-                ),
-                None,
+            return Some(format!(
+                "Wrong ordering of attributes, found \"{found}\", expected \"{order:#?}\""
             ));
         }
         None

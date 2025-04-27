@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
@@ -16,23 +18,59 @@ const fn default_preserve_current_color() -> bool {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Remove attributes based on whether it matches a pattern.
+///
+/// The patterns syntax is `[ element* : attribute* : value* ]`; where
+///
+/// - A regular expression matching an element's name. An asterisk or omission matches all.
+/// - A regular expression matching an attribute's name.
+/// - A regular expression matching an attribute's value. An asterisk or omission matches all.
+///
+/// # Example
+///
+/// Match `fill` attribute in `<path>` elements
+///
+/// ```
+/// use oxvg_optimiser::{Jobs, RemoveAttrs};
+///
+/// let mut remove_attrs = RemoveAttrs::default();
+/// remove_attrs.attrs = vec![String::from("path:fill")];
+/// let jobs = Jobs {
+///   remove_attrs: Some(remove_attrs),
+///   ..Jobs::none()
+/// };
+/// ```
+/// # Correctness
+///
+/// Removing attributes may visually change the document if they're
+/// presentation attributes or selected with CSS.
+///
+/// # Errors
+///
+/// If the regex fails to parse.
 pub struct RemoveAttrs {
+    // FIXME: We really don't need the complexity of a DSL here.
+    /// A list of patterns that match attributes.
     pub attrs: Vec<String>,
     #[serde(default = "default_elem_separator")]
+    /// The seperator for different parts of the pattern. By default this is `":"`.
+    ///
+    /// You may need to use this if you need to match attributes with a `:` (i.e. prefixed attributes).
     pub elem_separator: String,
     #[serde(default = "default_preserve_current_color")]
+    /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
     #[serde(skip_deserializing, skip_serializing)]
-    pub parsed_attrs: Vec<[regex::Regex; 3]>,
+    parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
 }
 
 impl Default for RemoveAttrs {
     fn default() -> Self {
         RemoveAttrs {
-            attrs: Default::default(),
+            attrs: Vec::default(),
             elem_separator: default_elem_separator(),
             preserve_current_color: default_preserve_current_color(),
-            parsed_attrs: Default::default(),
+            parsed_attrs_memo: OnceLock::default(),
         }
     }
 }
@@ -64,28 +102,24 @@ impl RemoveAttrs {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
     type Error = String;
 
-    fn document(
-        &mut self,
-        _document: &mut E,
-        _context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
-        for pattern in &self.attrs {
-            let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
-            parsed_attrs.push(list);
-        }
-
-        self.parsed_attrs = parsed_attrs;
-
-        Ok(())
-    }
-
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        for pattern in &self.parsed_attrs {
+        let parsed_attrs = self.parsed_attrs_memo.get_or_init(|| {
+            let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
+            for pattern in &self.attrs {
+                let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
+                parsed_attrs.push(list);
+            }
+            Ok(parsed_attrs)
+        });
+        let parsed_attrs = match parsed_attrs {
+            Ok(a) => a,
+            Err(e) => return Err(e.clone()),
+        };
+        for pattern in parsed_attrs {
             if !pattern[0].is_match(&element.qual_name().formatter().to_string()) {
                 continue;
             }

@@ -7,28 +7,46 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Filters `<g>` elements that have no effect.
+///
+/// For removing empty groups, see [`super::RemoveEmptyContainers`].
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CollapseGroups(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CollapseGroups {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if self.0 {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if self.0 {
             PrepareOutcome::none
         } else {
             PrepareOutcome::skip
-        }
+        })
     }
 
     fn exit_element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -94,7 +112,7 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
         let local_name: &str = local_name.as_ref();
         let value = attr.value();
 
-        let child_attr = first_child_attrs.get_named_item_mut(&name);
+        let child_attr = first_child_attrs.get_named_item_mut(name);
         if has_animated_attr(first_child, name) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
@@ -117,7 +135,8 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
             child_attr.set_value(value.clone());
         } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
             log::debug!("collapse_groups: removing {name:?}: inheritable attr is not inherited");
-            return;
+            removals.pop();
+            break;
         }
     }
 

@@ -8,9 +8,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Removes empty `<text>` and `<tspan>` elements. Removes `<tref>` elements that don't
+/// reference anything within the document.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyText {
+    /// Whether to remove empty text elements.
     pub text: Option<bool>,
+    /// Whether to remove empty tspan elements.
     pub tspan: Option<bool>,
+    /// Whether to remove useless tref elements.
+    ///
+    /// `tref` is deprecated and generally unsupported by browsers.
     pub tref: Option<bool>,
 }
 
@@ -18,7 +35,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyText {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {

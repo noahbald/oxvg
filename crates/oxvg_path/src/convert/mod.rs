@@ -94,8 +94,11 @@ pub enum Precision {
 #[derive(Debug, Default)]
 /// The main options for controlling how the path optimisations are completed.
 pub struct Options {
+    /// See [`Flags`]
     pub flags: Flags,
+    /// See [`MakeArcs`]
     pub make_arcs: MakeArcs,
+    /// See [`Precision`]
     pub precision: Precision,
 }
 
@@ -134,6 +137,17 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
         positioned_path = mixed(&positioned_path, options);
     }
     positioned_path = cleanup(&positioned_path);
+    for command in &mut positioned_path.0 {
+        if command.command.is_by() {
+            options.round_data(command.command.args_mut(), options.error());
+        } else {
+            options.round_absolute_command_data(
+                command.command.args_mut(),
+                options.error(),
+                &command.start.0,
+            );
+        }
+    }
 
     let mut path = positioned_path.take();
     let has_marker = style_info.contains(StyleInfo::has_marker);
@@ -145,9 +159,6 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
             .all(|c| matches!(c, command::Data::MoveBy(_) | command::Data::MoveTo(_)));
     if is_markers_only_path {
         path.0.push(command::Data::ClosePath);
-    }
-    for command in &mut path.0 {
-        options.round_data(command.args_mut(), options.error());
     }
     log::debug!("convert::run: done: {path}");
     path
@@ -344,7 +355,26 @@ impl Options {
 
     /// Rounds a set of numbers to a decimal place
     pub fn round_data(&self, data: &mut [f64], error: f64) {
-        data.iter_mut().for_each(|d| *d = self.round(*d, error));
+        data.iter_mut().enumerate().for_each(|(i, d)| {
+            let result = self.round(*d, error);
+            if i > 4 && result == 0.0 {
+                // Don't accidentally null arcs
+                return;
+            }
+            *d = result;
+        });
+    }
+
+    /// Rounds a set of numbers to a decimal place
+    pub fn round_absolute_command_data(&self, data: &mut [f64], error: f64, start: &[f64; 2]) {
+        data.iter_mut().enumerate().for_each(|(i, d)| {
+            let result = self.round(*d, error);
+            if (i == 5 && result == start[0]) || (i == 6 && result == start[1]) {
+                // Don't accidentally null arcs
+                return;
+            }
+            *d = result;
+        });
     }
 
     /// Rounds a path's data to a decimal place

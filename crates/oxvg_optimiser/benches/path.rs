@@ -35,10 +35,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         let arena = typed_arena::Arena::new();
                         let dom = parse(svg, &arena).unwrap();
                         let mut root = Element::from_parent(dom).unwrap();
-                        let mut job = ConvertPathData::default();
+                        let job = ConvertPathData::default();
                         let info = &Info::new(&arena);
                         let start = Instant::now();
-                        let _ = black_box(job.start(&mut root, info));
+                        let _ = black_box(job.start(&mut root, info, None));
                         result += start.elapsed();
                     }
                     result

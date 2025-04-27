@@ -1,6 +1,6 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
@@ -9,38 +9,71 @@ use serde_json::Value;
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
+/// Converts paths found in `<path>`, `<glyph>`, and `<missing-glyph>` elements. Path
+/// commands are used within the `d` attributes of these elements.
+///
+/// The plugin runs the following process to reduce path length.
+///
+/// - Convert all paths to relative
+/// - Filter redundant commands
+/// - Merge commands which can be represented as one
+/// - Map commands to shorter form commands where possible
+/// - Convert commands back to absolute when shorter than relative
+///
+/// This plugin is best used with [`super::ApplyTransforms`] for increased optimisation.
+///
+/// # Differences to SVGO
+///
+/// In SVGO [`super::ApplyTransforms`] runs based on the `applyTransforms` option.
+///
+/// Path data might result in slightly different values because of how Rust handles numbers.
+///  
+/// # Correctness
+///
+/// Rounding errors may result in slight visual differences.
+///
 pub struct ConvertPathData {
     #[serde(default = "flag_default_true")]
+    /// Whether to remove redundant path commands.
     pub remove_useless: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to round the radius of circular arcs when the effective change is under error bounds.
     pub smart_arc_rounding: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert straight curves to lines
     pub straight_curves: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert complex curves that look like cubic beziers (q) into them.
     pub convert_to_q: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert normal lines that move in one direction to a vertical or horizontal line command.
     pub line_shorthands: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether merge repeated commands into one.
     pub collapse_repeated: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert complex curves that look like smooth curves into them.
     pub curve_smooth_shorthands: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert lines that close a curve to a close command (z).
     pub convert_to_z: bool,
     #[serde(default = "bool::default")]
+    /// Whether to always convert relative paths to absolute, even if larger.
     pub force_absolute_path: bool,
     #[serde(default = "flag_default_true")]
+    /// Whether to weakly force absolute commands, when slightly suboptimal
     pub negative_extra_space: bool,
     #[serde(default = "MakeArcs::default")]
+    /// Controls whether to convert from curves to arcs
     pub make_arcs: MakeArcs,
     #[serde(default = "Precision::default")]
+    /// Number of decimal places to round to.
+    ///
+    /// Precisions larger than 20 will be treated as 0.
     pub float_precision: Precision,
     #[serde(default = "flag_default_true")]
+    /// Whether to convert from relative to absolute, when shorter.
     pub utilize_absolute: bool,
-    // TODO: Do we want to have apply_transforms as an option, or is it better to have this as a plugin
-    // just *before* this one
-    // apply_transforms: Option<bool>,
-    // apply_transforms_stroked: Option<bool>,
-    // transform_precision: Option<usize>,
 }
 
 impl Default for ConvertPathData {
@@ -69,17 +102,22 @@ pub struct Precision(pub oxvg_path::convert::Precision);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         let d_name = "d".into();
         element.has_attribute_local(&d_name)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -118,8 +156,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     }
 }
 
-impl From<&mut ConvertPathData> for convert::Flags {
-    fn from(val: &mut ConvertPathData) -> Self {
+impl From<&ConvertPathData> for convert::Flags {
+    fn from(val: &ConvertPathData) -> Self {
         use convert::Flags;
 
         let mut output = convert::Flags::default();
@@ -605,6 +643,17 @@ fn convert_path_data() -> anyhow::Result<()> {
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
    <path d="m 0,0 c 0.01645,-3.54e-4 0.03363,-7.2e-4 0.05249,5e-6 0.07524,0.0028 0.485953,0.0069 0.911289,0.0091 z" />
 </svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="128" height="128" version="1.0">
+  <g>
+    <path d="M 0,0 L 32.18947,37.000171 C 34.29163,37.026741 36.22002,38.384781 36.87778,40.499991 C 37.69522,43.128611 36.23312,45.923781 33.60449,46.741224 C 30.97588,47.558656 28.18058,46.095687 27.36317,43.467071 C 26.78202,41.598291 27.3604,39.639051 28.68591,38.371931 L 27.6936,35.237101 C 22.13671,36.990401 18.19,38.235211 17.91168,38.323001" fill="#f00"/>
+  </g>
+</svg>"##
         )
     )?);
 

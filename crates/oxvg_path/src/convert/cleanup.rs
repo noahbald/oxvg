@@ -4,6 +4,7 @@ use crate::{
     positioned::Path,
 };
 
+/// Cleans redundancy from unpositioned paths.
 pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
     let path = Path(
         path.0
@@ -19,6 +20,7 @@ pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
     cleanup(&path).take()
 }
 
+/// Cleans redundancy from paths.
 pub fn cleanup(path: &Path) -> Path {
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);

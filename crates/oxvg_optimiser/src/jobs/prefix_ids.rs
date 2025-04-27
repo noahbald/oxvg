@@ -52,14 +52,32 @@ const fn default_prefix_class_names() -> bool {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Prefix element ids and classnames with the filename or provided string. This
+/// is useful for reducing the likelihood of conflicts when inlining SVGs.
+///
+/// See [`super::CleanupIds`] for more details.
+///
+/// # Correctness
+///
+/// Prefixing ids on inlined SVGs may affect scripting and CSS.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct PrefixIds {
     #[serde(default = "default_delim")]
+    /// Content to insert between the prefix and original value.
     pub delim: String,
     #[serde(default)]
+    /// A string or generator that resolves to a string
     pub prefix: PrefixGenerator,
     #[serde(default = "default_prefix_ids")]
+    /// Whether to prefix ids
     pub prefix_ids: bool,
     #[serde(default = "default_prefix_class_names")]
+    /// Whether to prefix classnames
     pub prefix_class_names: bool,
 }
 
@@ -83,16 +101,21 @@ struct CssVisitor<'arena, 'a, 'b, E: Element<'arena>> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        if !self.prefix_ids && !self.prefix_class_names {
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(if !self.prefix_ids && !self.prefix_class_names {
             PrepareOutcome::skip
         } else {
             PrepareOutcome::none
-        }
+        })
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

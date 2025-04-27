@@ -12,7 +12,10 @@ pub mod attribute;
 pub mod class_list;
 pub mod document;
 pub mod element;
+
+#[cfg(feature = "implementations")]
 pub mod implementations;
+
 pub mod name;
 pub mod node;
 
@@ -21,6 +24,8 @@ pub mod visitor;
 
 #[cfg(feature = "serialize")]
 pub mod serialize;
+#[cfg(feature = "serialize")]
+pub mod xmlwriter;
 
 #[cfg(feature = "selectors")]
 pub mod selectors;

@@ -10,7 +10,50 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Adds attributes to SVG elements in the document. This is not an optimisation
+/// and will increase the size of SVG documents.
+///
+/// # Differences to SVGO
+///
+/// It's not possible to set a *none* value to an attribute. Elements like
+/// `<svg data-icon />` are valid in HTML but not XML, so it's only possible to create
+/// an attribute like `<svg data-icon="" />`.
+///
+/// It's also not possible to create React-like syntax. In SVGO it's possible to define
+/// an attribute as `{ "key={value}": undefined }` to produce an attribute like
+/// `<svg key={value} />`, however in OXVG you have to provide a string value, so it's
+/// output would look like `<svg key={value}="" />`.
+///
+/// # Examples
+///
+/// Add an attribute with a prefix
+///
+/// ```
+/// use std::collections::BTreeMap;
+/// use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
+///
+/// let jobs = Jobs {
+///   add_attributes_to_svg_element: Some(AddAttributesToSVGElement {
+///     attributes: BTreeMap::from([(String::from("prefix:local"), String::from("value"))]),
+///   }),
+///   ..Jobs::none()
+/// };
+/// ```
+///
+/// # Correctness
+///
+/// This job may visually change documents if the attribute is a presentation attribute
+/// or selected via CSS.
+///
+/// No validation is applied to provided attribute and may produce incorrect or invalid documents.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct AddAttributesToSVGElement {
+    /// Pairs of qualified names and attribute values that are assigned to the `svg`
     pub attributes: BTreeMap<String, String>,
 }
 
@@ -18,7 +61,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddAttributesToSVGElemen
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

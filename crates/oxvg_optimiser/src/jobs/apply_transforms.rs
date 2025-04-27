@@ -17,7 +17,7 @@ use oxvg_ast::{
     element::Element,
     get_computed_styles_factory,
     style::{self, ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
@@ -25,25 +25,53 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-/// Apply transformations to the path data
+/// Apply transformations of a `transform` attribute to the path data, removing the `transform`
+/// in the process.
+///
+/// # Differences to SVGO
+///
+/// In SVGO this job cannot be enabled individually; it always runs with `convertPathData`.
+///
+/// # Correctness
+///
+/// By default this job should never visually change the document.
+///
+/// When specifying a precision there may be rounding errors affecting the accuracy of documents.
+///
+/// When specifying to apply to apply transforms to a stroked path the stroke may be visually
+/// warped when compared to the original.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ApplyTransforms {
+    /// The level of precising at which to round transforms applied to the path data.
     pub transform_precision: Option<f64>,
-    pub apply_transforms_stroked: Option<bool>,
+    /// Whether or not to apply transforms to paths with a stroke.
+    #[serde(default = "bool::default")]
+    pub apply_transforms_stroked: bool,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ApplyTransforms {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.get_attribute_local(&"d".into()).is_some()
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -161,7 +189,7 @@ impl ApplyTransforms {
         if matches!(stroke, SVGPaint::None) {
             return false;
         }
-        if self.apply_transforms_stroked.unwrap_or(false) {
+        if self.apply_transforms_stroked {
             log::debug!("apply_stroked: not applying transformed stroke");
             return true;
         }

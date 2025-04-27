@@ -1,47 +1,48 @@
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashSet};
 
 use derive_where::derive_where;
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
+/// Removes `xmlns` prefixed elements that are never referenced by a qualified name.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUnusedNS {
     enabled: bool,
 }
 
 #[derive_where(Default)]
 struct State<'arena, E: Element<'arena>> {
-    unused_namespaces: HashSet<<E::Name as Name>::LocalName>,
+    unused_namespaces: RefCell<HashSet<<E::Name as Name>::LocalName>>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnusedNS {
     type Error = String;
 
     fn prepare(
-        &mut self,
-        _document: &E,
-        _context_flags: &mut oxvg_ast::visitor::ContextFlags,
-    ) -> oxvg_ast::visitor::PrepareOutcome {
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         if self.enabled {
-            PrepareOutcome::none
-        } else {
-            PrepareOutcome::skip
+            State::<'arena, E>::default().start(&mut document.clone(), info, None)?;
         }
-    }
-
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State::<'arena, E>::default()
-            .start(document, context.info)
-            .map(|_| ())
+        Ok(PrepareOutcome::skip)
     }
 }
 
@@ -49,7 +50,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     type Error = String;
 
     fn document(
-        &mut self,
+        &self,
         document: &mut E,
         _content: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -60,20 +61,21 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        if self.unused_namespaces.is_empty() {
+        let mut unused_namespaces = self.unused_namespaces.borrow_mut();
+        if unused_namespaces.is_empty() {
             return Ok(());
         }
         if let Some(prefix) = element.prefix() {
-            self.unused_namespaces.remove(&prefix.as_ref().into());
+            unused_namespaces.remove(&prefix.as_ref().into());
         }
 
         for attr in element.attributes().into_iter() {
             if let Some(prefix) = attr.prefix() {
-                self.unused_namespaces.remove(&prefix.as_ref().into());
+                unused_namespaces.remove(&prefix.as_ref().into());
             }
         }
 
@@ -81,7 +83,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     }
 
     fn exit_document(
-        &mut self,
+        &self,
         document: &mut E,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -93,15 +95,16 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 }
 
 impl<'arena, E: Element<'arena>> State<'arena, E> {
-    fn root_element(&mut self, element: &E) {
+    fn root_element(&self, element: &E) {
         if element.prefix().is_none() && element.local_name().as_ref() == "svg" {
+            let mut unused_namespaces = self.unused_namespaces.borrow_mut();
             for attr in element.attributes().into_iter() {
                 if attr
                     .prefix()
                     .as_ref()
                     .is_some_and(|p| p.as_ref() == "xmlns")
                 {
-                    self.unused_namespaces.insert(attr.local_name().clone());
+                    unused_namespaces.insert(attr.local_name().clone());
                 }
             }
         }
@@ -112,7 +115,7 @@ impl<'arena, E: Element<'arena>> State<'arena, E> {
             return;
         }
 
-        for name in &self.unused_namespaces {
+        for name in &*self.unused_namespaces.borrow() {
             log::debug!("removing xmlns:{name}");
             let name = E::Name::new(Some("xmlns".into()), name.clone());
             element.remove_attribute(&name);

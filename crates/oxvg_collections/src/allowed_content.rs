@@ -1,3 +1,4 @@
+//! A collection of allowed content for SVG elements
 use phf::{phf_map, phf_set};
 
 use crate::collections::{
@@ -7,16 +8,25 @@ use crate::collections::{
     STRUCTURAL, TEXT_CONTENT_CHILD, TRANSFER_FUNCTION, X_LINK,
 };
 
+/// Stores data about what content is allowed for a given element
 pub struct AllowedContent {
+    /// Allowed attribute groups for an element
     pub attrs_groups: &'static [&'static phf::Set<&'static str>],
+    /// Allowed attributes for an element
     pub attrs: Option<phf::Set<&'static str>>,
+    /// Defaults for an element's attributes
     pub defaults: Option<phf::Map<&'static str, &'static str>>,
+    /// Deprecated attributes for an element that are safe to remove
     pub deprecated_safe: Option<phf::Set<&'static str>>,
+    /// Deprecated attributes for an element that are not safe to remove
     pub deprecated_unsafe: Option<phf::Set<&'static str>>,
+    /// Allowed child element groups for an element
     pub content_groups: Option<&'static [&'static phf::Set<&'static str>]>,
+    /// Allowed child elements for an element
     pub content: Option<phf::Set<&'static str>>,
 }
 
+/// Allowed content for each element name
 pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
     "a" => AllowedContent {
         attrs_groups: &[
@@ -234,7 +244,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
             &DESCRIPTIVE,
             &SHAPE
         ]),
-        content: Some(phf_set!("text", "use")),
+        content: Some(phf_set!("text", "use", "g")),
     },
     "color-profile" => AllowedContent {
         attrs_groups: &[&CORE, &X_LINK],
@@ -545,7 +555,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "stdDeviation")),
         defaults: Some(phf_map!{"stdDeviation" => "0"}),
@@ -558,7 +568,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE,
+            &FILTER_PRIMITIVE_ATTRS,
             &X_LINK
         ],
         attrs: Some(phf_set!(
@@ -579,7 +589,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style")),
         defaults: None,
@@ -601,7 +611,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class", "style", "in", "operator", "radius",
@@ -616,7 +626,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "dx", "dy")),
         defaults: Some(phf_map!{"dx" => "0", "dy" => "0"}),
@@ -638,7 +648,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class",
@@ -692,7 +702,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in")),
         defaults: None,
@@ -705,7 +715,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "baseFrequency",
@@ -1209,6 +1219,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs: Some(phf_set!(
             "class",
             "externalResourcesRequired",
+            "patternTransform",
             "gradientTransform",
             "gradientUnits",
             "href",
@@ -1560,6 +1571,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
             "fr",
             "fx",
             "fy",
+            "patternTransform",
             "gradientTransform",
             "gradientUnits",
             "href",
@@ -2049,18 +2061,22 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
     },
 };
 
+/// Deprecated animation attribute target attributes
 pub static ANIMATION_ATTRIBUTE_TARGET_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "attributeType"
 };
 
+/// Deprecated conditional processing attributes
 pub static CONDITIONAL_PROCESSING_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "requiredFeatures"
 };
 
+/// Deprecated core attributes
 pub static CORE_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "xml:base", "xml:lang", "xml:space"
 };
 
+/// Deprecated presentation attributes
 pub static PRESENTATION_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "clip",
     "color-profile",
@@ -2070,6 +2086,7 @@ pub static PRESENTATION_DEPRECATED: phf::Set<&'static str> = phf_set! {
     "kerning"
 };
 
+/// For an attribute group's static set, returns the static set of deprecated attributes
 pub fn attrs_group_deprecated_unsafe<'a>(
     attrs_group: &'static phf::Set<&'static str>,
 ) -> Option<&'a phf::Set<&'static str>> {

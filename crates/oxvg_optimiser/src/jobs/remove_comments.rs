@@ -6,6 +6,23 @@ use serde_with::skip_serializing_none;
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Removes XML comments from the document.
+///
+/// By default this job ignores comments starting with `<!--!` which is often used
+/// for legal information, such as copyright, licensing, or attribution.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// Scripts which target comments, or conditional comments such as `<!--[if IE 8]>`
+/// may be affected.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveComments {
     preserve_patterns: Option<Vec<PreservePattern>>,
 }
@@ -16,7 +33,7 @@ pub struct PreservePattern(pub regex::Regex);
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
     type Error = String;
 
-    fn comment(&mut self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
         self.remove_comment(comment);
         Ok(())
     }

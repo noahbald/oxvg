@@ -10,44 +10,81 @@ use oxvg_ast::{
         Id, Precision, PresentationAttr, PresentationAttrId, SVGTransform, SVGTransformList,
         Static, Style,
     },
-    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)]
+/// Merge transforms and convert to shortest form.
+///
+/// # Correctness
+///
+/// Rounding errors may cause slight changes in visual appearance.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertTransform {
-    pub convert_to_shorts: Option<bool>,
-    // NOTE: Some of the precision will be thrown out by lightningcss' serialization
+    /// Whether to convert transforms to their shorthand alternative.
+    #[serde(default = "default_convert_to_shorts")]
+    pub convert_to_shorts: bool,
+    /// Number of decimal places to round degrees to, for `rotate` and `skew`.
+    ///
+    /// Some of the precision may also be lost during serialization.
+    #[serde(default = "Option::default")]
     pub deg_precision: Option<i32>,
-    pub float_precision: Option<i32>,
-    pub transform_precision: Option<i32>,
-    pub matrix_to_transform: Option<bool>,
-    pub short_rotate: Option<bool>,
-    pub remove_useless: Option<bool>,
-    pub collapse_into_one: Option<bool>,
+    /// Number of decimal places to round to, for `rotate`'s origin and `translate`.
+    #[serde(default = "default_float_precision")]
+    pub float_precision: i32,
+    /// Number of decimal places to round to, for `scale`.
+    #[serde(default = "default_transform_precision")]
+    pub transform_precision: i32,
+    /// Whether to convert matrices into transforms.
+    #[serde(default = "default_matrix_to_transform")]
+    pub matrix_to_transform: bool,
+    /// Whether to remove redundant arguments from `translate` (e.g. `translate(10 0)` -> `transflate(10)`).
+    #[serde(default = "default_short_rotate")]
+    pub short_rotate: bool,
+    /// Whether to remove redundant transforms (e.g. `translate(0)`).
+    #[serde(default = "default_remove_useless")]
+    pub remove_useless: bool,
+    /// Whether to merge transforms.
+    #[serde(default = "default_collapse_into_one")]
+    pub collapse_into_one: bool,
 }
 
-#[allow(clippy::struct_excessive_bools)]
-struct Inner {
-    convert_to_shorts: bool,
-    deg_precision: i32,
-    float_precision: i32,
-    transform_precision: i32,
-    matrix_to_transform: bool,
-    short_rotate: bool,
-    remove_useless: bool,
-    collapse_into_one: bool,
+impl Default for ConvertTransform {
+    fn default() -> Self {
+        Self {
+            convert_to_shorts: default_convert_to_shorts(),
+            deg_precision: None,
+            float_precision: default_float_precision(),
+            transform_precision: default_transform_precision(),
+            matrix_to_transform: default_matrix_to_transform(),
+            short_rotate: default_short_rotate(),
+            remove_useless: default_remove_useless(),
+            collapse_into_one: default_collapse_into_one(),
+        }
+    }
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
     type Error = String;
 
-    fn prepare(&mut self, _document: &E, _context_flags: &mut ContextFlags) -> PrepareOutcome {
-        PrepareOutcome::use_style
+    fn prepare(
+        &self,
+        _document: &E,
+        _info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        Ok(PrepareOutcome::use_style)
     }
 
-    fn use_style(&mut self, element: &E) -> bool {
+    fn use_style(&self, element: &E) -> bool {
         element.attributes().into_iter().any(|attr| {
             matches!(
                 attr.local_name().as_ref(),
@@ -57,7 +94,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -89,17 +126,57 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
 }
 
 impl ConvertTransform {
-    fn inner(&self) -> Inner {
-        Inner {
-            convert_to_shorts: self.convert_to_shorts.unwrap_or(true),
-            deg_precision: self.deg_precision.unwrap_or(3),
-            float_precision: self.float_precision.unwrap_or(3),
-            transform_precision: self.transform_precision.unwrap_or(5),
-            matrix_to_transform: self.matrix_to_transform.unwrap_or(true),
-            short_rotate: self.short_rotate.unwrap_or(true),
-            remove_useless: self.remove_useless.unwrap_or(true),
-            collapse_into_one: self.collapse_into_one.unwrap_or(true),
+    fn define_precision(&self, data: &SVGTransformList) -> (i32, i32) {
+        let matrix_data = data
+            .0
+            .iter()
+            .filter_map(|t| match t {
+                SVGTransform::Matrix(matrix) => Some(matrix),
+                _ => None,
+            })
+            .flat_map(|m| [m.a, m.b, m.c, m.d, m.e, m.f]);
+        let mut number_of_digits = 0;
+        let mut number_of_decimals = 0;
+        let mut transform_precision = self.transform_precision;
+        let mut is_matrix_data = false;
+        for arg in matrix_data {
+            is_matrix_data = true;
+            let arg_string = format!("{arg}");
+            // 123.45 -> 5
+            let arg_total_digits = arg_string
+                .chars()
+                .filter(|char| char.is_numeric())
+                .count()
+                .try_into()
+                .expect("number too long!");
+            // 123.45 -> 2
+            let arg_decimal_digits = arg_string
+                .chars()
+                .skip_while(|char| char != &'.')
+                .filter(|char| char.is_numeric())
+                .count()
+                .try_into()
+                .expect("number too long!");
+            if arg_total_digits > number_of_digits {
+                number_of_digits = arg_total_digits;
+            }
+            if arg_decimal_digits > number_of_decimals {
+                number_of_decimals = arg_decimal_digits;
+            }
         }
+        if is_matrix_data && number_of_decimals < transform_precision {
+            transform_precision = number_of_decimals;
+        }
+        if !is_matrix_data {
+            number_of_digits = self.transform_precision;
+        }
+
+        let deg_precision = match self.deg_precision {
+            Some(value) => value,
+            None => i32::max(0, i32::min(self.float_precision, number_of_digits - 2)),
+        };
+
+        (deg_precision, transform_precision)
     }
 
     fn transform_attr<'arena, E: Element<'arena>>(&self, value: &Style, name: &str, element: &E) {
@@ -146,9 +223,8 @@ impl ConvertTransform {
             Style::Static(Static::Attr(PresentationAttr::Unparsed(_))) => return None,
             _ => unreachable!("dynamic or non-transform style provided"),
         };
-        let inner = self.inner().define_precision(&transform, self);
 
-        let mut data = if inner.collapse_into_one && transform.0.len() > 1 {
+        let mut data = if self.collapse_into_one && transform.0.len() > 1 {
             if let Some(matrix) = transform.to_matrix_2d() {
                 log::debug!("collapsing transform to matrix");
                 SVGTransformList(vec![SVGTransform::Matrix(matrix)])
@@ -160,72 +236,46 @@ impl ConvertTransform {
         };
         log::debug!(r#"working with data "{:?}""#, data);
 
-        let data = inner.convert_to_shorts(&mut data);
+        let data = self.convert_to_shorts(&mut data);
         log::debug!(r#"converted transforms to short "{:?}""#, data);
-        let data = inner.remove_useless(data);
+        let data = self.remove_useless(data);
         log::debug!(r#"removed useless transform "{:?}""#, data);
         Some(SVGTransformList(data))
     }
-}
 
-impl Inner {
-    fn define_precision(mut self, data: &SVGTransformList, outer: &ConvertTransform) -> Self {
-        let matrix_data = data
-            .0
-            .iter()
-            .filter_map(|t| match t {
-                SVGTransform::Matrix(matrix) => Some(matrix),
-                _ => None,
+    fn remove_useless(&self, data: Vec<SVGTransform>) -> Vec<SVGTransform> {
+        if !self.remove_useless {
+            return data;
+        }
+
+        data.into_iter()
+            .filter(|item| {
+                !matches!(
+                    item,
+                    SVGTransform::Translate(0.0, 0.0)
+                        | SVGTransform::Rotate(0.0, _, _)
+                        | SVGTransform::SkewX(0.0)
+                        | SVGTransform::SkewY(0.0)
+                        | SVGTransform::Scale(1.0, 1.0)
+                        | SVGTransform::Matrix(Matrix {
+                            a: 1.0,
+                            b: 0.0,
+                            c: 0.0,
+                            d: 1.0,
+                            e: 0.0,
+                            f: 0.0
+                        })
+                )
             })
-            .flat_map(|m| [m.a, m.b, m.c, m.d, m.e, m.f]);
-        let mut number_of_digits = 0;
-        let mut number_of_decimals = 0;
-        let mut transform_precision = self.transform_precision;
-        let mut is_matrix_data = false;
-        for arg in matrix_data {
-            is_matrix_data = true;
-            let arg_string = format!("{arg}");
-            // 123.45 -> 5
-            let arg_total_digits = arg_string
-                .chars()
-                .filter(|char| char.is_numeric())
-                .count()
-                .try_into()
-                .expect("number too long!");
-            // 123.45 -> 2
-            let arg_decimal_digits = arg_string
-                .chars()
-                .skip_while(|char| char != &'.')
-                .filter(|char| char.is_numeric())
-                .count()
-                .try_into()
-                .expect("number too long!");
-            if arg_total_digits > number_of_digits {
-                number_of_digits = arg_total_digits;
-            }
-            if arg_decimal_digits > number_of_decimals {
-                number_of_decimals = arg_decimal_digits;
-            }
-        }
-        if is_matrix_data && number_of_decimals < transform_precision {
-            transform_precision = number_of_decimals;
-        }
-        if !is_matrix_data {
-            number_of_digits = self.transform_precision;
-        }
-        if outer.deg_precision.is_none() {
-            self.deg_precision = i32::max(0, i32::min(self.float_precision, number_of_digits - 2));
-        }
-
-        self.transform_precision = transform_precision;
-        self
+            .collect()
     }
 
     fn convert_to_shorts(&self, data: &mut SVGTransformList) -> Vec<SVGTransform> {
+        let (deg_precision, transform_precision) = self.define_precision(data);
         let precision = Precision {
             float: self.float_precision,
-            deg: self.deg_precision,
-            transform: self.transform_precision,
+            deg: deg_precision,
+            transform: transform_precision,
         };
         log::debug!("converting with precision: {:?}", precision);
         if !self.convert_to_shorts {
@@ -292,33 +342,34 @@ impl Inner {
             shorts
         }
     }
+}
 
-    fn remove_useless(&self, data: Vec<SVGTransform>) -> Vec<SVGTransform> {
-        if !self.remove_useless {
-            return data;
-        }
+const fn default_convert_to_shorts() -> bool {
+    true
+}
 
-        data.into_iter()
-            .filter(|item| {
-                !matches!(
-                    item,
-                    SVGTransform::Translate(0.0, 0.0)
-                        | SVGTransform::Rotate(0.0, _, _)
-                        | SVGTransform::SkewX(0.0)
-                        | SVGTransform::SkewY(0.0)
-                        | SVGTransform::Scale(1.0, 1.0)
-                        | SVGTransform::Matrix(Matrix {
-                            a: 1.0,
-                            b: 0.0,
-                            c: 0.0,
-                            d: 1.0,
-                            e: 0.0,
-                            f: 0.0
-                        })
-                )
-            })
-            .collect()
-    }
+const fn default_float_precision() -> i32 {
+    3
+}
+
+const fn default_transform_precision() -> i32 {
+    5
+}
+
+const fn default_matrix_to_transform() -> bool {
+    true
+}
+
+const fn default_short_rotate() -> bool {
+    true
+}
+
+const fn default_remove_useless() -> bool {
+    true
+}
+
+const fn default_collapse_into_one() -> bool {
+    true
 }
 
 #[test]
@@ -485,6 +536,18 @@ fn convert_transform() -> anyhow::Result<()> {
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 100 150">
     <rect x="0" y="10" width="5" height="8" fill="red" transform="translate(5,70) scale(.4 0)"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertTransform": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 480 360">
+    <!-- ignore inherited styles on children -->
+    <g transform="translate(30,-10)">
+      <rect x="0" y="0" width="10" height="20"/>
+    </g>
 </svg>"#
         ),
     )?);

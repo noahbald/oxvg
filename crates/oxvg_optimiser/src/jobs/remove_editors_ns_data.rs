@@ -4,15 +4,30 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     name::Name,
-    visitor::{Context, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::collections::EDITOR_NAMESPACES;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
 #[serde(rename_all = "camelCase")]
+/// Removes all xml namespaces associated with editing software.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// Editor namespaces may be used by the editor and contain data that might be
+/// lost if you try to edit the file after optimising.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEditorsNSData {
-    additional_namespaces: Option<HashSet<String>>,
+    /// A list of additional namespaces URIs you may want to remove.
+    pub additional_namespaces: Option<HashSet<String>>,
 }
 
 struct State<'o, 'arena, E: Element<'arena>> {
@@ -24,37 +39,30 @@ struct State<'o, 'arena, E: Element<'arena>> {
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEditorsNSData {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        State {
-            options: &*self,
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut oxvg_ast::visitor::ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        let mut state = State {
+            options: self,
             prefixes: HashSet::new(),
             marker: PhantomData,
-        }
-        .start(document, context.info)
-        .map(|_| ())
+        };
+        document.child_elements_iter().for_each(|ref e| {
+            state.collect_svg_namespace(e);
+        });
+        state.start(&mut document.clone(), info, None)?;
+        Ok(PrepareOutcome::skip)
     }
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
-    fn document(
-        &mut self,
-        document: &mut E,
-        _context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), Self::Error> {
-        document.child_elements_iter().for_each(|ref e| {
-            self.collect_svg_namespace(e);
-        });
-        Ok(())
-    }
-
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
@@ -92,7 +100,7 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
         });
     }
 
-    fn remove_editor_attributes(&mut self, element: &E) {
+    fn remove_editor_attributes(&self, element: &E) {
         element.attributes().retain(|attr| {
             let Some(prefix) = attr.prefix() else {
                 return true;
@@ -102,7 +110,7 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
         });
     }
 
-    fn remove_editor_element(&mut self, element: &E) {
+    fn remove_editor_element(&self, element: &E) {
         let Some(prefix) = element.prefix() else {
             return;
         };

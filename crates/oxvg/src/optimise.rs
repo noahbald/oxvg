@@ -58,7 +58,7 @@ impl RunCommand for Optimise {
         };
 
         self.handle_paths(
-            config
+            &config
                 .optimise
                 .map(|j| j.resolve_jobs())
                 .unwrap_or_default(),
@@ -67,7 +67,7 @@ impl RunCommand for Optimise {
 }
 
 impl Optimise {
-    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<usize> {
+    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<W> {
         Ok(dom.serialize_into(
             wr,
             Options {
@@ -77,7 +77,7 @@ impl Optimise {
         )?)
     }
 
-    fn handle_stdin<'arena>(&self, mut jobs: Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
+    fn handle_stdin<'arena>(&self, jobs: &Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
         let dom = parse(&source, arena)?;
@@ -110,7 +110,7 @@ impl Optimise {
     }
 
     fn handle_file<'arena>(
-        jobs: &mut Jobs,
+        jobs: &Jobs,
         path: &PathBuf,
         output: Option<&PathBuf>,
         arena: Arena<'arena>,
@@ -182,9 +182,7 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) =
-                        Self::handle_file(&mut jobs.clone(), &path, output_path.as_ref(), &arena)
-                    {
+                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref(), &arena) {
                         eprintln!(
                             "{}: \x1b[31m{err}\x1b[0m",
                             path.to_str().unwrap_or_default()
@@ -195,7 +193,7 @@ impl Optimise {
             });
     }
 
-    fn handle_paths(&self, jobs: Jobs) -> anyhow::Result<()> {
+    fn handle_paths(&self, jobs: &Jobs) -> anyhow::Result<()> {
         if !std::io::stdin().is_terminal()
             && self.paths.len() <= 1
             && self
@@ -213,7 +211,7 @@ impl Optimise {
         }
 
         for path in &self.paths {
-            self.handle_path(path, &jobs);
+            self.handle_path(path, jobs);
         }
         Ok(())
     }

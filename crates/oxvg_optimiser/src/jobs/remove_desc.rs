@@ -7,15 +7,30 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+/// Removes the `<desc>` element from the document when empty or only contains editor attribution.
+///
+/// # Correctness
+///
+/// By default this job should never functionally change the document.
+///
+/// By using `remove_any` you may deteriotate the accessibility of the document for some users.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDesc {
-    pub remove_any: Option<bool>,
+    #[serde(default = "bool::default")]
+    /// Whether to remove all `<desc>` elements
+    pub remove_any: bool,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDesc {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -23,7 +38,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDesc {
             return Ok(());
         }
 
-        if self.remove_any.unwrap_or(false)
+        if self.remove_any
             || element.is_empty()
             || element.child_nodes_iter().any(|n| {
                 n.node_type() == node::Type::Text

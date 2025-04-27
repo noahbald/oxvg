@@ -8,7 +8,7 @@ use oxvg_ast::{
     attribute::Attr,
     element::Element,
     name::Name,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,26 +23,41 @@ pub enum RemoveUnused {
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Minify `<style>` elements with lightningcss
+///
+/// # Differences to SVGO
+///
+/// Unlike SVGO we don't use CSSO for optimisation, instead using lightningcss.
+///
+/// # Correctness
+///
+/// This job should never visually change the document.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MinifyStyles {
+    /// Whether to remove styles with no matching elements.
     pub remove_unused: Option<RemoveUnused>,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
     type Error = String;
 
-    fn prepare(&mut self, document: &E, context_flags: &mut ContextFlags) -> PrepareOutcome {
+    fn prepare(
+        &self,
+        document: &E,
+        _info: &Info<'arena, E>,
+        context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_script(document);
-        if self.remove_unused != Some(RemoveUnused::Force)
-            && context_flags.contains(ContextFlags::has_script_ref)
-        {
-            self.remove_unused = Some(RemoveUnused::False);
-        }
-
-        PrepareOutcome::none
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
@@ -116,7 +131,14 @@ impl MinifyStyles {
         css: &mut CssRuleList<'a>,
         context: &Context<'arena, '_, '_, E>,
     ) -> Option<CssRuleList<'a>> {
-        if self.remove_unused.unwrap_or(DEFAULT_REMOVE_UNUSED) == RemoveUnused::False {
+        let remove_unused = if self.remove_unused != Some(RemoveUnused::Force)
+            && context.flags.contains(ContextFlags::has_script_ref)
+        {
+            Some(RemoveUnused::False)
+        } else {
+            self.remove_unused
+        };
+        if remove_unused.unwrap_or(default_remove_unused()) == RemoveUnused::False {
             return None;
         }
 
@@ -125,8 +147,8 @@ impl MinifyStyles {
             use_pseudos: vec!["*".to_string()],
             ..inline_styles::InlineStyles::default()
         };
-        let mut state = inline_styles::State::new(&options);
-        options.take_matching_selectors(css, context, &mut state)
+        let state = inline_styles::State::new(&options);
+        options.take_matching_selectors(css, context, &state)
     }
 
     fn attr<'arena, E: Element<'arena>>(element: &E) {
@@ -193,7 +215,9 @@ impl Serialize for RemoveUnused {
     }
 }
 
-const DEFAULT_REMOVE_UNUSED: RemoveUnused = RemoveUnused::True;
+const fn default_remove_unused() -> RemoveUnused {
+    RemoveUnused::True
+}
 
 #[test]
 #[allow(clippy::too_many_lines)]

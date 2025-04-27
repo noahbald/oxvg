@@ -10,9 +10,56 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 /// Adds to the `class` attribute of the root `<svg>` element, omitting duplicates
 ///
-/// <div class="warning">Unlike SVGO, this may change the order of your classes</div>
+/// # Differences to SVGO
+///
+/// The order of CSS classes may not be applied in the order given.
+///
+/// # Examples
+///
+/// Use with a list of classes
+///
+/// ```
+/// use oxvg_optimiser::{Jobs, AddClassesToSVG};
+///
+/// let jobs = Jobs {
+///   add_classes_to_svg: Some(AddClassesToSVG {
+///     class_names: Some(vec![String::from("foo"), String::from("bar")]),
+///     ..AddClassesToSVG::default()
+///   }),
+///   ..Jobs::none()
+/// };
+/// ```
+///
+/// Use with a class string
+///
+/// ```
+/// use oxvg_optimiser::{Jobs, AddClassesToSVG};
+///
+/// let jobs = Jobs {
+///   add_classes_to_svg: Some(AddClassesToSVG {
+///     class_name: Some(String::from("foo bar")),
+///     ..AddClassesToSVG::default()
+///   }),
+///   ..Jobs::none()
+/// };
+/// ```
+///
+///
+/// # Correctness
+///
+/// This job may visually change documents if an added classname causes it to be
+/// selected by CSS.
+///
+/// # Errors
+///
+/// Never.
+///
+/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct AddClassesToSVG {
+    /// Adds each class to the `class` attribute.
     pub class_names: Option<Vec<String>>,
+    /// Adds the classes to the `class` attribute, removing any whitespace between each. This option
+    /// is ignored if `class_names` is provided.
     pub class_name: Option<String>,
 }
 
@@ -20,7 +67,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddClassesToSVG {
     type Error = String;
 
     fn element(
-        &mut self,
+        &self,
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {

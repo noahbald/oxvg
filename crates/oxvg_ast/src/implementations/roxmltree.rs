@@ -12,13 +12,12 @@ use std::{
     fmt::Display,
 };
 
-use string_cache::Atom;
 use tendril::StrTendril;
 use xml5ever::{local_name, namespace_prefix, namespace_url, ns, Prefix};
 
-use crate::{attribute::Attr, node::Node as _};
+use crate::attribute::Attr;
 
-use super::shared::{Arena, Attribute, Element, Node, NodeData, QualName, Ref};
+use super::shared::{Arena, Attribute, Node, NodeData, QualName, Ref};
 
 #[derive(Debug)]
 /// The errors which may occur while parsing a document with roxmltree.
@@ -36,7 +35,36 @@ struct Allocator<'arena> {
     current_node_id: usize,
 }
 
-type NamespaceMap = HashMap<Option<Prefix>, Option<StrTendril>>;
+#[derive(Debug, Default)]
+struct NamespaceMap {
+    prefix_to_uri: HashMap<Option<Prefix>, Option<StrTendril>>,
+    uri_to_prefix: HashMap<Option<StrTendril>, Option<Prefix>>,
+}
+
+#[allow(clippy::ref_option)]
+impl NamespaceMap {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn insert(
+        &mut self,
+        prefix: Option<Prefix>,
+        uri: Option<StrTendril>,
+    ) -> Option<(Option<Prefix>, Option<StrTendril>)> {
+        let p = self.uri_to_prefix.insert(uri.clone(), prefix.clone());
+        let u = self.prefix_to_uri.insert(prefix, uri);
+        Some((p?, u?))
+    }
+
+    fn get_by_uri(&self, uri: &Option<StrTendril>) -> Option<&Option<Prefix>> {
+        self.uri_to_prefix.get(uri)
+    }
+
+    fn get_by_prefix(&self, prefix: &Option<Prefix>) -> Option<&Option<StrTendril>> {
+        self.prefix_to_uri.get(prefix)
+    }
+}
 
 impl<'arena> Allocator<'arena> {
     fn alloc(&mut self, node_data: NodeData) -> &'arena mut Node<'arena> {
@@ -97,19 +125,11 @@ pub fn parse_roxmltree<'arena>(
         }
     }
 
-    let mut namespace_map = HashMap::new();
-    let mut prefix_map = HashMap::from([
-        ("xml", "http://www.w3.org/XML/1998/namespace"),
-        ("http://www.w3.org/XML/1998/namespace", "xml"),
-    ]);
-    for ns in xml.descendants().flat_map(|n| n.namespaces()) {
-        if let Some(prefix) = ns.name() {
-            if !prefix_map.contains_key(ns.uri()) {
-                prefix_map.insert(ns.uri(), prefix);
-                prefix_map.insert(prefix, ns.uri());
-            }
-        }
-    }
+    let mut namespace_map = NamespaceMap::new();
+    namespace_map.insert(
+        Some(namespace_prefix!("xml")),
+        Some("http://www.w3.org/XML/1998/namespace".into()),
+    );
 
     let mut allocator = Allocator {
         arena,
@@ -117,15 +137,8 @@ pub fn parse_roxmltree<'arena>(
     };
     let document = allocator.alloc(NodeData::Document);
 
-    let result = parse_xml_node_children(
-        document,
-        &mut allocator,
-        xml.root(),
-        0,
-        &prefix_map,
-        &mut namespace_map,
-        None,
-    );
+    let result =
+        parse_xml_node_children(document, &mut allocator, xml.root(), 0, &mut namespace_map);
     result
 }
 
@@ -138,27 +151,10 @@ fn parse_xml_node_children<'arena>(
     allocator: &mut Allocator<'arena>,
     parent: roxmltree::Node<'_, '_>,
     depth: u32,
-    prefix_map: &HashMap<&str, &str>,
     namespace_map: &mut NamespaceMap,
-    root: Option<&Element<'arena>>,
 ) -> Result<Ref<'arena>, ParseError> {
     for xml_child in parent.children() {
-        let child = parse_xml_node(allocator, xml_child, depth, prefix_map, namespace_map)?;
-        let child_element = (&*child).element();
-        let root = if root.is_some() {
-            root
-        } else {
-            child_element.as_ref()
-        };
-        parse_xml_node_children(
-            child,
-            allocator,
-            xml_child,
-            depth + 1,
-            prefix_map,
-            namespace_map,
-            root,
-        )?;
+        let child = parse_xml_node(allocator, xml_child, depth, namespace_map)?;
 
         // parent
         child.parent.set(Some(node));
@@ -183,40 +179,49 @@ fn parse_xml_node<'arena>(
     allocator: &mut Allocator<'arena>,
     node: roxmltree::Node<'_, '_>,
     depth: u32,
-    prefix_map: &HashMap<&str, &str>,
     namespace_map: &mut NamespaceMap,
-) -> Result<&'arena mut Node<'arena>, ParseError> {
+) -> Result<&'arena Node<'arena>, ParseError> {
     if depth > 1024 {
         return Err(ParseError::NodesLimitReached);
     }
 
-    Ok(match node.node_type() {
+    let mut popped_ns: Vec<(Option<Prefix>, Option<StrTendril>)> = vec![];
+    let child = &*match node.node_type() {
         roxmltree::NodeType::Root => create_root(allocator),
         roxmltree::NodeType::PI => parse_pi(allocator, node.pi().unwrap()),
-        roxmltree::NodeType::Element => parse_element(allocator, node, prefix_map, namespace_map),
+        roxmltree::NodeType::Element => {
+            parse_element(allocator, node, namespace_map, &mut popped_ns)
+        }
         roxmltree::NodeType::Comment => parse_comment(allocator, node),
         roxmltree::NodeType::Text => parse_text(allocator, node),
-    })
+    };
+    parse_xml_node_children(child, allocator, node, depth + 1, namespace_map)?;
+    for (prefix, value) in popped_ns {
+        namespace_map.insert(prefix, value);
+    }
+    Ok(child)
 }
 
 fn parse_element<'arena>(
     arena: &mut Allocator<'arena>,
     xml_node: roxmltree::Node<'_, '_>,
-    prefix_map: &HashMap<&str, &str>,
     namespace_map: &mut NamespaceMap,
+    popped_ns: &mut Vec<(Option<Prefix>, Option<StrTendril>)>,
 ) -> &'arena mut Node<'arena> {
-    let attrs = xml_node
+    let xmlns: Vec<_> = xml_node
         .namespaces()
-        .filter_map(|ns| find_new_xmlns(ns, namespace_map))
-        .chain(
-            xml_node
-                .attributes()
-                .map(|attr| Attribute::new(parse_attr_name(attr, prefix_map), attr.value().into())),
-        )
+        .filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns))
         .collect();
+    let attrs =
+        xmlns
+            .into_iter()
+            .chain(xml_node.attributes().map(|attr| {
+                Attribute::new(parse_attr_name(attr, namespace_map), attr.value().into())
+            }))
+            .collect();
 
     arena.alloc(NodeData::Element {
-        name: parse_expanded_name(xml_node.tag_name(), prefix_map),
+        name: parse_expanded_name(xml_node.tag_name(), namespace_map),
         attrs: RefCell::new(attrs),
         #[cfg(feature = "selectors")]
         selector_flags: Cell::new(None),
@@ -249,54 +254,72 @@ fn parse_text<'arena>(
     arena.alloc(NodeData::Text(RefCell::new(text.text().map(Into::into))))
 }
 
-fn parse_attr_name(attr: roxmltree::Attribute, prefix_map: &HashMap<&str, &str>) -> QualName {
-    if let Some(ns) = attr.namespace() {
-        QualName {
-            prefix: prefix_map.get(ns).map(|prefix| (*prefix).into()),
-            ns: ns.into(),
-            local: attr.name().into(),
-        }
-    } else {
-        QualName {
-            prefix: None,
-            ns: Atom::default(),
-            local: attr.name().into(),
-        }
+fn parse_attr_name(attr: roxmltree::Attribute, namespace_map: &NamespaceMap) -> QualName {
+    let ns = attr.namespace();
+    QualName {
+        prefix: namespace_map
+            .get_by_uri(&ns.map(Into::into))
+            .cloned()
+            .flatten(),
+        ns: ns.map_or_else(
+            || {
+                namespace_map
+                    .get_by_prefix(&None)
+                    .cloned()
+                    .flatten()
+                    .unwrap_or_default()
+                    .as_ref()
+                    .into()
+            },
+            Into::into,
+        ),
+        local: attr.name().into(),
     }
 }
 
 fn parse_expanded_name(
     name: roxmltree::ExpandedName,
-    prefix_map: &HashMap<&str, &str>,
+    namespace_map: &mut NamespaceMap,
 ) -> QualName {
     let ns = name.namespace();
-    let ns = match ns {
-        Some("http://www.w3.org/2000/svg" | "") => None,
-        _ => ns,
-    };
-    if let Some(ns) = ns {
-        QualName {
-            prefix: prefix_map.get(ns).map(|prefix| (*prefix).into()),
-            ns: ns.into(),
-            local: name.name().into(),
-        }
-    } else {
-        QualName {
-            prefix: None,
-            ns: Atom::default(),
-            local: name.name().into(),
-        }
+    QualName {
+        prefix: namespace_map
+            .get_by_uri(&ns.map(Into::into))
+            .cloned()
+            .flatten(),
+        ns: ns.map_or_else(
+            || {
+                namespace_map
+                    .get_by_prefix(&None)
+                    .cloned()
+                    .flatten()
+                    .unwrap_or_default()
+                    .as_ref()
+                    .into()
+            },
+            Into::into,
+        ),
+        local: name.name().into(),
     }
 }
 
+#[allow(clippy::option_option)]
 fn find_new_xmlns(
     ns: &roxmltree::Namespace,
     namespace_map: &mut NamespaceMap,
+    popped_ns: &mut Vec<(Option<Prefix>, Option<StrTendril>)>,
 ) -> Option<Attribute> {
     if (ns.name().is_some() || !ns.uri().is_empty()) && !find_xml_uri(ns, namespace_map) {
         let prefix = ns.name().map(Into::into);
         let uri: StrTendril = ns.uri().into();
-        namespace_map.insert(prefix.clone(), Some(uri.clone()));
+        if prefix.is_none()
+            || (prefix.is_some() && namespace_map.get_by_prefix(&None) != Some(&Some(uri.clone())))
+        {
+            let popped = namespace_map.insert(prefix.clone(), Some(uri.clone()));
+            if let Some(popped) = popped {
+                popped_ns.push(popped);
+            }
+        }
         Some(Attribute {
             name: QualName {
                 local: if let Some(prefix) = prefix.as_ref() {
@@ -315,7 +338,7 @@ fn find_new_xmlns(
 }
 
 fn find_xml_uri(ns: &roxmltree::Namespace, namespace_map: &mut NamespaceMap) -> bool {
-    if let Some(Some(el)) = namespace_map.get(&ns.name().map(Into::into)) {
+    if let Some(Some(el)) = namespace_map.get_by_prefix(&ns.name().map(Into::into)) {
         el.as_ref() == ns.uri()
     } else {
         false

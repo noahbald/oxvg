@@ -20,7 +20,10 @@ macro_rules! jobs {
         #[serde(rename_all = "camelCase")]
         /// Each task for optimising an SVG document.
         pub struct Jobs {
-            $(pub $name: Option<$job $( < 'arena, $($t),* >)?>),+
+            $(
+                #[doc=concat!("See [`", stringify!($job), "`]")]
+                pub $name: Option<$job $( < 'arena, $($t),* >)?>
+            ),+
         }
 
         impl Default for Jobs {
@@ -37,10 +40,10 @@ macro_rules! jobs {
 
         impl Jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs<'arena, E: Element<'arena>>(&mut self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
+            fn run_jobs<'arena, E: Element<'arena>>(&self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
                 let mut count = 0;
-                $(if let Some(job) = self.$name.as_mut() {
-                    if !job.start(element, info)?.contains(PrepareOutcome::skip) {
+                $(if let Some(job) = self.$name.as_ref() {
+                    if !job.start(element, info, None)?.contains(PrepareOutcome::skip) {
                         count += 1;
                     }
                 })+
@@ -78,7 +81,6 @@ jobs! {
     add_attributes_to_svg_element: AddAttributesToSVGElement,
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
-    prefix_ids: PrefixIds,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
     remove_dimensions: RemoveDimensions,
@@ -131,11 +133,14 @@ jobs! {
     remove_desc: RemoveDesc (is_default: true),
 
     // Final non-default plugins
-    remove_xlink: RemoveXlink,
+    prefix_ids: PrefixIds, // Should run after `cleanup_ids`
+    remove_xlink: RemoveXlink, // Should remove xlinks added by other jobs
 }
 
 #[derive(Debug)]
+/// The type of errors which may occur while optimising a document.
 pub enum Error {
+    /// A basic error message created by one of the jobs.
     Generic(String),
 }
 
@@ -153,7 +158,7 @@ impl Jobs {
     /// # Errors
     /// When any job fails for the first time
     pub fn run<'arena, E: Element<'arena>>(
-        &mut self,
+        &self,
         root: &E::ParentChild,
         info: &Info<'arena, E>,
     ) -> Result<(), Error> {
@@ -173,6 +178,41 @@ impl Jobs {
     pub fn safe() -> Self {
         Self {
             precheck: Some(Precheck::default()),
+            remove_doctype: Some(RemoveDoctype::default()),
+            remove_xml_proc_inst: Some(RemoveXMLProcInst::default()),
+            remove_comments: Some(RemoveComments::default()),
+            remove_deprecated_attrs: Some(RemoveDeprecatedAttrs::default()),
+            remove_metadata: Some(RemoveMetadata::default()),
+            remove_editors_ns_data: Some(RemoveEditorsNSData::default()),
+            cleanup_attributes: Some(CleanupAttributes::default()),
+            merge_styles: Some(MergeStyles::default()),
+            inline_styles: Some(InlineStyles::default()),
+            minify_styles: Some(MinifyStyles::default()),
+            cleanup_ids: Some(CleanupIds::default()),
+            remove_useless_defs: Some(RemoveUselessDefs::default()),
+            cleanup_numeric_values: Some(CleanupNumericValues::default()),
+            convert_colors: Some(ConvertColors::default()),
+            remove_unknowns_and_defaults: Some(RemoveUnknownsAndDefaults::default()),
+            remove_non_inheritable_group_attrs: Some(RemoveNonInheritableGroupAttrs::default()),
+            remove_useless_stroke_and_fill: Some(RemoveUselessStrokeAndFill::default()),
+            cleanup_enable_background: Some(CleanupEnableBackground::default()),
+            remove_hidden_elems: Some(RemoveHiddenElems::default()),
+            remove_empty_text: Some(RemoveEmptyText::default()),
+            convert_shape_to_path: Some(ConvertShapeToPath::default()),
+            convert_ellipse_to_circle: Some(ConvertEllipseToCircle::default()),
+            move_elems_attrs_to_group: Some(MoveElemsAttrsToGroup::default()),
+            move_group_attrs_to_elems: Some(MoveGroupAttrsToElems::default()),
+            collapse_groups: Some(CollapseGroups::default()),
+            apply_transforms: Some(ApplyTransforms::default()),
+            convert_path_data: Some(ConvertPathData::default()),
+            convert_transform: Some(ConvertTransform::default()),
+            remove_empty_attrs: Some(RemoveEmptyAttrs::default()),
+            remove_empty_containers: Some(RemoveEmptyContainers::default()),
+            remove_unused_n_s: Some(RemoveUnusedNS::default()),
+            merge_paths: Some(MergePaths::default()),
+            sort_attrs: Some(SortAttrs::default()),
+            sort_defs_children: Some(SortDefsChildren::default()),
+            remove_desc: Some(RemoveDesc::default()),
             ..Self::none()
         }
     }
@@ -201,7 +241,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Resul
         serialize::{Node, Options},
     };
 
-    let mut jobs: Jobs = serde_json::from_str(config_json)?;
+    let jobs: Jobs = serde_json::from_str(config_json)?;
     let arena = typed_arena::Arena::new();
     let dom = parse(
         svg.unwrap_or(
