@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/napi",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "types": "index.d.ts",
@@ -12,6 +12,9 @@
     "test": "node ./test.js",
     "universal": "napi universal",
     "version": "napi version"
+  },
+  "repository": {
+    "url": "https://github.com/noahbald/oxvg"
   },
   "keywords": [],
   "author": "",

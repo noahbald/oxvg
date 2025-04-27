@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/wasm",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "files": [
     "dist/oxvg_wasm_bg.wasm",
@@ -27,6 +27,9 @@
     "build:debug:web": "wasm-pack build --dev --target web --no-pack --out-dir dist",
     "build:debug:node": "wasm-pack build --dev --target nodejs --no-pack --out-dir dist/node",
     "test": "node ./test.js"
+  },
+  "repository": {
+    "url": "https://github.com/noahbald/oxvg"
   },
   "keywords": [],
   "author": "",
