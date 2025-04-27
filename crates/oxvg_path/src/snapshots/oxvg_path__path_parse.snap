@@ -1,5 +1,5 @@
 ---
 source: crates/oxvg_path/src/lib.rs
-expression: "dbg!(Path::parse(&\"M 10,50\").unwrap())"
+expression: "Path::parse(&\"M 10,50\").unwrap()"
 ---
 M10 50
