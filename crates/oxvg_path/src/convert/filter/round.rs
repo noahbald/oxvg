@@ -14,9 +14,7 @@ pub fn relative_coordinates(
         return;
     }
     update_relative_subpoint(item, options, state, index);
-    item.command.args_mut().iter_mut().for_each(|a| {
-        *a = options.round(*a, state.error);
-    });
+    options.round_data(item.command.args_mut(), state.error);
 
     match item.command {
         command::Data::HorizontalLineBy(a) => {

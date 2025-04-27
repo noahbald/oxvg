@@ -244,7 +244,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
             &DESCRIPTIVE,
             &SHAPE
         ]),
-        content: Some(phf_set!("text", "use")),
+        content: Some(phf_set!("text", "use", "g")),
     },
     "color-profile" => AllowedContent {
         attrs_groups: &[&CORE, &X_LINK],
@@ -555,7 +555,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "stdDeviation")),
         defaults: Some(phf_map!{"stdDeviation" => "0"}),
@@ -568,7 +568,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE,
+            &FILTER_PRIMITIVE_ATTRS,
             &X_LINK
         ],
         attrs: Some(phf_set!(
@@ -589,7 +589,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style")),
         defaults: None,
@@ -611,7 +611,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class", "style", "in", "operator", "radius",
@@ -626,7 +626,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in", "dx", "dy")),
         defaults: Some(phf_map!{"dx" => "0", "dy" => "0"}),
@@ -648,7 +648,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "class",
@@ -702,7 +702,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!("class", "style", "in")),
         defaults: None,
@@ -715,7 +715,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs_groups: &[
             &CORE,
             &PRESENTATION,
-            &FILTER_PRIMITIVE
+            &FILTER_PRIMITIVE_ATTRS
         ],
         attrs: Some(phf_set!(
             "baseFrequency",
@@ -1219,6 +1219,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
         attrs: Some(phf_set!(
             "class",
             "externalResourcesRequired",
+            "patternTransform",
             "gradientTransform",
             "gradientUnits",
             "href",
@@ -1570,6 +1571,7 @@ pub static ELEMS: phf::Map<&'static str, AllowedContent> = phf_map! {
             "fr",
             "fx",
             "fy",
+            "patternTransform",
             "gradientTransform",
             "gradientUnits",
             "href",

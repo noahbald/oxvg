@@ -41,7 +41,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
     fn element(
         &self,
         element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
         let name = element.local_name();
         if name.as_ref() != "ellipse" {
@@ -64,6 +64,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
         element.remove_attribute_local(rx_name);
         element.remove_attribute_local(ry_name);
         element.set_attribute_local("r".into(), radius.into());
+        element.set_local_name("circle".into(), &context.info.arena);
         Ok(())
     }
 }

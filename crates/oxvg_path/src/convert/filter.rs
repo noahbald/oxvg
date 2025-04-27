@@ -82,9 +82,13 @@ pub fn filter(
                 command::Data::SmoothBezierBy(_) | command::Data::CubicBezierBy(_)
             ));
             let arc_state = arc::Convert::curve(prev, item, next_paths, options, state, s_data);
-            if arc_state.is_some_and(|s| s.remove_item) {
-                *item_option = None;
-                return;
+            if let Some(arc_state) = arc_state {
+                state.relative_subpoints[index][0] += arc_state.relative_subpoint.0[0];
+                state.relative_subpoints[index][1] += arc_state.relative_subpoint.0[1];
+                if arc_state.remove_item {
+                    *item_option = None;
+                    return;
+                }
             }
         }
 
@@ -96,7 +100,7 @@ pub fn filter(
         round::arc_smart(item, options, state);
         from::straight_curve_to_line(prev, item, next, s_data.as_ref(), options, state);
         from::c_to_q(item, next, options, state.error);
-        from::line_to_shorthand(item, options);
+        from::line_to_shorthand(item, options, state.error);
         if remove::repeated(prev, item, options, info) {
             *item_option = None;
             return;

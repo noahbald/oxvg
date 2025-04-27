@@ -52,7 +52,6 @@ pub trait CleanupValues {
             };
 
             let mut number: f64 = captures.get(1).unwrap().as_str().parse()?;
-            let exponent = captures.get(2).map(|capture| capture.as_str());
             let mut unit = captures.get(3).map(|capture| capture.as_str());
             if do_convert_to_px {
                 if let Some(unwrapped_unit) = unit {
@@ -81,7 +80,7 @@ pub trait CleanupValues {
                 unit = None;
             }
 
-            rounded_list.push(number + exponent.unwrap_or("") + unit.unwrap_or(""));
+            rounded_list.push(number + unit.unwrap_or(""));
         }
         Ok(rounded_list.join(" ").into())
     }
@@ -123,17 +122,19 @@ impl Mode {
         let name = attr.local_name();
         let name = name.as_ref();
         match self {
-            Self::List => {
-                "points" == name
-                    || "enable-background" == name
-                    || "viewBox" == name
-                    || "stroke-dasharray" == name
-                    || "dx" == name
-                    || "dy" == name
-                    || "x" == name
-                    || "y" == name
-            }
-            Self::SingleValue => "version" != name,
+            Self::List => matches!(
+                name,
+                "points"
+                    | "enable-background"
+                    | "viewBox"
+                    | "stroke-dasharray"
+                    | "dx"
+                    | "dy"
+                    | "x"
+                    | "y"
+            ),
+            // TODO: visitor for styles
+            Self::SingleValue => !matches!(name, "version" | "style"),
         }
     }
 

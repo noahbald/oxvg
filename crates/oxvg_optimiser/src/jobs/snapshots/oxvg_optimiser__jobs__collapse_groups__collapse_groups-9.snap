@@ -9,7 +9,7 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
         .i{display:inline}
     </style>
     <g class="i" id="a"/>
-    <g id="b" class="n">
+    <g class="n">
         <g class="i" id="b"/>
     </g>
 </svg>

@@ -96,7 +96,7 @@ const difference = (i, left, right) => {
  */
 const compare = (left, right) => {
 	if (left.length !== right.length) {
-		return "compared images are different";
+		return "compared images are different sizes, may need manual comparison";
 	}
 	if (left.length % 4 !== 0) {
 		return "image is not a quartet of RGBA values";

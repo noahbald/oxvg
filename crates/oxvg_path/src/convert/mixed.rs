@@ -25,7 +25,7 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
 
         let error = options.error();
         let mut absolute_command = to_absolute(item);
-        options.round_data(absolute_command.args_mut(), error);
+        options.round_absolute_command_data(absolute_command.args_mut(), error, &item.start.0);
         let mut relative_command = item.command.clone();
         options.round_data(relative_command.args_mut(), error);
 
