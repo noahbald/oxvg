@@ -9,6 +9,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Debug)]
 /// Removes `xmlns` prefixed elements that are never referenced by a qualified name.
 ///
@@ -21,9 +22,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveUnusedNS {
-    enabled: bool,
-}
+pub struct RemoveUnusedNS(pub bool);
 
 #[derive_where(Default)]
 struct State<'arena, E: Element<'arena>> {
@@ -39,7 +38,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnusedNS {
         info: &Info<'arena, E>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
-        if self.enabled {
+        if self.0 {
             State::<'arena, E>::default().start(&mut document.clone(), info, None)?;
         }
         Ok(PrepareOutcome::skip)
@@ -125,7 +124,7 @@ impl<'arena, E: Element<'arena>> State<'arena, E> {
 
 impl Default for RemoveUnusedNS {
     fn default() -> Self {
-        Self { enabled: true }
+        Self(true)
     }
 }
 
@@ -135,7 +134,7 @@ impl<'de> Deserialize<'de> for RemoveUnusedNS {
         D: serde::Deserializer<'de>,
     {
         let enabled = bool::deserialize(deserializer)?;
-        Ok(Self { enabled })
+        Ok(Self(enabled))
     }
 }
 
@@ -144,7 +143,7 @@ impl Serialize for RemoveUnusedNS {
     where
         S: serde::Serializer,
     {
-        self.enabled.serialize(serializer)
+        self.0.serialize(serializer)
     }
 }
 

@@ -4,6 +4,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
 /// Removes the `xmlns` attribute from `<svg>`.
 ///
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveXMLNS(bool);
+pub struct RemoveXMLNS(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLNS {
     type Error = String;

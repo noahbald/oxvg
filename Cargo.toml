@@ -45,6 +45,10 @@ lightningcss = { version = "1.0.0-alpha.63", default-features = false, features 
 ] }
 log = "0.4"
 markup5ever = "0.14"
+napi = { version = "3.0.0-alpha.33", default-features = false, features = [
+  "napi4",
+] }
+napi-derive = "3.0.0-alpha.29"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
 rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }

@@ -13,6 +13,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ANIMATION_EVENT, DOCUMENT_EVENT, GRAPHICAL_EVENT};
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 /// Runs a series of checks to more confidently be sure the document won't break
@@ -25,11 +26,11 @@ use serde::{Deserialize, Serialize};
 pub struct Precheck {
     /// Whether to exit with an error instead of a log
     #[serde(default = "default_fail_fast")]
-    fail_fast: bool,
+    pub fail_fast: bool,
     /// Whether to run thorough pre-clean checks as to maintain document correctness
     /// similar to [svgcleaner](https://github.com/RazrFalcon/svgcleaner)
     #[serde(default = "default_preclean_check")]
-    preclean_checks: bool,
+    pub preclean_checks: bool,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {

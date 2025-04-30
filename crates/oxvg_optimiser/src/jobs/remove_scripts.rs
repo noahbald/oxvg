@@ -8,6 +8,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 /// Removes `<script>` elements, event attributes, and javascript `href`s from the document.
 ///

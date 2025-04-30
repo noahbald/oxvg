@@ -6,6 +6,7 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
@@ -96,8 +97,9 @@ impl Default for ConvertPathData {
     }
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Copy, Debug)]
-pub struct Precision(pub oxvg_path::convert::Precision);
+pub struct Precision(pub convert::Precision);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;

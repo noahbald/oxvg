@@ -32,6 +32,7 @@ pub struct Circle {
     pub radius: f64,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
 /// When running calculations against arcs, the level of error tolerated

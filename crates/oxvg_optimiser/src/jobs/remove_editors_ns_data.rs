@@ -9,6 +9,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::EDITOR_NAMESPACES;
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Removes all xml namespaces associated with editing software.

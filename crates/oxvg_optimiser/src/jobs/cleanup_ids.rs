@@ -44,6 +44,7 @@ struct State<'o, 'arena, E: Element<'arena>> {
     generated_id: RefCell<GeneratedId>,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes unused ids and minifies used ids.

@@ -10,6 +10,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::CONTAINER;
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes container elements with no functional children or meaningful attributes.

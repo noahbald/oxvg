@@ -5,16 +5,18 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// A selector and set of attributes to remove.
 pub struct Selector {
     /// A CSS selector.
-    selector: String,
+    pub selector: String,
     /// A list of qualified attribute names.
-    attributes: Vec<String>,
+    pub attributes: Vec<String>,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes attributes from elements that match a selector.

@@ -55,6 +55,7 @@ pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
     pub parent_tokens: RefCell<ParentTokens>,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Merges styles from a `<style>` element to the `style` attribute of matching elements.

@@ -18,18 +18,18 @@ use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
     style::{PresentationAttr, UnparsedPresentationAttr},
-    visitor::{Context, Info, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
-use super::ContextFlags;
-
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ConvertCase {
     Upper,
     Lower,
 }
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// How the type will be converted.
@@ -50,6 +50,7 @@ pub enum Method {
     },
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Converts color references to their shortest equivalent.

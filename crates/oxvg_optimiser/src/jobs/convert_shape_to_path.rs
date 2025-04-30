@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::convert_path_data::Precision;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Converts basic shapes to `<path>` elements

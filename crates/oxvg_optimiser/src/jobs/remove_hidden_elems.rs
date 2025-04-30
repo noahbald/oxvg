@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::find_references;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Removes hidden or invisible elements from the document.

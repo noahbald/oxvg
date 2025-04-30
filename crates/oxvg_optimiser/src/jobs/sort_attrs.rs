@@ -5,6 +5,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 /// The method for ordering xmlns attributes
@@ -16,6 +17,7 @@ pub enum XMLNSOrder {
     Front,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 /// Sorts attributes into a predictable order.

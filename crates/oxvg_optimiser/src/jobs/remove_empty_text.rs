@@ -6,6 +6,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 /// Removes empty `<text>` and `<tspan>` elements. Removes `<tref>` elements that don't

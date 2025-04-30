@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { optimise } = require("./index.js");
+const { optimise, Extends } = require("./index.js");
 test("optimise basic svg", () => {
 	const result = optimise(
 		`<svg xmlns="http://www.w3.org/2000/svg">
@@ -31,7 +31,8 @@ test("optimise with config", () => {
     <path fill="rgb(-255,100,500)"/>
     <path fill="none"/>
 </svg>`,
-		`{ "convertColors": { "method": "currentColor" } }`,
+		{ convertColors: { method: { type: "CurrentColor" } } },
+		Extends.None,
 	);
 
 	assert.equal(

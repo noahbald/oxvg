@@ -20,6 +20,7 @@ use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug)]
+/// Various types of ways prefixes can be generated for an id.
 pub enum PrefixGenerator {
     /// A function to create a dynamic prefix
     Generator(Box<fn(PrefixGeneratorInfo) -> String>),
@@ -50,6 +51,7 @@ const fn default_prefix_class_names() -> bool {
     true
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Prefix element ids and classnames with the filename or provided string. This
@@ -368,6 +370,88 @@ impl Serialize for PrefixGenerator {
         }
     }
 }
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::TypeName for PrefixGenerator {
+    fn type_name() -> &'static str {
+        "PrefixGenerator"
+    }
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::Object
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ToNapiValue for PrefixGenerator {
+    unsafe fn to_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        val: PrefixGenerator,
+    ) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
+        #[allow(unused_variables)]
+        let env_wrapper = napi::bindgen_prelude::Env::from(env);
+        #[allow(unused_mut)]
+        let mut obj = env_wrapper.create_object()?;
+        match val {
+            Self::Prefix(arg0) => {
+                obj.set("type", "Prefix")?;
+                obj.set("field0", arg0)?;
+            }
+            Self::None {} => {
+                obj.set("type", "None")?;
+            }
+            Self::Default {} => {
+                obj.set("type", "Default")?;
+            }
+            Self::Generator(_) => {
+                return Err(napi::Error::new(
+                    napi::Status::InvalidArg,
+                    "Using PrefixGenerator type Generator not supported",
+                ))
+            }
+        };
+        napi::bindgen_prelude::Object::to_napi_value(env, obj)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for PrefixGenerator {
+    unsafe fn from_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        napi_val: napi::bindgen_prelude::sys::napi_value,
+    ) -> napi::bindgen_prelude::Result<Self> {
+        #[allow(unused_variables)]
+        let env_wrapper = napi::bindgen_prelude::Env::from(env);
+        #[allow(unused_mut)]
+        let mut obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
+        let type_: String = obj
+            .get("type")
+            .map_err(|mut err| {
+                err.reason = format!("{} on PrefixGenerator.type", err.reason);
+                err
+            })?
+            .ok_or_else(|| napi::Error::new(napi::Status::InvalidArg, "Missing field `type`"))?;
+        let val = match type_.as_str() {
+            "Prefix" => {
+                let arg0: String = obj.get("field0")?.ok_or_else(|| {
+                    napi::Error::new(napi::Status::InvalidArg, "Missing field `field0`")
+                })?;
+                Self::Prefix(arg0)
+            }
+            "None" => Self::None {},
+            "Default" => Self::Default {},
+            _ => {
+                return Err(napi::Error::new(
+                    napi::Status::InvalidArg,
+                    format!("Unknown variant `{type_}`"),
+                ))
+            }
+        };
+        Ok(val)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ValidateNapiValue for PrefixGenerator {}
 
 struct GeneratePrefix<'arena, 'a, E: Element<'arena>> {
     node: E,

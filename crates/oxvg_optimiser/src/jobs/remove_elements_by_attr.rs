@@ -6,6 +6,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Default, Deserialize, Serialize, Debug, Clone)]
 /// Remove elements by ID or classname
 ///

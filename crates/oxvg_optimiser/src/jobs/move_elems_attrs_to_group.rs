@@ -9,6 +9,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Move an element's attributes to it's enclosing group.

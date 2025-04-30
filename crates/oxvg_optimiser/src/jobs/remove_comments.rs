@@ -1,8 +1,8 @@
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_with::skip_serializing_none;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +24,9 @@ use serde_with::skip_serializing_none;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveComments {
-    preserve_patterns: Option<Vec<PreservePattern>>,
+    /// A list of regex patters to match against comments, where matching comments will
+    /// not be removed from the document.
+    pub preserve_patterns: Option<Vec<PreservePattern>>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,14 +63,12 @@ impl RemoveComments {
 
 #[derive(Debug)]
 enum DeserializePreservePatternError {
-    InvalidType,
     InvalidRegex,
 }
 
 impl std::fmt::Display for DeserializePreservePatternError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidType => f.write_str("expected a string"),
             Self::InvalidRegex => f.write_str("expected valid regex string"),
         }
     }
@@ -81,12 +81,7 @@ impl<'de> Deserialize<'de> for PreservePattern {
     where
         D: serde::Deserializer<'de>,
     {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let Value::String(string) = value else {
-            return Err(serde::de::Error::custom(
-                DeserializePreservePatternError::InvalidType,
-            ));
-        };
+        let string = String::deserialize(deserializer)?;
 
         let regex = regex::Regex::new(&string)
             .map_err(|_| serde::de::Error::custom(DeserializePreservePatternError::InvalidRegex))?;
@@ -100,6 +95,41 @@ impl Serialize for PreservePattern {
         S: serde::Serializer,
     {
         self.0.to_string().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::TypeName for PreservePattern {
+    fn type_name() -> &'static str {
+        "PreservePattern"
+    }
+
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::String
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for PreservePattern {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let string = String::from_napi_value(env, napi_val)?;
+
+        let regex = regex::Regex::new(&string)
+            .map_err(|err| napi::Error::new(napi::Status::InvalidArg, err))?;
+        Ok(Self(regex))
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ToNapiValue for PreservePattern {
+    unsafe fn to_napi_value(
+        env: napi::sys::napi_env,
+        val: Self,
+    ) -> napi::Result<napi::sys::napi_value> {
+        napi::bindgen_prelude::ToNapiValue::to_napi_value(env, val.0.to_string())
     }
 }
 

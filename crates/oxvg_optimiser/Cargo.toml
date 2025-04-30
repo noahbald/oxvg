@@ -12,6 +12,9 @@ description = "The OXVG optimiser is library for optimising SVG documents."
 workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+napi = ["dep:napi", "dep:napi-derive", "oxvg_path/napi"]
 
 [dependencies]
 oxvg_ast = { workspace = true, features = [
@@ -32,6 +35,8 @@ serde_with = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
 parcel_selectors = { version = "0.28" }
 phf = { workspace = true }
 regex = { workspace = true }
