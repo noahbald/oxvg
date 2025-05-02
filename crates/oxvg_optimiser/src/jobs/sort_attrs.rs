@@ -5,7 +5,6 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 /// The method for ordering xmlns attributes
@@ -56,6 +55,70 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortAttrs {
         Ok(())
     }
 }
+
+// FIXME: use #[napi]
+// https://github.com/napi-rs/napi-rs/issues/2585
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::TypeName for XMLNSOrder {
+    fn type_name() -> &'static str {
+        "XMLNSOrder"
+    }
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::Object
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ToNapiValue for XMLNSOrder {
+    unsafe fn to_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        val: XMLNSOrder,
+    ) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
+        let env_wrapper = napi::bindgen_prelude::Env::from(env);
+        let mut obj = env_wrapper.create_object()?;
+        match val {
+            Self::Alphabetical => obj.set("type", "Alphabetical")?,
+            Self::Front {} => obj.set("type", "Front")?,
+        }
+        napi::bindgen_prelude::Object::to_napi_value(env, obj)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for XMLNSOrder {
+    unsafe fn from_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        napi_val: napi::bindgen_prelude::sys::napi_value,
+    ) -> napi::bindgen_prelude::Result<Self> {
+        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
+        let r#type: String = obj
+            .get("type")
+            .map_err(|mut err| {
+                err.reason = format!("{} on XMLNSOrder.type", err.reason);
+                err
+            })?
+            .ok_or_else(|| {
+                napi::bindgen_prelude::Error::new(
+                    napi::bindgen_prelude::Status::InvalidArg,
+                    "Missing field `type`",
+                )
+            })?;
+        let val = match r#type.as_str() {
+            "Alphabetical" => Self::Alphabetical,
+            "Front" => Self::Front,
+            _ => {
+                return Err(napi::bindgen_prelude::Error::new(
+                    napi::bindgen_prelude::Status::InvalidArg,
+                    format!("Unknown variant `{type}`"),
+                ))
+            }
+        };
+        Ok(val)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ValidateNapiValue for XMLNSOrder {}
 
 lazy_static! {
     pub static ref DEFAULT_ORDER: Vec<String> = vec![

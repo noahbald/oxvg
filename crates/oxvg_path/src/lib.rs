@@ -21,7 +21,8 @@
 #[macro_use]
 extern crate bitflags;
 
-#[cfg_attr(feature = "napi", macro_use)]
+#[cfg(feature = "napi")]
+#[macro_use]
 extern crate napi_derive;
 
 #[cfg(feature = "optimise")]

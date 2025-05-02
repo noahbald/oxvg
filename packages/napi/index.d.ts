@@ -292,11 +292,6 @@ export interface CollapseGroups {
   field0: boolean
 }
 
-export declare const enum ConvertCase {
-  Upper = 0,
-  Lower = 1
-}
-
 /**
  * Converts color references to their shortest equivalent.
  *
@@ -392,9 +387,13 @@ export interface ConvertPathData {
    *
    * Precisions larger than 20 will be treated as 0.
    */
-  floatPrecision: Precision
+  floatPrecision: ConvertPrecision
   /** Whether to convert from relative to absolute, when shorter. */
   utilizeAbsolute: boolean
+}
+
+export interface ConvertPrecision {
+  field0: Precision
 }
 
 /**
@@ -414,7 +413,7 @@ export interface ConvertShapeToPath {
   /** Whether to convert `<circle>` and `<ellipses>` to paths. */
   convertArcs: boolean
   /** The number of decimal places to round to */
-  floatPrecision: Precision
+  floatPrecision: ConvertPrecision
 }
 
 /**
@@ -713,10 +712,6 @@ export type Precision =
   | { type: 'None' }
   | { type: 'Disabled' }
   | { type: 'Enabled', field0: number }
-
-export interface Precision {
-  field0: Precision
-}
 
 /**
  * Prefix element ids and classnames with the filename or provided string. This
@@ -1181,12 +1176,6 @@ export interface RemoveUnknownsAndDefaults {
   keepRoleAttr: boolean
 }
 
-export declare const enum RemoveUnused {
-  False = 0,
-  True = 1,
-  Force = 2
-}
-
 /**
  * Removes `xmlns` prefixed elements that are never referenced by a qualified name.
  *
@@ -1386,12 +1375,4 @@ export interface SortAttrs {
  */
 export interface SortDefsChildren {
   field0: boolean
-}
-
-/** The method for ordering xmlns attributes */
-export declare const enum XMLNSOrder {
-  /** Sort xmlns attributes alphabetically */
-  Alphabetical = 0,
-  /** Keep xmlns attributes at the front of the list */
-  Front = 1
 }

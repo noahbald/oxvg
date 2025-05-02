@@ -60,10 +60,13 @@ pub struct RemoveAttrs {
     #[serde(default = "default_preserve_current_color")]
     /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
+    // FIXME: Can't produce napi bindgen
+    // https://github.com/napi-rs/napi-rs/issues/2582
     #[serde(skip_deserializing, skip_serializing)]
     parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
 }
 
+#[cfg(feature = "napi")]
 impl napi::bindgen_prelude::TypeName for RemoveAttrs {
     fn type_name() -> &'static str {
         "RemoveAttrs"
@@ -73,6 +76,7 @@ impl napi::bindgen_prelude::TypeName for RemoveAttrs {
     }
 }
 
+#[cfg(feature = "napi")]
 impl napi::bindgen_prelude::ToNapiValue for RemoveAttrs {
     unsafe fn to_napi_value(
         env: napi::bindgen_prelude::sys::napi_env,
@@ -87,6 +91,7 @@ impl napi::bindgen_prelude::ToNapiValue for RemoveAttrs {
     }
 }
 
+#[cfg(feature = "napi")]
 impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
     unsafe fn from_napi_value(
         env: napi::bindgen_prelude::sys::napi_env,
@@ -130,6 +135,7 @@ impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
         Ok(val)
     }
 }
+#[cfg(feature = "napi")]
 impl napi::bindgen_prelude::ValidateNapiValue for RemoveAttrs {}
 
 impl Default for RemoveAttrs {

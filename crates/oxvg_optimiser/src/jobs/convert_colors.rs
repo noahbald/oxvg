@@ -22,7 +22,6 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ConvertCase {
     Upper,
@@ -273,6 +272,70 @@ impl lightningcss::visitor::Visitor<'_> for Method {
         Ok(())
     }
 }
+
+// FIXME: use #[napi]
+// https://github.com/napi-rs/napi-rs/issues/2585
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::TypeName for ConvertCase {
+    fn type_name() -> &'static str {
+        "ConvertCase"
+    }
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::Object
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ToNapiValue for ConvertCase {
+    unsafe fn to_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        val: ConvertCase,
+    ) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
+        let env_wrapper = napi::bindgen_prelude::Env::from(env);
+        let mut obj = env_wrapper.create_object()?;
+        match val {
+            Self::Upper => obj.set("type", "Upper")?,
+            Self::Lower {} => obj.set("type", "Lower")?,
+        }
+        napi::bindgen_prelude::Object::to_napi_value(env, obj)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for ConvertCase {
+    unsafe fn from_napi_value(
+        env: napi::bindgen_prelude::sys::napi_env,
+        napi_val: napi::bindgen_prelude::sys::napi_value,
+    ) -> napi::bindgen_prelude::Result<Self> {
+        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
+        let r#type: String = obj
+            .get("type")
+            .map_err(|mut err| {
+                err.reason = format!("{} on ConvertCase.type", err.reason,);
+                err
+            })?
+            .ok_or_else(|| {
+                napi::bindgen_prelude::Error::new(
+                    napi::bindgen_prelude::Status::InvalidArg,
+                    "Missing field `type`",
+                )
+            })?;
+        let val = match r#type.as_str() {
+            "Upper" => Self::Upper,
+            "Lower" => Self::Lower,
+            _ => {
+                return Err(napi::bindgen_prelude::Error::new(
+                    napi::bindgen_prelude::Status::InvalidArg,
+                    format!("Unknown variant `{type}`",),
+                ))
+            }
+        };
+        Ok(val)
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ValidateNapiValue for ConvertCase {}
 
 #[test]
 fn convert_colors() -> anyhow::Result<()> {

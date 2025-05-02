@@ -33,7 +33,8 @@ dom.serialize_with_options(Options::default()).unwrap();
 #[macro_use]
 extern crate lazy_static;
 
-#[cfg_attr(feature = "napi", macro_use)]
+#[cfg(feature = "napi")]
+#[macro_use]
 extern crate napi_derive;
 
 #[cfg(test)]
