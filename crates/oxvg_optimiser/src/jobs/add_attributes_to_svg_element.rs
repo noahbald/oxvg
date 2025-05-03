@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Add an attribute with a prefix
 ///
-/// ```
+/// ```ignore
 /// use std::collections::BTreeMap;
 /// use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
 ///

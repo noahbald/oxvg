@@ -133,6 +133,9 @@ impl napi::bindgen_prelude::ToNapiValue for PreservePattern {
     }
 }
 
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ValidateNapiValue for PreservePattern {}
+
 lazy_static! {
     static ref DEFAULT_PRESERVE_PATTERNS: Vec<PreservePattern> =
         vec![PreservePattern(regex::Regex::new("^!").unwrap())];

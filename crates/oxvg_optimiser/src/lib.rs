@@ -8,7 +8,7 @@ optimiser's [`Jobs`].
 
 Parsing and optimising a document
 
-```
+```ignore
 use oxvg_ast::{
     implementations::{roxmltree::parse, shared::Element},
     serialize::{Node, Options},

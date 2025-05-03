@@ -408,7 +408,7 @@ impl napi::bindgen_prelude::ToNapiValue for PrefixGenerator {
                     "Using PrefixGenerator type Generator not supported",
                 ))
             }
-        };
+        }
         napi::bindgen_prelude::Object::to_napi_value(env, obj)
     }
 }

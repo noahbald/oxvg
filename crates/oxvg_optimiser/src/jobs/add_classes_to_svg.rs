@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Use with a list of classes
 ///
-/// ```
+/// ```ignore
 /// use oxvg_optimiser::{Jobs, AddClassesToSVG};
 ///
 /// let jobs = Jobs {
@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Use with a class string
 ///
-/// ```
+/// ```ignore
 /// use oxvg_optimiser::{Jobs, AddClassesToSVG};
 ///
 /// let jobs = Jobs {

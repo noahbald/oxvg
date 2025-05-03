@@ -1,0 +1,19 @@
+# https://github.com/napi-rs/napi-rs/issues/2585#issuecomment-2847356335
+[target.'cfg(target_vendor = "apple")']
+rustflags = [
+  "-C",
+  "link-args=-Wl,-undefined,dynamic_lookup,-no_fixup_chains",
+  "--cfg",
+  "tracing_unstable",
+]
+
+# https://github.com/napi-rs/napi-rs/issues/2585#issuecomment-2847356335
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = [
+  "-C",
+  "link-args=-Wl,--warn-unresolved-symbols",
+  "-C",
+  "link-args=-Wl,-z,nodelete",
+  "--cfg",
+  "tracing_unstable",
+]

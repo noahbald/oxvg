@@ -19,7 +19,7 @@
  *
  * Add an attribute with a prefix
  *
- * ```
+ * ```ignore
  * use std::collections::BTreeMap;
  * use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
  *
@@ -60,7 +60,7 @@ export interface AddAttributesToSvgElement {
  *
  * Use with a list of classes
  *
- * ```
+ * ```ignore
  * use oxvg_optimiser::{Jobs, AddClassesToSVG};
  *
  * let jobs = Jobs {
@@ -74,7 +74,7 @@ export interface AddAttributesToSvgElement {
  *
  * Use with a class string
  *
- * ```
+ * ```ignore
  * use oxvg_optimiser::{Jobs, AddClassesToSVG};
  *
  * let jobs = Jobs {
@@ -290,6 +290,11 @@ export interface CleanupNumericValues {
  */
 export interface CollapseGroups {
   field0: boolean
+}
+
+export declare const enum ConvertCase {
+  Upper = 0,
+  Lower = 1
 }
 
 /**
@@ -1176,6 +1181,12 @@ export interface RemoveUnknownsAndDefaults {
   keepRoleAttr: boolean
 }
 
+export declare const enum RemoveUnused {
+  False = 0,
+  True = 1,
+  Force = 2
+}
+
 /**
  * Removes `xmlns` prefixed elements that are never referenced by a qualified name.
  *
@@ -1375,4 +1386,12 @@ export interface SortAttrs {
  */
 export interface SortDefsChildren {
   field0: boolean
+}
+
+/** The method for ordering xmlns attributes */
+export declare const enum XMLNSOrder {
+  /** Sort xmlns attributes alphabetically */
+  Alphabetical = 0,
+  /** Keep xmlns attributes at the front of the list */
+  Front = 1
 }
