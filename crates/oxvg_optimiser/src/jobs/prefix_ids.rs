@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    sync::{mpsc, Arc},
-    time::Duration,
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use itertools::Itertools;
 use lightningcss::{
@@ -25,14 +20,15 @@ use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
 #[cfg(not(feature = "napi"))]
-type Generator = Box<fn(PrefixGeneratorInfo) -> String>;
+type Generator = Box<fn(&Option<PrefixGeneratorInfo>) -> String>;
 
 #[cfg(feature = "napi")]
 #[derive(Clone, derive_more::Debug)]
 pub struct Generator {
     #[debug(skip)]
-    pub callback:
-        Arc<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>,
+    pub callback: std::sync::Arc<
+        napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>,
+    >,
 }
 
 #[cfg(feature = "napi")]
@@ -42,7 +38,7 @@ impl napi::bindgen_prelude::FromNapiValue for Generator {
         napi_val: napi::sys::napi_value,
     ) -> napi::Result<Self> {
         Ok(Self {
-            callback: Arc::from_napi_value(env, napi_val)?,
+            callback: std::sync::Arc::from_napi_value(env, napi_val)?,
         })
     }
 }
@@ -60,11 +56,15 @@ impl napi::bindgen_prelude::ToNapiValue for Generator {
 #[cfg(feature = "napi")]
 impl napi::bindgen_prelude::TypeName for Generator {
     fn type_name() -> &'static str {
-        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::type_name()
+        std::sync::Arc::<
+            napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>,
+        >::type_name()
     }
 
     fn value_type() -> napi::ValueType {
-        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::value_type()
+        std::sync::Arc::<
+            napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>,
+        >::value_type()
     }
 }
 
@@ -74,7 +74,9 @@ impl napi::bindgen_prelude::ValidateNapiValue for Generator {
         env: napi::sys::napi_env,
         napi_val: napi::sys::napi_value,
     ) -> napi::Result<napi::sys::napi_value> {
-        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::validate(env, napi_val)
+        std::sync::Arc::<
+            napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>,
+        >::validate(env, napi_val)
     }
 }
 
@@ -82,8 +84,12 @@ impl napi::bindgen_prelude::ValidateNapiValue for Generator {
 #[derive(Default, Clone, Debug)]
 /// Various types of ways prefixes can be generated for an id.
 pub enum PrefixGenerator {
+    #[cfg(feature = "napi")]
     /// A function to create a dynamic prefix
-    Generator(#[napi(ts_type = "(info?: PrefixGeneratoInfo) => string")] Generator),
+    Generator(#[napi(ts_type = "(info?: PrefixGeneratorInfo) => string")] Generator),
+    #[cfg(not(feature = "napi"))]
+    /// A function to create a dynamic prefix
+    Generator(Generator),
     /// A string to use as a prefix
     Prefix(String),
     /// No prefix
@@ -471,10 +477,10 @@ impl<'a> GeneratePrefix<'a> {
                     return Ok((*prefix).to_string());
                 }
                 #[cfg(not(feature = "napi"))]
-                let prefix = f(info);
+                let prefix = f(&self.info);
                 #[cfg(feature = "napi")]
                 let prefix = {
-                    let (tx, rx) = mpsc::channel();
+                    let (tx, rx) = std::sync::mpsc::channel();
                     let t = std::thread::spawn({
                         let info = self.info.clone();
                         let f = f.clone();
@@ -500,7 +506,7 @@ impl<'a> GeneratePrefix<'a> {
                         }
                     });
                     let prefix = rx
-                        .recv_timeout(Duration::new(5, 0))
+                        .recv_timeout(std::time::Duration::new(5, 0))
                         .map_err(|err| err.to_string());
                     let status = t.join().map_err(|_| String::from("thread failed"))?;
                     if status == napi::Status::Ok {

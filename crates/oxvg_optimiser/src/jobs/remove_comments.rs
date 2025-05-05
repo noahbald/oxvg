@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
@@ -127,10 +127,12 @@ impl Serialize for PreservePattern {
     }
 }
 
-lazy_static! {
-    static ref DEFAULT_PRESERVE_PATTERNS: Vec<PreservePattern> =
-        vec![PreservePattern::new("^!".to_string())];
-}
+static DEFAULT_PRESERVE_PATTERNS: LazyLock<Vec<PreservePattern>> = LazyLock::new(|| {
+    vec![PreservePattern {
+        regex: "^!".to_string(),
+        parsed_regex_memo: OnceLock::new(),
+    }]
+});
 
 #[test]
 fn remove_comments() -> anyhow::Result<()> {

@@ -48,6 +48,7 @@ export declare class RemoveAttrs {
   elemSeparator: string
   /** Whether to ignore attributes set to `currentColor` */
   preserveCurrentColor: boolean
+  /** Instantiates and instance of remove attributes with the given configuration options. */
   constructor(attrs: Array<string>, elemSeparator: string, preserveCurrentColor: boolean)
 }
 
@@ -771,7 +772,8 @@ export type Precision =
 
 /** Various types of ways prefixes can be generated for an id. */
 export type PrefixGenerator =
-  | { type: 'Generator', field0: (info?: PrefixGeneratoInfo) => string }
+  | { type: 'Generator', field0: (info?: PrefixGeneratorInfo) => string }
+  | { type: 'Generator', field0: Generator }
   | { type: 'Prefix', field0: string }
   | { type: 'None' }
   | { type: 'Default' }

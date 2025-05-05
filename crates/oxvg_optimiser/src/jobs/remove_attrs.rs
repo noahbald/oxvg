@@ -71,6 +71,7 @@ pub struct RemoveAttrs {
 #[napi]
 impl RemoveAttrs {
     #[napi(constructor)]
+    /// Instantiates and instance of remove attributes with the given configuration options.
     pub fn new(attrs: Vec<String>, elem_separator: String, preserve_current_color: bool) -> Self {
         Self {
             attrs,
