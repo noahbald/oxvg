@@ -7,6 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes unreferenced `<defs>` elements

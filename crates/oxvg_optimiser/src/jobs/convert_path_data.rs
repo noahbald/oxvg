@@ -6,6 +6,7 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::struct_excessive_bools)]
@@ -66,11 +67,11 @@ pub struct ConvertPathData {
     #[serde(default = "MakeArcs::default")]
     /// Controls whether to convert from curves to arcs
     pub make_arcs: MakeArcs,
-    #[serde(default = "Precision::default")]
+    #[serde(default = "ConvertPrecision::default")]
     /// Number of decimal places to round to.
     ///
     /// Precisions larger than 20 will be treated as 0.
-    pub float_precision: Precision,
+    pub float_precision: ConvertPrecision,
     #[serde(default = "flag_default_true")]
     /// Whether to convert from relative to absolute, when shorter.
     pub utilize_absolute: bool,
@@ -90,14 +91,15 @@ impl Default for ConvertPathData {
             force_absolute_path: bool::default(),
             negative_extra_space: flag_default_true(),
             make_arcs: MakeArcs::default(),
-            float_precision: Precision::default(),
+            float_precision: ConvertPrecision::default(),
             utilize_absolute: flag_default_true(),
         }
     }
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Copy, Debug)]
-pub struct Precision(pub oxvg_path::convert::Precision);
+pub struct ConvertPrecision(pub convert::Precision);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;
@@ -200,7 +202,7 @@ impl std::fmt::Display for DeserializePrecisionError {
 
 impl serde::de::StdError for DeserializePrecisionError {}
 
-impl<'de> Deserialize<'de> for Precision {
+impl<'de> Deserialize<'de> for ConvertPrecision {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -226,7 +228,7 @@ impl<'de> Deserialize<'de> for Precision {
     }
 }
 
-impl Serialize for Precision {
+impl Serialize for ConvertPrecision {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

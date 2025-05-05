@@ -16,6 +16,7 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Remove attributes based on whether it matches a pattern.
@@ -30,7 +31,7 @@ const fn default_preserve_current_color() -> bool {
 ///
 /// Match `fill` attribute in `<path>` elements
 ///
-/// ```
+/// ```ignore
 /// use oxvg_optimiser::{Jobs, RemoveAttrs};
 ///
 /// let mut remove_attrs = RemoveAttrs::default();
@@ -60,8 +61,59 @@ pub struct RemoveAttrs {
     #[serde(default = "default_preserve_current_color")]
     /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
+    // FIXME: Can't produce napi bindgen
+    // https://github.com/napi-rs/napi-rs/issues/2582
     #[serde(skip_deserializing, skip_serializing)]
     parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
+}
+
+#[cfg(feature = "napi")]
+#[napi]
+impl RemoveAttrs {
+    #[napi(constructor)]
+    /// Instantiates and instance of remove attributes with the given configuration options.
+    pub fn new(attrs: Vec<String>, elem_separator: String, preserve_current_color: bool) -> Self {
+        Self {
+            attrs,
+            elem_separator,
+            preserve_current_color,
+            parsed_attrs_memo: OnceLock::default(),
+        }
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
+        let attrs = obj.get("attrs")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.attrs`",
+            )
+        })?;
+        let elem_separator = obj.get("elemSeparator")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.elemSeparator`",
+            )
+        })?;
+        let preserve_current_color = obj.get("preserveCurrentColor")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.preserveCurrentColor`",
+            )
+        })?;
+        Ok(Self {
+            attrs,
+            elem_separator,
+            preserve_current_color,
+            parsed_attrs_memo: OnceLock::new(),
+        })
+    }
 }
 
 impl Default for RemoveAttrs {

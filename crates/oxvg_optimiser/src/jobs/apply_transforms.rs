@@ -23,6 +23,7 @@ use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Apply transformations of a `transform` attribute to the path data, removing the `transform`

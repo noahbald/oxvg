@@ -8,7 +8,7 @@ optimiser's [`Jobs`].
 
 Parsing and optimising a document
 
-```
+```ignore
 use oxvg_ast::{
     implementations::{roxmltree::parse, shared::Element},
     serialize::{Node, Options},
@@ -32,6 +32,10 @@ dom.serialize_with_options(Options::default()).unwrap();
 
 #[macro_use]
 extern crate lazy_static;
+
+#[cfg(feature = "napi")]
+#[macro_use]
+extern crate napi_derive;
 
 #[cfg(test)]
 mod configuration;

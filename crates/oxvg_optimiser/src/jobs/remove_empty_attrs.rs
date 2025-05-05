@@ -7,6 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::collections::CONDITIONAL_PROCESSING;
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes empty attributes from elements when safe to do so.

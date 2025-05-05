@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone)]
 /// Cleans up `enable-background` attributes and styles. It will only remove it if
 /// - The document has no `<filter>` element; and
@@ -29,7 +30,7 @@ use super::ContextFlags;
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct CleanupEnableBackground(bool);
+pub struct CleanupEnableBackground(pub bool);
 
 struct State {
     contains_filter: bool,

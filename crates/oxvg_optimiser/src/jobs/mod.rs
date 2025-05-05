@@ -16,6 +16,7 @@ macro_rules! jobs {
         $(pub use self::$name::$job;)+
 
         #[skip_serializing_none]
+        #[cfg_attr(feature = "napi", napi(object))]
         #[derive(Deserialize, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         /// Each task for optimising an SVG document.

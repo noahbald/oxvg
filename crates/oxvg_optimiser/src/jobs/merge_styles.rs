@@ -22,6 +22,7 @@ struct State<'arena, E: Element<'arena>> {
     marker: PhantomData<&'arena ()>,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone)]
 /// Merge multiple `<style>` elements into one
 ///
@@ -34,7 +35,7 @@ struct State<'arena, E: Element<'arena>> {
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct MergeStyles(bool);
+pub struct MergeStyles(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles {
     type Error = String;

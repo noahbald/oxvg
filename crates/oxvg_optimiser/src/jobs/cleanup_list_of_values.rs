@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Rounds number and removes default `px` unit in attributes specified with number lists.
@@ -22,7 +23,7 @@ use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 pub struct CleanupListOfValues {
     #[serde(default = "default_float_precision")]
     /// Number of decimal places to round floating point numbers to.
-    pub float_precision: usize,
+    pub float_precision: u8,
     #[serde(default = "default_leading_zero")]
     /// Whether to trim leading zeros.
     pub leading_zero: bool,
@@ -60,7 +61,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupListOfValues {
 impl CleanupValues for CleanupListOfValues {
     fn get_options(&self) -> cleanup_values::Options {
         cleanup_values::Options {
-            float_precision: self.float_precision,
+            float_precision: self.float_precision as usize,
             leading_zero: self.leading_zero,
             default_px: self.default_px,
             do_convert_to_px: self.convert_to_px,
@@ -72,7 +73,7 @@ impl CleanupValues for CleanupListOfValues {
     }
 }
 
-const fn default_float_precision() -> usize {
+const fn default_float_precision() -> u8 {
     3
 }
 const fn default_leading_zero() -> bool {

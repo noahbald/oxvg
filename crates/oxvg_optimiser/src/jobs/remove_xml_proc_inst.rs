@@ -5,6 +5,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes the xml declaration from the document.

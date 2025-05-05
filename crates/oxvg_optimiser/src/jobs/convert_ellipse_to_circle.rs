@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Converts non-eccentric `<ellipse>` to `<circle>` elements.

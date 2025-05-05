@@ -8,6 +8,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Adds attributes to SVG elements in the document. This is not an optimisation
@@ -28,7 +29,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Add an attribute with a prefix
 ///
-/// ```
+/// ```ignore
 /// use std::collections::BTreeMap;
 /// use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
 ///

@@ -4,6 +4,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 /// Removes the `<title>` element from the document.
 ///

@@ -5,6 +5,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 /// Removes the `<desc>` element from the document when empty or only contains editor attribution.

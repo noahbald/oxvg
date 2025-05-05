@@ -77,6 +77,7 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Debug, Copy, Clone, Default)]
 /// How many decimal points to round path command arguments
 pub enum Precision {

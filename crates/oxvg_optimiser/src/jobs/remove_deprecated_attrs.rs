@@ -72,6 +72,7 @@ impl<'a> AttrStylesheet<'a> {
     }
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes deprecated attributes from elements.

@@ -21,6 +21,10 @@
 #[macro_use]
 extern crate bitflags;
 
+#[cfg(feature = "napi")]
+#[macro_use]
+extern crate napi_derive;
+
 #[cfg(feature = "optimise")]
 pub mod command;
 #[cfg(feature = "optimise")]

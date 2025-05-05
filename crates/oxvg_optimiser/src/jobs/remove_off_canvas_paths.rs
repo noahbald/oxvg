@@ -7,6 +7,7 @@ use oxvg_ast::{
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Debug)]
 /// For SVGs with a `viewBox` attribute, removes `<path>` element outside of it's bounds.
 ///
@@ -21,7 +22,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveOffCanvasPaths(bool);
+pub struct RemoveOffCanvasPaths(pub bool);
 
 struct State {
     view_box_data: RefCell<Option<ViewBoxData>>,

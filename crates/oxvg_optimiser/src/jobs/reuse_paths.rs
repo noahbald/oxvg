@@ -24,6 +24,7 @@ struct State<'arena, E: Element<'arena>> {
     marker: PhantomData<&'arena ()>,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Default, Clone, Debug)]
 /// For duplicate `<path>` elements, replaces it with a `<use>` that references a single
 /// `<path>` definition.

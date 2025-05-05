@@ -1,8 +1,10 @@
+use std::sync::{LazyLock, OnceLock};
+
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_with::skip_serializing_none;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -24,73 +26,95 @@ use serde_with::skip_serializing_none;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveComments {
-    preserve_patterns: Option<Vec<PreservePattern>>,
+    /// A list of regex patters to match against comments, where matching comments will
+    /// not be removed from the document.
+    pub preserve_patterns: Option<Vec<PreservePattern>>,
 }
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Debug, Clone)]
-pub struct PreservePattern(pub regex::Regex);
+pub struct PreservePattern {
+    pub regex: String,
+    parsed_regex_memo: OnceLock<Result<regex::Regex, regex::Error>>,
+}
+
+#[cfg(feature = "napi")]
+#[napi]
+impl PreservePattern {
+    #[napi(constructor)]
+    pub fn new(regex: String) -> Self {
+        Self {
+            regex,
+            parsed_regex_memo: OnceLock::new(),
+        }
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for PreservePattern {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
+        let regex = obj.get("regex")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `PreservePattern.regex`",
+            )
+        })?;
+        Ok(Self {
+            regex,
+            parsed_regex_memo: OnceLock::new(),
+        })
+    }
+}
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
     type Error = String;
 
     fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
-        self.remove_comment(comment);
-        Ok(())
+        self.remove_comment(comment)
     }
 }
 
 impl RemoveComments {
-    fn remove_comment<'arena, N: Node<'arena>>(&self, comment: &N) {
+    fn remove_comment<'arena, N: Node<'arena>>(&self, comment: &N) -> Result<(), String> {
         let value = comment
             .node_value()
             .expect("Comment nodes should always have a value");
 
-        if self
+        for pattern in self
             .preserve_patterns
             .as_ref()
             .unwrap_or(&DEFAULT_PRESERVE_PATTERNS)
-            .iter()
-            .any(|pattern| pattern.0.is_match(value.as_ref()))
         {
-            return;
+            if pattern
+                .parsed_regex_memo
+                .get_or_init(|| regex::Regex::new(&pattern.regex))
+                .as_ref()
+                .map_err(ToString::to_string)?
+                .is_match(value.as_ref())
+            {
+                return Ok(());
+            }
         }
 
         comment.remove();
+        Ok(())
     }
 }
-
-#[derive(Debug)]
-enum DeserializePreservePatternError {
-    InvalidType,
-    InvalidRegex,
-}
-
-impl std::fmt::Display for DeserializePreservePatternError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidType => f.write_str("expected a string"),
-            Self::InvalidRegex => f.write_str("expected valid regex string"),
-        }
-    }
-}
-
-impl serde::de::StdError for DeserializePreservePatternError {}
 
 impl<'de> Deserialize<'de> for PreservePattern {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let Value::String(string) = value else {
-            return Err(serde::de::Error::custom(
-                DeserializePreservePatternError::InvalidType,
-            ));
-        };
-
-        let regex = regex::Regex::new(&string)
-            .map_err(|_| serde::de::Error::custom(DeserializePreservePatternError::InvalidRegex))?;
-        Ok(Self(regex))
+        let regex = String::deserialize(deserializer)?;
+        Ok(Self {
+            regex,
+            parsed_regex_memo: OnceLock::new(),
+        })
     }
 }
 
@@ -99,14 +123,16 @@ impl Serialize for PreservePattern {
     where
         S: serde::Serializer,
     {
-        self.0.to_string().serialize(serializer)
+        self.regex.serialize(serializer)
     }
 }
 
-lazy_static! {
-    static ref DEFAULT_PRESERVE_PATTERNS: Vec<PreservePattern> =
-        vec![PreservePattern(regex::Regex::new("^!").unwrap())];
-}
+static DEFAULT_PRESERVE_PATTERNS: LazyLock<Vec<PreservePattern>> = LazyLock::new(|| {
+    vec![PreservePattern {
+        regex: "^!".to_string(),
+        parsed_regex_memo: OnceLock::new(),
+    }]
+});
 
 #[test]
 fn remove_comments() -> anyhow::Result<()> {

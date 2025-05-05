@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{inline_styles, ContextFlags};
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum RemoveUnused {
     False,
@@ -21,6 +22,7 @@ pub enum RemoveUnused {
     Force,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Minify `<style>` elements with lightningcss

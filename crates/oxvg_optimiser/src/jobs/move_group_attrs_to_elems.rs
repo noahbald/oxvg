@@ -10,6 +10,7 @@ use oxvg_collections::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Moves some of a group's attributes to the contained elements.

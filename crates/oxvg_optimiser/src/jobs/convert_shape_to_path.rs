@@ -8,8 +8,9 @@ use oxvg_ast::{
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
 
-use super::convert_path_data::Precision;
+use super::convert_path_data::ConvertPrecision;
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Converts basic shapes to `<path>` elements
@@ -28,8 +29,8 @@ pub struct ConvertShapeToPath {
     #[serde(default = "default_convert_arcs")]
     pub convert_arcs: bool,
     /// The number of decimal places to round to
-    #[serde(default = "Precision::default")]
-    pub float_precision: Precision,
+    #[serde(default = "ConvertPrecision::default")]
+    pub float_precision: ConvertPrecision,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {

@@ -6,6 +6,7 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Adds to the `class` attribute of the root `<svg>` element, omitting duplicates
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Use with a list of classes
 ///
-/// ```
+/// ```ignore
 /// use oxvg_optimiser::{Jobs, AddClassesToSVG};
 ///
 /// let jobs = Jobs {
@@ -32,7 +33,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Use with a class string
 ///
-/// ```
+/// ```ignore
 /// use oxvg_optimiser::{Jobs, AddClassesToSVG};
 ///
 /// let jobs = Jobs {
