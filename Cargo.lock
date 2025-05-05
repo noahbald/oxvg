@@ -1340,6 +1340,7 @@ dependencies = [
  "criterion",
  "ctor 0.2.9",
  "derive-where",
+ "derive_more 2.0.1",
  "env_logger",
  "insta",
  "itertools 0.14.0",

@@ -1,4 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{mpsc, Arc},
+    time::Duration,
+};
 
 use itertools::Itertools;
 use lightningcss::{
@@ -19,11 +24,66 @@ use oxvg_collections::{collections::REFERENCES_PROPS, regex::REFERENCES_URL};
 use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(feature = "napi"))]
+type Generator = Box<fn(PrefixGeneratorInfo) -> String>;
+
+#[cfg(feature = "napi")]
+#[derive(Clone, derive_more::Debug)]
+pub struct Generator {
+    #[debug(skip)]
+    pub callback:
+        Arc<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>,
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::FromNapiValue for Generator {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        Ok(Self {
+            callback: Arc::from_napi_value(env, napi_val)?,
+        })
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ToNapiValue for Generator {
+    unsafe fn to_napi_value(
+        _env: napi::sys::napi_env,
+        _val: Self,
+    ) -> napi::Result<napi::sys::napi_value> {
+        todo!("converting `Generator` to napi value not yet supported")
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::TypeName for Generator {
+    fn type_name() -> &'static str {
+        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::type_name()
+    }
+
+    fn value_type() -> napi::ValueType {
+        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::value_type()
+    }
+}
+
+#[cfg(feature = "napi")]
+impl napi::bindgen_prelude::ValidateNapiValue for Generator {
+    unsafe fn validate(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<napi::sys::napi_value> {
+        Arc::<napi::threadsafe_function::ThreadsafeFunction<Option<PrefixGeneratorInfo>, String>>::validate(env, napi_val)
+    }
+}
+
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Default, Clone, Debug)]
 /// Various types of ways prefixes can be generated for an id.
 pub enum PrefixGenerator {
     /// A function to create a dynamic prefix
-    Generator(Box<fn(PrefixGeneratorInfo) -> String>),
+    Generator(#[napi(ts_type = "(info?: PrefixGeneratoInfo) => string")] Generator),
     /// A string to use as a prefix
     Prefix(String),
     /// No prefix
@@ -33,9 +93,15 @@ pub enum PrefixGenerator {
     Default,
 }
 
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone, Debug)]
+/// Contextual information about the element that can be used to generate a prefix
 pub struct PrefixGeneratorInfo {
-    pub path: Option<PathBuf>,
+    /// The file path of the processed document the element belongs to.
+    pub path: Option<String>,
+    /// The name of the element.
     pub name: String,
+    /// The attributes of the element.
     pub attributes: Vec<(String, String)>,
 }
 
@@ -94,8 +160,8 @@ impl Default for PrefixIds {
     }
 }
 
-struct CssVisitor<'arena, 'a, 'b, E: Element<'arena>> {
-    generator: &'a mut GeneratePrefix<'arena, 'b, E>,
+struct CssVisitor<'a, 'b> {
+    generator: &'a mut GeneratePrefix<'b>,
     ids: bool,
     class_names: bool,
 }
@@ -121,13 +187,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
         element: &mut E,
         context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), String> {
-        let mut prefix_generator = GeneratePrefix {
-            node: element.clone(),
-            info: context.info,
-            prefix_generator: &self.prefix,
-            delim: &self.delim,
-            history: HashMap::new(),
-        };
+        let mut prefix_generator =
+            GeneratePrefix::new(element, context.info, &self.prefix, &self.delim);
         if element.prefix().is_none()
             && element.local_name().as_ref() == "style"
             && self
@@ -149,7 +210,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
             if prefix.is_none() && local_name == "id" {
                 if self.prefix_ids {
                     log::debug!("prefixing id");
-                    if let Some(new_id) = Self::prefix_id(value, &mut prefix_generator) {
+                    if let Some(new_id) = Self::prefix_id(value, &mut prefix_generator)? {
                         attr.set_value(new_id.into());
                     }
                 }
@@ -158,13 +219,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
                     log::debug!("prefixing class");
                     let value = value
                         .split_whitespace()
-                        .filter_map(|s| Self::prefix_id(s, &mut prefix_generator))
+                        .filter_map(|s| Self::prefix_id(s, &mut prefix_generator).unwrap())
                         .join(" ");
                     attr.set_value(value.into());
                 }
             } else if prefix.is_none_or(|p| p == "xlink") && local_name == "href" {
                 log::debug!("prefixing reference");
-                if let Some(new_ref) = Self::prefix_reference(value, &mut prefix_generator) {
+                if let Some(new_ref) = Self::prefix_reference(value, &mut prefix_generator)? {
                     attr.set_value(new_ref.into());
                 }
             } else if prefix.is_none() && matches!(local_name, "begin" | "end") {
@@ -174,7 +235,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
                     if s.ends_with(".end") || s.ends_with(".start") {
                         let (id, postfix) =
                             s.split_once('.').expect("should end with `.(end|start)`");
-                        if let Some(id) = Self::prefix_id(id, &mut prefix_generator) {
+                        if let Some(id) = Self::prefix_id(id, &mut prefix_generator).unwrap() {
                             format!("{id}.{postfix}")
                         } else {
                             s.to_string()
@@ -190,7 +251,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
                 let new_value = REFERENCES_URL
                     .replace_all(value, |caps: &Captures| {
                         if let Some(prefix) =
-                            Self::prefix_reference(&caps[1], &mut prefix_generator)
+                            Self::prefix_reference(&caps[1], &mut prefix_generator).unwrap()
                         {
                             let start = if caps[0].starts_with(':') { ":" } else { "" };
                             format!("{start}url({prefix})")
@@ -208,10 +269,8 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
     }
 }
 
-impl<'arena, 'i, E: Element<'arena>> lightningcss::visitor::Visitor<'i>
-    for CssVisitor<'arena, '_, '_, E>
-{
-    type Error = ();
+impl<'i> lightningcss::visitor::Visitor<'i> for CssVisitor<'_, '_> {
+    type Error = String;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
         if self.ids {
@@ -225,26 +284,26 @@ impl<'arena, 'i, E: Element<'arena>> lightningcss::visitor::Visitor<'i>
         &mut self,
         selector: &mut lightningcss::selector::Selector<'i>,
     ) -> Result<(), Self::Error> {
-        selector.iter_mut_raw_match_order().for_each(|c| {
+        selector.iter_mut_raw_match_order().try_for_each(|c| {
             if matches!(c, Component::Class(_) if !self.class_names)
                 || matches!(c, Component::ID(_) if !self.ids)
             {
-                return;
+                return Ok(());
             }
             if let Component::ID(ident) | Component::Class(ident) = c {
-                if let Some(new_ident) = PrefixIds::prefix_id(ident, self.generator) {
+                if let Some(new_ident) = PrefixIds::prefix_id(ident, self.generator)? {
                     *ident = new_ident.into();
                 }
             }
-        });
-        Ok(())
+            Ok(())
+        })
     }
 
     fn visit_url(
         &mut self,
         url: &mut lightningcss::values::url::Url<'i>,
     ) -> Result<(), Self::Error> {
-        if let Some(new_url) = PrefixIds::prefix_reference(&url.url, self.generator) {
+        if let Some(new_url) = PrefixIds::prefix_reference(&url.url, self.generator)? {
             url.url = new_url.into();
         }
         Ok(())
@@ -255,7 +314,7 @@ impl PrefixIds {
     fn prefix_selectors<'arena, E: Element<'arena>>(
         &self,
         element: &mut E,
-        prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
+        prefix_generator: &mut GeneratePrefix,
         info: &Info<'arena, E>,
     ) -> Option<()> {
         if element.is_empty() {
@@ -291,11 +350,7 @@ impl PrefixIds {
         Some(())
     }
 
-    fn prefix_styles<'arena, E: Element<'arena>>(
-        &self,
-        css: &mut StyleSheet,
-        prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
-    ) {
+    fn prefix_styles(&self, css: &mut StyleSheet, prefix_generator: &mut GeneratePrefix) {
         use lightningcss::visitor::Visitor;
 
         let mut visitor = CssVisitor {
@@ -306,27 +361,27 @@ impl PrefixIds {
         let _ = visitor.visit_stylesheet(css);
     }
 
-    fn prefix_id<'arena, E: Element<'arena>>(
+    fn prefix_id(
         ident: &str,
-        prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
-    ) -> Option<String> {
-        let prefix = prefix_generator.generate(ident);
+        prefix_generator: &mut GeneratePrefix,
+    ) -> Result<Option<String>, String> {
+        let prefix = prefix_generator.generate(ident)?;
         if ident.starts_with(&prefix) {
-            return None;
+            return Ok(None);
         }
-        Some(format!("{prefix}{ident}"))
+        Ok(Some(format!("{prefix}{ident}")))
     }
 
-    fn prefix_reference<'arena, E: Element<'arena>>(
+    fn prefix_reference(
         url: &str,
-        prefix_generator: &mut GeneratePrefix<'arena, '_, E>,
-    ) -> Option<String> {
+        prefix_generator: &mut GeneratePrefix,
+    ) -> Result<Option<String>, String> {
         let reference = url.strip_prefix('#').unwrap_or(url);
-        let prefix = prefix_generator.generate(reference);
+        let prefix = prefix_generator.generate(reference)?;
         if reference.starts_with(&prefix) {
-            return None;
+            return Ok(None);
         }
-        Some(format!("#{prefix}{reference}"))
+        Ok(Some(format!("#{prefix}{reference}")))
     }
 }
 
@@ -371,119 +426,96 @@ impl Serialize for PrefixGenerator {
     }
 }
 
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::TypeName for PrefixGenerator {
-    fn type_name() -> &'static str {
-        "PrefixGenerator"
-    }
-    fn value_type() -> napi::ValueType {
-        napi::ValueType::Object
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::ToNapiValue for PrefixGenerator {
-    unsafe fn to_napi_value(
-        env: napi::bindgen_prelude::sys::napi_env,
-        val: PrefixGenerator,
-    ) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
-        #[allow(unused_variables)]
-        let env_wrapper = napi::bindgen_prelude::Env::from(env);
-        #[allow(unused_mut)]
-        let mut obj = env_wrapper.create_object()?;
-        match val {
-            Self::Prefix(arg0) => {
-                obj.set("type", "Prefix")?;
-                obj.set("field0", arg0)?;
-            }
-            Self::None {} => {
-                obj.set("type", "None")?;
-            }
-            Self::Default {} => {
-                obj.set("type", "Default")?;
-            }
-            Self::Generator(_) => {
-                return Err(napi::Error::new(
-                    napi::Status::InvalidArg,
-                    "Using PrefixGenerator type Generator not supported",
-                ))
-            }
-        }
-        napi::bindgen_prelude::Object::to_napi_value(env, obj)
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::FromNapiValue for PrefixGenerator {
-    unsafe fn from_napi_value(
-        env: napi::bindgen_prelude::sys::napi_env,
-        napi_val: napi::bindgen_prelude::sys::napi_value,
-    ) -> napi::bindgen_prelude::Result<Self> {
-        #[allow(unused_variables)]
-        let env_wrapper = napi::bindgen_prelude::Env::from(env);
-        #[allow(unused_mut)]
-        let mut obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
-        let type_: String = obj
-            .get("type")
-            .map_err(|mut err| {
-                err.reason = format!("{} on PrefixGenerator.type", err.reason);
-                err
-            })?
-            .ok_or_else(|| napi::Error::new(napi::Status::InvalidArg, "Missing field `type`"))?;
-        let val = match type_.as_str() {
-            "Prefix" => {
-                let arg0: String = obj.get("field0")?.ok_or_else(|| {
-                    napi::Error::new(napi::Status::InvalidArg, "Missing field `field0`")
-                })?;
-                Self::Prefix(arg0)
-            }
-            "None" => Self::None {},
-            "Default" => Self::Default {},
-            _ => {
-                return Err(napi::Error::new(
-                    napi::Status::InvalidArg,
-                    format!("Unknown variant `{type_}`"),
-                ))
-            }
-        };
-        Ok(val)
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::ValidateNapiValue for PrefixGenerator {}
-
-struct GeneratePrefix<'arena, 'a, E: Element<'arena>> {
-    node: E,
-    info: &'a Info<'arena, E>,
+#[derive(Debug)]
+struct GeneratePrefix<'a> {
+    info: Option<PrefixGeneratorInfo>,
     prefix_generator: &'a PrefixGenerator,
     delim: &'a str,
+    path: &'a Option<PathBuf>,
     history: HashMap<String, String>,
 }
 
-impl<'arena, E: Element<'arena>> GeneratePrefix<'arena, '_, E> {
-    fn generate(&mut self, body: &str) -> String {
-        match self.prefix_generator {
+impl<'a> GeneratePrefix<'a> {
+    fn new<'arena, E: Element<'arena>>(
+        element: &E,
+        info: &'a Info<'arena, E>,
+        prefix_generator: &'a PrefixGenerator,
+        delim: &'a str,
+    ) -> Self {
+        let path = &info.path;
+        let info = match prefix_generator {
+            PrefixGenerator::Generator(_) => Some(PrefixGeneratorInfo {
+                path: info.path.as_ref().map(|p| p.to_string_lossy().to_string()),
+                name: element.qual_name().formatter().to_string(),
+                attributes: element
+                    .attributes()
+                    .into_iter()
+                    .map(|a| (a.name().formatter().to_string(), a.value().to_string()))
+                    .collect(),
+            }),
+            _ => None,
+        };
+        Self {
+            info,
+            prefix_generator,
+            delim,
+            path,
+            history: HashMap::new(),
+        }
+    }
+
+    fn generate(&mut self, body: &str) -> Result<String, String> {
+        Ok(match self.prefix_generator {
             PrefixGenerator::Generator(f) => {
                 if let Some(prefix) = self.history.get(body) {
-                    return (*prefix).to_string();
+                    return Ok((*prefix).to_string());
+                }
+                #[cfg(not(feature = "napi"))]
+                let prefix = f(info);
+                #[cfg(feature = "napi")]
+                let prefix = {
+                    let (tx, rx) = mpsc::channel();
+                    let t = std::thread::spawn({
+                        let info = self.info.clone();
+                        let f = f.clone();
+                        move || {
+                            f.callback.call_with_return_value(
+                                Ok(info),
+                                napi::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
+                                move |result, _| match result {
+                                    Ok(s) => {
+                                        tx.send(Ok(s)).map_err(|e| {
+                                            napi::Error::new(napi::Status::GenericFailure, e)
+                                        })?;
+                                        Ok(())
+                                    }
+                                    Err(err) => {
+                                        tx.send(Err(err.to_string())).map_err(|e| {
+                                            napi::Error::new(napi::Status::GenericFailure, e)
+                                        })?;
+                                        Err(err)
+                                    }
+                                },
+                            )
+                        }
+                    });
+                    let prefix = rx
+                        .recv_timeout(Duration::new(5, 0))
+                        .map_err(|err| err.to_string());
+                    let status = t.join().map_err(|_| String::from("thread failed"))?;
+                    if status == napi::Status::Ok {
+                        prefix??
+                    } else {
+                        return Err(status.to_string());
+                    }
                 };
-                let prefix = f(PrefixGeneratorInfo {
-                    path: self.info.path.clone(),
-                    name: self.node.qual_name().formatter().to_string(),
-                    attributes: self
-                        .node
-                        .attributes()
-                        .into_iter()
-                        .map(|a| (a.name().formatter().to_string(), a.value().to_string()))
-                        .collect(),
-                });
+
                 self.history.insert(body.to_string(), prefix.clone());
                 prefix
             }
             PrefixGenerator::Prefix(s) => format!("{s}{}", self.delim),
             PrefixGenerator::None => String::new(),
-            PrefixGenerator::Default => match &self.info.path {
+            PrefixGenerator::Default => match &self.path {
                 Some(path) => match get_basename(path) {
                     Some(name) => format!(
                         "{}{}",
@@ -494,7 +526,7 @@ impl<'arena, E: Element<'arena>> GeneratePrefix<'arena, '_, E> {
                 },
                 None => format!("prefix{}", self.delim),
             },
-        }
+        })
     }
 }
 

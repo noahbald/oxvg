@@ -27,6 +27,7 @@ oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }
 
 anyhow = { workspace = true }
+derive_more = { workspace = true }
 derive-where = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

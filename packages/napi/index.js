@@ -370,6 +370,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
+module.exports.PreservePattern = nativeBinding.PreservePattern
+module.exports.RemoveAttrs = nativeBinding.RemoveAttrs
 module.exports.ConvertCase = nativeBinding.ConvertCase
 module.exports.Extends = nativeBinding.Extends
 module.exports.optimise = nativeBinding.optimise

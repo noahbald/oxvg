@@ -16,6 +16,7 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
+#[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Remove attributes based on whether it matches a pattern.
@@ -67,76 +68,52 @@ pub struct RemoveAttrs {
 }
 
 #[cfg(feature = "napi")]
-impl napi::bindgen_prelude::TypeName for RemoveAttrs {
-    fn type_name() -> &'static str {
-        "RemoveAttrs"
-    }
-    fn value_type() -> napi::ValueType {
-        napi::ValueType::Object
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::ToNapiValue for RemoveAttrs {
-    unsafe fn to_napi_value(
-        env: napi::bindgen_prelude::sys::napi_env,
-        val: RemoveAttrs,
-    ) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
-        let env_wrapper = napi::bindgen_prelude::Env::from(env);
-        let mut obj = env_wrapper.create_object()?;
-        obj.set("attrs", val.attrs)?;
-        obj.set("elemSeparator", val.elem_separator)?;
-        obj.set("preserveCurrentColor", val.preserve_current_color)?;
-        napi::bindgen_prelude::Object::to_napi_value(env, obj)
+#[napi]
+impl RemoveAttrs {
+    #[napi(constructor)]
+    pub fn new(attrs: Vec<String>, elem_separator: String, preserve_current_color: bool) -> Self {
+        Self {
+            attrs,
+            elem_separator,
+            preserve_current_color,
+            parsed_attrs_memo: OnceLock::default(),
+        }
     }
 }
 
 #[cfg(feature = "napi")]
 impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
     unsafe fn from_napi_value(
-        env: napi::bindgen_prelude::sys::napi_env,
-        napi_val: napi::bindgen_prelude::sys::napi_value,
-    ) -> napi::bindgen_prelude::Result<RemoveAttrs> {
-        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
-        let attrs: Vec<String> = obj
-            .get("attrs")
-            .map_err(|mut err| {
-                err.reason = format!("{} on RemoveAttrs.attrs", err.reason);
-                err
-            })?
-            .ok_or_else(|| napi::Error::new(napi::Status::InvalidArg, "Missing field `attrs`"))?;
-        let elem_separator: String = obj
-            .get("elemSeparator")
-            .map_err(|mut err| {
-                err.reason = format!("{} on RemoveAttrs.elemSeparator", err.reason);
-                err
-            })?
-            .ok_or_else(|| {
-                napi::Error::new(napi::Status::InvalidArg, "Missing field `elemSeparator`")
-            })?;
-        let preserve_current_color: bool = obj
-            .get("preserveCurrentColor")
-            .map_err(|mut err| {
-                err.reason = format!("{} on RemoveAttrs.preserveCurrentColor", err.reason);
-                err
-            })?
-            .ok_or_else(|| {
-                napi::Error::new(
-                    napi::Status::InvalidArg,
-                    "Missing field `preserveCurrentColor`",
-                )
-            })?;
-        let val = Self {
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
+        let attrs = obj.get("attrs")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.attrs`",
+            )
+        })?;
+        let elem_separator = obj.get("elemSeparator")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.elemSeparator`",
+            )
+        })?;
+        let preserve_current_color = obj.get("preserveCurrentColor")?.ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::InvalidArg,
+                "Missing field `RemoveAttrs.preserveCurrentColor`",
+            )
+        })?;
+        Ok(Self {
             attrs,
             elem_separator,
             preserve_current_color,
-            parsed_attrs_memo: OnceLock::default(),
-        };
-        Ok(val)
+            parsed_attrs_memo: OnceLock::new(),
+        })
     }
 }
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::ValidateNapiValue for RemoveAttrs {}
 
 impl Default for RemoveAttrs {
     fn default() -> Self {
