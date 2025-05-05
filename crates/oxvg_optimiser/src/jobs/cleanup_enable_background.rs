@@ -30,7 +30,7 @@ use super::ContextFlags;
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct CleanupEnableBackground(pub bool);
+pub struct CleanupEnableBackground(#[napi(js_name = "enabled")] pub bool);
 
 struct State {
     contains_filter: bool,

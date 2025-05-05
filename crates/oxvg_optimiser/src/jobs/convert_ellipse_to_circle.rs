@@ -20,7 +20,7 @@ use super::ContextFlags;
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct ConvertEllipseToCircle(pub bool);
+pub struct ConvertEllipseToCircle(#[napi(js_name = "enabled")] pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
     type Error = String;

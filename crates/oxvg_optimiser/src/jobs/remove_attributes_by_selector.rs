@@ -29,7 +29,7 @@ pub struct Selector {
 /// # Errors
 ///
 /// If the selector fails to parse.
-pub struct RemoveAttributesBySelector(pub Vec<Selector>);
+pub struct RemoveAttributesBySelector(#[napi(js_name = "enabled")] pub Vec<Selector>);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttributesBySelector {
     type Error = String;

@@ -99,7 +99,7 @@ impl Default for ConvertPathData {
 
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Copy, Debug)]
-pub struct ConvertPrecision(pub convert::Precision);
+pub struct ConvertPrecision(#[napi(js_name = "precision")] pub convert::Precision);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
     type Error = String;

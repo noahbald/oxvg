@@ -35,7 +35,7 @@ struct State<'arena, E: Element<'arena>> {
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct MergeStyles(pub bool);
+pub struct MergeStyles(#[napi(js_name = "enabled")] pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles {
     type Error = String;
