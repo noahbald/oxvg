@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveUnusedNS(#[napi(js_name = "enabled")] pub bool);
+pub struct RemoveUnusedNS(pub bool);
 
 #[derive_where(Default)]
 struct State<'arena, E: Element<'arena>> {

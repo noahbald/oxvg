@@ -36,7 +36,7 @@ struct State<'arena, E: Element<'arena>> {
 /// # Errors
 ///
 /// If a path has an invalid id.
-pub struct ReusePaths(#[napi(js_name = "enabled")] pub bool);
+pub struct ReusePaths(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths {
     type Error = String;

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveTitle(#[napi(js_name = "enabled")] pub bool);
+pub struct RemoveTitle(pub bool);
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveTitle {
     type Error = String;

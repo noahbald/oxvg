@@ -89,7 +89,7 @@ pub enum Precision {
     /// Error tolerance will be 1e-2 where necessary
     Disabled,
     /// Precision to a specific decimal place
-    Enabled(#[napi(js_name = "decimalPlaces")] i32),
+    Enabled(i32),
 }
 
 #[derive(Debug, Default)]

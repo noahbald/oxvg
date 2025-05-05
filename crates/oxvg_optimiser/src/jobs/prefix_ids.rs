@@ -83,15 +83,9 @@ impl napi::bindgen_prelude::ValidateNapiValue for Generator {
 /// Various types of ways prefixes can be generated for an id.
 pub enum PrefixGenerator {
     /// A function to create a dynamic prefix
-    Generator(
-        #[napi(
-            ts_type = "(info?: PrefixGeneratorInfo) => string",
-            js_name = "generator"
-        )]
-        Generator,
-    ),
+    Generator(#[napi(ts_type = "(info?: PrefixGeneratoInfo) => string")] Generator),
     /// A string to use as a prefix
-    Prefix(#[napi(js_name = "prefix")] String),
+    Prefix(String),
     /// No prefix
     None,
     /// Use "prefix" as prefix

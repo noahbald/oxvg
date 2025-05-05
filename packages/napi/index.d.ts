@@ -241,7 +241,7 @@ export interface CleanupAttributes {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface CleanupEnableBackground {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -340,7 +340,7 @@ export interface CleanupNumericValues {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface CollapseGroups {
-  enabled: boolean
+  field0: boolean
 }
 
 export declare const enum ConvertCase {
@@ -387,7 +387,7 @@ export interface ConvertColors {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface ConvertEllipseToCircle {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -449,7 +449,7 @@ export interface ConvertPathData {
 }
 
 export interface ConvertPrecision {
-  precision: Precision
+  field0: Precision
 }
 
 /**
@@ -667,7 +667,7 @@ export interface MergePaths {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface MergeStyles {
-  enabled: boolean
+  field0: boolean
 }
 
 /** How the type will be converted. */
@@ -712,7 +712,7 @@ export interface MinifyStyles {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface MoveElemsAttrsToGroup {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -729,7 +729,7 @@ export interface MoveElemsAttrsToGroup {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface MoveGroupAttrsToElems {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -767,12 +767,12 @@ export interface Precheck {
 export type Precision =
   | { type: 'None' }
   | { type: 'Disabled' }
-  | { type: 'Enabled', decimalPlaces: number }
+  | { type: 'Enabled', field0: number }
 
 /** Various types of ways prefixes can be generated for an id. */
 export type PrefixGenerator =
-  | { type: 'Generator', generator: (info?: PrefixGeneratorInfo) => string }
-  | { type: 'Prefix', prefix: string }
+  | { type: 'Generator', field0: (info?: PrefixGeneratoInfo) => string }
+  | { type: 'Prefix', field0: string }
   | { type: 'None' }
   | { type: 'Default' }
 
@@ -826,7 +826,7 @@ export interface PrefixIds {
  * If the selector fails to parse.
  */
 export interface RemoveAttributesBySelector {
-  enabled: Array<Selector>
+  field0: Array<Selector>
 }
 
 /**
@@ -915,7 +915,7 @@ export interface RemoveDesc {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveDimensions {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -932,7 +932,7 @@ export interface RemoveDimensions {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveDoctype {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -990,7 +990,7 @@ export interface RemoveElementsByAttr {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveEmptyAttrs {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1008,7 +1008,7 @@ export interface RemoveEmptyAttrs {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveEmptyContainers {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1100,7 +1100,7 @@ export interface RemoveHiddenElems {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveMetadata {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1117,7 +1117,7 @@ export interface RemoveMetadata {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveNonInheritableGroupAttrs {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1136,7 +1136,7 @@ export interface RemoveNonInheritableGroupAttrs {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveOffCanvasPaths {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1153,7 +1153,7 @@ export interface RemoveOffCanvasPaths {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveRasterImages {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1174,7 +1174,7 @@ export interface RemoveRasterImages {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveScripts {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1191,7 +1191,7 @@ export interface RemoveScripts {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveStyleElement {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1211,7 +1211,7 @@ export interface RemoveStyleElement {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveTitle {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1269,7 +1269,7 @@ export declare const enum RemoveUnused {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveUnusedNs {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1286,7 +1286,7 @@ export interface RemoveUnusedNs {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveUselessDefs {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1326,7 +1326,7 @@ export interface RemoveUselessStrokeAndFill {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveViewBox {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1368,7 +1368,7 @@ export interface RemoveXlink {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveXmlns {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1386,7 +1386,7 @@ export interface RemoveXmlns {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveXmlProcInst {
-  enabled: boolean
+  field0: boolean
 }
 
 /**
@@ -1402,7 +1402,7 @@ export interface RemoveXmlProcInst {
  * If a path has an invalid id.
  */
 export interface ReusePaths {
-  enabled: boolean
+  field0: boolean
 }
 
 /** A selector and set of attributes to remove. */
@@ -1453,7 +1453,7 @@ export interface SortAttrs {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface SortDefsChildren {
-  enabled: boolean
+  field0: boolean
 }
 
 /** The method for ordering xmlns attributes */

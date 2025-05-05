@@ -66,7 +66,7 @@ test.describe("options requiring constructors", () => {
 					prefixClassNames: false,
 					prefix: {
 						type: "Generator",
-						generator,
+						field0: generator,
 					},
 				},
 			},

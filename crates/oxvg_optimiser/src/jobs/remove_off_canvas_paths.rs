@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct RemoveOffCanvasPaths(#[napi(js_name = "enabled")] pub bool);
+pub struct RemoveOffCanvasPaths(pub bool);
 
 struct State {
     view_box_data: RefCell<Option<ViewBoxData>>,
