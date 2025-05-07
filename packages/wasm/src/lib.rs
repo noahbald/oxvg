@@ -27,7 +27,6 @@ use wasm_bindgen::prelude::*;
 /// const result = optimise(`<svg />`);
 /// ```
 ///
-///
 /// Or, provide your own config
 ///
 /// ```js

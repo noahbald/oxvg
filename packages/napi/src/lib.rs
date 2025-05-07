@@ -23,16 +23,15 @@ extern crate napi_derive;
 /// Optimise svg with the default configuration
 ///
 /// ```js
-/// import { optimise } from "@oxvg/wasm";
+/// import { optimise } from "@oxvg/napi";
 ///
 /// const result = optimise(`<svg />`);
 /// ```
 ///
-///
 /// Or, provide your own config
 ///
 /// ```js
-/// import { optimise } from "@oxvg/wasm";
+/// import { optimise } from "@oxvg/napi";
 ///
 /// // Only optimise path data
 /// const result = optimise(`<svg />`, { convertPathData: {} });
@@ -41,7 +40,7 @@ extern crate napi_derive;
 /// Or, extend a preset
 ///
 /// ```js
-/// import { optimise, extend, Extends } from "@oxvg/wasm";
+/// import { optimise, extend, Extends } from "@oxvg/napi";
 ///
 /// const result = optimise(
 ///     `<svg />`,
