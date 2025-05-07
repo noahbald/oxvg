@@ -1337,6 +1337,7 @@ name = "oxvg_optimiser"
 version = "0.0.2"
 dependencies = [
  "anyhow",
+ "clap",
  "criterion",
  "ctor 0.2.9",
  "derive-where",
@@ -1356,10 +1357,13 @@ dependencies = [
  "phf",
  "regex",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "serde_with",
+ "tsify",
  "typed-arena",
  "urlencoding",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1377,6 +1381,9 @@ dependencies = [
  "ryu",
  "schemars",
  "serde",
+ "serde-wasm-bindgen",
+ "tsify",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1387,6 +1394,7 @@ dependencies = [
  "getrandom",
  "oxvg_ast",
  "oxvg_optimiser",
+ "serde-wasm-bindgen",
  "serde_json",
  "typed-arena",
  "wasm-bindgen",
@@ -1845,6 +1853,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2163,6 +2182,30 @@ name = "trim-in-place"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343e926fc669bc8cde4fa3129ab681c63671bae288b1f1081ceee6d9d37904fc"
+
+[[package]]
+name = "tsify"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2ec91b85e6c6592ed28636cb1dd1fac377ecbbeb170ff1d79f97aac5e38926d"
+dependencies = [
+ "serde",
+ "serde-wasm-bindgen",
+ "tsify-macros",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "tsify-macros"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a324606929ad11628a19206d7853807481dcaecd6c08be70a235930b8241955"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 2.0.89",
+]
 
 [[package]]
 name = "typed-arena"

@@ -9,6 +9,10 @@ use oxvg_ast::{
 use oxvg_collections::collections::EDITOR_NAMESPACES;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +32,7 @@ use serde::{Deserialize, Serialize};
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEditorsNSData {
     /// A list of additional namespaces URIs you may want to remove.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub additional_namespaces: Option<HashSet<String>>,
 }
 

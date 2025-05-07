@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 
 use super::convert_path_data::ConvertPrecision;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -29,6 +33,7 @@ pub struct ConvertShapeToPath {
     #[serde(default = "default_convert_arcs")]
     pub convert_arcs: bool,
     /// The number of decimal places to round to
+    #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
     #[serde(default = "ConvertPrecision::default")]
     pub float_precision: ConvertPrecision,
 }

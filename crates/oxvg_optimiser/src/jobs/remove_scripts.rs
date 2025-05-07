@@ -8,8 +8,13 @@ use oxvg_ast::{
 use oxvg_collections::collections::EVENT_ATTRS;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[serde(transparent)]
 /// Removes `<script>` elements, event attributes, and javascript `href`s from the document.
 ///
 /// This can help remove the risk of Cross-site scripting (XSS) attacks.

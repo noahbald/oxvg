@@ -7,8 +7,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(transparent)]
 /// Sorts the children of `<defs>` into a predictable order.
 ///
 /// This doesn't affect the size of a document but will likely improve readability

@@ -5,9 +5,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 /// Removes inline JPEGs, PNGs, and GIFs from the document.
 ///
 /// # Correctness

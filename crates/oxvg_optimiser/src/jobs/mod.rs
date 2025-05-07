@@ -9,6 +9,9 @@ use serde_with::skip_serializing_none;
 
 pub use prefix_ids::PrefixGenerator;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
         $(mod $name;)+
@@ -17,6 +20,8 @@ macro_rules! jobs {
 
         #[skip_serializing_none]
         #[cfg_attr(feature = "napi", napi(object))]
+        #[cfg_attr(feature = "wasm", derive(Tsify))]
+        #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
         #[derive(Deserialize, Serialize, Clone, Debug)]
         #[serde(rename_all = "camelCase")]
         /// Each task for optimising an SVG document.

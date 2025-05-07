@@ -14,7 +14,14 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
+clap = ["dep:clap"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_path/napi"]
+wasm = [
+  "dep:wasm-bindgen",
+  "dep:serde-wasm-bindgen",
+  "dep:tsify",
+  "oxvg_path/wasm",
+]
 
 [dependencies]
 oxvg_ast = { workspace = true, features = [
@@ -27,11 +34,13 @@ oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }
 
 anyhow = { workspace = true }
+clap = { workspace = true, optional = true }
 derive_more = { workspace = true }
 derive-where = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
 serde_with = { workspace = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
@@ -41,8 +50,10 @@ napi-derive = { workspace = true, optional = true }
 parcel_selectors = { version = "0.28" }
 phf = { workspace = true }
 regex = { workspace = true }
+tsify = { workspace = true, optional = true }
 typed-arena = { workspace = true }
 urlencoding = "2.1"
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 ctor = { workspace = true }

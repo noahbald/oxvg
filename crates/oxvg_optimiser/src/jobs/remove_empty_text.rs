@@ -6,6 +6,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -23,12 +27,15 @@ use serde::{Deserialize, Serialize};
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyText {
     /// Whether to remove empty text elements.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub text: Option<bool>,
     /// Whether to remove empty tspan elements.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub tspan: Option<bool>,
     /// Whether to remove useless tref elements.
     ///
     /// `tref` is deprecated and generally unsupported by browsers.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub tref: Option<bool>,
 }
 

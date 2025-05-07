@@ -6,6 +6,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -58,9 +62,11 @@ use serde::{Deserialize, Serialize};
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct AddClassesToSVG {
     /// Adds each class to the `class` attribute.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub class_names: Option<Vec<String>>,
     /// Adds the classes to the `class` attribute, removing any whitespace between each. This option
     /// is ignored if `class_names` is provided.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub class_name: Option<String>,
 }
 

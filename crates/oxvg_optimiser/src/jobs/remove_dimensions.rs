@@ -4,9 +4,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 /// Removes `width` and `height` from the `<svg>` and replaces it with `viewBox` if missing.
 ///
 /// This job is the opposite of [`super::RemoveViewBox`] and should be disabled before

@@ -5,53 +5,54 @@ use oxvg_ast::{
   serialize::{self, Node as _, Options},
   visitor::Info,
 };
-use oxvg_optimiser::Jobs;
+use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
 extern crate napi_derive;
 
-#[napi(string_enum)]
-#[derive(Default)]
-/// A preset which the specified jobs can overwrite
-pub enum Extends {
-  /// A preset that contains no jobs.
-  None,
-  /// The default preset.
-  /// Uses [`oxvg_optimiser::Jobs::default`]
-  #[default]
-  Default,
-  /// The correctness preset. Produces a preset that is less likely to
-  /// visually change the document.
-  /// Uses [`oxvg_optimiser::Jobs::correctness`]
-  Safe,
-  // TODO: File(Path),
-}
-
 #[napi]
 #[allow(clippy::needless_pass_by_value)]
-/// Optimise an SVG document using the provided config.
-///
-/// The config extends the default preset when `extends` is unspecified.
+/// Optimise an SVG document using the provided config
 ///
 /// # Errors
 /// - If the document fails to parse
 /// - If any of the optimisations fail
 /// - If the optimised document fails to serialize
-pub fn optimise(
-  svg: String,
-  config: Option<Jobs>,
-  extend: Option<Extends>,
-) -> Result<String, Error<Status>> {
+///
+/// # Examples
+///
+/// Optimise svg with the default configuration
+///
+/// ```js
+/// import { optimise } from "@oxvg/wasm";
+///
+/// const result = optimise(`<svg />`);
+/// ```
+///
+///
+/// Or, provide your own config
+///
+/// ```js
+/// import { optimise } from "@oxvg/wasm";
+///
+/// // Only optimise path data
+/// const result = optimise(`<svg />`, { convertPathData: {} });
+/// ```
+///
+/// Or, extend a preset
+///
+/// ```js
+/// import { optimise, extend, Extends } from "@oxvg/wasm";
+///
+/// const result = optimise(
+///     `<svg />`,
+///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
+/// );
+/// ```
+pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Status>> {
   let arena = typed_arena::Arena::new();
-  let mut jobs = match extend.unwrap_or_default() {
-    Extends::None => Jobs::none(),
-    Extends::Default => Jobs::default(),
-    Extends::Safe => Jobs::safe(),
-  };
-  if let Some(ref config) = config {
-    jobs.extend(config);
-  }
   let dom = parse(&svg, &arena).map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?;
-  jobs
+  config
+    .unwrap_or_default()
     .run(&dom, &Info::<Element>::new(&arena))
     .map_err(generic_error)?;
 
@@ -61,6 +62,17 @@ pub fn optimise(
       ..Default::default()
     })
     .map_err(generic_error)
+}
+
+#[napi]
+#[allow(clippy::needless_pass_by_value)]
+/// Returns the given config with omitted options replaced with the config provided by `extends`.
+/// I.e. acts like `{ ...extends, ...config }`
+pub fn extend(extends: Extends, config: Option<Jobs>) -> Jobs {
+  match config {
+    Some(ref jobs) => extends.extend(jobs),
+    None => extends.jobs(),
+  }
 }
 
 #[allow(clippy::needless_pass_by_value)]

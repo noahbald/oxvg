@@ -12,6 +12,10 @@ use oxvg_collections::allowed_content::ELEMS;
 use phf::{phf_map, phf_set};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 /// Replaces `xlink` prefixed attributes to the native SVG equivalent.

@@ -6,9 +6,13 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(transparent)]
 /// Converts non-eccentric `<ellipse>` to `<circle>` elements.
 ///
 /// # Correctness

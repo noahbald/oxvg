@@ -14,6 +14,9 @@ use oxvg_ast::{
 use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[derive(Debug)]
 pub(crate) struct CapturedStyles<'arena, E: Element<'arena>> {
     node: E,
@@ -55,6 +58,7 @@ pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
     pub parent_tokens: RefCell<ParentTokens>,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -213,7 +217,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
             element
                 .clone()
                 .set_text_content(css.into(), &context.info.arena);
-        };
+        }
         Ok(())
     }
 

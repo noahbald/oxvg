@@ -4,8 +4,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Default, Debug)]
+#[serde(transparent)]
 /// Removes the `xmlns` attribute from `<svg>`.
 ///
 /// This can be useful for SVGs that will be inlined.

@@ -4,6 +4,9 @@ use crate::{
     math,
 };
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 /// A point is an `[x, y]` coordinate
 pub struct Point(pub [f64; 2]);
@@ -32,6 +35,7 @@ pub struct Circle {
     pub radius: f64,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]

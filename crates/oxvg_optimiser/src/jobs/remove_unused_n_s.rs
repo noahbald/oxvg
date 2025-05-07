@@ -9,8 +9,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 /// Removes `xmlns` prefixed elements that are never referenced by a qualified name.
 ///
 /// # Correctness
@@ -125,25 +130,6 @@ impl<'arena, E: Element<'arena>> State<'arena, E> {
 impl Default for RemoveUnusedNS {
     fn default() -> Self {
         Self(true)
-    }
-}
-
-impl<'de> Deserialize<'de> for RemoveUnusedNS {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let enabled = bool::deserialize(deserializer)?;
-        Ok(Self(enabled))
-    }
-}
-
-impl Serialize for RemoveUnusedNS {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
     }
 }
 

@@ -24,8 +24,13 @@ struct State<'arena, E: Element<'arena>> {
     marker: PhantomData<&'arena ()>,
 }
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 /// For duplicate `<path>` elements, replaces it with a `<use>` that references a single
 /// `<path>` definition.
 ///
@@ -273,25 +278,6 @@ impl<'arena, E: Element<'arena>> State<'arena, E> {
                 paths.insert(key, vec![element.clone()]);
             }
         }
-    }
-}
-
-impl<'de> Deserialize<'de> for ReusePaths {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let enabled = bool::deserialize(deserializer)?;
-        Ok(Self(enabled))
-    }
-}
-
-impl Serialize for ReusePaths {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
     }
 }
 

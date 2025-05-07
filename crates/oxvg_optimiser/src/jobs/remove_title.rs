@@ -4,8 +4,13 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(transparent)]
 /// Removes the `<title>` element from the document.
 ///
 /// This may affect the accessibility of documents, where the title is used

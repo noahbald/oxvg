@@ -16,13 +16,14 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-oxvg_optimiser = { workspace = true }
+oxvg_optimiser = { workspace = true, features = ["wasm"] }
 oxvg_ast = { workspace = true }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true }
 serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
 typed-arena = { workspace = true }
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = { workspace = true }
 
 [dev-dependencies]

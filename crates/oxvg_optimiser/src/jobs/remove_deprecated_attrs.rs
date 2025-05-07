@@ -12,6 +12,9 @@ use oxvg_collections::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 const fn default_remove_unsafe() -> bool {
     false
 }
@@ -72,6 +75,7 @@ impl<'a> AttrStylesheet<'a> {
     }
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

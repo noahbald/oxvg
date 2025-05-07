@@ -22,6 +22,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ConvertCase {
@@ -29,6 +33,7 @@ pub enum ConvertCase {
     Lower,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +55,7 @@ pub enum Method {
     },
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -73,6 +79,7 @@ pub enum Method {
 /// If lightningcss fails to parse or serialize CSS values.
 pub struct ConvertColors {
     /// Specifies how colours should be converted.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub method: Option<Method>,
 }
 
@@ -199,7 +206,7 @@ impl Method {
             }
 
             _ => return Ok(false),
-        };
+        }
         Ok(true)
     }
 

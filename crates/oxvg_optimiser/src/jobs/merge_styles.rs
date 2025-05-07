@@ -15,6 +15,9 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[derive_where(Debug)]
 struct State<'arena, E: Element<'arena>> {
     first_style: RefCell<Option<E>>,
@@ -22,8 +25,10 @@ struct State<'arena, E: Element<'arena>> {
     marker: PhantomData<&'arena ()>,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 /// Merge multiple `<style>` elements into one
 ///
 /// # Correctness
@@ -157,25 +162,6 @@ impl<'arena, E: Element<'arena>> Default for State<'arena, E> {
             is_cdata: Cell::new(false),
             marker: PhantomData,
         }
-    }
-}
-
-impl<'de> Deserialize<'de> for MergeStyles {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let enabled = bool::deserialize(deserializer)?;
-        Ok(Self(enabled))
-    }
-}
-
-impl Serialize for MergeStyles {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
     }
 }
 

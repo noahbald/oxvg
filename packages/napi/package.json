@@ -14,7 +14,8 @@
     "version": "napi version"
   },
   "repository": {
-    "url": "https://github.com/noahbald/oxvg"
+    "url": "https://github.com/noahbald/oxvg",
+    "type": "git"
   },
   "keywords": [],
   "author": "",
