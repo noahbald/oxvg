@@ -23,6 +23,10 @@ use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +53,7 @@ use serde::{Deserialize, Serialize};
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ApplyTransforms {
     /// The level of precising at which to round transforms applied to the path data.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub transform_precision: Option<f64>,
     /// Whether or not to apply transforms to paths with a stroke.
     #[serde(default = "bool::default")]

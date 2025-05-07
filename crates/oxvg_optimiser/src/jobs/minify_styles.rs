@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{inline_styles, ContextFlags};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[cfg_attr(feature = "napi", napi)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum RemoveUnused {
@@ -22,6 +25,7 @@ pub enum RemoveUnused {
     Force,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +46,7 @@ pub enum RemoveUnused {
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MinifyStyles {
     /// Whether to remove styles with no matching elements.
+    #[cfg_attr(feature = "wasm", tsify(type = r#"boolean | "force""#, optional))]
     pub remove_unused: Option<RemoveUnused>,
 }
 
@@ -105,7 +110,7 @@ impl MinifyStyles {
         };
         if let Some(matched_selectors) = self.remove_unused_selectors(&mut css.rules, context) {
             css.rules = matched_selectors;
-        };
+        }
         let _ = css.minify(MinifyOptions::default());
         let css = match css.to_css(PrinterOptions {
             minify: true,

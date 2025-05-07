@@ -1,23 +1,6 @@
 //! Types for the configuration file usable by OXVG
-use clap::ValueEnum;
+use oxvg_optimiser::Extends;
 use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize, Serialize, Debug, Default, Clone, ValueEnum)]
-#[serde(rename_all = "camelCase")]
-/// A preset which the specified jobs can overwrite
-pub enum Extends {
-    /// A preset that contains no jobs.
-    None,
-    #[default]
-    /// The default preset.
-    /// Uses [`oxvg_optimiser::Jobs::default`]
-    Default,
-    /// The correctness preset. Produces a preset that is less likely to
-    /// visually change the document.
-    /// Uses [`oxvg_optimiser::Jobs::correctness`]
-    Safe,
-    // TODO: File(Path),
-}
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 /// The configuration for optimisation
@@ -38,23 +21,6 @@ pub struct Optimise {
 pub struct Config {
     /// The options for each job to override the specified preset.
     pub optimise: Option<Optimise>,
-}
-
-impl Extends {
-    fn jobs(&self) -> oxvg_optimiser::Jobs {
-        match self {
-            Extends::None => oxvg_optimiser::Jobs::none(),
-            Extends::Default => oxvg_optimiser::Jobs::default(),
-            Extends::Safe => oxvg_optimiser::Jobs::safe(),
-        }
-    }
-
-    /// Creates a configuration with the presets jobs extended by the given jobs.
-    pub fn extend(&self, jobs: &oxvg_optimiser::Jobs) -> oxvg_optimiser::Jobs {
-        let mut result = self.jobs();
-        result.extend(jobs);
-        result
-    }
 }
 
 impl Optimise {

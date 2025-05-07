@@ -26,6 +26,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::find_references;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -44,34 +48,49 @@ use crate::utils::find_references;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveHiddenElems {
     /// Whether to remove elements with `visibility` set to `hidden`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub is_hidden: Option<bool>,
     /// Whether to remove elements with `display` set to `none`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub display_none: Option<bool>,
     /// Whether to remove elements with `opacity` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub opacity_zero: Option<bool>,
     /// Whether to remove `<circle>` with `radius` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub circle_r_zero: Option<bool>,
     /// Whether to remove `<ellipse>` with `rx` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub ellipse_rx_zero: Option<bool>,
     /// Whether to remove `<ellipse>` with `ry` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub ellipse_ry_zero: Option<bool>,
     /// Whether to remove `<rect>` with `width` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub rect_width_zero: Option<bool>,
     /// Whether to remove `<rect>` with `height` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub rect_height_zero: Option<bool>,
     /// Whether to remove `<pattern>` with `width` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub pattern_width_zero: Option<bool>,
     /// Whether to remove `<pattern>` with `height` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub pattern_height_zero: Option<bool>,
     /// Whether to remove `<image>` with `width` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub image_width_zero: Option<bool>,
     /// Whether to remove `<image>` with `height` set to `0`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub image_height_zero: Option<bool>,
     /// Whether to remove `<path>` with empty `d`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub path_empty_d: Option<bool>,
     /// Whether to remove `<polyline>` with empty `points`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub polyline_empty_points: Option<bool>,
     /// Whether to remove `<polygon>` with empty `points`
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub polygon_empty_points: Option<bool>,
 }
 

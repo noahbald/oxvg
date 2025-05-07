@@ -13,6 +13,10 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ANIMATION_EVENT, DOCUMENT_EVENT, GRAPHICAL_EVENT};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]

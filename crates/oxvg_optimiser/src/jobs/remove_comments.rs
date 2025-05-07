@@ -4,6 +4,10 @@ use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -28,6 +32,7 @@ use serde_with::skip_serializing_none;
 pub struct RemoveComments {
     /// A list of regex patters to match against comments, where matching comments will
     /// not be removed from the document.
+    #[cfg_attr(feature = "wasm", tsify(type = "{ regex: string }", optional))]
     pub preserve_patterns: Option<Vec<PreservePattern>>,
 }
 

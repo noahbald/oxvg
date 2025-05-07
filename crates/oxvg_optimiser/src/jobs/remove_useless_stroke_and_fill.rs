@@ -16,6 +16,10 @@ use oxvg_ast::{
 use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

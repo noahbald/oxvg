@@ -22,6 +22,7 @@ optimise = ["format", "bitflags"]
 oxvg = ["dep:lightningcss", "dep:oxvg_ast"]
 parse = ["bitflags"]
 serde = ["dep:serde"]
+wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:tsify"]
 
 [dependencies]
 oxvg_ast = { workspace = true, optional = true }
@@ -31,7 +32,10 @@ log = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
 schemars = { version = "0.8.19", optional = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 ryu = { version = "1.0.18", optional = true }
 
 [dev-dependencies]

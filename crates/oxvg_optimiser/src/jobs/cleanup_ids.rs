@@ -16,6 +16,9 @@ use crate::utils::find_references;
 
 use super::ContextFlags;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[derive(Debug)]
 struct ReplaceCounter(String, usize);
 
@@ -44,6 +47,7 @@ struct State<'o, 'arena, E: Element<'arena>> {
     generated_id: RefCell<GeneratedId>,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -72,8 +76,10 @@ pub struct CleanupIds {
     /// Whether to minify ids
     pub minify: bool,
     /// Skips ids that match an item in the list
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub preserve: Option<Vec<String>>,
     /// Skips ids that start with a string matching a prefix in the list
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub preserve_prefixes: Option<Vec<String>>,
     #[serde(default = "bool::default")]
     /// Whether to run despite `<script>` or `<style>`

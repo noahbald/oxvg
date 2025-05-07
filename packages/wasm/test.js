@@ -1,7 +1,7 @@
-const test = require("node:test");
+const { test } = require("node:test");
 const assert = require("node:assert");
 
-const { optimise } = require("./dist/node/oxvg_wasm.js");
+const { optimise, extend } = require("./dist/node/oxvg_wasm.js");
 
 test("optimise basic svg", () => {
 	const result = optimise(
@@ -32,7 +32,7 @@ test("optimise with config", () => {
     <path fill="rgb(-255,100,500)"/>
     <path fill="none"/>
 </svg>`,
-		`{ "convertColors": { "method": "currentColor" } }`,
+		{ convertColors: { method: "currentColor" } },
 	);
 
 	assert.equal(

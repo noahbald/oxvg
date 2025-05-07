@@ -42,7 +42,51 @@ mod configuration;
 mod jobs;
 mod utils;
 
+use serde::{Deserialize, Serialize};
+
 pub use crate::jobs::*;
+
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "napi", napi(string_enum))]
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+/// A preset which the specified jobs can overwrite
+pub enum Extends {
+    /// A preset that contains no jobs.
+    None,
+    /// The default preset.
+    /// Uses [`oxvg_optimiser::Jobs::default`]
+    #[default]
+    Default,
+    /// The correctness preset. Produces a preset that is less likely to
+    /// visually change the document.
+    /// Uses [`oxvg_optimiser::Jobs::correctness`]
+    Safe,
+    // TODO: File(Path),
+}
+
+impl Extends {
+    /// Creates a configuration based on the variant.
+    pub fn jobs(&self) -> Jobs {
+        match self {
+            Extends::None => Jobs::none(),
+            Extends::Default => Jobs::default(),
+            Extends::Safe => Jobs::safe(),
+        }
+    }
+
+    /// Creates a configuration with the presets jobs extended by the given jobs.
+    pub fn extend(&self, jobs: &Jobs) -> Jobs {
+        let mut result = self.jobs();
+        result.extend(jobs);
+        result
+    }
+}
 
 #[cfg(test)]
 #[ctor::ctor]

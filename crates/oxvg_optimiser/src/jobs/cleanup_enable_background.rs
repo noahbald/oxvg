@@ -8,8 +8,13 @@ use serde::{Deserialize, Serialize};
 
 use super::ContextFlags;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 /// Cleans up `enable-background` attributes and styles. It will only remove it if
 /// - The document has no `<filter>` element; and
 /// - The value matches the document's width and height; or
@@ -87,7 +92,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
         if !self.contains_filter {
             element.remove_attribute_local(&enable_background_localname);
             return Ok(());
-        };
+        }
 
         let Some(enable_background) = element.get_attribute_local(&"enable-background".into())
         else {
@@ -153,25 +158,6 @@ impl EnableBackgroundDimensions<'_> {
 impl Default for CleanupEnableBackground {
     fn default() -> Self {
         Self(true)
-    }
-}
-
-impl<'de> Deserialize<'de> for CleanupEnableBackground {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let enabled = bool::deserialize(deserializer)?;
-        Ok(Self(enabled))
-    }
-}
-
-impl Serialize for CleanupEnableBackground {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
     }
 }
 

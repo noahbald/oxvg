@@ -5,6 +5,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -17,6 +21,7 @@ pub enum XMLNSOrder {
     Front,
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -36,8 +41,10 @@ pub enum XMLNSOrder {
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct SortAttrs {
     /// A list of attributes in a given order.
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub order: Option<Vec<String>>,
     /// The method for ordering xmlns attributes
+    #[cfg_attr(feature = "wasm", tsify(optional))]
     pub xmlns_order: Option<XMLNSOrder>,
 }
 

@@ -19,7 +19,7 @@ test = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxvg_optimiser = { workspace = true }
+oxvg_optimiser = { workspace = true, features = ["clap"] }
 oxvg_ast = { workspace = true, features = [
   "roxmltree",
   "selectors",
@@ -27,7 +27,7 @@ oxvg_ast = { workspace = true, features = [
 ] }
 
 anyhow = { workspace = true }
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { workspace = true }
 config = { version = "0.15", features = ["json", "json5"] }
 ignore = "0.4"
 log = { workspace = true }

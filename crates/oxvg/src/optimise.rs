@@ -15,12 +15,9 @@ use oxvg_ast::{
     serialize::{Indent, Node as _, Options},
     visitor::Info,
 };
-use oxvg_optimiser::Jobs;
+use oxvg_optimiser::{Extends, Jobs};
 
-use crate::{
-    args::RunCommand,
-    config::{Config, Extends},
-};
+use crate::{args::RunCommand, config::Config};
 
 #[derive(clap::Args, Debug)]
 pub struct Optimise {

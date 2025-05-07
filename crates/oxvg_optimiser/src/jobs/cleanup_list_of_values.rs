@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::cleanup_values::{self, CleanupValues, Mode};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

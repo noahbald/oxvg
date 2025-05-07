@@ -7,8 +7,13 @@ use oxvg_ast::{
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 /// For SVGs with a `viewBox` attribute, removes `<path>` element outside of it's bounds.
 ///
 /// Elements with `transform` are ignored, as they may be affected by animations.
@@ -192,25 +197,6 @@ impl ViewBoxData {
             width,
             height,
         })
-    }
-}
-
-impl<'de> Deserialize<'de> for RemoveOffCanvasPaths {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let enabled = bool::deserialize(deserializer)?;
-        Ok(Self(enabled))
-    }
-}
-
-impl Serialize for RemoveOffCanvasPaths {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
     }
 }
 

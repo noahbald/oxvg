@@ -16,7 +16,11 @@ const fn default_preserve_current_color() -> bool {
     false
 }
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Remove attributes based on whether it matches a pattern.

@@ -19,6 +19,9 @@ use oxvg_collections::{collections::REFERENCES_PROPS, regex::REFERENCES_URL};
 use regex::{Captures, Match};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 #[cfg(not(feature = "napi"))]
 type Generator = Box<fn(&Option<PrefixGeneratorInfo>) -> String>;
 
@@ -123,6 +126,7 @@ const fn default_prefix_class_names() -> bool {
     true
 }
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -146,6 +150,7 @@ pub struct PrefixIds {
     pub delim: String,
     #[serde(default)]
     /// A string or generator that resolves to a string
+    #[cfg_attr(feature = "wasm", tsify(type = "string | boolean | null"))]
     pub prefix: PrefixGenerator,
     #[serde(default = "default_prefix_ids")]
     /// Whether to prefix ids

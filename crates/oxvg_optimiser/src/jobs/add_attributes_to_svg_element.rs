@@ -8,6 +8,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +59,7 @@ use serde::{Deserialize, Serialize};
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct AddAttributesToSVGElement {
     /// Pairs of qualified names and attribute values that are assigned to the `svg`
+    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, string>"))]
     pub attributes: BTreeMap<String, String>,
 }
 
@@ -70,7 +75,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddAttributesToSVGElemen
 
         if !element.is_root() || name.as_ref() != "svg" {
             return Ok(());
-        };
+        }
 
         for (name, value) in &self.attributes {
             let name =

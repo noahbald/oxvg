@@ -6,6 +6,10 @@ use oxvg_path::{convert, geometry::MakeArcs, Path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
+#[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +72,7 @@ pub struct ConvertPathData {
     /// Controls whether to convert from curves to arcs
     pub make_arcs: MakeArcs,
     #[serde(default = "ConvertPrecision::default")]
+    #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
     /// Number of decimal places to round to.
     ///
     /// Precisions larger than 20 will be treated as 0.
