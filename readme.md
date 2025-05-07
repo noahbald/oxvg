@@ -2,7 +2,7 @@
 
 OXVG is an effort to create high-performance SVG tooling.
 
-It's planned to include transforming, optimising, and linting, all written in Rust.
+Bindings for [node](https://www.npmjs.com/package/@oxvg/napi) and [wasm](https://www.npmjs.com/package/@oxvg/wasm) are available through NPM.
 
 ## 🎯 Tools
 
@@ -10,11 +10,12 @@ The following tools will be available in a CLI binary.
 
 ### 🪶 Optimiser
 
-An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is in the works and is showing to be [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
+An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is available and runs [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
 
-Please be aware that this isn't an exact clone of SVGO and certain differences may be found. If you rely on stability, for the time being we recommend sticking to SVGO.
+The optimiser is based on SVGO, but please be aware that this isn't an exact clone of SVGO and certain differences may be found. If you rely on stability, for the time being we recommend sticking to SVGO.
 
 You can read more about these differences and why in [this wiki page](https://github.com/noahbald/oxvg/wiki/Optimiser#svgo-parity).
+Differences for any of the jobs are also documented with each struct/interface's declaration.
 
 ### 🤖 Transformer (Planned)
 
@@ -37,11 +38,13 @@ These are where the commands for our transformer will live and will contain a se
 
 This crate provides a set of traits that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
 
-There's currently an implementation with markup5ever's rcdom which can do the following
+There's currently an implementation that can be used with either the xml5ever or the roxmltree parser which can do the following.
 
 - Parse and serialize XML, SVG, and HTML documents
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
 - An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
+
+The AST is open for extension, so you can implement your own parser or document representation to get it working with the optimiser.
 
 #### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast/src/style.rs)
 
@@ -58,13 +61,13 @@ This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also b
 
 This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
 
-It's mostly complete and good to use in your application, though expect some changes as we may include feature to enable simple manipulations for paths in the future.
+Please expect some instability as we may add new features to enable simple manipulations for paths in the future.
 
 ## 💭 Other future ideas
 
 The future potential of this project is still undecided. The following may be available some point in the future.
 
-- NPX & NPM bindings
+- NPX bindings
 - A web frontend comparable to InkScape
 - A TUI frontend
 
