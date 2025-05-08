@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/napi-linux-x64-gnu",
-  "version": "0.0.2",
+  "version": "0.0.3-0",
   "os": [
     "linux"
   ],

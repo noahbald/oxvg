@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/wasm",
-  "version": "0.0.2",
+  "version": "0.0.3-0",
   "description": "",
   "files": [
     "dist/oxvg_wasm_bg.wasm",
