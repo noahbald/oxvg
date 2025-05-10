@@ -211,4 +211,9 @@ fn test_path_parse() {
 
     // Parse arc with decimals as separators
     insta::assert_snapshot!(Path::parse("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
+
+    // Parse implicit arc
+    insta::assert_snapshot!(
+        Path::parse("m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8").unwrap()
+    );
 }

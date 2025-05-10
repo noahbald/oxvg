@@ -170,7 +170,7 @@ impl Parser {
             }
             // read next argument
             if matches!(
-                self.current_command,
+                self.current_command.as_explicit(),
                 command::ID::ArcTo | command::ID::ArcBy
             ) {
                 let number = match char {
