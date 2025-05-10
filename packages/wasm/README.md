@@ -19,8 +19,9 @@ An SVG optimiser similar to [SVGO](https://github.com/svg/svgo).
 Optimise svg with the default configuration
 
 ```js
-import { optimise } from "@oxvg/wasm";
+import init, { optimise } from "@oxvg/wasm";
 
+await init(); // must be called in browser context!
 const result = optimise(`<svg />`);
 ```
 

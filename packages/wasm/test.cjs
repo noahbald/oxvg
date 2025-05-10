@@ -1,7 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 
-const { optimise, extend } = require("./dist/node/oxvg_wasm.js");
+const { optimise, extend } = require("./dist/node/oxvg_wasm.cjs");
 
 test("optimise basic svg", () => {
 	const result = optimise(
