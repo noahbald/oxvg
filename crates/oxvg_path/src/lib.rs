@@ -208,4 +208,7 @@ fn test_path_parse() {
 
     // Should error when args are missing
     assert!(Path::parse("m1").is_err());
+
+    // Parse arc with decimals as separators
+    insta::assert_snapshot!(Path::parse("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
 }

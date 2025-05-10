@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_path/src/lib.rs
+expression: "Path::parse(\"m-0,1a20.8 20.8 0 0 0 5.2.6\").unwrap()"
+---
+m0 1a20.8 20.8 0 0 0 5.2.6

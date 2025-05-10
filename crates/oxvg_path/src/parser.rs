@@ -181,6 +181,7 @@ impl Parser {
                     '0' if (3..=4).contains(&self.args_len) => 0.0,
                     '1' if (3..=4).contains(&self.args_len) => 1.0,
                     '+' | '-' | '.' | 'e' => {
+                        self.had_decminal = self.had_decminal || char == '.';
                         self.current_number.push(char);
                         continue;
                     }
