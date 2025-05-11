@@ -131,18 +131,18 @@ pub fn curve_to_shorthand(
     match item.command {
         command::Data::CubicBezierBy(c) => match prev.command {
             // c + c -> c + s
-            command::Data::CubicBezierBy(prev_c)
+            command::Data::CubicBezierBy(prev_c) => {
                 if f64::abs(c[0] + prev_c[2] - prev_c[4]) < *error
-                    && f64::abs(c[1] + prev_c[3] - prev_c[5]) < *error =>
-            {
-                item.command = command::Data::SmoothBezierBy([c[2], c[3], c[4], c[5]]);
+                    && f64::abs(c[1] + prev_c[3] - prev_c[5]) < *error
+                {
+                    item.command = command::Data::SmoothBezierBy([c[2], c[3], c[4], c[5]]);
+                }
             }
             // s + c -> s + s
-            command::Data::SmoothBezierBy(s)
-                if f64::abs(c[0] + s[0] - s[2]) < *error
-                    && f64::abs(c[1] + s[1] - s[3]) < *error =>
-            {
-                item.command = command::Data::SmoothBezierBy([c[2], c[3], c[4], c[5]]);
+            command::Data::SmoothBezierBy(s) => {
+                if f64::abs(c[0] + s[0] - s[2]) < *error && f64::abs(c[1] + s[1] - s[3]) < *error {
+                    item.command = command::Data::SmoothBezierBy([c[2], c[3], c[4], c[5]]);
+                }
             }
             // ? + c -> ? + s
             _ if c[0].abs() < *error && c[1].abs() < *error => {
@@ -152,11 +152,12 @@ pub fn curve_to_shorthand(
         },
         command::Data::QuadraticBezierBy(q) => match prev.command {
             // q + q -> q + t
-            command::Data::QuadraticBezierBy(prev_q)
+            command::Data::QuadraticBezierBy(prev_q) => {
                 if f64::abs(q[0] + prev_q[0] - prev_q[2]) < *error
-                    && f64::abs(q[1] + prev_q[1] - prev_q[3]) < *error =>
-            {
-                item.command = command::Data::SmoothQuadraticBezierBy([q[2], q[3]]);
+                    && f64::abs(q[1] + prev_q[1] - prev_q[3]) < *error
+                {
+                    item.command = command::Data::SmoothQuadraticBezierBy([q[2], q[3]]);
+                }
             }
             // t + q -> t + t
             command::Data::SmoothQuadraticBezierBy(_) => {
