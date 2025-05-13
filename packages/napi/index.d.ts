@@ -474,6 +474,25 @@ export interface ConvertShapeToPath {
 }
 
 /**
+ * Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
+ *
+ * Note that this will deduplicate any plugins listed.
+ *
+ * # Errors
+ *
+ * If a config file cannot be deserialized into jobs. This may fail even if
+ * the config is valid for SVGO, such as if
+ *
+ * - The config contains custom plugins
+ * - The plugin parameters are incompatible with OXVG
+ * - The underlying deserialization process fails
+ *
+ * If you believe an errors should be fixed, please raise an issue
+ * [here](https://github.com/noahbald/oxvg/issues)
+ */
+export declare function convertSvgoConfig(config?: Array<any> | undefined | null): Jobs
+
+/**
  * Merge transforms and convert to shortest form.
  *
  * # Correctness
@@ -508,6 +527,12 @@ export interface ConvertTransform {
   /** Whether to merge transforms. */
   collapseIntoOne: boolean
 }
+
+/**
+ * Returns the given config with omitted options replaced with the config provided by `extends`.
+ * I.e. acts like `{ ...extends, ...config }`
+ */
+export declare function extend(extend: Extends, config?: Jobs | undefined | null): Jobs
 
 /** A preset which the specified jobs can overwrite */
 export declare const enum Extends {
@@ -734,16 +759,44 @@ export interface MoveGroupAttrsToElems {
 }
 
 /**
- * Optimise an SVG document using the provided config.
- *
- * The config extends the default preset when `extends` is unspecified.
+ * Optimise an SVG document using the provided config
  *
  * # Errors
  * - If the document fails to parse
  * - If any of the optimisations fail
  * - If the optimised document fails to serialize
+ *
+ * # Examples
+ *
+ * Optimise svg with the default configuration
+ *
+ * ```js
+ * import { optimise } from "@oxvg/napi";
+ *
+ * const result = optimise(`<svg />`);
+ * ```
+ *
+ * Or, provide your own config
+ *
+ * ```js
+ * import { optimise } from "@oxvg/napi";
+ *
+ * // Only optimise path data
+ * const result = optimise(`<svg />`, { convertPathData: {} });
+ * ```
+ *
+ * Or, extend a preset
+ *
+ * ```js
+ * import { optimise, extend, Extends } from "@oxvg/napi";
+ *
+ * const result = optimise(
+ *     `<svg />`,
+ *     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
+ * );
+ * ```
  */
-export declare function optimise(svg: string, config?: Jobs | undefined | null, extend?: Extends | undefined | null): string
+export declare function optimise(svg: string, config?: Jobs | undefined | null): string
 
 /**
  * Runs a series of checks to more confidently be sure the document won't break

@@ -1164,6 +1164,8 @@ dependencies = [
  "ctor 0.4.2",
  "napi-build",
  "napi-sys",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

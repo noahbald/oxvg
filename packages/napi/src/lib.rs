@@ -67,11 +67,31 @@ pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Statu
 #[allow(clippy::needless_pass_by_value)]
 /// Returns the given config with omitted options replaced with the config provided by `extends`.
 /// I.e. acts like `{ ...extends, ...config }`
-pub fn extend(extends: Extends, config: Option<Jobs>) -> Jobs {
+pub fn extend(extend: Extends, config: Option<Jobs>) -> Jobs {
   match config {
-    Some(ref jobs) => extends.extend(jobs),
-    None => extends.jobs(),
+    Some(ref jobs) => extend.extend(jobs),
+    None => extend.jobs(),
   }
+}
+
+#[napi]
+/// Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
+///
+/// Note that this will deduplicate any plugins listed.
+///
+/// # Errors
+///
+/// If a config file cannot be deserialized into jobs. This may fail even if
+/// the config is valid for SVGO, such as if
+///
+/// - The config contains custom plugins
+/// - The plugin parameters are incompatible with OXVG
+/// - The underlying deserialization process fails
+///
+/// If you believe an errors should be fixed, please raise an issue
+/// [here](https://github.com/noahbald/oxvg/issues)
+pub fn convert_svgo_config(config: Option<Vec<serde_json::Value>>) -> Result<Jobs, Error<Status>> {
+  Jobs::from_svgo_plugin_config(config).map_err(generic_error)
 }
 
 #[allow(clippy::needless_pass_by_value)]

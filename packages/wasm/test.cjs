@@ -1,7 +1,11 @@
-const { test } = require("node:test");
+const { test, describe } = require("node:test");
 const assert = require("node:assert");
 
-const { optimise, extend } = require("./dist/node/oxvg_wasm.cjs");
+const {
+	optimise,
+	extend,
+	convertSvgoConfig,
+} = require("./dist/node/oxvg_wasm.cjs");
 
 test("optimise basic svg", () => {
 	const result = optimise(
@@ -20,7 +24,7 @@ test("optimise basic svg", () => {
 	assert.equal(result, `<svg xmlns="http://www.w3.org/2000/svg"/>`);
 });
 
-test("optimise with config", () => {
+test("optimise with config", async () => {
 	const result = optimise(
 		`<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should convert to currentColor -->
@@ -39,4 +43,51 @@ test("optimise with config", () => {
 		result,
 		`<svg xmlns="http://www.w3.org/2000/svg"><!-- Should convert to currentColor --><g color="currentColor"/><g color="currentColor"/><g color="none"/><path fill="currentColor"/><path fill="currentColor"/><path fill="currentColor"/><path fill="none"/></svg>`,
 	);
+
+	await describe("convertSvgoConfig", () => {
+		test("nullish falls back to default", () => {
+			const result = convertSvgoConfig();
+			assert.deepEqual(result, extend("default"));
+		});
+
+		test("empty", () => {
+			const result = convertSvgoConfig([]);
+			assert.deepEqual(result, extend("none"));
+		});
+
+		test("without parameters", () => {
+			const result = convertSvgoConfig([{ name: "inlineStyles" }]);
+			/** @type {import("./dist/node/oxvg_wasm.d.ts").Jobs} */
+			const expected = {
+				inlineStyles: {
+					onlyMatchedOnce: true,
+					removeMatchedSelectors: true,
+					useMqs: ["", "screen"],
+					usePseudos: [""],
+				},
+			};
+			assert.deepEqual(result, expected);
+		});
+
+		test("with parameters", () => {
+			const result = convertSvgoConfig([
+				{
+					name: "inlineStyles",
+					params: {
+						onlyMatchedOnce: false,
+					},
+				},
+			]);
+			/** @type {import("./dist/node/oxvg_wasm.d.ts").Jobs} */
+			const expected = {
+				inlineStyles: {
+					onlyMatchedOnce: false,
+					removeMatchedSelectors: true,
+					useMqs: ["", "screen"],
+					usePseudos: [""],
+				},
+			};
+			assert.deepEqual(result, expected);
+		});
+	});
 });

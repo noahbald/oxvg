@@ -56,6 +56,87 @@ macro_rules! jobs {
                 Ok(count)
             }
 
+            /// Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
+            ///
+            /// Note that this will deduplicate any plugins listed.
+            ///
+            /// # Errors
+            ///
+            /// If a config file cannot be deserialized into jobs. This may fail even if
+            /// the config is valid for SVGO, such as if
+            ///
+            /// - The config contains custom plugins
+            /// - The plugin parameters are incompatible with OXVG
+            /// - The underlying deserialization process fails
+            ///
+            /// If you believe an errors should be fixed, please raise an issue
+            /// [here](https://github.com/noahbald/oxvg/issues)
+            pub fn from_svgo_plugin_config(value: Option<Vec<serde_json::Value>>) -> Result<Self, serde_json::Error> {
+                use serde::de::Error as _;
+
+                let Some(plugins) = value else { return Ok(Self::default()) };
+
+                let to_snake_case = |name: &str| {
+                    let mut output = String::with_capacity(name.len());
+                    for char in name.chars() {
+                        if char.is_lowercase() {
+                            output.push(char);
+                        } else {
+                            output.push('_');
+                            output.extend(char.to_lowercase());
+                        }
+                    }
+                    output
+                };
+
+                let mut oxvg_config = serde_json::Map::new();
+                for plugin in plugins {
+                    if let serde_json::Value::String(svgo_name) = plugin {
+                        if svgo_name == "preset-default" {
+                            macro_rules! is_default {
+                                ($_name:ident $_job:ident $_default:ident) => {
+                                    oxvg_config.insert(
+                                        String::from(stringify!($_name)),
+                                        serde_json::to_value($_job::default())?
+                                    )
+                                };
+                                ($_name:ident $_job:ident) => { () };
+                            }
+                            $(is_default!($name $job $($default)?);)+
+                            continue;
+                        }
+                        let name = to_snake_case(&svgo_name);
+                        match name.as_str() {
+                            $(stringify!($name) => oxvg_config.insert(
+                                svgo_name,
+                                serde_json::to_value($job::default())?
+                            ),)+
+                            _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                        };
+                    } else if let serde_json::Value::Object(mut plugin) = plugin {
+                        let svgo_name = plugin.remove("name").ok_or_else(|| serde_json::Error::missing_field("name"))?;
+                        let serde_json::Value::String(svgo_name) = svgo_name else {
+                            return Err(serde_json::Error::custom("expected name to be string"));
+                        };
+                        let params = plugin.remove("params");
+                        if let Some(params) = params {
+                            oxvg_config.insert(svgo_name, params);
+                        } else {
+                            let name = to_snake_case(&svgo_name);
+                            match name.as_str() {
+                                $(stringify!($name) => oxvg_config.insert(
+                                    svgo_name,
+                                    serde_json::to_value($job::default())?
+                                ),)+
+                                _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                            };
+                        }
+                    }
+                }
+
+                serde_json::from_value(serde_json::Value::Object(oxvg_config))
+            }
+
             /// Overwrites `self`'s fields with the `Some` fields of `other`
             pub fn extend(&mut self, other: &Self) {
                 $(if other.$name.is_some() {
