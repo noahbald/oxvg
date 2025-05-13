@@ -43,3 +43,15 @@ const result = optimise(
     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
 );
 ```
+
+You can even make use of your existing SVGO config
+
+```js
+import { optimise, convertSvgoConfig } from "@oxvg/napi";
+import { config } from "./svgo.config.js";
+
+const result = optimise(
+    `<svg />`,
+    convertSvgoConfig(config.plugins),
+)
+```

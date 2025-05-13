@@ -373,6 +373,8 @@ if (!nativeBinding) {
 module.exports.PreservePattern = nativeBinding.PreservePattern
 module.exports.RemoveAttrs = nativeBinding.RemoveAttrs
 module.exports.ConvertCase = nativeBinding.ConvertCase
+module.exports.convertSvgoConfig = nativeBinding.convertSvgoConfig
+module.exports.extend = nativeBinding.extend
 module.exports.Extends = nativeBinding.Extends
 module.exports.optimise = nativeBinding.optimise
 module.exports.RemoveUnused = nativeBinding.RemoveUnused

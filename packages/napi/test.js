@@ -6,6 +6,8 @@ const {
 	Extends,
 	RemoveAttrs,
 	PreservePattern,
+	convertSvgoConfig,
+	extend,
 } = require("./index.js");
 
 test("optimise basic svg", () => {
@@ -38,7 +40,6 @@ test("optimise with config", () => {
     <path fill="none"/>
 </svg>`,
 		{ convertColors: { method: { type: "CurrentColor" } } },
-		Extends.None,
 	);
 
 	assert.equal(
@@ -70,7 +71,6 @@ test.describe("options requiring constructors", () => {
 					},
 				},
 			},
-			Extends.None,
 		);
 
 		assert.equal(
@@ -87,7 +87,6 @@ test.describe("options requiring constructors", () => {
 			{
 				removeAttrs: new RemoveAttrs(["path:fill"], ":", true),
 			},
-			Extends.None,
 		);
 
 		assert.equal(
@@ -97,14 +96,57 @@ test.describe("options requiring constructors", () => {
 	});
 
 	test("removeComments", () => {
-		const result = optimise(
-			`<svg><!-- foo --><!-- bar --></svg>`,
-			{
-				removeComments: { preservePatterns: [new PreservePattern("^\\s+foo")] },
-			},
-			Extends.None,
-		);
+		const result = optimise(`<svg><!-- foo --><!-- bar --></svg>`, {
+			removeComments: { preservePatterns: [new PreservePattern("^\\s+foo")] },
+		});
 
 		assert.equal(result, `<svg><!-- foo --></svg>`);
+	});
+
+	describe("convertSvgoConfig", () => {
+		test("nullish falls back to default", () => {
+			const result = convertSvgoConfig();
+			assert.deepEqual(result, extend(Extends.Default));
+		});
+
+		test("empty", () => {
+			const result = convertSvgoConfig([]);
+			assert.deepEqual(result, extend(Extends.None));
+		});
+
+		test("without parameters", () => {
+			const result = convertSvgoConfig([{ name: "inlineStyles" }]);
+			/** @type {import("./index.js").Jobs} */
+			const expected = {
+				inlineStyles: {
+					onlyMatchedOnce: true,
+					removeMatchedSelectors: true,
+					useMqs: ["", "screen"],
+					usePseudos: [""],
+				},
+			};
+			assert.deepEqual(result, expected);
+		});
+
+		test("with parameters", () => {
+			const result = convertSvgoConfig([
+				{
+					name: "inlineStyles",
+					params: {
+						onlyMatchedOnce: false,
+					},
+				},
+			]);
+			/** @type {import("./index.js").Jobs} */
+			const expected = {
+				inlineStyles: {
+					onlyMatchedOnce: false,
+					removeMatchedSelectors: true,
+					useMqs: ["", "screen"],
+					usePseudos: [""],
+				},
+			};
+			assert.deepEqual(result, expected);
+		});
 	});
 });

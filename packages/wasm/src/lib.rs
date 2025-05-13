@@ -63,6 +63,35 @@ pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
     .map_err(|err| err.to_string())
 }
 
+#[wasm_bindgen(js_name = convertSvgoConfig)]
+/// Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
+///
+/// Note that this will deduplicate any plugins listed.
+///
+/// # Errors
+///
+/// If a config file cannot be deserialized into jobs. This may fail even if
+/// the config is valid for SVGO, such as if
+///
+/// - The config contains custom plugins
+/// - The plugin parameters are incompatible with OXVG
+/// - The underlying deserialization process fails
+///
+/// If you believe an errors should be fixed, please raise an issue
+/// [here](https://github.com/noahbald/oxvg/issues)
+pub fn convert_svgo_config(config: Option<Vec<JsValue>>) -> Result<Jobs, String> {
+    if let Some(config) = config {
+        let config = config
+            .into_iter()
+            .map(serde_wasm_bindgen::from_value::<serde_json::Value>)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|err| err.to_string());
+        Jobs::from_svgo_plugin_config(Some(config?)).map_err(|err| err.to_string())
+    } else {
+        Jobs::from_svgo_plugin_config(None).map_err(|err| err.to_string())
+    }
+}
+
 #[wasm_bindgen]
 #[allow(clippy::needless_pass_by_value)]
 /// Returns the given config with omitted options replaced with the config provided by `extends`.
