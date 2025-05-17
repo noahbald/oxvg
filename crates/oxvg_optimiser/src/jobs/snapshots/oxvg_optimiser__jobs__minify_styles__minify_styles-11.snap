@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
+expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 172.87 43.39\">\n  <defs>\n    <style>.cls-1{fill:#fff;}.cls-2{fill:#6bc49c;}</style>\n  </defs>\n  <g>\n    <g>\n      <circle class=\"cls-1\" cx=\"0\" cy=\"20\" r=\"10\"/>\n      <circle class=\"cls-2\" cx=\"20\" cy=\"20\" r=\"10\"/>\n      <circle class=\"cls-2\" cx=\"40\" cy=\"20\" r=\"10\"/>\n    </g>\n  </g>\n</svg>\n\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172.87 43.39">
+    <defs>
+        <style>
+            .cls-1{fill:#fff}.cls-2{fill:#6bc49c}
+        </style>
+    </defs>
+    <g>
+        <g>
+            <circle class="cls-1" cx="0" cy="20" r="10"/>
+            <circle class="cls-2" cx="20" cy="20" r="10"/>
+            <circle class="cls-2" cx="40" cy="20" r="10"/>
+        </g>
+    </g>
+</svg>
