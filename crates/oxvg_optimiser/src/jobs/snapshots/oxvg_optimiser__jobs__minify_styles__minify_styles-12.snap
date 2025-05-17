@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
+expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 50\">\n    <!-- preserved pseudo-classes aren't removed -->\n    <style>\n        :root {\n            background: #fff;\n        }\n    </style>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- preserved pseudo-classes aren't removed -->
+    <style>
+        :root{background:#fff}
+    </style>
+</svg>
