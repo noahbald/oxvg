@@ -409,5 +409,19 @@ fn minify_styles() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "minifyStyles": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- preserved pseudo-classes aren't removed -->
+    <style>
+        :root {
+            background: #fff;
+        }
+    </style>
+</svg>"#
+        ),
+    )?);
+
     Ok(())
 }

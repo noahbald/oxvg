@@ -92,7 +92,7 @@ pub struct InlineStyles {
     pub use_mqs: Vec<String>,
     /// What pseudo-classes and pseudo-elements to use. An empty string signifies all non-pseudo
     /// classes and non-pseudo elements.
-    /// Using `["*"]` will match all pseudo-elements
+    /// Using `["*"]` will match all pseudo-elements and pseudo-classes.
     #[serde(default = "default_use_pseudos")]
     pub use_pseudos: Vec<String>,
 }
@@ -664,24 +664,24 @@ impl InlineStyles {
             log::debug!("selector has pseudo-element: {selector:?}");
             return true;
         }
-        if selector
-            .iter()
-            .filter(|p| !matches!(p, selector::Component::NonTSPseudoClass(_)))
-            .map(|p| format!("{p:?}"))
-            .filter(|p| use_any_pseudo || self.use_pseudos.contains(p))
-            .any(|p| PRESERVED_PSEUDOS.contains(p.as_str()))
+        if !use_any_pseudo
+            && selector
+                .iter()
+                .map(|p| format!("{p:?}"))
+                .filter(|p| p.starts_with(':'))
+                .any(|p| !self.use_pseudos.contains(&p) && PRESERVED_PSEUDOS.contains(&p[1..]))
         {
-            log::debug!("selector has pseudo-class: {selector:?}");
-            return true;
+            log::debug!("selector has disallowed pseudo: {selector:?}");
+            return false;
         }
 
         let Some(mut token) = selector
             .iter()
             .map(|p| format!("{p:?}"))
-            .filter(|p| !use_any_pseudo || !self.use_pseudos.contains(p))
+            .filter(|p| !p.starts_with(':') || PRESERVED_PSEUDOS.contains(&p[1..]))
             .last()
         else {
-            log::debug!("selector doesn't end with a static token: {selector:?}");
+            log::debug!("selector doesn't contain a non-pseudo token: {selector:?}");
             return true;
         };
         let token_type = match token.chars().next() {
@@ -720,7 +720,7 @@ impl InlineStyles {
                 }
                 Token::Other => {
                     m.local_name().as_str() == token.as_str()
-                        || !PRESERVED_PSEUDOS.contains(token.as_str())
+                        || (use_any_pseudo && PRESERVED_PSEUDOS.contains(&token[1..]))
                 }
             })
             .count();
@@ -1465,6 +1465,20 @@ fn inline_styles() -> anyhow::Result<()> {
         }
     </style>
     <path fill="red" d="M5 5H10"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "inlineStyles": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- preserved pseudo-classes aren't inlined -->
+    <style>
+        :root {
+            background: #fff;
+        }
+    </style>
 </svg>"#
         ),
     )?);
