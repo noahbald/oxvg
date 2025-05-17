@@ -18,6 +18,10 @@ jobs:
             target: x86_64-pc-windows-msvc
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+          - host: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          # - host: ubuntu-24.04-arm
+          #   target: aarch64-unknown-linux-musl
           - host: macos-latest
             target: aarch64-apple-darwin
     name: build - ${{ matrix.settings.target }}
@@ -32,7 +36,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: ${{ matrix.settings.target }}
+          target: ${{ matrix.settings.target }}
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -44,9 +48,9 @@ jobs:
             target/
           key: ${{ matrix.settings.target }}-cargo-${{ matrix.settings.host }}
       - name: Run tests
-        run: cargo test --verbose --profile release
+        run: cargo test --verbose --profile release --target=${{ matrix.settings.target }}
       - name: Build
-        run: cargo build --verbose --bins --profile release
+        run: cargo build --verbose --bins --profile release --target=${{ matrix.settings.target }}
       - name: List
         run: ls -R
         shell: bash
@@ -55,12 +59,12 @@ jobs:
         if: ${{ contains(matrix.settings.target, 'windows') }}
         with:
           name: binary-${{ matrix.settings.target }}
-          path: target/release/oxvg.exe
+          path: target/${{ matrix.settings.target }}/release/oxvg.exe
           if-no-files-found: error
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         if: ${{ !contains(matrix.settings.target, 'windows') }}
         with:
           name: binary-${{ matrix.settings.target }}
-          path: target/release/oxvg
+          path: target/${{ matrix.settings.target }}/release/oxvg
           if-no-files-found: error
