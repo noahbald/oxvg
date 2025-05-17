@@ -152,6 +152,7 @@ impl MinifyStyles {
         let options = inline_styles::InlineStyles {
             use_mqs: vec!["*".to_string()],
             use_pseudos: vec!["*".to_string()],
+            only_matched_once: false,
             ..inline_styles::InlineStyles::default()
         };
         let state = inline_styles::State::new(&options);
@@ -387,6 +388,25 @@ fn minify_styles() -> anyhow::Result<()> {
     <path d=""/>
 </svg>"#
         ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "minifyStyles": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172.87 43.39">
+  <defs>
+    <style>.cls-1{fill:#fff;}.cls-2{fill:#6bc49c;}</style>
+  </defs>
+  <g>
+    <g>
+      <circle class="cls-1" cx="0" cy="20" r="10"/>
+      <circle class="cls-2" cx="20" cy="20" r="10"/>
+      <circle class="cls-2" cx="40" cy="20" r="10"/>
+    </g>
+  </g>
+</svg>
+"#
+        )
     )?);
 
     Ok(())
