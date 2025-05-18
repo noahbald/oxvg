@@ -1,4 +1,3 @@
-#![feature(core_float_math)]
 //! OXVG Path is a library used for parsing and minifying SVG paths.
 //! It supports parsing of any valid SVG path and provides optimisations close to exactly as SVGO.
 //!
