@@ -1,12 +1,11 @@
 //! Methods for filtering arc commands
-use core::f64;
-
 use crate::{
     command::{self, Position},
     convert::{self, filter},
     geometry::{Circle, Curve, MakeArcs, Point},
     Path,
 };
+use std::f64::consts::PI;
 
 #[derive(Debug)]
 /// The state of arc conversion
@@ -154,7 +153,7 @@ impl Convert {
             }
             .arc_angle(&prev_s_data);
             *angle += prev_angle;
-            if *angle > std::f64::consts::PI {
+            if *angle > PI {
                 arc.command.set_arg(3, 1.0);
             }
             *has_prev = 1;
@@ -220,15 +219,15 @@ impl Convert {
                 .expect("output is initialised with at least one arc, which is never removed")
                 .clone();
             *angle += relative_circle.arc_angle(&next_data);
-            if *angle - 2.0 * std::f64::consts::PI > 1e-3 {
+            if *angle - 2.0 * PI > 1e-3 {
                 // more than 360deg
                 break;
             };
-            if *angle > std::f64::consts::PI {
+            if *angle > PI {
                 arc.command.set_arg(3, 1.0);
             }
             arc_curves.push(next.clone());
-            if 2.0 * std::f64::consts::PI - *angle > 1e-3 {
+            if 2.0 * PI - *angle > 1e-3 {
                 // less than 360deg
                 arc.end = next.end;
                 arc.command.set_arg(5, arc.end.0[0] - arc.start.0[0]);
@@ -339,7 +338,7 @@ impl Convert {
         let [mut rx, mut ry, angle, large_arc_flage, sweep_flag, mut x2, mut y2] = *data;
         // for more information of where this Math came from visit:
         // https://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes
-        let rad = (f64::consts::PI / 180.0) * angle;
+        let rad = (PI / 180.0) * angle;
         let mut res = vec![];
 
         let (f1, mut f2, cx, cy) = if let Some(recursive) = recursive {
@@ -374,19 +373,19 @@ impl Convert {
             let f1 = f64::asin((y1 - cy) / ry);
             let f2 = f64::asin((y2 - cy) / ry);
 
-            let mut f1 = if x1 < cx { f64::consts::PI - f1 } else { f1 };
-            let mut f2 = if x2 < cx { f64::consts::PI - f2 } else { f2 };
+            let mut f1 = if x1 < cx { PI - f1 } else { f1 };
+            let mut f2 = if x2 < cx { PI - f2 } else { f2 };
             if f1 < 0.0 {
-                f1 += f64::consts::PI * 2.0;
+                f1 += PI * 2.0;
             }
             if f2 < 0.0 {
-                f2 += f64::consts::PI * 2.0;
+                f2 += PI * 2.0;
             }
             if sweep_flag != 0.0 && f1 > f2 {
-                f1 -= f64::consts::PI * 2.0;
+                f1 -= PI * 2.0;
             }
             if sweep_flag == 0.0 && f2 > f1 {
-                f2 -= f64::consts::PI * 2.0;
+                f2 -= PI * 2.0;
             }
             (f1, f2, cx, cy)
         };
@@ -451,7 +450,7 @@ fn rotate_y(x: f64, y: f64, rad: f64) -> f64 {
     x * f64::sin(rad) + y * f64::cos(rad)
 }
 
-const _120: f64 = (f64::consts::PI * 120.0) / 180.0;
+const _120: f64 = (PI * 120.0) / 180.0;
 
 #[test]
 #[allow(clippy::unreadable_literal)]
