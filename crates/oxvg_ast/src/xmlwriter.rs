@@ -88,6 +88,17 @@ pub enum Error {
     BadCDATA,
 }
 
+/// Whether to trim whitespace around text
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum TrimWhitespace {
+    /// Leave text as is
+    Never,
+    /// Trim everywhere except when within a text-content element, e.g. `<text>`, `<tspan>`, etc.
+    ExceptTextContent,
+    /// Trim everywhere
+    Always,
+}
+
 /// An XML node indention.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Indent {
@@ -143,6 +154,31 @@ pub struct Options {
     /// Default: 4 spaces
     pub indent: Indent,
 
+    /// Set whether to trim whitespace around text.
+    ///
+    /// # Examples
+    ///
+    /// `TrimWhitespace::Always`
+    ///
+    /// Before:
+    ///
+    /// ```text
+    /// <svg>
+    ///     <p> text </p>
+    /// </svg>
+    /// ```
+    ///
+    /// After:
+    ///
+    /// ```text
+    /// <svg>
+    ///     <p>text</p>
+    /// </svg>
+    ///
+    /// Default: `ExceptTextContent`
+    /// ```
+    pub trim_whitespace: TrimWhitespace,
+
     /// Set XML attributes indention.
     ///
     /// # Examples
@@ -196,6 +232,7 @@ impl Default for Options {
     fn default() -> Self {
         Options {
             use_single_quote: false,
+            trim_whitespace: TrimWhitespace::ExceptTextContent,
             indent: Indent::Spaces(4),
             attributes_indent: Indent::None,
             enable_self_closing: true,
@@ -652,7 +689,39 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// # Errors
     ///
     /// - When called not after `start_element()`.
-    pub fn write_text<T: Display + ?Sized>(&mut self, text: &T) -> Result {
+    pub fn write_text<T: Display + AsRef<str>>(&mut self, text: &T) -> Result {
+        let text = match self.opt.trim_whitespace {
+            TrimWhitespace::Never => text.as_ref(),
+            TrimWhitespace::ExceptTextContent => {
+                let parent = self.depth_stack.last();
+                if parent.as_ref().is_some_and(|data| {
+                    data.element_name.as_ref().is_some_and(|name| {
+                        name.prefix().is_none()
+                            && matches!(
+                                name.local_name().as_ref(),
+                                // TODO: use collections::TEXT_CONTENT?
+                                "a" | "alyGlyph"
+                                    | "altGlyphDef"
+                                    | "alyGlyphItem"
+                                    | "glyph"
+                                    | "glyphRef"
+                                    | "text"
+                                    | "textPath"
+                                    | "tref"
+                                    | "tspan"
+                            )
+                    })
+                }) {
+                    text.as_ref()
+                } else {
+                    text.as_ref().trim()
+                }
+            }
+            TrimWhitespace::Always => text.as_ref().trim(),
+        };
+        if text.is_empty() {
+            return Ok(());
+        }
         self.write_text_fmt(format_args!("{text}"))
     }
 

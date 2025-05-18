@@ -126,7 +126,7 @@ pub static TEXT_CONTENT: phf::Set<&'static str> = phf_set! {
 };
 /// See [`ElementGroup::TextContentChild`]
 pub static TEXT_CONTENT_CHILD: phf::Set<&'static str> =
-    phf_set! { "alyGlyph", "textPath", "tref", "tspan" };
+    phf_set! { "altGlyph", "textPath", "tref", "tspan" };
 /// See [`ElementGroup::LightSource`]
 pub static LIGHT_SOURCE: phf::Set<&'static str> = phf_set! {
     "feDiffuseLighting",

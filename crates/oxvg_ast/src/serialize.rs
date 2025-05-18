@@ -57,9 +57,8 @@ fn serialize_node<'arena, T: node::Node<'arena, Child = T>, W: Write>(
         }
         node::Type::Text => {
             if let Some(text) = node.text_content() {
-                let text = text.trim();
                 if !text.is_empty() {
-                    xml.write_text(text)?;
+                    xml.write_text(&text)?;
                 }
             }
         }
