@@ -1,6 +1,6 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_list_of_values.rs
-expression: "test_config(r#\"{ \"cleanupListOfValues\": {} }\"#,\n        Some(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should cleanup x/y values -->\n    <text x=\"23.2350 20.2268px 0.22356em 80.0005%\" y=\"23.2350 20.2268px 0.22356em 80.0005%\" dx=\"23.2350 20.2268px 0.22356em 80.0005%\" dy=\"23.2350 20.2268px 0.22356em 80.0005%\">\n        test\n    </text>\n</svg>\"#))?"
+expression: "test_config(r#\"{ \"cleanupListOfValues\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should cleanup x/y values -->\n    <text x=\"23.2350 20.2268px 0.22356em 80.0005%\" y=\"23.2350 20.2268px 0.22356em 80.0005%\" dx=\"23.2350 20.2268px 0.22356em 80.0005%\" dy=\"23.2350 20.2268px 0.22356em 80.0005%\">\n        test\n    </text>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should cleanup x/y values -->

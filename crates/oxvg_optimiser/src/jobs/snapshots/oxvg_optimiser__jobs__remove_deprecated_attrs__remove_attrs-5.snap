@@ -4,7 +4,5 @@ expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": {} }\"#,\nSome(r#\"<sv
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
     <!-- remove deprecated `xml:lang` in presence of `lang` -->
-    <text lang="en-US">
-        English text
-    </text>
+    <text lang="en-US">English text</text>
 </svg>
