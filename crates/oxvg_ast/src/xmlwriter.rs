@@ -42,9 +42,7 @@ fn main() -> Result {
     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
         .expect("xmlwriter always writes valid UTF-8"),
 "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'>
-    <text x='10' y='20'>
-        length is 5
-    </text>
+    <text x='10' y='20'>length is 5</text>
 </svg>
 "
     );
@@ -468,7 +466,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             self.write_new_line()?;
         }
 
-        if !self.preserve_whitespaces {
+        if !self.preserve_whitespaces && !self.is_text_content_element() {
             self.write_node_indent()?;
         }
 
@@ -656,11 +654,11 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     ///     let mut w = XmlWriter::new(Vec::<u8>::new(), Options::default());
     ///     w.start_element(QualName::new(None, "html".into()))?;
     ///     w.start_element(QualName::new(None, "p".into()))?;
-    ///     w.write_text("text".into())?;
+    ///     w.write_text("text")?;
     ///     w.end_element()?;
     ///     w.start_element(QualName::new(None, "p".into()))?;
     ///     w.set_preserve_whitespaces(true);
-    ///     w.write_text("text".into())?;
+    ///     w.write_text("text")?;
     ///     w.end_element()?;
     ///     w.set_preserve_whitespaces(false);
     ///     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
@@ -689,29 +687,11 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// # Errors
     ///
     /// - When called not after `start_element()`.
-    pub fn write_text<T: Display + AsRef<str>>(&mut self, text: &T) -> Result {
+    pub fn write_text<T: Display + AsRef<str>>(&mut self, text: T) -> Result {
         let text = match self.opt.trim_whitespace {
             TrimWhitespace::Never => text.as_ref(),
             TrimWhitespace::ExceptTextContent => {
-                let parent = self.depth_stack.last();
-                if parent.as_ref().is_some_and(|data| {
-                    data.element_name.as_ref().is_some_and(|name| {
-                        name.prefix().is_none()
-                            && matches!(
-                                name.local_name().as_ref(),
-                                // TODO: use collections::TEXT_CONTENT?
-                                "a" | "alyGlyph"
-                                    | "altGlyphDef"
-                                    | "alyGlyphItem"
-                                    | "glyph"
-                                    | "glyphRef"
-                                    | "text"
-                                    | "textPath"
-                                    | "tref"
-                                    | "tspan"
-                            )
-                    })
-                }) {
+                if self.is_text_content_element() {
                     text.as_ref()
                 } else {
                     text.as_ref().trim()
@@ -803,7 +783,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
                     self.fmt_writer.writer.write_all(b">").map_err(Error::IO)?;
                 }
 
-                if !self.preserve_whitespaces {
+                if !self.preserve_whitespaces && !is_text_content_element(Some(&depth)) {
                     self.write_new_line()?;
                     self.write_node_indent()?;
                 }
@@ -912,7 +892,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     }
 
     fn write_indent(&mut self, depth: usize, indent: Indent) -> io::Result<()> {
-        if indent == Indent::None || self.preserve_whitespaces {
+        if indent == Indent::None || self.preserve_whitespaces || self.is_text_content_element() {
             return Ok(());
         }
 
@@ -931,11 +911,39 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     }
 
     fn write_new_line(&mut self) -> Result {
-        if self.opt.indent != Indent::None && !self.preserve_whitespaces {
+        if self.opt.indent != Indent::None
+            && !self.preserve_whitespaces
+            && !self.is_text_content_element()
+        {
             self.fmt_writer.writer.write_all(b"\n").map_err(Error::IO)?;
         }
         Ok(())
     }
+
+    fn is_text_content_element(&self) -> bool {
+        is_text_content_element(self.depth_stack.last())
+    }
+}
+
+fn is_text_content_element<N: Name>(data: Option<&DepthData<N>>) -> bool {
+    data.is_some_and(|data| {
+        data.element_name.as_ref().is_some_and(|name| {
+            name.prefix().is_none()
+                && matches!(
+                    name.local_name().as_ref(),
+                    // TODO: use collections::TEXT_CONTENT?
+                    "a" | "alyGlyph"
+                        | "altGlyphDef"
+                        | "alyGlyphItem"
+                        | "glyph"
+                        | "glyphRef"
+                        | "text"
+                        | "textPath"
+                        | "tref"
+                        | "tspan"
+                )
+        })
+    })
 }
 
 impl Display for Error {
