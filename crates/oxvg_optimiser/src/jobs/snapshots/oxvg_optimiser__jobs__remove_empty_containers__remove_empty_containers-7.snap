@@ -10,7 +10,5 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r##\"
     <mask id="b" x="0" y="0" width="50" height="50">
         <g style="filter: url(#a)"/>
     </mask>
-    <text x="16" y="16" style="mask: url(#b)">
-        •ᴗ•
-    </text>
+    <text x="16" y="16" style="mask: url(#b)">•ᴗ•</text>
 </svg>
