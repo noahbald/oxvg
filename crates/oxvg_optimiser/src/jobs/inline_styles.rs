@@ -1,8 +1,19 @@
-use std::{cell::RefCell, collections::BTreeSet, marker::PhantomData};
+use std::{cell::RefCell, collections::HashSet, fmt::Debug, marker::PhantomData};
 
 use derive_where::derive_where;
 use itertools::Itertools;
-use lightningcss::{media_query, printer, rules, selector, stylesheet, traits::ToCss};
+use lightningcss::{
+    declaration::DeclarationBlock,
+    error::PrinterError,
+    printer::{Printer, PrinterOptions},
+    properties::Property,
+    rules::CssRule,
+    selector::{Component, Selector},
+    stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleAttribute, StyleSheet},
+    traits::ToCss,
+    visit_types,
+    visitor::{self, Visit, VisitTypes},
+};
 use oxvg_ast::{
     atom::Atom,
     attribute::Attr,
@@ -11,51 +22,19 @@ use oxvg_ast::{
     name::Name,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{PRESENTATION, PSEUDO_FUNCTIONAL, PSEUDO_TREE_STRUCTURAL};
+use parcel_selectors::attr::{AttrSelectorOperator, CaseSensitivity};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
 #[derive(Debug)]
-pub(crate) struct CapturedStyles<'arena, E: Element<'arena>> {
-    node: E,
-    css: String,
-    marker: PhantomData<&'arena ()>,
-}
-
-#[derive(Debug)]
 #[derive_where(Clone)]
 struct RemovedToken<'arena, E: Element<'arena>> {
     element: E,
-    token: Vec<E::Atom>,
+    tokens: Vec<Token<E::Atom, <E::Name as Name>::LocalName>>,
     specificity: u32,
-    declarations: String,
-}
-
-#[derive(Clone, Debug)]
-#[derive_where(Default)]
-pub(crate) struct RemovedTokens<'arena, E: Element<'arena>> {
-    classes: Vec<RemovedToken<'arena, E>>,
-    ids: Vec<RemovedToken<'arena, E>>,
-    other: Vec<RemovedToken<'arena, E>>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct ParentTokens {
-    presentation_attrs: BTreeSet<String>,
-    classes: BTreeSet<String>,
-    ids: BTreeSet<String>,
-}
-
-pub(crate) struct State<'o, 'arena, E: Element<'arena>> {
-    pub options: &'o InlineStyles,
-    pub styles: RefCell<Vec<CapturedStyles<'arena, E>>>,
-    pub removed_tokens: RefCell<RemovedTokens<'arena, E>>,
-    /// After running, a record of matching tokens in a selector that are an ancestor of a matching
-    /// element.
-    /// e.g. `.foo .bar` would record `.foo` as a parent token.
-    pub parent_tokens: RefCell<ParentTokens>,
+    declarations: E::Atom,
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -97,6 +76,131 @@ pub struct InlineStyles {
     pub use_pseudos: Vec<String>,
 }
 
+#[allow(clippy::type_complexity)]
+#[derive(Debug)]
+struct State<'o, 'arena, E: Element<'arena>> {
+    pub options: &'o InlineStyles,
+    /// Which of matching tokens in a selector have been removed from a style element, and may be removed from the matching element too.
+    pub inlined: RefCell<Vec<RemovedToken<'arena, E>>>,
+    /// Which of matching tokens in a selector that are a dynamic reference.
+    /// e.g. `.foo .bar` would record `.foo` as dynamic.
+    pub dynamically_referenced: RefCell<HashSet<Token<E::Atom, <E::Name as Name>::LocalName>>>,
+}
+
+#[derive(Debug)]
+struct FindRemovableTokens<'o, 'arena, E: Element<'arena>> {
+    /// A list specifying which media queries can be inlined
+    options: &'o InlineStyles,
+    /// Which tokens cannot be minified due to appearing as a parent token or within a preserved media query
+    dynamically_referenced: HashSet<Token<E::Atom, <E::Name as Name>::LocalName>>,
+    inlines: Vec<RemovedToken<'arena, E>>,
+}
+
+struct FindDynamicTokens<'a, 'o, 'arena, E: Element<'arena>> {
+    find_removable_tokens: &'a mut FindRemovableTokens<'o, 'arena, E>,
+    is_media_query: bool,
+}
+
+struct CollectMatchingSelectors<'a, 'o, 'arena, E: Element<'arena>> {
+    find_removable_tokens: &'a mut FindRemovableTokens<'o, 'arena, E>,
+    root: E,
+    marker: PhantomData<&'arena ()>,
+}
+
+struct InlinePresentationAttributes<'a, 'o, 'arena, E: Element<'arena>> {
+    state: &'a State<'o, 'arena, E>,
+    element: E,
+}
+
+#[derive(Clone, Hash, Eq, PartialEq)]
+struct AttrOperator(AttrSelectorOperator);
+
+impl Debug for AttrOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("AttrOperator")
+            .field(&match self.0 {
+                AttrSelectorOperator::Equal => "Equal",
+                AttrSelectorOperator::Includes => "Includes",
+                AttrSelectorOperator::DashMatch => "DashMatch",
+                AttrSelectorOperator::Prefix => "Prefix",
+                AttrSelectorOperator::Substring => "Substring",
+                AttrSelectorOperator::Suffix => "Suffix",
+            })
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum Token<A: Atom, LN: Atom> {
+    Class {
+        name: A,
+    },
+    ID {
+        name: A,
+    },
+    Attr {
+        name: LN,
+        value: Option<(A, AttrOperator, CaseSensitivity)>,
+    },
+    Name {
+        name: LN,
+    },
+    Other {
+        token: A,
+        is_preserved: bool,
+    },
+}
+
+impl<A: Atom, LN: Atom> From<&Component<'_>> for Token<A, LN> {
+    fn from(value: &Component<'_>) -> Self {
+        match value {
+            Component::Class(ident) => Token::Class {
+                name: ident.as_ref().into(),
+            },
+            Component::ID(ident) => Token::ID {
+                name: ident.as_ref().into(),
+            },
+            Component::LocalName(local_name) => Token::Name {
+                name: local_name.name.as_ref().into(),
+            },
+            Component::AttributeInNoNamespaceExists { local_name, .. } => Token::Attr {
+                name: local_name.as_ref().into(),
+                value: None,
+            },
+            Component::AttributeInNoNamespace {
+                local_name,
+                operator,
+                value,
+                case_sensitivity,
+                ..
+            } => Token::Attr {
+                name: local_name.as_ref().into(),
+                value: Some((
+                    value.as_ref().into(),
+                    AttrOperator(*operator),
+                    case_sensitivity.to_unconditional(false),
+                )),
+            },
+            token => Token::Other {
+                token: format!("{token:?}").into(),
+                is_preserved: matches!(
+                    token,
+                    // FIX: Root often used for theming
+                    // https://github.com/noahbald/oxvg/issues/153
+                    // | Component::Root
+                    Component::Is(_)
+                        | Component::Negation(_)
+                        | Component::Where(_)
+                        | Component::Has(_)
+                        | Component::Empty
+                        | Component::Nth(_)
+                        | Component::NthOf(_)
+                ),
+            },
+        }
+    }
+}
+
 impl Default for InlineStyles {
     fn default() -> Self {
         InlineStyles {
@@ -106,13 +210,6 @@ impl Default for InlineStyles {
             use_pseudos: default_use_pseudos(),
         }
     }
-}
-
-enum Token {
-    Class,
-    ID,
-    Attr,
-    Other,
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for InlineStyles {
@@ -152,11 +249,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
             log::debug!("Not merging style: empty");
             return Ok(());
         };
-        let parse_options = stylesheet::ParserOptions {
-            flags: stylesheet::ParserFlags::all(),
-            ..stylesheet::ParserOptions::default()
+        let parse_options = ParserOptions {
+            flags: ParserFlags::all(),
+            ..ParserOptions::default()
         };
-        let mut css = match stylesheet::StyleSheet::parse(&css, parse_options) {
+        let mut css = match StyleSheet::parse(&css, parse_options) {
             Ok(css) => css,
             Err(e) => {
                 log::debug!("Not merging style: {e}");
@@ -165,9 +262,9 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
         };
 
         if context.flags.contains(ContextFlags::within_foreign_object) {
-            if let Ok(css) = css.rules.to_css_string(printer::PrinterOptions {
+            if let Ok(css) = css.rules.to_css_string(PrinterOptions {
                 minify: true,
-                ..printer::PrinterOptions::default()
+                ..PrinterOptions::default()
             }) {
                 element
                     .clone()
@@ -177,47 +274,31 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
             return Ok(());
         }
 
-        let matches_styles = self
-            .options
-            .take_matching_selectors(&mut css.rules, context, self);
-        if let Ok(css_string) = css.rules.to_css_string(printer::PrinterOptions {
-            minify: true,
-            ..printer::PrinterOptions::default()
-        }) {
-            self.styles.borrow_mut().push(CapturedStyles {
-                node: element.clone(),
-                css: css_string,
-                marker: PhantomData,
-            });
+        let mut find_removable_tokens = FindRemovableTokens::new(self.options);
+        if let Err(err) = find_removable_tokens.inline_rules(&mut css, &context.root) {
+            log::debug!("Not merging style: {err}");
+            return Ok(());
         }
-        let Some(removed_styles) = matches_styles else {
-            log::debug!("no styles moved");
+        self.dynamically_referenced
+            .borrow_mut()
+            .extend(find_removable_tokens.dynamically_referenced);
+        self.inlined
+            .borrow_mut()
+            .extend(find_removable_tokens.inlines);
+        let Ok(()) = css.minify(MinifyOptions::default()) else {
             return Ok(());
         };
-        let removed_styles = flatten_media(removed_styles);
-
-        let new_removed_tokens = self.gather_removed_tokens(&removed_styles, context);
-        let mut removed_tokens = self.removed_tokens.borrow_mut();
-        removed_tokens.classes.extend(new_removed_tokens.classes);
-        removed_tokens.ids.extend(new_removed_tokens.ids);
-        removed_tokens.other.extend(new_removed_tokens.other);
-
-        // For any styles that didn't match, keep them in `<style>`
-        let css: String = css
-            .rules
-            .to_css_string(stylesheet::PrinterOptions {
-                minify: true,
-                ..stylesheet::PrinterOptions::default()
-            })
-            .expect("Unhandled error after updating inline styles");
-        if css.is_empty() {
-            log::debug!("all styles removed from element");
-            element.remove();
-        } else {
-            element
-                .clone()
-                .set_text_content(css.into(), &context.info.arena);
+        if let Ok(css) = css.rules.to_css_string(PrinterOptions {
+            minify: true,
+            ..PrinterOptions::default()
+        }) {
+            if css.is_empty() {
+                element.remove();
+            } else {
+                element.set_text_content(css.into(), &context.info.arena);
+            }
         }
+
         Ok(())
     }
 
@@ -227,520 +308,109 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
         _root: &mut E,
         _context: &Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        let removed_tokens = self.removed_tokens.borrow();
-        let parent_tokens = self.parent_tokens.borrow();
-        removed_tokens
-            .classes
+        let dynamically_referenced = self.dynamically_referenced.borrow();
+        let inlined = self.inlined.borrow();
+        let grouping = inlined
             .iter()
-            .for_each(|RemovedToken { element, token, .. }| {
-                let mut class_list = element.class_list();
-                for token in token {
-                    if parent_tokens.classes.contains(token.as_str()) {
-                        continue;
-                    }
-                    class_list.remove(token);
-                }
-            });
-        let id_name = &"id".into();
-        removed_tokens
-            .ids
-            .iter()
-            .for_each(|RemovedToken { element, token, .. }| {
-                if token.iter().any(|t| parent_tokens.ids.contains(t.as_str())) {
-                    return;
-                }
-                element.remove_attribute_local(id_name);
-            });
+            .into_group_map_by(|RemovedToken { element, .. }| element.clone());
+        let style = "style".into();
+        let initial_style: E::Atom = "".into();
+        for (element, mut group) in grouping {
+            group.sort_by(|a, b| a.specificity.cmp(&b.specificity));
 
-        // declarations, sorted by specificity, grouped by element
-        let style_chunks = removed_tokens
-            .ids
-            .iter()
-            .chain(removed_tokens.classes.iter())
-            .chain(removed_tokens.other.iter())
-            .sorted_by(|a, b| a.specificity.cmp(&b.specificity))
-            .sorted_by(|a, b| a.element.id().cmp(&b.element.id()))
-            .chunk_by(|r| r.element.id());
+            if !element.has_attribute_local(&style) {
+                element.set_attribute_local(style.clone(), initial_style.clone());
+            }
+            let mut style_attr = element
+                .get_attribute_node_local_mut(&style)
+                .expect("style should have been initialised");
+            let original_inline_style = style_attr.value().clone();
+            style_attr.push(&";".into());
+            for RemovedToken { declarations, .. } in &group {
+                style_attr.push(declarations);
+                style_attr.push(&";".into());
+            }
+            style_attr.push(&original_inline_style);
 
-        for (_, chunk) in &style_chunks {
-            let mut group_element = None;
-            let mut style = String::new();
-            chunk.into_iter().for_each(
-                |RemovedToken {
-                     element,
-                     declarations,
-                     ..
-                 }| {
-                    group_element = Some(element);
-                    style.push_str(declarations.as_str());
-                    style.push(';');
-                },
-            );
-            let group_element = group_element.expect("chunks shouldn't be empty");
-            let style_name = "style".into();
-            let original_inline_styles = group_element
-                .get_attribute_local(&style_name)
-                .map(|a| a.to_string())
-                .unwrap_or_default();
-            style.push_str(&original_inline_styles);
-            let mut css = match stylesheet::StyleAttribute::parse(
-                &style,
-                stylesheet::ParserOptions::default(),
-            ) {
-                Ok(css) => css,
-                Err(e) => {
-                    log::warn!("failed to move styles for element: {e}");
-                    continue;
-                }
-            };
-            css.minify(stylesheet::MinifyOptions::default());
-            let printer_options = printer::PrinterOptions {
-                minify: true,
-                ..printer::PrinterOptions::default()
-            };
-            let Ok(style) = css.declarations.to_css_string(printer_options) else {
-                log::warn!("failed to move styles for element");
+            let style_attr_value = style_attr.value().clone();
+            drop(style_attr);
+            let Ok(mut css) = StyleAttribute::parse(&style_attr_value, ParserOptions::default())
+            else {
                 continue;
             };
-            if style.is_empty() {
-                group_element.remove_attribute_local(&style_name);
+            css.visit(&mut InlinePresentationAttributes {
+                state: self,
+                element: element.clone(),
+            })?;
+            css.minify(MinifyOptions::default());
+            let Ok(css_string) = css.declarations.to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            }) else {
+                continue;
+            };
+            if css_string.is_empty() {
+                drop(css);
+                element.remove_attribute_local(&style);
             } else {
-                group_element.set_attribute_local(style_name, style.into());
+                drop(css);
+                element.set_attribute_local(style.clone(), css_string.as_str().into());
             }
 
-            css.declarations
-                .declarations
-                .iter()
-                .chain(css.declarations.important_declarations.iter())
-                .for_each(|f| {
-                    let id = f.property_id();
-                    let name = id.name();
-                    if !PRESENTATION.contains(name) {
-                        return;
+            for RemovedToken {
+                tokens, element, ..
+            } in group
+            {
+                for token in tokens {
+                    if dynamically_referenced.contains(token) {
+                        continue;
                     }
-                    if parent_tokens.presentation_attrs.iter().any(|s| s == name) {
-                        return;
+                    match token {
+                        Token::Class { name } => element.class_list().remove(name),
+                        Token::ID { .. } => {
+                            element.remove_attribute_local(&"id".into());
+                        }
+                        _ => {}
                     }
-                    let name = <E::Attr as Attr>::Name::parse(name);
-                    group_element.remove_attribute(&name);
-                });
+                }
+            }
         }
         Ok(())
     }
 }
 
-impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
-    pub fn new(options: &'o InlineStyles) -> Self {
+impl<'o, 'arena, E: Element<'arena>> FindRemovableTokens<'o, 'arena, E> {
+    fn new(options: &'o InlineStyles) -> Self {
         Self {
             options,
-            styles: RefCell::new(vec![]),
-            removed_tokens: RefCell::new(RemovedTokens::default()),
-            parent_tokens: RefCell::new(ParentTokens::default()),
+            dynamically_referenced: HashSet::new(),
+            inlines: Vec::new(),
         }
     }
 
-    fn gather_removed_tokens(
-        &self,
-        styles: &rules::CssRuleList,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> RemovedTokens<'arena, E> {
-        let mut removed_classes = vec![];
-        let mut removed_ids = vec![];
-        let mut removed_others = vec![];
+    fn inline_rules(
+        &mut self,
+        stylesheet: &mut StyleSheet<'_, '_>,
+        root: &E,
+    ) -> Result<(), anyhow::Error> {
+        // First pass to find dynamic tokens, which will skip inlining.
+        stylesheet.visit(self)?;
+        // Second pass will take matching selectors from the stylesheet
+        let mut collect_matching_selectors = CollectMatchingSelectors {
+            find_removable_tokens: self,
+            root: root.clone(),
+            marker: PhantomData,
+        };
+        stylesheet.visit(&mut collect_matching_selectors)?;
 
-        styles.0.iter().for_each(|rule| match rule {
-            rules::CssRule::Media(media_rule) => {
-                self.gather_removed_tokens(&media_rule.rules, context);
-            }
-            rules::CssRule::Style(ref style_rule) => {
-                let mut selector = format!("{}", style_rule.selectors);
-                selector = self.options.strip_allowed_pseudos(selector);
-                let declarations =
-                    match style_rule
-                        .declarations
-                        .to_css_string(printer::PrinterOptions {
-                            minify: true,
-                            ..printer::PrinterOptions::default()
-                        }) {
-                        Ok(d) => d,
-                        Err(e) => {
-                            log::debug!("couldn't move unparseable declarations: {e:?}");
-                            return;
-                        }
-                    };
-                let selected: Vec<_> = match context.root.select(selector.as_str()) {
-                    Ok(i) => i,
-                    Err(e) => {
-                        log::debug!(r#"couldn't move invalid selector "{selector}": {e:?}"#);
-                        return;
-                    }
-                }
-                .collect();
-                if let Some(r) =
-                    Self::find_removed_classes(selected.iter(), style_rule, &declarations)
-                {
-                    removed_classes.extend(r);
-                } else if let Some(r) =
-                    Self::find_removed_ids(selected.iter(), style_rule, &declarations)
-                {
-                    removed_ids.extend(r);
-                } else if let Some(r) =
-                    Self::find_removed_others(selected.iter(), style_rule, &declarations)
-                {
-                    removed_others.extend(r);
-                }
-            }
-            _ => unreachable!(),
-        });
-        RemovedTokens {
-            classes: removed_classes,
-            ids: removed_ids,
-            other: removed_others,
-        }
-    }
-
-    fn find_removed_classes<'a>(
-        selected: impl Iterator<Item = &'a E>,
-        style_rule: &rules::style::StyleRule,
-        declarations: &str,
-    ) -> Option<Vec<RemovedToken<'arena, E>>>
-    where
-        E: 'a,
-    {
-        let matching_classes: Vec<(Vec<E::Atom>, u32)> = style_rule
-            .selectors
-            .0
-            .iter()
-            .map(|s| {
-                let matching_tokens: Vec<_> = s
-                    .iter()
-                    .take_while(|t| matches!(t, selector::Component::Class(_)))
-                    .collect();
-                let specificity = s.specificity();
-                (matching_tokens, specificity)
-            })
-            .filter(|(t, _)| !t.is_empty())
-            .map(|(t, s)| {
-                (
-                    t.into_iter()
-                        .map(|t| format!("{t:?}")[1..].into())
-                        .collect(),
-                    s,
-                )
-            })
-            .collect();
-
-        let selected = selected.filter_map(|m| {
-            let class_list = m.class_list();
-            if class_list.length() == 0 {
-                return None;
-            }
-            let (class, specificity) = matching_classes
-                .iter()
-                .find(|c| c.0.iter().all(|c| class_list.contains(c)))?;
-            Some(RemovedToken {
-                element: m.clone(),
-                token: class.clone(),
-                specificity: *specificity,
-                declarations: declarations.to_string(),
-            })
-        });
-        let output: Vec<_> = selected.collect();
-        if output.is_empty() {
-            None
-        } else {
-            Some(output)
-        }
-    }
-
-    fn find_removed_ids<'a>(
-        selected: impl Iterator<Item = &'a E>,
-        style_rule: &rules::style::StyleRule,
-        declarations: &str,
-    ) -> Option<Vec<RemovedToken<'arena, E>>>
-    where
-        E: 'a,
-    {
-        let matching_ids: Vec<(E::Atom, u32)> = style_rule
-            .selectors
-            .0
-            .iter()
-            .filter_map(|s| {
-                let last_token = s.iter().last()?;
-                let specificity = s.specificity();
-                Some((last_token, specificity))
-            })
-            .filter(|(t, _)| matches!(t, selector::Component::ID(_)))
-            .map(|(t, s)| (format!("{t:?}")[1..].into(), s))
-            .collect();
-
-        let id_name = &"id".into();
-        let selected = selected.filter_map(|m| {
-            let id = m.get_attribute_local(id_name)?;
-            let (id, specificity) = matching_ids
-                .iter()
-                .find(|(t, _)| t.as_ref() == id.as_ref())?;
-            Some(RemovedToken {
-                element: m.clone(),
-                token: vec![id.clone()],
-                specificity: *specificity,
-                declarations: declarations.to_string(),
-            })
-        });
-        let output: Vec<_> = selected.collect();
-        if output.is_empty() {
-            None
-        } else {
-            Some(output)
-        }
-    }
-
-    fn find_removed_others<'a>(
-        selected: impl Iterator<Item = &'a E>,
-        style_rule: &rules::style::StyleRule,
-        declarations: &str,
-    ) -> Option<Vec<RemovedToken<'arena, E>>>
-    where
-        E: 'a,
-    {
-        #[allow(clippy::redundant_closure_for_method_calls)]
-        let matching: Vec<u32> = style_rule
-            .selectors
-            .0
-            .iter()
-            .filter(|s| {
-                !matches!(
-                    s.iter().last(),
-                    Some(selector::Component::ID(_) | selector::Component::Class(_))
-                )
-            })
-            .map(|s| s.specificity())
-            .collect();
-
-        let output: Vec<_> = selected
-            .flat_map(|m| {
-                matching.iter().map(|s| RemovedToken {
-                    element: m.clone(),
-                    token: vec![],
-                    specificity: *s,
-                    declarations: declarations.to_string(),
-                })
-            })
-            .collect();
-        if output.is_empty() {
-            None
-        } else {
-            Some(output)
-        }
+        Ok(())
     }
 }
 
-fn flatten_media(css: rules::CssRuleList) -> rules::CssRuleList {
-    rules::CssRuleList(
-        css.0
-            .into_iter()
-            .flat_map(|rule| {
-                let rules::CssRule::Media(rules::media::MediaRule { rules, .. }) = rule else {
-                    return vec![rule];
-                };
-                rules.0
-            })
-            .collect(),
-    )
-}
-
-impl InlineStyles {
-    pub(crate) fn take_matching_selectors<'arena, 'a, 'o, E: Element<'arena>>(
-        &self,
-        css: &mut rules::CssRuleList<'a>,
-        context: &Context<'arena, '_, '_, E>,
-        state: &State<'o, 'arena, E>,
-    ) -> Option<rules::CssRuleList<'a>> {
-        let mut removed = rules::CssRuleList(vec![]);
-        let mut matching_elements = vec![];
-
-        css.0.retain_mut(|rule| match rule {
-            rules::CssRule::Media(media_rule) => {
-                let query = &media_rule.query;
-                let debug_query = query.to_css_string(printer::PrinterOptions::default());
-                if !self.is_media_query_useable(query) {
-                    log::debug!("media query not useable: {debug_query:?}");
-                    return true;
-                }
-                let Some(removed_media) =
-                    self.take_matching_selectors(&mut media_rule.rules, context, state)
-                else {
-                    log::debug!("nothing removed from query: {debug_query:?}");
-                    return true;
-                };
-                removed
-                    .0
-                    .push(rules::CssRule::Media(rules::media::MediaRule {
-                        query: query.clone(),
-                        rules: removed_media,
-                        loc: media_rule.loc,
-                    }));
-                !media_rule.rules.0.is_empty()
-            }
-            #[allow(clippy::default_trait_access)]
-            rules::CssRule::Style(style_rule) => {
-                let mut parent_tokens = state.parent_tokens.borrow_mut();
-                let mut removed_selector = style_rule.clone();
-                let mut selector = format!("{}", style_rule.selectors);
-                selector = self.strip_allowed_pseudos(selector);
-                let matches = match context
-                    .root
-                    .select(selector.as_str())
-                    .map(std::iter::Iterator::collect::<Vec<_>>)
-                {
-                    Ok(matches) => matches,
-                    Err(e) => {
-                        log::debug!("{e:?}: {selector}");
-                        return true;
-                    }
-                };
-                let new_parent_tokens = find_parent_attrs(style_rule);
-                parent_tokens.classes.extend(new_parent_tokens.classes);
-                parent_tokens.ids.extend(new_parent_tokens.ids);
-                if !new_parent_tokens.presentation_attrs.is_empty() {
-                    parent_tokens
-                        .presentation_attrs
-                        .extend(new_parent_tokens.presentation_attrs);
-                    log::debug!("selector has presentation attr");
-                    return true;
-                }
-
-                removed_selector.selectors.0 = Default::default();
-                style_rule.selectors.0.retain_mut(|s| {
-                    if self.is_selector_removeable(s, &mut removed_selector, &matches) {
-                        !self.remove_matched_selectors
-                    } else {
-                        true
-                    }
-                });
-                removed.0.push(rules::CssRule::Style(removed_selector));
-                matching_elements.extend(matches);
-                if style_rule.selectors.0.is_empty() {
-                    !self.remove_matched_selectors
-                } else {
-                    true
-                }
-            }
-            _ => true,
-        });
-        if removed.0.is_empty() {
-            None
-        } else {
-            Some(removed)
-        }
-    }
-
-    fn is_media_query_useable(&self, media_rule: &media_query::MediaList) -> bool {
-        if self.use_mqs.is_empty() {
-            return false;
-        }
-        if self.use_mqs.first().expect("previously checked is_empty") == "*" {
-            return true;
-        }
-        let media_query = match media_rule.to_css_string(printer::PrinterOptions::default()) {
-            Ok(media_query) => media_query,
-            Err(e) => {
-                log::debug!("failed to parse media_rule: {e}");
-                return false;
-            }
-        };
-        self.use_mqs.contains(&media_query)
-    }
-
-    fn is_selector_removeable<'arena, 'a, E: Element<'arena>>(
-        &self,
-        selector: &mut selector::Selector<'a>,
-        removed_selector: &mut rules::style::StyleRule<'a>,
-        matches: &[E],
-    ) -> bool {
-        let use_any_pseudo = self.use_pseudos.first().is_some_and(|s| s == "*");
-
-        if selector.has_pseudo_element() {
-            log::debug!("selector has pseudo-element: {selector:?}");
-            return true;
-        }
-        if !use_any_pseudo
-            && selector
-                .iter()
-                .map(|p| format!("{p:?}"))
-                .filter(|p| p.starts_with(':'))
-                .any(|p| !self.use_pseudos.contains(&p) && PRESERVED_PSEUDOS.contains(&p[1..]))
-        {
-            log::debug!("selector has disallowed pseudo: {selector:?}");
-            return false;
-        }
-
-        let Some(mut token) = selector
-            .iter()
-            .map(|p| format!("{p:?}"))
-            .filter(|p| !p.starts_with(':') || PRESERVED_PSEUDOS.contains(&p[1..]))
-            .last()
-        else {
-            log::debug!("selector doesn't contain a non-pseudo token: {selector:?}");
-            return true;
-        };
-        let token_type = match token.chars().next() {
-            Some('.') => {
-                token.remove(0);
-                Token::Class
-            }
-            Some('#') => {
-                token.remove(0);
-                Token::ID
-            }
-            Some('[') => {
-                token.pop();
-                token.remove(0);
-                Token::Attr
-            }
-            _ => Token::Other,
-        };
-        let id_name = &"id".into();
-        let token = token.into();
-        let match_count = matches
-            .iter()
-            .filter(|m| match token_type {
-                Token::Class => Element::has_class(*m, &token),
-                Token::ID => m
-                    .get_attribute_local(id_name)
-                    .is_some_and(|id| id.as_ref() == token.as_str()),
-                Token::Attr => {
-                    let Some((name, value)) = token.as_str().split_once('=') else {
-                        return false;
-                    };
-                    let Some(attr) = m.get_attribute_local(&name.into()) else {
-                        return false;
-                    };
-                    attr.as_str() == value
-                }
-                Token::Other => {
-                    m.local_name().as_str() == token.as_str()
-                        || (use_any_pseudo && PRESERVED_PSEUDOS.contains(&token[1..]))
-                }
-            })
-            .count();
-        log::debug!("selector {token:?} has matches: {match_count:?}");
-
-        let removeable = if self.only_matched_once {
-            match_count == 1
-        } else {
-            match_count > 0
-        };
-        if removeable {
-            log::debug!("selector {token:?} removed");
-            removed_selector.selectors.0.push(selector.clone());
-        }
-        removeable
-    }
-
+impl<'arena, E: Element<'arena>> CollectMatchingSelectors<'_, '_, 'arena, E> {
     fn strip_allowed_pseudos(&self, selector: String) -> String {
         let mut new_selector = None;
-        for pseudo in &self.use_pseudos {
+        for pseudo in &self.find_removable_tokens.options.use_pseudos {
             let Some(stripped) = new_selector
                 .unwrap_or(selector.as_str())
                 .strip_suffix(pseudo)
@@ -754,94 +424,298 @@ impl InlineStyles {
             None => selector,
         }
     }
-}
 
-fn find_parent_attrs(style_rule: &rules::style::StyleRule) -> ParentTokens {
-    macro_rules! get_selector_presentation_attrs {
-        ($iter:ident) => {
-            $iter
-                .filter_map(|item| match item {
-                    selector::Component::AttributeOther(a) => match a.namespace {
-                        None => Some(&a.local_name_lower),
-                        Some(_) => None,
+    #[allow(clippy::type_complexity)]
+    fn is_selector_removable(
+        &mut self,
+        selector: &mut Selector<'_>,
+        matches: &[E],
+    ) -> Option<Vec<Token<E::Atom, <E::Name as Name>::LocalName>>> {
+        let options = self.find_removable_tokens.options;
+        let use_any_pseudo = options.use_pseudos.first().is_some_and(|s| s == "*");
+
+        if selector.has_pseudo_element() {
+            log::debug!("selector has pseudo-element: {selector:?}");
+            return Some(Vec::with_capacity(0));
+        }
+        if selector.has_combinator() {
+            return None;
+        }
+        let simple_selector: Vec<_> = selector
+            .iter()
+            .map(Token::<E::Atom, <E::Name as Name>::LocalName>::from)
+            .collect();
+        if !use_any_pseudo
+            && !self.find_removable_tokens.options.use_pseudos.contains(
+                &simple_selector
+                    .iter()
+                    .filter_map(|p| match p {
+                        Token::Other {
+                            token,
+                            is_preserved: false,
+                        } => Some(token),
+                        _ => None,
+                    })
+                    .filter(|p| p.starts_with(':'))
+                    .join(""),
+            )
+        {
+            log::debug!("selector has disallowed pseudo: {simple_selector:?}");
+            return None;
+        }
+
+        let id_name = &"id".into();
+        let match_count = matches
+            .iter()
+            .filter(|m| {
+                simple_selector.iter().all(|token| match token {
+                    Token::Class { name } => m.has_class(name),
+                    Token::ID { name } => m
+                        .get_attribute_local(id_name)
+                        .is_some_and(|id| &*id == name),
+                    Token::Attr { name, value } => match value {
+                        Some((value, operator, sensitivity)) => {
+                            m.get_attribute_local(name).is_some_and(|atom| {
+                                operator.0.eval_str(atom.as_ref(), value, *sensitivity)
+                            })
+                        }
+                        None => m.get_attribute_local(name).is_some(),
                     },
-                    selector::Component::AttributeInNoNamespace { local_name, .. } => {
-                        Some(local_name)
+                    Token::Name { name } => m.local_name() == name,
+                    Token::Other {
+                        token,
+                        is_preserved,
+                    } => {
+                        *is_preserved
+                            || self
+                                .find_removable_tokens
+                                .options
+                                .use_pseudos
+                                .contains(&token.as_ref().to_string())
                     }
-                    selector::Component::AttributeInNoNamespaceExists {
-                        local_name_lower, ..
-                    } => Some(local_name_lower),
-                    _ => None,
                 })
-                .filter_map(|s| s.to_css_string(printer::PrinterOptions::default()).ok())
-                .filter(|s| PRESENTATION.contains(s.as_str()))
-        };
-    }
+            })
+            .count();
+        log::debug!("selector {simple_selector:?} has matches: {match_count:?}");
 
-    ParentTokens {
-        presentation_attrs: style_rule
-            .selectors
-            .0
-            .iter()
-            .flat_map(|s| {
-                let iter = &mut s.iter();
-                let mut attrs = vec![];
-                attrs.extend(get_selector_presentation_attrs!(iter));
-                while iter.next_sequence().is_some() {
-                    attrs.extend(get_selector_presentation_attrs!(iter));
-                }
-                attrs
-            })
-            .collect(),
-        classes: style_rule
-            .selectors
-            .0
-            .iter()
-            .flat_map(|s| {
-                let iter = &mut s.iter();
-                let mut classes = vec![];
-                iter.for_each(|_| ());
-                while iter.next_sequence().is_some() {
-                    classes.extend(
-                        iter.filter_map(|t| match t {
-                            selector::Component::Class(class) => Some(class),
-                            _ => None,
-                        })
-                        .map(|t| format!("{t}")),
-                    );
-                }
-                classes
-            })
-            .collect(),
-        ids: style_rule
-            .selectors
-            .0
-            .iter()
-            .flat_map(|s| {
-                let iter = &mut s.iter();
-                let mut ids = vec![];
-                iter.for_each(|_| ());
-                while iter.next_sequence().is_some() {
-                    ids.extend(
-                        iter.filter_map(|t| match t {
-                            selector::Component::ID(id) => Some(id),
-                            _ => None,
-                        })
-                        .map(|t| format!("{t}")),
-                    );
-                }
-                ids
-            })
-            .collect(),
+        let removable = if self.find_removable_tokens.options.only_matched_once {
+            match_count == 1
+        } else {
+            match_count > 0
+        };
+        if removable {
+            Some(simple_selector)
+        } else {
+            None
+        }
     }
 }
 
-impl<'arena, E: Element<'arena>> Clone for CapturedStyles<'arena, E> {
-    fn clone(&self) -> Self {
+impl<'arena, E: Element<'arena>> visitor::Visitor<'_>
+    for CollectMatchingSelectors<'_, '_, 'arena, E>
+{
+    type Error = PrinterError;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(RULES)
+    }
+
+    fn visit_rule(&mut self, rule: &mut CssRule) -> Result<(), Self::Error> {
+        let CssRule::Style(style) = rule else {
+            return rule.visit_children(self);
+        };
+
+        if !style.rules.0.is_empty() {
+            // treat nested selectors as dynamic
+            return Ok(());
+        }
+        let declarations: E::Atom = style
+            .declarations
+            .to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            })?
+            .into();
+
+        style.selectors.0.retain(|selector| {
+            let selector_iter = &mut selector.iter();
+            let tail: Vec<_> = selector_iter.map(Token::from).collect();
+            if tail.iter().any(|token| {
+                self.find_removable_tokens
+                    .dynamically_referenced
+                    .contains(token)
+            }) {
+                self.find_removable_tokens
+                    .dynamically_referenced
+                    .extend(tail);
+                while selector_iter.next_sequence().is_some() {
+                    self.find_removable_tokens
+                        .dynamically_referenced
+                        .extend(selector_iter.map(Token::from));
+                }
+                log::debug!("retained selector: dynamic reference used");
+                return true;
+            }
+            let Ok(selector_string) = selector.to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            }) else {
+                return true;
+            };
+            let selector_string = self.strip_allowed_pseudos(selector_string);
+            let Ok(matches) = self.root.select(&selector_string) else {
+                log::debug!("retained selector: no matches");
+                return true;
+            };
+            let matches: Vec<_> = matches.collect();
+            let Some(matching_tokens) = self.is_selector_removable(selector, &matches) else {
+                return true;
+            };
+            for m in matches {
+                self.find_removable_tokens.inlines.push(RemovedToken {
+                    element: m.clone(),
+                    tokens: matching_tokens.clone(),
+                    specificity: selector.specificity(),
+                    declarations: declarations.clone(),
+                });
+            }
+            false
+        });
+        if style.selectors.0.is_empty() {
+            style.declarations = DeclarationBlock::default();
+        }
+        Ok(())
+    }
+}
+
+impl<'arena, E: Element<'arena>> visitor::Visitor<'_> for FindRemovableTokens<'_, 'arena, E> {
+    type Error = PrinterError;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(RULES)
+    }
+
+    fn visit_rule(&mut self, rule: &mut CssRule) -> Result<(), Self::Error> {
+        let use_mqs = &self.options.use_mqs;
+        let mut find_dynamic_tokens = FindDynamicTokens {
+            find_removable_tokens: self,
+            is_media_query: false,
+        };
+        let options = PrinterOptions::default();
+        let media_query = match rule {
+            CssRule::Media(media) => {
+                format!("media {}", media.query.to_css_string(options)?)
+            }
+            CssRule::Supports(supports) => {
+                format!("supports {}", supports.condition.to_css_string(options)?)
+            }
+            CssRule::LayerBlock(layer) => match &layer.name {
+                Some(name) => format!("layer {}", name.to_css_string(options)?),
+                None => "layer".to_string(),
+            },
+            CssRule::Container(container) => match &container.name {
+                Some(name) => format!("container {}", name.to_css_string(options)?),
+                None => "container".to_string(),
+            },
+            CssRule::Scope(scope) => {
+                let mut result = String::from("scope");
+                let mut printer = Printer::new(&mut result, options);
+                if let Some(scope_start) = &scope.scope_start {
+                    printer.write_char('(')?;
+                    scope_start.to_css(&mut printer)?;
+                    printer.write_char(')')?;
+                }
+                if let Some(scope_end) = &scope.scope_end {
+                    printer.write_str(" to (")?;
+                    scope_end.to_css(&mut printer)?;
+                    printer.write_char(')')?;
+                }
+                result
+            }
+            CssRule::StartingStyle(_) => "starting-style".to_string(),
+            _ => {
+                rule.visit(&mut find_dynamic_tokens)?;
+                return Ok(());
+            }
+        };
+        if use_mqs.contains(&media_query) {
+            return Ok(());
+        }
+
+        // Mark full media query selectors as dynamic
+        find_dynamic_tokens.is_media_query = true;
+        rule.visit_children(&mut find_dynamic_tokens)
+    }
+}
+
+impl<'arena, E: Element<'arena>> visitor::Visitor<'_> for FindDynamicTokens<'_, '_, 'arena, E> {
+    type Error = PrinterError;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(RULES | SELECTORS)
+    }
+
+    fn visit_selector(&mut self, selector: &mut Selector) -> Result<(), Self::Error> {
+        let iter = &mut selector.iter();
+        // Tail of selector, mark tokens as dynamic when in media query
+        iter.for_each(|token| {
+            if self.is_media_query {
+                self.find_removable_tokens
+                    .dynamically_referenced
+                    .insert(token.into());
+            }
+        });
+        // Combinators, mark tokens as dynamic
+        while iter.next_sequence().is_some() {
+            iter.for_each(|token| {
+                self.find_removable_tokens
+                    .dynamically_referenced
+                    .insert(token.into());
+            });
+        }
+        Ok(())
+    }
+}
+
+impl<'arena, E: Element<'arena>> visitor::Visitor<'_>
+    for InlinePresentationAttributes<'_, '_, 'arena, E>
+{
+    type Error = String;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(PROPERTIES)
+    }
+
+    fn visit_property(&mut self, property: &mut Property<'_>) -> Result<(), Self::Error> {
+        let id = property.property_id();
+        let name = id.name();
+        let name = name.into();
+        if self
+            .state
+            .dynamically_referenced
+            .borrow()
+            .iter()
+            .filter_map(|token| match token {
+                Token::Attr { name, .. } => Some(name),
+                _ => None,
+            })
+            .any(|item| item == &name)
+        {
+            return Ok(());
+        }
+        if self.element.has_attribute_local(&name) {
+            self.element.remove_attribute_local(&name);
+        }
+        Ok(())
+    }
+}
+
+impl<'o, 'arena, E: Element<'arena>> State<'o, 'arena, E> {
+    pub fn new(options: &'o InlineStyles) -> Self {
         Self {
-            node: self.node.clone(),
-            css: self.css.clone(),
-            marker: PhantomData,
+            options,
+            inlined: RefCell::new(Vec::new()),
+            dynamically_referenced: RefCell::new(HashSet::new()),
         }
     }
 }
@@ -857,16 +731,6 @@ fn default_use_mqs() -> Vec<String> {
 }
 fn default_use_pseudos() -> Vec<String> {
     vec![String::new()]
-}
-
-lazy_static! {
-    static ref PRESERVED_PSEUDOS: BTreeSet<&'static str> = {
-        PSEUDO_FUNCTIONAL
-            .iter()
-            .chain(PSEUDO_TREE_STRUCTURAL.iter())
-            .map(AsRef::as_ref)
-            .collect()
-    };
 }
 
 #[test]
@@ -1128,7 +992,7 @@ fn inline_styles() -> anyhow::Result<()> {
     // NOTE: the minified version of the query must be specified, not the original
     // NOTE: lightningcss removes empty at-rules
     insta::assert_snapshot!(test_config(
-        r#"{ "inlineStyles": { "useMqs": ["only screen and (device-width >= 320px) and (device-width <= 480px) and (-webkit-device-pixel-ratio >= 2)"] } }"#,
+        r#"{ "inlineStyles": { "useMqs": ["media only screen and (device-width >= 320px) and (device-width <= 480px) and (-webkit-device-pixel-ratio >= 2)"] } }"#,
         Some(
             r#"<svg id="test" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 81.285 81.285">
     <!-- allow movement of matching useMqs -->

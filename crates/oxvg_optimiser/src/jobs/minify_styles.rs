@@ -1,26 +1,33 @@
+use std::{cell::RefCell, collections::HashSet};
+
 use lightningcss::{
     printer::PrinterOptions,
-    rules::CssRuleList,
-    stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleAttribute, StyleSheet},
+    rules::CssRule,
+    selector::Component,
+    stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
+    traits::ToCss as _,
+    visit_types,
+    visitor::{self, Visit as _, VisitTypes},
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::Attr,
+    attribute::Attr as _,
+    class_list::ClassList as _,
     element::Element,
     name::Name,
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
-use super::{inline_styles, ContextFlags};
+use super::ContextFlags;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
 #[cfg_attr(feature = "napi", napi)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub enum RemoveUnused {
     False,
+    #[default]
     True,
     Force,
 }
@@ -47,10 +54,37 @@ pub enum RemoveUnused {
 pub struct MinifyStyles {
     /// Whether to remove styles with no matching elements.
     #[cfg_attr(feature = "wasm", tsify(type = r#"boolean | "force""#, optional))]
-    pub remove_unused: Option<RemoveUnused>,
+    #[serde(default = "RemoveUnused::default")]
+    pub remove_unused: RemoveUnused,
 }
 
+#[derive(Debug)]
+struct State<'a, 'arena, E: Element<'arena>> {
+    options: &'a MinifyStyles,
+    style_elements: RefCell<HashSet<E>>,
+    elements_with_style: RefCell<HashSet<E>>,
+    tags_usage: RefCell<HashSet<<E::Name as Name>::LocalName>>,
+    ids_usage: RefCell<HashSet<E::Atom>>,
+    classes_usage: RefCell<HashSet<E::Atom>>,
+}
+
+struct StyleVisitor<'a, 'b, 'arena, E: Element<'arena>>(&'b State<'a, 'arena, E>);
+
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
+    type Error = String;
+
+    fn prepare(
+        &self,
+        document: &E,
+        info: &Info<'arena, E>,
+        _context_flags: &mut ContextFlags,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        State::new(self).start(&mut document.clone(), info, None)?;
+        Ok(PrepareOutcome::skip)
+    }
+}
+
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     type Error = String;
 
     fn prepare(
@@ -66,127 +100,154 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
     fn element(
         &self,
         element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        self.content(element, context);
-        Self::attr(element);
+        _context: &mut Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        if element.local_name().as_ref() == "style" && element.child_nodes_iter().next().is_some() {
+            self.style_elements.borrow_mut().insert(element.clone());
+        } else if element.has_attribute_local(&"style".into()) {
+            self.elements_with_style
+                .borrow_mut()
+                .insert(element.clone());
+        }
+
+        if matches!(self.options.remove_unused, RemoveUnused::False) {
+            return Ok(());
+        }
+
+        self.tags_usage
+            .borrow_mut()
+            .insert(element.local_name().clone());
+
+        if let Some(id) = element.get_attribute_local(&"id".into()) {
+            self.ids_usage.borrow_mut().insert(id.clone());
+        }
+
+        for class in element.class_list().iter() {
+            self.classes_usage.borrow_mut().insert(class.clone());
+        }
+
+        Ok(())
+    }
+
+    fn exit_document(
+        &self,
+        _document: &mut E,
+        context: &Context<'arena, '_, '_, E>,
+    ) -> Result<(), Self::Error> {
+        for style_element in self.style_elements.borrow().iter() {
+            let css_text = style_element
+                .text_content()
+                .expect("non-style element used");
+
+            let Ok(mut style_sheet) = StyleSheet::parse(&css_text, ParserOptions::default()) else {
+                continue;
+            };
+
+            let mut visitor = StyleVisitor(self);
+            match self.options.remove_unused {
+                RemoveUnused::True if !context.flags.intersects(ContextFlags::has_script_ref) => {
+                    style_sheet.visit(&mut visitor)?;
+                }
+
+                RemoveUnused::Force => style_sheet.visit(&mut visitor)?,
+                _ => {}
+            }
+
+            if style_sheet.minify(MinifyOptions::default()).is_err() {
+                continue;
+            }
+            let Ok(minified) = style_sheet.rules.to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            }) else {
+                continue;
+            };
+
+            if minified.is_empty() {
+                style_element.remove();
+            } else {
+                style_element.set_text_content(minified.into(), &context.info.arena);
+            }
+        }
+
+        for element_with_style in self.elements_with_style.borrow().iter() {
+            let mut style_attr = element_with_style
+                .get_attribute_node_local_mut(&"style".into())
+                .expect("element without style used");
+
+            let Ok(mut style_sheet) =
+                StyleAttribute::parse(style_attr.value(), ParserOptions::default())
+            else {
+                continue;
+            };
+            style_sheet.minify(MinifyOptions::default());
+            let Ok(minified) = style_sheet.declarations.to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            }) else {
+                continue;
+            };
+            drop(style_sheet);
+            let minified = minified.into();
+            style_attr.set_value(minified);
+        }
+
         Ok(())
     }
 }
 
-impl MinifyStyles {
-    fn content<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) {
-        let name = element.qual_name();
-        if name.prefix().is_some() {
-            return;
-        }
+impl<'i, 'arena, E: Element<'arena>> visitor::Visitor<'i> for StyleVisitor<'_, '_, 'arena, E> {
+    type Error = String;
 
-        if name.local_name().as_ref() != "style" {
-            return;
-        }
-
-        let Some(css) = element.text_content() else {
-            return;
-        };
-        if css.is_empty() {
-            return;
-        }
-        let mut css = match StyleSheet::parse(
-            &css,
-            ParserOptions {
-                flags: ParserFlags::all(),
-                ..ParserOptions::default()
-            },
-        ) {
-            Ok(css) => css,
-            Err(e) => {
-                log::debug!("failed to parse stylesheet: {e}");
-                return;
-            }
-        };
-        if let Some(matched_selectors) = self.remove_unused_selectors(&mut css.rules, context) {
-            css.rules = matched_selectors;
-        }
-        let _ = css.minify(MinifyOptions::default());
-        let css = match css.to_css(PrinterOptions {
-            minify: true,
-            ..PrinterOptions::default()
-        }) {
-            Ok(css) => css,
-            Err(e) => {
-                log::debug!("failed to print stylesheet: {e}");
-                return;
-            }
-        };
-
-        if css.code.is_empty() {
-            log::debug!("removing element: all styles removed");
-            element.remove();
-        } else {
-            element
-                .clone()
-                .set_text_content(css.code.into(), &context.info.arena);
-        }
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(RULES)
     }
 
-    fn remove_unused_selectors<'arena, 'a, E: Element<'arena>>(
-        &self,
-        css: &mut CssRuleList<'a>,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Option<CssRuleList<'a>> {
-        let remove_unused = if self.remove_unused != Some(RemoveUnused::Force)
-            && context.flags.contains(ContextFlags::has_script_ref)
-        {
-            Some(RemoveUnused::False)
-        } else {
-            self.remove_unused
+    fn visit_rule(&mut self, rule: &mut CssRule<'i>) -> Result<(), Self::Error> {
+        let CssRule::Style(style) = rule else {
+            return Ok(());
         };
-        if remove_unused.unwrap_or(default_remove_unused()) == RemoveUnused::False {
-            return None;
-        }
 
-        let options = inline_styles::InlineStyles {
-            use_mqs: vec!["*".to_string()],
-            use_pseudos: vec!["*".to_string()],
-            only_matched_once: false,
-            ..inline_styles::InlineStyles::default()
-        };
-        let state = inline_styles::State::new(&options);
-        options.take_matching_selectors(css, context, &state)
+        let tags_usage = self.0.tags_usage.borrow();
+        let ids_usage = self.0.ids_usage.borrow();
+        let classes_usage = self.0.classes_usage.borrow();
+
+        style.selectors.0.retain(|selector| {
+            let iter = &mut selector.iter();
+            if iter.any(|token| match token {
+                Component::LocalName(name) => tags_usage.contains(&name.name.as_ref().into()),
+                Component::ID(ident) => ids_usage.contains(&ident.as_ref().into()),
+                Component::Class(ident) => classes_usage.contains(&ident.as_ref().into()),
+                _ => true,
+            }) {
+                return true;
+            }
+            while iter.next_sequence().is_some() {
+                if iter.any(|token| match token {
+                    Component::LocalName(name) => tags_usage.contains(&name.name.as_ref().into()),
+                    Component::ID(ident) => ids_usage.contains(&ident.as_ref().into()),
+                    Component::Class(ident) => classes_usage.contains(&ident.as_ref().into()),
+                    _ => true,
+                }) {
+                    return true;
+                }
+            }
+            false
+        });
+        Ok(())
     }
+}
 
-    fn attr<'arena, E: Element<'arena>>(element: &E) {
-        let style_name = "style".into();
-        let Some(mut style) = element.get_attribute_node_local_mut(&style_name) else {
-            return;
-        };
-        let value = style.value().as_str();
-        let mut css_source = match StyleAttribute::parse(value, ParserOptions::default()) {
-            Ok(css) => css,
-            Err(e) => {
-                log::debug!("failed to parse attribute: {e}");
-                return;
-            }
-        };
-        css_source.minify(MinifyOptions::default());
-        let css = match css_source.to_css(PrinterOptions {
-            minify: true,
-            ..PrinterOptions::default()
-        }) {
-            Ok(css) => css,
-            Err(e) => {
-                log::debug!("failed to print style attribute: {e}");
-                return;
-            }
-        };
-        let css_atom = css.code.into();
-        drop(css_source);
-
-        style.set_value(css_atom);
+impl<'a, 'arena, E: Element<'arena>> State<'a, 'arena, E> {
+    fn new(options: &'a MinifyStyles) -> Self {
+        Self {
+            options,
+            style_elements: RefCell::new(HashSet::new()),
+            elements_with_style: RefCell::new(HashSet::new()),
+            tags_usage: RefCell::new(HashSet::new()),
+            ids_usage: RefCell::new(HashSet::new()),
+            classes_usage: RefCell::new(HashSet::new()),
+        }
     }
 }
 
@@ -221,10 +282,6 @@ impl Serialize for RemoveUnused {
             RemoveUnused::Force => "force".serialize(serializer),
         }
     }
-}
-
-const fn default_remove_unused() -> RemoveUnused {
-    RemoveUnused::True
 }
 
 #[test]
