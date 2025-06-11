@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{ops::DerefMut, sync::LazyLock};
 
 use oxvg_ast::{
     attribute::{Attr, Attributes},
@@ -43,11 +43,8 @@ pub trait CleanupValues {
             }
 
             let Some(captures) = NUMERIC_VALUES.captures(value) else {
-                if value.contains("new") {
-                    rounded_list.push("new".to_string());
-                } else {
-                    rounded_list.push(value.to_string());
-                }
+                self.get_mode()
+                    .handle_non_roundable(value, &mut rounded_list);
                 continue;
             };
 
@@ -149,6 +146,19 @@ impl Mode {
             Box::new(std::iter::once(value)) as Box<dyn Iterator<Item = &str>>
         }
     }
+
+    fn handle_non_roundable(&self, value: &str, rounded_list: &mut Vec<String>) {
+        match self {
+            Self::SingleValue => rounded_list.push(value.to_string()),
+            Self::List => {
+                if value.contains("new") {
+                    rounded_list.push("new".to_string());
+                } else {
+                    rounded_list.push(value.to_string());
+                }
+            }
+        }
+    }
 }
 
 pub fn convert_to_px(number: f64, unit: &str) -> f64 {
@@ -163,9 +173,9 @@ pub fn convert_to_px(number: f64, unit: &str) -> f64 {
         }
 }
 
-lazy_static! {
-    static ref SEPARATOR: regex::Regex = regex::Regex::new(r"\s+,?\s*|,\s*").unwrap();
-    static ref NUMERIC_VALUES: regex::Regex =
-        regex::Regex::new(r"^([-+]?\d*\.?\d+([eE][-+]?\d+)?)(px|pt|pc|mm|cm|m|in|ft|em|ex|%)?$")
-            .unwrap();
-}
+static SEPARATOR: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\s+,?\s*|,\s*").unwrap());
+static NUMERIC_VALUES: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"^([-+]?\d*\.?\d+([eE][-+]?\d+)?)(px|pt|pc|mm|cm|m|in|ft|em|ex|%)?$")
+        .unwrap()
+});
