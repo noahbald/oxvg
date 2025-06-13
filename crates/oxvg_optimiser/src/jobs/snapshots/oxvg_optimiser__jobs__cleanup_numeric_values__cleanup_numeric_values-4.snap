@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_numeric_values.rs
+expression: "test_config(r#\"{ \"cleanupNumericValues\": { \"floatPrecision\": 0 } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1052.4 744.1\">\n    <!-- Should round to zero decimal places -->\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1052 744">
+    <!-- Should round to zero decimal places -->
+</svg>

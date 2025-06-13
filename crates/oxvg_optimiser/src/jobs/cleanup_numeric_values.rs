@@ -123,5 +123,14 @@ fn cleanup_numeric_values() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupNumericValues": { "floatPrecision": 0 } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1052.4 744.1">
+    <!-- Should round to zero decimal places -->
+</svg>"#
+        )
+    )?);
+
     Ok(())
 }
