@@ -62,10 +62,12 @@ pub trait CleanupValues {
 
             let mut number = format!("{number:.float_precision$}");
             if leading_zero {
-                number = number
-                    .trim_end_matches('0')
-                    .trim_end_matches('.')
-                    .to_string();
+                if float_precision > 0 {
+                    number = number
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
+                        .to_string();
+                }
                 if number.starts_with("0.") {
                     number.remove(0);
                 } else if number.starts_with("-0.") {
