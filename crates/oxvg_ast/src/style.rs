@@ -895,8 +895,7 @@ impl SVGTransformList {
                         skip = true;
                     } else {
                         optimized.push(SVGTransform::Scale(-1.0, -1.0));
-                    };
-                    continue;
+                    }
                 }
                 SVGTransform::Rotate(..) => {
                     optimized.push(item.clone());
@@ -917,7 +916,7 @@ impl SVGTransformList {
                 }
                 SVGTransform::Matrix(_) => unreachable!(),
                 _ => optimized.push(item.clone()),
-            };
+            }
         }
 
         if optimized.is_empty() {
@@ -1021,7 +1020,7 @@ impl SVGTransform {
                 Precision::round_arg(p, &mut m.f);
             }
             SVGTransform::CssTransform(_) => {}
-        };
+        }
     }
 
     fn round_vec(transforms: &mut [Self], precision: &Precision) {
@@ -1197,7 +1196,7 @@ impl<'i> Parse<'i> for SVGTransform {
                 // SVG transforms allow whitespace between the function name and arguments, unlike CSS functions.
                 // So this may tokenize either as a function, or as an ident followed by a parenthesis block.
                 let function = input
-                    .try_parse(|input| input.expect_function().map(|f| f.clone()))
+                    .try_parse(|input| input.expect_function().cloned())
                     .or_else(|_| -> Result<_, ParseError<_>> {
                         let name = input.expect_ident_cloned()?;
                         input.skip_whitespace();
@@ -1270,7 +1269,7 @@ impl<'i> Parse<'i> for SVGTransform {
     }
 }
 
-fn skip_comma_and_whitespace<'i, 't>(input: &mut Parser<'i, 't>) {
+fn skip_comma_and_whitespace(input: &mut Parser<'_, '_>) {
     input.skip_whitespace();
     let _ = input.try_parse(Parser::expect_comma);
     input.skip_whitespace();
@@ -1749,7 +1748,7 @@ impl<'i> ComputedStyles<'i> {
                 };
                 if !select.matches_naive(&SelectElement::new(element.clone())) {
                     return;
-                };
+                }
                 let specificity = specificity + s.specificity();
                 self.add_declarations(&r.declarations, specificity, mode);
             }),
@@ -1995,7 +1994,7 @@ impl<'i> ComputedStyles<'i> {
 macro_rules! get_computed_styles_factory {
     ($item:ident) => {
         macro_rules! get_computed_styles {
-            // NOTE: Two branches should be identical, apart from $vp
+            // NOTE: Branches should be identical, apart from $vp
             ($ident:ident) => {
                 $item
                     .important_declarations

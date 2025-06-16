@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_one_stop_gradients.rs
+expression: "test_config(r#\"{ \"convertOneStopGradients\": true }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\"\n  xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" width=\"744.09448\" height=\"1052.3622\">\n  <!-- If a one-stop gradient has the color defined via both attribute and style, style takes precedence. -->\n  <defs>\n    <linearGradient id=\"a\">\n      <stop stop-color=\"#ff0000\" style=\"stop-color:#00ff00\"/>\n    </linearGradient>\n    <linearGradient x1=\"353.83112\" y1=\"396.85037\" x2=\"496.56262\" y2=\"396.85037\" id=\"b\" xlink:href=\"#a\"/>\n  </defs>\n  <rect width=\"150\" height=\"150\" x=\"350\" y=\"350\" style=\"fill:url(#b)\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="744.09448" height="1052.3622">
+    <!-- If a one-stop gradient has the color defined via both attribute and style, style takes precedence. -->
+    <rect width="150" height="150" x="350" y="350" style="fill:#0f0"/>
+</svg>

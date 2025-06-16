@@ -749,3 +749,12 @@ pub static EDITOR_NAMESPACES: phf::Set<&'static str> = phf_set!(
     "http://www.vector.evaxdesign.sk",
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 );
+/// SVG attributes that reference a color
+pub static COLORS_PROPS: phf::Set<&'static str> = phf_set!(
+    "color",
+    "fill",
+    "flood-color",
+    "lighting-color",
+    "stop-color",
+    "stroke"
+);
