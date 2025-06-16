@@ -4,11 +4,7 @@ OXVG is an effort to create high-performance SVG tooling.
 
 Bindings for [node](https://www.npmjs.com/package/@oxvg/napi) and [wasm](https://www.npmjs.com/package/@oxvg/wasm) are available through NPM.
 
-## 🧪 Playground
-
 You can try out OXVG right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
-
-It's a fork of [SVGOMG](https://jakearchibald.github.io/svgomg/) and great for quickly testing OXVG's Optimiser, and evaluating whether OXVG is right for you!
 
 ## 🎯 Tools
 
