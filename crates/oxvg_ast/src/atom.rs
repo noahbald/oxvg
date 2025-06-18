@@ -7,6 +7,7 @@ pub trait Atom:
     Eq
     + Display
     + PartialEq
+    + Ord
     + std::fmt::Debug
     + Clone
     + Default
@@ -27,6 +28,7 @@ impl<T> Atom for T where
     T: Eq
         + Display
         + PartialEq
+        + Ord
         + std::fmt::Debug
         + Clone
         + Default

@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_style_to_attrs.rs
+expression: "test_config(r#\"{ \"convertStyleToAttrs\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- cannot change broken attribute -->\n    <g style=\"    fill:#000; c\\olor: #fff; /**/illegal-'declaration/*'; -webkit-blah: 123  ; -webkit-trolo: 'lolo'; illegal2*/\"/>\n    <g style=\"font:15px serif\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- cannot change broken attribute -->
+    <g style="    fill:#000; c\olor: #fff; /**/illegal-'declaration/*'; -webkit-blah: 123  ; -webkit-trolo: 'lolo'; illegal2*/"/>
+    <g font="15px serif"/>
+</svg>
