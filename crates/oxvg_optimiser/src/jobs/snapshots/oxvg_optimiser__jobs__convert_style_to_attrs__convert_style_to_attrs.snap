@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_style_to_attrs.rs
+expression: "test_config(r#\"{ \"convertStyleToAttrs\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- move style to attributes -->\n    <g style=\"fill:#000;\"/>\n    <g style=\"font-family:'Helvetica Neue'\"/>\n    <g style=\"    fill:#000; color: #fff  ;  \"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- move style to attributes -->
+    <g fill="#000"/>
+    <g font-family="Helvetica Neue"/>
+    <g color="#fff" fill="#000"/>
+</svg>

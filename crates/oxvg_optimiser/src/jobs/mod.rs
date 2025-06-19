@@ -169,6 +169,7 @@ jobs! {
     add_classes_to_svg: AddClassesToSVG,
     cleanup_list_of_values: CleanupListOfValues,
     convert_one_stop_gradients: ConvertOneStopGradients,
+    convert_style_to_attrs: ConvertStyleToAttrs,
     remove_attributes_by_selector: RemoveAttributesBySelector,
     remove_attrs: RemoveAttrs,
     remove_dimensions: RemoveDimensions,

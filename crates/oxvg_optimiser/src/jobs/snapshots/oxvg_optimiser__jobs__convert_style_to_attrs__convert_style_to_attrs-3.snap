@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_style_to_attrs.rs
+expression: "test_config(r#\"{ \"convertStyleToAttrs\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- handle inline comments and urls -->\n    <g style=\"background/*-image*/:url(data:image/png;base64,iVBORw...)\"/>\n    <g style=\"fill:url(data:image/png;base64,iVBORw...)\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- handle inline comments and urls -->
+    <g style="background:url(data:image/png;base64,iVBORw...)"/>
+    <g fill="url(&quot;data:image/png;base64,iVBORw...&quot;)"/>
+</svg>
