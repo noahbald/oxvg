@@ -1,10 +1,11 @@
 [package]
 name = "oxvg"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+readme = "../../readme.md"
 keywords = ["svg", "svgo", "optimisation"]
 description = "Vector image toolchain."
 

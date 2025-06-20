@@ -1,8 +1,9 @@
 [package]
 name = "oxvg_lint"
-version = "0.1.0"
+version = "0.0.3"
 edition = "2021"
 authors.workspace = true
+readme = "../../readme.md"
 
 [lints]
 workspace = true

@@ -18,6 +18,7 @@ dbg_macro = "warn"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/noahbald/oxvg"
+readme = "readme.md"
 
 [workspace.dependencies]
 oxvg = { path = "crates/oxvg" }

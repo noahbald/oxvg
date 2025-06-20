@@ -1,10 +1,11 @@
 [package]
 name = "oxvg_collections"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+readme = "../../readme.md"
 keywords = ["svg"]
 description = "Collections of data and utilities about SVG"
 

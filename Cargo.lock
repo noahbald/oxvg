@@ -1149,7 +1149,7 @@ checksum = "b410bbe7e14ab526a0e86877eb47c6996a2bd7746f027ba551028c925390e4e9"
 
 [[package]]
 name = "oxvg"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -1165,7 +1165,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_actions"
-version = "0.1.0"
+version = "0.0.3"
 dependencies = [
  "insta",
  "rand",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "lazy_static",
  "oxvg_ast",
@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_lint"
-version = "0.1.0"
+version = "0.0.3"
 dependencies = [
  "markup5ever",
  "markup5ever_rcdom",
@@ -1231,7 +1231,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -1265,7 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "bitflags",
  "insta",
