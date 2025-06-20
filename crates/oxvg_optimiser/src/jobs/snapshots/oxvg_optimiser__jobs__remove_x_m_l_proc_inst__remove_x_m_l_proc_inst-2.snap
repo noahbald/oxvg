@@ -1,5 +1,5 @@
 ---
-source: crates/oxvg_optimiser/src/jobs/remove_xml_proc_inst.rs
+source: crates/oxvg_optimiser/src/jobs/remove_x_m_l_proc_inst.rs
 expression: "test_config(r#\"{ \"removeXmlProcInst\": true }\"#,\nSome(r#\"<?xml-stylesheet href=\"style.css\" type=\"text/css\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n    test\n</svg>\"#),)?"
 ---
 <?xml-stylesheet href="style.css" type="text/css"?>

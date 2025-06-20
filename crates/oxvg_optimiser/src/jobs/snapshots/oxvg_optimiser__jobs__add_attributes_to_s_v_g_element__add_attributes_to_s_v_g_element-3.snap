@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/add_attributes_to_s_v_g_element.rs
+expression: "test_config_default_svg_comment(r#\"{ \"addAttributesToSvgElement\": {\n            \"attributes\": { \"focusable\": \"false\", \"data-image\": \"icon\" }\n        } }\"#,\n\"Add multiple attributes with values\")?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Add multiple attributes with values -->
+    test
+</svg>

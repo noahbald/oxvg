@@ -1,8 +1,0 @@
----
-source: crates/oxvg_optimiser/src/jobs/add_attributes_to_svg_element.rs
-expression: "test_config_default_svg_comment(r#\"{ \"addAttributesToSvgElement\": {\n            \"attributes\": { \"data-icon\": \"\" }\n        } }\"#,\n        \"Add single attribute without value\")?"
----
-<svg xmlns="http://www.w3.org/2000/svg" data-icon="">
-    <!-- Add single attribute without value -->
-    test
-</svg>

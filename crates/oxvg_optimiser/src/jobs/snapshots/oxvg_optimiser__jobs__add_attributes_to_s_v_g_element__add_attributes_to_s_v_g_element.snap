@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/add_attributes_to_s_v_g_element.rs
+expression: "test_config_default_svg_comment(r#\"{ \"addAttributesToSvgElement\": {\n            \"attributes\": { \"data-icon\": \"\", \"className={classes}\": \"\" }\n        } }\"#,\n\"Add multiple attributes without value\")?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Add multiple attributes without value -->
+    test
+</svg>

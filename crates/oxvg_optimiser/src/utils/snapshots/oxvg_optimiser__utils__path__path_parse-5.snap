@@ -1,5 +1,0 @@
----
-source: crates/oxvg_optimiser/src/utils/path.rs
-expression: "Path::parse(&\"M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7\").unwrap()"
----
-M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7

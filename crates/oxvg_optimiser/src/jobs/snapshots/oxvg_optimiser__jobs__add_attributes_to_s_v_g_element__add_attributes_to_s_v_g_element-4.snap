@@ -1,8 +1,8 @@
 ---
-source: crates/oxvg_optimiser/src/jobs/add_attributes_to_svg_element.rs
+source: crates/oxvg_optimiser/src/jobs/add_attributes_to_s_v_g_element.rs
 expression: "test_config(r#\"{ \"addAttributesToSvgElement\": {\n            \"attributes\": { \"data-icon\": \"\" }\n        } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Ignore nested <svg> elements -->\n    test\n    <svg />\n</svg>\"#),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" data-icon="">
+<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Ignore nested <svg> elements -->
     test
     <svg/>
