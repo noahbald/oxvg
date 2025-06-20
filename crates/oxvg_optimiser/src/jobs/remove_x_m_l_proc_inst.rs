@@ -61,7 +61,7 @@ impl Default for RemoveXMLProcInst {
 }
 
 #[test]
-fn remove_xml_proc_inst() -> anyhow::Result<()> {
+fn remove_x_m_l_proc_inst() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(

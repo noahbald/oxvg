@@ -129,11 +129,11 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
 }
 
 #[test]
-fn remove_editors_ns_data() -> anyhow::Result<()> {
+fn remove_editors_n_s_data() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeEditorsNsData": {} }"#,
+        r#"{ "removeEditorsNSData": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">
     <sodipodi:namedview>
@@ -146,7 +146,7 @@ fn remove_editors_ns_data() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeEditorsNsData": {} }"#,
+        r#"{ "removeEditorsNSData": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd">
     <sodipodi:namedview>
