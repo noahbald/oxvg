@@ -1,5 +1,0 @@
----
-source: crates/oxvg_optimiser/src/utils/path.rs
-expression: "Path::parse(&\"m-0,1a 25,25 -30 0,1 0,0\").unwrap()"
----
-m0 1a25 25-30 0 1 0 0

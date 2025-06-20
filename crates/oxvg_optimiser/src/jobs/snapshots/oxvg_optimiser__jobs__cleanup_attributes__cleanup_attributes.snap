@@ -1,8 +1,0 @@
----
-source: crates/oxvg_optimiser/src/jobs/cleanup_attributes.rs
-expression: "test_config(r#\"{ \"cleanupAttributes\": {\n            \"newlines\": true,\n            \"trim\": true,\n            \"spaces\": true\n        } }\"#,\nSome(r#\"<svg xmlns=\"  http://www.w3.org/2000/svg\n  \" attr=\"a      b\" attr2=\"a\nb\">\n    <!-- Should remove all unnecessary whitespace from attributes -->\n    test\n</svg>\"#))?"
----
-<svg xmlns="http://www.w3.org/2000/svg" attr="a b" attr2="a b">
-    <!-- Should remove all unnecessary whitespace from attributes -->
-    test
-</svg>

@@ -165,8 +165,8 @@ macro_rules! jobs {
 jobs! {
     // Non default plugins
     precheck: Precheck,
-    add_attributes_to_svg_element: AddAttributesToSVGElement,
-    add_classes_to_svg: AddClassesToSVG,
+    add_attributes_to_s_v_g_element: AddAttributesToSVGElement,
+    add_classes_to_s_v_g_element: AddClassesToSVGElement,
     cleanup_list_of_values: CleanupListOfValues,
     convert_one_stop_gradients: ConvertOneStopGradients,
     convert_style_to_attrs: ConvertStyleToAttrs,
@@ -185,12 +185,12 @@ jobs! {
 
     // Default plugins
     remove_doctype: RemoveDoctype (is_default: true),
-    remove_xml_proc_inst: RemoveXMLProcInst (is_default: true),
+    remove_x_m_l_proc_inst: RemoveXMLProcInst (is_default: true),
     remove_comments: RemoveComments (is_default: true),
     remove_deprecated_attrs: RemoveDeprecatedAttrs (is_default: true),
     remove_metadata: RemoveMetadata (is_default: true),
-    remove_editors_ns_data: RemoveEditorsNSData (is_default: true),
-    cleanup_attributes: CleanupAttributes (is_default: true),
+    remove_editors_n_s_data: RemoveEditorsNSData (is_default: true),
+    cleanup_attrs: CleanupAttrs (is_default: true),
     merge_styles: MergeStyles (is_default: true),
     inline_styles: InlineStyles (is_default: true),
     minify_styles: MinifyStyles (is_default: true),
@@ -268,12 +268,12 @@ impl Jobs {
         Self {
             precheck: Some(Precheck::default()),
             remove_doctype: Some(RemoveDoctype::default()),
-            remove_xml_proc_inst: Some(RemoveXMLProcInst::default()),
+            remove_x_m_l_proc_inst: Some(RemoveXMLProcInst::default()),
             remove_comments: Some(RemoveComments::default()),
             remove_deprecated_attrs: Some(RemoveDeprecatedAttrs::default()),
             remove_metadata: Some(RemoveMetadata::default()),
-            remove_editors_ns_data: Some(RemoveEditorsNSData::default()),
-            cleanup_attributes: Some(CleanupAttributes::default()),
+            remove_editors_n_s_data: Some(RemoveEditorsNSData::default()),
+            cleanup_attrs: Some(CleanupAttrs::default()),
             merge_styles: Some(MergeStyles::default()),
             inline_styles: Some(InlineStyles::default()),
             minify_styles: Some(MinifyStyles::default()),

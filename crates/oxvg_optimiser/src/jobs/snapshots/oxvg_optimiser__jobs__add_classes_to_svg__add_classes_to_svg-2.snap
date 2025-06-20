@@ -1,8 +1,0 @@
----
-source: crates/oxvg_optimiser/src/jobs/add_classes_to_svg.rs
-expression: "test_config_default_svg_comment(r#\"{ \"addClassesToSvg\": {\n            \"className\": \"mySvg\"\n        } }\"#,\n        \"Should add class when passed as a className String\")?"
----
-<svg xmlns="http://www.w3.org/2000/svg" class="mySvg">
-    <!-- Should add class when passed as a className String -->
-    test
-</svg>

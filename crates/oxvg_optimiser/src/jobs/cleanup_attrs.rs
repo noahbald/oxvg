@@ -30,7 +30,7 @@ use tsify::Tsify;
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct CleanupAttributes {
+pub struct CleanupAttrs {
     #[serde(default = "newlines_default")]
     /// Whether to replace `'\n'` with `' '`.
     pub newlines: bool,
@@ -42,7 +42,7 @@ pub struct CleanupAttributes {
     pub spaces: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttributes {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttrs {
     type Error = String;
 
     fn element(
@@ -72,7 +72,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttributes {
     }
 }
 
-impl Default for CleanupAttributes {
+impl Default for CleanupAttrs {
     fn default() -> Self {
         Self {
             newlines: newlines_default(),
@@ -95,11 +95,11 @@ const fn spaces_default() -> bool {
 }
 
 #[test]
-fn cleanup_attributes() -> anyhow::Result<()> {
+fn cleanup_attrs() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupAttributes": {
+        r#"{ "cleanupAttrs": {
             "newlines": true,
             "trim": true,
             "spaces": true
@@ -115,7 +115,7 @@ b">
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "cleanupAttributes": {
+        r#"{ "cleanupAttrs": {
             "newlines": true,
             "trim": true,
             "spaces": true

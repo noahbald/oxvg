@@ -76,7 +76,7 @@ export declare class RemoveAttrs {
  * use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
  *
  * let jobs = Jobs {
- *   add_attributes_to_svg_element: Some(AddAttributesToSVGElement {
+ *   add_attributes_to_s_v_g_element: Some(AddAttributesToSVGElement {
  *     attributes: BTreeMap::from([(String::from("prefix:local"), String::from("value"))]),
  *   }),
  *   ..Jobs::none()
@@ -150,7 +150,7 @@ export interface AddAttributesToSvgElement {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface AddClassesToSvg {
+export interface AddClassesToSvgElement {
   /** Adds each class to the `class` attribute. */
   classNames?: Array<string>
   /**
@@ -209,7 +209,7 @@ export interface ApplyTransforms {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface CleanupAttributes {
+export interface CleanupAttrs {
   /** Whether to replace `'
   '` with `' '`. */
   newlines: boolean
@@ -392,6 +392,20 @@ export interface ConvertEllipseToCircle {
 }
 
 /**
+ * Converts `linearGradient` and `radialGradient` nodes that are a solid colour
+ * to the equivalent colour.
+ *
+ * # Errors
+ *
+ * Never.
+ *
+ * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
+ */
+export interface ConvertOneStopGradients {
+  field0: boolean
+}
+
+/**
  * Converts paths found in `<path>`, `<glyph>`, and `<missing-glyph>` elements. Path
  * commands are used within the `d` attributes of these elements.
  *
@@ -471,6 +485,42 @@ export interface ConvertShapeToPath {
   convertArcs: boolean
   /** The number of decimal places to round to */
   floatPrecision: ConvertPrecision
+}
+
+/**
+ * Converts presentation attributes in element styles to the equivalent XML attribute.
+ *
+ * Presentation attributes can be used in both attributes and styles, but in most cases it'll take fewer
+ * bytes to use attributes. Consider the following:
+ *
+ * ```xml
+ * <rect width="100" height="100" style="fill:red"/>
+ * <!-- vs -->
+ * <rect width="100" height="100" fill="red"/>
+ * ```
+ *
+ * However, because the `style` attribute doesn't require quotes between values, given enough
+ * presentation attributes, it can increase the size of the document.
+ *
+ * ```xml
+ * <rect width="100" height="100" style="fill:red;opacity:.5;stroke-dasharray:1;stroke:blue;stroke-opacity:.5"/>
+ * <!-- vs -->
+ * <rect width="100" height="100" fill="red" opacity=".5" stroke-dasharray="1" stroke="blue" stroke-opacity=".5"/>
+ * ```
+ *
+ * # Differences to SVGO
+ *
+ * Unlike SVGO this job doesn't attempt to cleanup broken style attributes.
+ *
+ * # Errors
+ *
+ * Never.
+ *
+ * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
+ */
+export interface ConvertStyleToAttrs {
+  /** Whether to always keep `!important` styles. */
+  keepImportant: boolean
 }
 
 /**
@@ -585,7 +635,7 @@ export interface InlineStyles {
   /**
    * What pseudo-classes and pseudo-elements to use. An empty string signifies all non-pseudo
    * classes and non-pseudo elements.
-   * Using `["*"]` will match all pseudo-elements
+   * Using `["*"]` will match all pseudo-elements and pseudo-classes.
    */
   usePseudos: Array<string>
 }
@@ -593,9 +643,11 @@ export interface InlineStyles {
 /** Each task for optimising an SVG document. */
 export interface Jobs {
   precheck?: Precheck
-  addAttributesToSvgElement?: AddAttributesToSvgElement
-  addClassesToSvg?: AddClassesToSvg
+  addAttributesToSVGElement?: AddAttributesToSvgElement
+  addClassesToSVGElement?: AddClassesToSvgElement
   cleanupListOfValues?: CleanupListOfValues
+  convertOneStopGradients?: ConvertOneStopGradients
+  convertStyleToAttrs?: ConvertStyleToAttrs
   removeAttributesBySelector?: RemoveAttributesBySelector
   removeAttrs?: RemoveAttrs
   removeDimensions?: RemoveDimensions
@@ -609,12 +661,12 @@ export interface Jobs {
   reusePaths?: ReusePaths
   removeXMLNS?: RemoveXmlns
   removeDoctype?: RemoveDoctype
-  removeXmlProcInst?: RemoveXmlProcInst
+  removeXMLProcInst?: RemoveXmlProcInst
   removeComments?: RemoveComments
   removeDeprecatedAttrs?: RemoveDeprecatedAttrs
   removeMetadata?: RemoveMetadata
-  removeEditorsNsData?: RemoveEditorsNsData
-  cleanupAttributes?: CleanupAttributes
+  removeEditorsNSData?: RemoveEditorsNsData
+  cleanupAttrs?: CleanupAttrs
   mergeStyles?: MergeStyles
   inlineStyles?: InlineStyles
   minifyStyles?: MinifyStyles
@@ -721,7 +773,7 @@ export type Method =
  */
 export interface MinifyStyles {
   /** Whether to remove styles with no matching elements. */
-  removeUnused?: RemoveUnused
+  removeUnused: RemoveUnused
 }
 
 /**

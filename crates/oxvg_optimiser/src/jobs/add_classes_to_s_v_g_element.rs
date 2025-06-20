@@ -60,7 +60,7 @@ use tsify::Tsify;
 /// Never.
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
-pub struct AddClassesToSVG {
+pub struct AddClassesToSVGElement {
     /// Adds each class to the `class` attribute.
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub class_names: Option<Vec<String>>,
@@ -70,7 +70,7 @@ pub struct AddClassesToSVG {
     pub class_name: Option<String>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddClassesToSVG {
+impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddClassesToSVGElement {
     type Error = String;
 
     fn element(

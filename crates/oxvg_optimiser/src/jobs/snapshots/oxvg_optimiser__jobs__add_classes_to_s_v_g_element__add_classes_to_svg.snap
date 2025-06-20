@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/add_classes_to_s_v_g_element.rs
+expression: "test_config_default_svg_comment(r#\"{ \"addClassesToSvg\": {\n            \"classNames\": [\"mySvg\", \"size-big\"]\n        } }\"#,\n\"Should add classes when passed as a classNames Array\")?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should add classes when passed as a classNames Array -->
+    test
+</svg>

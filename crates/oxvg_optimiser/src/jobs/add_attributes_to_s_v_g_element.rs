@@ -38,7 +38,7 @@ use tsify::Tsify;
 /// use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
 ///
 /// let jobs = Jobs {
-///   add_attributes_to_svg_element: Some(AddAttributesToSVGElement {
+///   add_attributes_to_s_v_g_element: Some(AddAttributesToSVGElement {
 ///     attributes: BTreeMap::from([(String::from("prefix:local"), String::from("value"))]),
 ///   }),
 ///   ..Jobs::none()
@@ -92,7 +92,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddAttributesToSVGElemen
 }
 
 #[test]
-fn add_attributes_to_svg_element() -> anyhow::Result<()> {
+fn add_attributes_to_s_v_g_element() -> anyhow::Result<()> {
     use crate::{test_config, test_config_default_svg_comment};
 
     // WARN: This output is different to SVGO, and may break SVGs for use in React
