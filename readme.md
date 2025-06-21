@@ -1,5 +1,7 @@
 # Oxidised Vector Graphics
 
+[![release](https://img.shields.io/github/v/release/noahbald/oxvg)](https://github.com/noahbald/oxvg) [![npm](https://img.shields.io/npm/v/@oxvg/wasm)](https://www.npmjs.com/~oxvg) [![crate](https://img.shields.io/crates/v/oxvg)](https://crates.io/users/noahbald) [![discord](https://img.shields.io/discord/1385773366396325899)](https://discord.gg/9RudZ7kTGH)
+
 OXVG is an effort to create high-performance SVG tooling.
 
 Bindings for [node](https://www.npmjs.com/package/@oxvg/napi) and [wasm](https://www.npmjs.com/package/@oxvg/wasm) are available through NPM.
