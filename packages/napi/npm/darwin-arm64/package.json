@@ -1,21 +1,15 @@
 {
-  "name": "@oxvg/napi-darwin-arm64",
-  "version": "0.0.3-1",
-  "repository": {
-    "url": "https://github.com/noahbald/oxvg"
-  },
-  "os": [
-    "darwin"
-  ],
-  "cpu": [
-    "x64"
-  ],
-  "main": "napi.darwin-arm64.node",
-  "files": [
-    "napi.darwin-arm64.node"
-  ],
-  "license": "MIT",
-  "engines": {
-    "node": ">= 10"
-  }
+	"name": "@oxvg/napi-darwin-arm64",
+	"version": "0.0.3",
+	"repository": {
+		"url": "https://github.com/noahbald/oxvg"
+	},
+	"os": ["darwin"],
+	"cpu": ["x64"],
+	"main": "napi.darwin-arm64.node",
+	"files": ["napi.darwin-arm64.node"],
+	"license": "MIT",
+	"engines": {
+		"node": ">= 10"
+	}
 }

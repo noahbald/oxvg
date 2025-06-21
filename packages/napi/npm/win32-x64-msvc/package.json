@@ -1,21 +1,15 @@
 {
-  "name": "@oxvg/napi-win32-x64-msvc",
-  "version": "0.0.3-1",
-  "os": [
-    "win32"
-  ],
-  "repository": {
-    "url": "https://github.com/noahbald/oxvg"
-  },
-  "cpu": [
-    "x64"
-  ],
-  "main": "napi.win32-x64-msvc.node",
-  "files": [
-    "napi.win32-x64-msvc.node"
-  ],
-  "license": "MIT",
-  "engines": {
-    "node": ">= 10"
-  }
+	"name": "@oxvg/napi-win32-x64-msvc",
+	"version": "0.0.3",
+	"os": ["win32"],
+	"repository": {
+		"url": "https://github.com/noahbald/oxvg"
+	},
+	"cpu": ["x64"],
+	"main": "napi.win32-x64-msvc.node",
+	"files": ["napi.win32-x64-msvc.node"],
+	"license": "MIT",
+	"engines": {
+		"node": ">= 10"
+	}
 }

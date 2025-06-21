@@ -1,24 +1,16 @@
 {
-  "name": "@oxvg/napi-linux-x64-gnu",
-  "version": "0.0.3-1",
-  "os": [
-    "linux"
-  ],
-  "repository": {
-    "url": "https://github.com/noahbald/oxvg"
-  },
-  "cpu": [
-    "x64"
-  ],
-  "main": "napi.linux-x64-gnu.node",
-  "files": [
-    "napi.linux-x64-gnu.node"
-  ],
-  "license": "MIT",
-  "engines": {
-    "node": ">= 10"
-  },
-  "libc": [
-    "glibc"
-  ]
+	"name": "@oxvg/napi-linux-x64-gnu",
+	"version": "0.0.3",
+	"os": ["linux"],
+	"repository": {
+		"url": "https://github.com/noahbald/oxvg"
+	},
+	"cpu": ["x64"],
+	"main": "napi.linux-x64-gnu.node",
+	"files": ["napi.linux-x64-gnu.node"],
+	"license": "MIT",
+	"engines": {
+		"node": ">= 10"
+	},
+	"libc": ["glibc"]
 }
