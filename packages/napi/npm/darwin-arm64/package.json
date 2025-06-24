@@ -4,16 +4,10 @@
 	"repository": {
 		"url": "git+https://github.com/noahbald/oxvg.git"
 	},
-	"os": [
-		"darwin"
-	],
-	"cpu": [
-		"x64"
-	],
-	"main": "napi.darwin-arm64.node",
-	"files": [
-		"napi.darwin-arm64.node"
-	],
+	"os": ["darwin"],
+	"cpu": ["x64"],
+	"main": "oxvg.darwin-arm64.node",
+	"files": ["oxvg.darwin-arm64.node"],
 	"license": "MIT",
 	"engines": {
 		"node": ">= 10"
