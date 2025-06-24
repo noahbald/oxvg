@@ -1,6 +1,6 @@
 {
 	"name": "@oxvg/wasm",
-	"version": "0.0.3",
+	"version": "0.0.4-1",
 	"type": "module",
 	"description": "",
 	"files": [

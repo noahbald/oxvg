@@ -1,6 +1,6 @@
 {
 	"name": "correctness",
-	"version": "0.0.3",
+	"version": "0.0.4-1",
 	"description": "",
 	"main": "index.js",
 	"scripts": {

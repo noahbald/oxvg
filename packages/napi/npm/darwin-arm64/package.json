@@ -1,6 +1,6 @@
 {
 	"name": "@oxvg/napi-darwin-arm64",
-	"version": "0.0.3",
+	"version": "0.0.4-1",
 	"repository": {
 		"url": "git+https://github.com/noahbald/oxvg.git"
 	},

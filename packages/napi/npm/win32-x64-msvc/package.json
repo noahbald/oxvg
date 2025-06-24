@@ -1,6 +1,6 @@
 {
 	"name": "@oxvg/napi-win32-x64-msvc",
-	"version": "0.0.3",
+	"version": "0.0.4-1",
 	"os": ["win32"],
 	"repository": {
 		"url": "git+https://github.com/noahbald/oxvg.git"
