@@ -82,6 +82,7 @@ You can run the project for yourself by doing the following
 
 ```sh
 git clone git@github.com:noahbald/oxvg.git
+cd oxvg
 cargo build --package oxvg
 ./target/debug/oxvg.exe --help
 ```
