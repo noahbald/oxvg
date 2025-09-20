@@ -1,89 +1,259 @@
-//! XML qualified name types.
-use std::{fmt::Display, hash::Hash};
+//! Types for names of elements and attributes
+use std::fmt::Display;
 
 use crate::atom::Atom;
 
-/// A qualified name used for the names of tags and attributes.
-pub trait Name:
-    Eq + PartialEq + Clone + std::fmt::Debug + 'static + Hash + Ord + PartialOrd
-{
-    /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
-    type LocalName: Atom;
-    /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
-    type Prefix: Atom;
-    /// The resolved uri of the name
-    type Namespace: Atom;
+#[macro_export]
+/// Returns whether the prefix matches the given names
+macro_rules! is_prefix {
+    ($element:expr, $($name:ident)|+$(,)?) => {
+        matches!($element.prefix().unaliased(), $($crate::name::Prefix::$name)|+)
+    };
+}
 
-    /// Creates a qualified name from a prefix and local part
-    fn new(prefix: Option<Self::Prefix>, local: Self::LocalName) -> Self;
-
-    /// Returns the local part of the qualified name.
-    fn local_name(&self) -> &Self::LocalName;
-
-    /// Returns the prefix of the qualified name.
-    fn prefix(&self) -> &Option<Self::Prefix>;
-
-    /// Returns the namespace of the qualified name.
-    fn ns(&self) -> &Self::Namespace;
-
-    /// Returns the length of joining the prefix and local part of a name with a `:`
-    fn len(&self) -> usize {
-        match self.prefix() {
-            Some(p) => p.len() + 1 + self.local_name().len(),
-            None => self.local_name().len(),
+macro_rules! define_prefix {
+    ($($prefix:ident {
+        $(name: $name:literal,)?
+        uri: $uri:tt,
+    },)+) => {
+        macro_rules! name_else {
+            ($_name:expr) => { Some($_name) };
+            () => { None };
         }
-    }
-
-    /// Returns whether the name is equivalent to an empty string
-    fn is_empty(&self) -> bool {
-        self.prefix().is_none() && self.local_name().is_empty()
-    }
-
-    /// Creates a qualified name from a string optionally seperating the
-    /// prefix from a local-name with a `:`
-    fn parse(value: &str) -> Self {
-        let mut parts = value.split(':');
-        let prefix_or_local = parts
-            .next()
-            .expect("Attempted to make qual-name from empty string");
-        let maybe_local = parts.next().map(Into::into);
-        assert_eq!(parts.next(), None);
-
-        match maybe_local {
-            Some(local) => Self::new(Some(prefix_or_local.into()), local),
-            None => Self::new(None, prefix_or_local.into()),
+        #[cfg(not(feature = "markup5ever"))]
+        #[allow(non_upper_case_globals)]
+        mod _uri {
+            use crate::atom::Atom;
+            $(pub const $prefix: &'static Atom<'static> = &Atom::Static($uri);)+
         }
-    }
+        #[cfg(feature = "markup5ever")]
+        #[allow(non_upper_case_globals)]
+        pub(crate) mod _uri {
+            use crate::atom::Atom;
+            $(pub const $prefix: &'static Atom<'static> = &Atom::NS(xml5ever::namespace_url!($uri));)+
+        }
+        #[allow(non_upper_case_globals)]
+        mod _ns {
+            use super::NS;
+            $(pub const $prefix: &'static NS<'static> = &NS::$prefix;)+
+        }
+        #[allow(non_upper_case_globals)]
+        mod _name {
+            use crate::atom::Atom;
+            $(pub const $prefix: Option<Atom<'static>> = name_else!($(Atom::Static($name))?);)+
+        }
 
-    /// Calls `f` with a borrowed string, to prevent allocation in the case that
-    /// the name doesn't have a prefix
-    fn with_str<F, R>(&self, mut f: F) -> R
-    where
-        F: FnMut(&str) -> R,
-    {
-        match self.prefix() {
-            Some(p) => {
-                let string = format!("{p}:{}", self.local_name());
-                f(string.as_str())
+        #[derive(Debug, Clone)]
+        /// A prefix for a qualified name, e.g. `xlink` of `xlink:href`
+        pub enum Prefix<'input> {
+            $(
+                #[doc=concat!("The standard prefix"$(, " for `", $name, "`")?, " in SVG")]
+                $prefix,
+            )+
+            /// A not well-known prefix, e.g. `sodipodi:nodetypes`
+            Unknown {
+                /// The prefix name, e.g. `prefix` of `xmlns:prefix="<url>"`
+                prefix: Option<Atom<'input>>,
+                /// The unique resource identifier, e.g. `<url>` of `xmlns:prefix="<url>"`
+                ns: NS<'input>,
+            },
+            /// A prefix with a non-usual, e.g. `<alias:svg></alias:svg>` when `xmlns:alias="http://www.w3.org/2000/svg"`
+            Aliased {
+                /// The prefix that's being aliased
+                prefix: Box<Prefix<'input>>,
+                /// The name assigned to the prefix
+                alias: Option<Atom<'input>>,
+            },
+        }
+
+        #[derive(Debug, Clone, Hash)]
+        /// A namespace for a qualified name's prefix
+        pub enum NS<'input> {
+            $(
+                #[doc=concat!("The standard uri"$(, " for `", $name, "`")?, " in SVG")]
+                $prefix,
+            )+
+            /// A not well-known namespace
+            Unknown(Atom<'input>),
+        }
+
+        impl<'input> Prefix<'input> {
+            /// Takes a namespace and prefix and returns the associated variant
+            pub fn new(ns: Atom<'input>, prefix: Option<Atom<'input>>) -> Self {
+                match (&*ns, prefix.as_deref()) {
+                    $(($uri, name_else!($($name)?)) => Self::$prefix,)+
+                    $(($uri, _) => Self::Aliased {
+                        prefix: Box::new(Self::$prefix),
+                        alias: prefix,
+                    },)+
+                    ("", None) => Self::SVG,
+                    (..) => Self::Unknown {
+                        prefix,
+                        ns: NS::new(ns),
+                    },
+                }
             }
-            None => f(self.local_name().as_str()),
-        }
-    }
 
-    /// returns a formatter to implement [Display] for a name
-    fn formatter(&self) -> Formatter<'_, Self> {
-        Formatter(self)
+            // For use in macros interoperable with `Prefix`
+            #[doc(hidden)]
+            pub fn prefix<'a>(&'a self) -> &'a Prefix<'input> {
+                self
+            }
+
+            /// Returns the alias of the prefix
+            pub fn value(&self) -> Option<Atom<'input>> {
+                match self {
+                    $(Self::$prefix => _name::$prefix,)+
+                    Self::Unknown { prefix, .. } => prefix.clone(),
+                    Self::Aliased { alias, .. } => alias.clone(),
+                }
+            }
+
+            /// Returns the URI of the prefix
+            pub fn ns(&self) -> &NS<'input> {
+                match self {
+                    $(Self::$prefix => _ns::$prefix,)+
+                    Self::Unknown { ns, .. } => ns,
+                    Self::Aliased { prefix, .. } => prefix.ns(),
+                }
+            }
+
+            /// Compares whether two prefix values belong to the same namespace
+            pub fn is_ns(&self, ns: &NS<'input>) -> bool {
+                match (self, ns) {
+                    $((Self::$prefix, NS::$prefix) => true,)+
+                    (Self::Unknown { ns, .. }, NS::Unknown( uri )) => ns.uri() == uri,
+                    (Self::Aliased { prefix, .. }, ..) => prefix.is_ns(ns),
+                    _ => false,
+                }
+            }
+
+            /// Returns whether the prefix has a name.
+            /// E.g. using `xmlns="<url>"` would produce an empty prefix like `foo="bar"`,
+            /// whereas using `xmlns:alias="<url>"` would produce a non-empty prefix
+            /// like `alias:foo="bar"`.
+            pub fn is_empty(&self) -> bool {
+                self.value().is_none()
+            }
+
+            /// Returns whether the prefix deviates from the standard prefix for a given namespace.
+            pub fn is_aliased(&self) -> bool {
+                match self {
+                    Self::Aliased { .. } => true,
+                    _ => false
+                }
+            }
+
+            /// Returns a `Prefix` that may be aliased as `Prefix::Aliased` as the inner prefix
+            /// that's aliased.
+            pub fn unaliased(&self) -> &Self {
+                match self {
+                    Self::Aliased { prefix, .. } => {
+                        let result = prefix.as_ref();
+                        debug_assert!(!matches!(result, Self::Aliased { .. }));
+                        result
+                    },
+                    _ => self,
+                }
+            }
+        }
+
+        impl<'input> NS<'input> {
+            /// Returns the associated namespace variant based on the uri
+            pub fn new(uri: Atom<'input>) -> Self {
+                match &*uri {
+                    $($uri => Self::$prefix,)+
+                    _ => Self::Unknown(uri),
+                }
+            }
+
+            /// Returns the uri of this namespace
+            pub fn uri<'a>(&'a self) -> &'a Atom<'input> {
+                match self {
+                    $(Self::$prefix => _uri::$prefix,)+
+                    Self::Unknown(uri) => uri,
+                }
+            }
+        }
+    };
+}
+
+impl Display for QualName<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(prefix) = self.prefix.value() {
+            f.write_fmt(format_args!("{prefix}:"))?;
+        }
+        f.write_str(&self.local)
     }
 }
 
-/// Formats the contained qualified name
-pub struct Formatter<'a, N: Name>(&'a N);
-
-impl<'a, N: Name> Display for Formatter<'a, N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0.prefix() {
-            Some(p) => f.write_fmt(format_args!("{p}:{}", self.0.local_name())),
-            None => Display::fmt(&self.0.local_name(), f),
-        }
+impl PartialOrd for NS<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.uri().partial_cmp(other.uri())
     }
+}
+impl PartialEq for NS<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.uri().eq(other.uri())
+    }
+}
+
+define_prefix! {
+    SVG {
+        uri: "http://www.w3.org/2000/svg",
+    },
+    HTML {
+        name: "html",
+        uri: "http://www.w3.org/1999/xhtml",
+    },
+    XML {
+        name: "xml",
+        uri: "http://www.w3.org/XML/1998/namespace",
+    },
+    XMLNS {
+        name: "xmlns",
+        uri: "http://www.w3.org/2000/xmlns/",
+    },
+    XLink {
+        name: "xlink",
+        uri: "http://www.w3.org/1999/xlink",
+    },
+    MathML {
+        name: "mathml",
+        uri: "http://www.w3.org/1998/Math/MathML",
+    },
+}
+
+impl std::hash::Hash for Prefix<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ns().hash(state);
+    }
+}
+
+impl Eq for Prefix<'_> {}
+
+impl PartialEq for Prefix<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.is_ns(other.ns())
+    }
+}
+
+impl Ord for Prefix<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value().cmp(&other.value())
+    }
+}
+impl PartialOrd for Prefix<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// A qualified name used for the names of tags and attributes.
+#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+pub struct QualName<'input> {
+    /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
+    pub prefix: Prefix<'input>,
+    /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
+    pub local: Atom<'input>,
 }

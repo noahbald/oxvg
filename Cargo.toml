@@ -53,7 +53,7 @@ napi = { version = "3.4", default-features = false, features = [
   "napi7",
 ] }
 napi-build = { version = "2.2", default-features = false }
-napi-derive = { version = "3.3" }
+paste = "1.0"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
 rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }
@@ -64,6 +64,7 @@ serde = "1.0"
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
+smallvec = "1.13.2"
 string_cache = "0.8"
 tendril = "0.4"
 tsify = { version = "0.5", default-features = false, features = ["js"] }

@@ -14,36 +14,30 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["markup5ever", "roxmltree", "visitor"]
-# Includes a "shared" implementation you can use to parse or build a document from
-implementations = ["dep:typed-arena", "dep:tendril", "dep:string_cache"]
+default = ["visitor"]
 # Includes a parser that uses xml5ever
-markup5ever = ["dep:xml5ever", "implementations"]
+markup5ever = ["dep:xml5ever", "dep:string_cache"]
 # Includes a parser that uses roxmltree
-roxmltree = ["dep:roxmltree", "implementations"]
+roxmltree = ["dep:roxmltree"]
 # Includes serialization for elements
 serialize = []
 # Includes CSS selection for elements
-selectors = [
-  "dep:selectors",
-  "dep:cssparser",
-  "dep:precomputed-hash",
-  "dep:servo_arc",
-]
+selectors = ["dep:selectors", "dep:precomputed-hash", "dep:servo_arc"]
 # Includes a visitor trait for building visitors
 visitor = ["dep:bitflags"]
-# Includes style parsing and querying
-style = ["dep:lightningcss", "dep:cssparser_lightningcss", "dep:smallvec"]
 
 [dependencies]
+oxvg_path = { workspace = true }
 bitflags = { workspace = true, optional = true }
 cfg-if = { workspace = true }
-cssparser = { workspace = true, optional = true }
-cssparser_lightningcss = { package = "cssparser", version = "0.33", optional = true }
+cssparser = { workspace = true }
+cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 derive_more = { workspace = true, features = ["debug"] }
+derive-where = { workspace = true }
 itertools = { workspace = true }
-lightningcss = { workspace = true, optional = true }
+lightningcss = { workspace = true }
 log = { workspace = true }
+paste = { workspace = true }
 precomputed-hash = { workspace = true, optional = true }
 roxmltree = { workspace = true, optional = true }
 # ensure track_alloc_size for wasm compat
@@ -51,8 +45,8 @@ servo_arc = { version = "0.4", features = [
   "track_alloc_size",
 ], optional = true }
 selectors = { workspace = true, optional = true }
-smallvec = { version = "1.13.2", optional = true }
+smallvec = { workspace = true }
 string_cache = { workspace = true, optional = true }
 tendril = { workspace = true, optional = true }
-typed-arena = { workspace = true, optional = true }
+typed-arena = { workspace = true }
 xml5ever = { workspace = true, optional = true }
