@@ -55,36 +55,22 @@ fn main() -> Result {
 #![warn(missing_docs)]
 #![warn(missing_copy_implementations)]
 
-use std::fmt::{self, Display, Write as FmtWrite};
+use std::fmt::{self, Write as FmtWrite};
 use std::io::{self, Write};
 use std::result;
 
+use lightningcss::rules::CssRuleList;
+
 use crate::atom::Atom;
-use crate::name::Name;
+use crate::attribute::content_type::ContentType;
+use crate::attribute::data::Attr;
+use crate::element::data::ElementId;
+use crate::error::XmlWriterError;
+use crate::name::Prefix;
+use crate::serialize::{Printer, PrinterOptions, ToAtom as _};
 
 /// A result from serializing a document.
-pub type Result = result::Result<(), Error>;
-
-/// An error while serializing a document.
-#[derive(Debug)]
-pub enum Error {
-    /// An error while running an io operation.
-    IO(io::Error),
-    /// An error while flushing buffer.
-    BufWriter(io::IntoInnerError<io::BufWriter<Vec<u8>>>),
-    /// An error after writing to string.
-    UTF8(std::string::FromUtf8Error),
-    /// Did not have opening element name when closing element.
-    ClosedUnopenedElement,
-    /// Attempted to write attribute before `start_element()` or after `close_element()`.
-    AttributeWrittenBeforeElement,
-    /// Declaration was already written.
-    DeclarationAlreadyWritten,
-    /// Attempts to write text before `start_element()`.
-    TextBeforeElement,
-    /// Attempts to write CDATA with `]]>` in the content.
-    BadCDATA,
-}
+pub type Result = result::Result<(), XmlWriterError>;
 
 /// Whether to trim whitespace around text
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -223,6 +209,25 @@ pub struct Options {
     ///
     /// Default: enabled
     pub enable_self_closing: bool,
+
+    /// Whether to minify while printing attributes and style content
+    ///
+    /// # Examples
+    ///
+    /// Before:
+    ///
+    /// ```text
+    /// <tag width="10px" />
+    /// ```
+    ///
+    /// After:
+    ///
+    /// ```text
+    /// <tag width="10" />
+    /// ```
+    ///
+    /// Default: true
+    pub minify: bool,
 }
 
 impl Default for Options {
@@ -234,6 +239,7 @@ impl Default for Options {
             indent: Indent::Spaces(4),
             attributes_indent: Indent::None,
             enable_self_closing: true,
+            minify: true,
         }
     }
 }
@@ -247,8 +253,8 @@ enum State {
 }
 
 #[derive(Clone, Debug)]
-struct DepthData<N: Name> {
-    element_name: Option<N>,
+struct DepthData<'input> {
+    element_name: Option<ElementId<'input>>,
     has_children: bool,
 }
 
@@ -268,7 +274,7 @@ struct FmtWriter<W: Write> {
 }
 
 impl<W: Write> FmtWriter<W> {
-    fn take_err(&mut self) -> Error {
+    fn take_err(&mut self) -> XmlWriterError {
         let error_kind = self
             .error_kind
             .expect("there must have been an error before calling take_err()!");
@@ -282,7 +288,7 @@ impl<W: Write> FmtWriter<W> {
 
         // There's just no way of properly copying the io::Error (no Copy or Clone available), so
         // we have no choice to create a new one, which likely loses the backtrace up to this point.
-        Error::IO(io::Error::from(error_kind))
+        XmlWriterError::IO(io::Error::from(error_kind))
     }
 
     fn write_escaped(&mut self, s: &str, escape_quotes: bool) -> io::Result<()> {
@@ -344,7 +350,7 @@ impl<W: Write> fmt::Write for FmtWriter<W> {
 
 /// An XML writer.
 #[derive(Clone, Debug)]
-pub struct XmlWriter<W: Write, N: Name> {
+pub struct XmlWriter<'input, W: Write> {
     // When you control what you're writing enough that you know the bytes are already escaped or
     // don't need escaping at all, then use fmt_writer.writer.write_all()?; directly. Otherwise,
     // set fmt_writer.escape to the appropriate escaping type and use fmt_writer.write_fmt()?; or
@@ -353,11 +359,11 @@ pub struct XmlWriter<W: Write, N: Name> {
     fmt_writer: FmtWriter<W>,
     state: State,
     preserve_whitespaces: bool,
-    depth_stack: Vec<DepthData<N>>,
+    depth_stack: Vec<DepthData<'input>>,
     opt: Options,
 }
 
-impl<W: Write, N: Name> XmlWriter<W, N> {
+impl<'input, W: Write> XmlWriter<'input, W> {
     /// Creates a new `XmlWriter`, writing data in the writer.
     #[inline]
     pub fn new(writer: W, opt: Options) -> Self {
@@ -383,15 +389,23 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     ///
     /// - When called twice.
     #[inline(never)]
-    pub fn write_declaration<T: Atom, V: Atom>(&mut self, target: &T, value: &V) -> Result {
+    pub fn write_declaration(&mut self, target: &Atom, value: &Option<Atom>) -> Result {
         if self.state != State::Empty {
-            return Err(Error::DeclarationAlreadyWritten);
+            return Err(XmlWriterError::DeclarationAlreadyWritten);
         }
-
         self.fmt_writer
             .writer
-            .write_fmt(format_args!("<?{target} {value}?>"))
-            .map_err(Error::IO)?;
+            .write_fmt(format_args!("<?{target}"))
+            .map_err(XmlWriterError::IO)?;
+        if let Some(value) = value {
+            self.fmt_writer
+                .writer
+                .write_fmt(format_args!(" {value}"))
+                .map_err(XmlWriterError::IO)?;
+        }
+        self.fmt_writer
+            .write_str("?>")
+            .map_err(XmlWriterError::FMT)?;
         self.state = State::Document;
 
         Ok(())
@@ -427,7 +441,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
         self.fmt_writer
             .writer
             .write_all(b"<!--")
-            .map_err(Error::IO)?;
+            .map_err(XmlWriterError::IO)?;
         self.fmt_writer.escape = Some(Escape::Comment);
         self.fmt_writer
             .write_fmt(fmt)
@@ -435,7 +449,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
         self.fmt_writer
             .writer
             .write_all(b"-->")
-            .map_err(Error::IO)?;
+            .map_err(XmlWriterError::IO)?;
 
         if self.state == State::Attributes {
             self.depth_stack.push(DepthData {
@@ -457,7 +471,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     ///
     /// When in a bad state or when io fails.
     #[inline(never)]
-    pub fn start_element(&mut self, name: N) -> Result {
+    pub fn start_element(&mut self, name: &ElementId<'input>) -> Result {
         if self.state == State::Attributes {
             self.write_open_element()?;
         }
@@ -470,14 +484,17 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             self.write_node_indent()?;
         }
 
-        self.fmt_writer.writer.write_all(b"<").map_err(Error::IO)?;
         self.fmt_writer
             .writer
-            .write_fmt(format_args!("{}", name.formatter()))
-            .map_err(Error::IO)?;
+            .write_all(b"<")
+            .map_err(XmlWriterError::IO)?;
+        self.fmt_writer
+            .writer
+            .write_fmt(format_args!("{name}"))
+            .map_err(XmlWriterError::IO)?;
 
         self.depth_stack.push(DepthData {
-            element_name: Some(name),
+            element_name: Some(name.clone()),
             has_children: false,
         });
 
@@ -517,8 +534,8 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn write_attribute<V: Display + ?Sized>(&mut self, name: &str, value: &V) -> Result {
-        self.write_attribute_fmt(name, format_args!("{value}"))
+    pub fn write_attribute(&mut self, attr: &mut Attr<'_>) -> Result {
+        self.write_attribute_fmt(format_args!("{}", attr.name()), attr.value())
     }
 
     /// Writes a formatted attribute value.
@@ -552,17 +569,24 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// }
     /// ```
     #[inline(never)]
-    pub fn write_attribute_fmt(&mut self, name: &str, fmt: fmt::Arguments) -> Result {
+    pub fn write_attribute_fmt(&mut self, name: fmt::Arguments, value: ContentType) -> Result {
         if self.state != State::Attributes {
-            return Err(Error::AttributeWrittenBeforeElement);
+            return Err(XmlWriterError::AttributeWrittenBeforeElement);
         }
 
-        self.write_attribute_prefix(name).map_err(Error::IO)?;
+        self.write_attribute_prefix(name)
+            .map_err(XmlWriterError::IO)?;
         self.fmt_writer.escape = Some(Escape::AttributeValue);
-        self.fmt_writer
-            .write_fmt(fmt)
-            .map_err(|_| self.fmt_writer.take_err())?;
-        self.write_quote().map_err(Error::IO)
+        value
+            .write_atom(&mut Printer::new(
+                &mut self.fmt_writer,
+                PrinterOptions {
+                    minify: self.opt.minify,
+                    ..PrinterOptions::default()
+                },
+            ))
+            .map_err(XmlWriterError::PrinterError)?;
+        self.write_quote().map_err(XmlWriterError::IO)
     }
 
     /// Writes a raw attribute value, without performing escaping.
@@ -605,16 +629,17 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
         F: FnOnce(&mut W) -> io::Result<()>,
     {
         if self.state != State::Attributes {
-            return Err(Error::AttributeWrittenBeforeElement);
+            return Err(XmlWriterError::AttributeWrittenBeforeElement);
         }
 
-        self.write_attribute_prefix(name).map_err(Error::IO)?;
-        f(&mut self.fmt_writer.writer).map_err(Error::IO)?;
-        self.write_quote().map_err(Error::IO)
+        self.write_attribute_prefix(format_args!("{name}"))
+            .map_err(XmlWriterError::IO)?;
+        f(&mut self.fmt_writer.writer).map_err(XmlWriterError::IO)?;
+        self.write_quote().map_err(XmlWriterError::IO)
     }
 
     #[inline(never)]
-    fn write_attribute_prefix(&mut self, name: &str) -> io::Result<()> {
+    fn write_attribute_prefix(&mut self, name: fmt::Arguments) -> io::Result<()> {
         if self.opt.attributes_indent == Indent::None {
             self.fmt_writer.writer.write_all(b" ")?;
         } else {
@@ -628,7 +653,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             self.write_indent(1, self.opt.attributes_indent)?;
         }
 
-        self.fmt_writer.writer.write_all(name.as_bytes())?;
+        self.fmt_writer.writer.write_fmt(name)?;
         self.fmt_writer.writer.write_all(b"=")?;
         self.write_quote()
     }
@@ -687,22 +712,43 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// # Errors
     ///
     /// - When called not after `start_element()`.
-    pub fn write_text<T: Display + AsRef<str>>(&mut self, text: T) -> Result {
+    pub fn write_text(&mut self, text: &str) -> Result {
         let text = match self.opt.trim_whitespace {
-            TrimWhitespace::Never => text.as_ref(),
+            TrimWhitespace::Never => text,
             TrimWhitespace::ExceptTextContent => {
                 if self.is_text_content_element() {
-                    text.as_ref()
+                    text
                 } else {
-                    text.as_ref().trim()
+                    text.trim()
                 }
             }
-            TrimWhitespace::Always => text.as_ref().trim(),
+            TrimWhitespace::Always => text.trim(),
         };
         if text.is_empty() {
             return Ok(());
         }
         self.write_text_fmt(format_args!("{text}"))
+    }
+
+    /// Writes a text node.
+    ///
+    /// # Errors
+    ///
+    /// - When called not after `start_element()`.
+    pub fn write_style(&mut self, style: &CssRuleList) -> Result {
+        if style.0.is_empty() {
+            return Ok(());
+        }
+        self.before_write_text(false)?;
+        style
+            .write_atom(&mut Printer::new(
+                &mut self.fmt_writer,
+                PrinterOptions {
+                    minify: self.opt.minify,
+                    ..PrinterOptions::default()
+                },
+            ))
+            .map_err(XmlWriterError::PrinterError)
     }
 
     /// Writes a formatted text node.
@@ -724,15 +770,14 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// - When the text contains the literal `]]>`.
     pub fn write_cdata_text(&mut self, text: &str) -> Result {
         if text.contains("]]>") {
-            return Err(Error::BadCDATA);
+            return Err(XmlWriterError::BadCDATA);
         }
         self.write_text_fmt_impl(format_args!("{text}"), true)
     }
 
-    #[inline(never)]
-    fn write_text_fmt_impl(&mut self, fmt: fmt::Arguments, cdata: bool) -> Result {
+    fn before_write_text(&mut self, cdata: bool) -> Result {
         if self.state == State::Empty || self.depth_stack.is_empty() {
-            return Err(Error::TextBeforeElement);
+            return Err(XmlWriterError::TextBeforeElement);
         }
 
         if self.state == State::Attributes {
@@ -743,7 +788,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             self.fmt_writer
                 .writer
                 .write_all(b"<![CDATA[")
-                .map_err(Error::IO)?;
+                .map_err(XmlWriterError::IO)?;
         }
 
         if self.state != State::Empty {
@@ -753,6 +798,12 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
         self.write_node_indent()?;
 
         self.fmt_writer.escape = Some(if cdata { Escape::CData } else { Escape::Text });
+        Ok(())
+    }
+
+    #[inline(never)]
+    fn write_text_fmt_impl(&mut self, fmt: fmt::Arguments, cdata: bool) -> Result {
+        self.before_write_text(cdata)?;
         self.fmt_writer
             .write_fmt(fmt)
             .map_err(|_| self.fmt_writer.take_err())?;
@@ -780,7 +831,10 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             if depth.has_children || !self.opt.enable_self_closing {
                 // Close the empty node here as there were no children to close it.
                 if !depth.has_children && !self.opt.enable_self_closing {
-                    self.fmt_writer.writer.write_all(b">").map_err(Error::IO)?;
+                    self.fmt_writer
+                        .writer
+                        .write_all(b">")
+                        .map_err(XmlWriterError::IO)?;
                 }
 
                 if !self.preserve_whitespaces && !is_text_content_element(Some(&depth)) {
@@ -792,23 +846,32 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
                     self.fmt_writer
                         .writer
                         .write_all(b"]]>")
-                        .map_err(Error::IO)?;
+                        .map_err(XmlWriterError::IO)?;
                 }
 
-                self.fmt_writer.writer.write_all(b"</").map_err(Error::IO)?;
+                self.fmt_writer
+                    .writer
+                    .write_all(b"</")
+                    .map_err(XmlWriterError::IO)?;
 
                 // Write the previous opening element name as closing element now.
                 let Some(element_name) = depth.element_name else {
-                    return Err(Error::ClosedUnopenedElement);
+                    return Err(XmlWriterError::ClosedUnopenedElement);
                 };
                 self.fmt_writer
                     .writer
-                    .write_fmt(format_args!("{}", element_name.formatter()))
-                    .map_err(Error::IO)?;
+                    .write_fmt(format_args!("{element_name}"))
+                    .map_err(XmlWriterError::IO)?;
 
-                self.fmt_writer.writer.write_all(b">").map_err(Error::IO)?;
+                self.fmt_writer
+                    .writer
+                    .write_all(b">")
+                    .map_err(XmlWriterError::IO)?;
             } else {
-                self.fmt_writer.writer.write_all(b"/>").map_err(Error::IO)?;
+                self.fmt_writer
+                    .writer
+                    .write_all(b"/>")
+                    .map_err(XmlWriterError::IO)?;
             }
         }
 
@@ -850,7 +913,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     /// # Errors
     ///
     /// When in a bad state or when io fails.
-    pub fn end_document(mut self) -> result::Result<W, Error> {
+    pub fn end_document(mut self) -> result::Result<W, XmlWriterError> {
         while !self.depth_stack.is_empty() {
             self.end_element()?;
         }
@@ -879,7 +942,10 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     fn write_open_element(&mut self) -> Result {
         if let Some(depth) = self.depth_stack.last_mut() {
             depth.has_children = true;
-            self.fmt_writer.writer.write_all(b">").map_err(Error::IO)?;
+            self.fmt_writer
+                .writer
+                .write_all(b">")
+                .map_err(XmlWriterError::IO)?;
 
             self.state = State::Document;
         }
@@ -888,7 +954,7 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
 
     fn write_node_indent(&mut self) -> Result {
         self.write_indent(self.depth_stack.len(), self.opt.indent)
-            .map_err(Error::IO)
+            .map_err(XmlWriterError::IO)
     }
 
     fn write_indent(&mut self, depth: usize, indent: Indent) -> io::Result<()> {
@@ -915,7 +981,10 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
             && !self.preserve_whitespaces
             && !self.is_text_content_element()
         {
-            self.fmt_writer.writer.write_all(b"\n").map_err(Error::IO)?;
+            self.fmt_writer
+                .writer
+                .write_all(b"\n")
+                .map_err(XmlWriterError::IO)?;
         }
         Ok(())
     }
@@ -925,44 +994,18 @@ impl<W: Write, N: Name> XmlWriter<W, N> {
     }
 }
 
-fn is_text_content_element<N: Name>(data: Option<&DepthData<N>>) -> bool {
+fn is_text_content_element(data: Option<&DepthData>) -> bool {
     data.is_some_and(|data| {
         data.element_name.as_ref().is_some_and(|name| {
-            name.prefix().is_none()
+            matches!(
+                name,
+                ElementId::A | ElementId::Text | ElementId::TextPath | ElementId::TSpan
+            ) || (*name.prefix() == Prefix::SVG
                 && matches!(
                     name.local_name().as_ref(),
-                    // TODO: use collections::TEXT_CONTENT?
-                    "a" | "alyGlyph"
-                        | "altGlyphDef"
-                        | "alyGlyphItem"
-                        | "glyph"
-                        | "glyphRef"
-                        | "text"
-                        | "textPath"
-                        | "tref"
-                        | "tspan"
-                )
+                    // TODO: Add to ElementId
+                    "altGlyph" | "altGlyphDef" | "altGlyphItem" | "glyph" | "glyphRef" | "tref"
+                ))
         })
     })
 }
-
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::IO(err) => err.fmt(f),
-            Self::BufWriter(err) => err.fmt(f),
-            Self::UTF8(err) => err.fmt(f),
-            Self::ClosedUnopenedElement => {
-                "Did not have opening element name when closing element.".fmt(f)
-            }
-            Self::AttributeWrittenBeforeElement => {
-                "Attempted to write attribute before `start_element()` or after `close_element()`."
-                    .fmt(f)
-            }
-            Self::TextBeforeElement => "Attempts to write text before `start_element()`.".fmt(f),
-            Self::BadCDATA => "Attempts to write CDATA with `]]>` in the content.".fmt(f),
-            Self::DeclarationAlreadyWritten => "Declaration was already written.".fmt(f),
-        }
-    }
-}
-impl std::error::Error for Error {}
