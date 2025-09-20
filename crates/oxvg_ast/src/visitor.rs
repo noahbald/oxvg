@@ -1,22 +1,20 @@
 //! Visitors for traversing and manipulating nodes of an xml document
-use cfg_if::cfg_if;
-#[cfg(feature = "style")]
-use lightningcss::stylesheet;
+use lightningcss::rules::CssRuleList;
 
 use crate::{
-    element::Element,
-    node::{self, Node},
+    arena::Arena,
+    element::{data::ElementId, Element},
+    node::{self, Ref},
 };
 
-#[cfg(feature = "style")]
 use crate::style::{self, ComputedStyles, ElementData};
 
 #[cfg(feature = "selectors")]
 use crate::selectors::Selector;
 
-#[derive(derive_more::Debug, Clone, Default)]
+#[derive(derive_more::Debug, Clone)]
 /// Additional information about the current run of a visitor and it's context
-pub struct Info<'arena, E: Element<'arena>> {
+pub struct Info<'arena> {
     /// The path of the file being processed. This should only be used for metadata purposes
     /// and not for any filesystem requests.
     pub path: Option<std::path::PathBuf>,
@@ -26,13 +24,13 @@ pub struct Info<'arena, E: Element<'arena>> {
     #[debug(skip)]
     /// The allocator for the parsed file. Used for storing and creating new nodes within
     /// the document.
-    pub arena: E::Arena,
+    pub arena: Arena<'arena>,
 }
 
-impl<'arena, E: Element<'arena>> Info<'arena, E> {
+impl<'arena> Info<'arena> {
     /// Creates an instance of info with a reference to `arena` that can be used for allocating
     /// new nodes
-    pub fn new(arena: E::Arena) -> Self {
+    pub fn new(arena: Arena<'arena>) -> Self {
         Self {
             path: None,
             multipass_count: 0,
@@ -43,64 +41,38 @@ impl<'arena, E: Element<'arena>> Info<'arena, E> {
 
 #[derive(Debug)]
 /// The context struct provides information about the document and it's effects on the visited node
-pub struct Context<'arena, 'i, 'o, E: Element<'arena>> {
-    #[cfg(feature = "style")]
+pub struct Context<'arena, 'i> {
     /// Uses the style sheet to compute what css properties are applied to the node
-    pub computed_styles: crate::style::ComputedStyles<'i>,
-    #[cfg(feature = "style")]
+    pub computed_styles: crate::style::ComputedStyles<'arena>,
     /// A parsed stylesheet for all `<style>` nodes in the document
-    pub stylesheet: Option<lightningcss::stylesheet::StyleSheet<'i, 'o>>,
-    #[cfg(feature = "style")]
+    pub stylesheet: Option<CssRuleList<'arena>>,
     /// A collection of the inline style and presentation attributes for each element in the document
-    pub element_styles: &'i std::collections::HashMap<E, ElementData<'arena, E>>,
+    pub element_styles: &'i std::collections::HashMap<Element<'arena>, ElementData<'arena>>,
     /// The root element of the document
-    pub root: E,
+    pub root: Element<'arena>,
     /// A set of boolean flags about the document and the visited node
     pub flags: ContextFlags,
     /// Info about how the program is using the document
-    pub info: &'i Info<'arena, E>,
-    #[cfg(not(feature = "style"))]
-    /// Marker to maintain consistent lifetime with `"style"` feature
-    marker: std::marker::PhantomData<(&'arena (), &'i (), &'o ())>,
+    pub info: &'i Info<'arena>,
 }
 
-impl<'arena, 'i, E: Element<'arena>> Context<'arena, 'i, '_, E> {
-    cfg_if! {
-        if #[cfg(feature = "style")] {
-            /// Instantiates the context with the given fields.
-            ///
-            /// The visitor should update the context as it visits each node.
-            pub fn new(
-                root: E,
-                flags: ContextFlags,
-                element_styles: &'i std::collections::HashMap<E, ElementData<'arena, E>>,
-                info: &'i Info<'arena, E>,
-            ) -> Self {
-                Self {
-                    computed_styles: crate::style::ComputedStyles::default(),
-                    stylesheet: None,
-                    element_styles,
-                    root,
-                    flags,
-                    info,
-                }
-            }
-        } else {
-            /// Instantiates the context with the given fields.
-            ///
-            /// The visitor should update the context as it visits each node.
-            pub fn new(
-                root: E,
-                flags: ContextFlags,
-                info: &'i Info<'arena, E>,
-            ) -> Self {
-                Self {
-                    root,
-                    flags,
-                    info,
-                    marker: std::marker::PhantomData,
-                }
-            }
+impl<'arena, 'i> Context<'arena, 'i> {
+    /// Instantiates the context with the given fields.
+    ///
+    /// The visitor should update the context as it visits each node.
+    pub fn new(
+        root: Element<'arena>,
+        flags: ContextFlags,
+        element_styles: &'i std::collections::HashMap<Element<'arena>, ElementData<'arena>>,
+        info: &'i Info<'arena>,
+    ) -> Self {
+        Self {
+            computed_styles: crate::style::ComputedStyles::default(),
+            stylesheet: None,
+            element_styles,
+            root,
+            flags,
+            info,
         }
     }
 }
@@ -112,7 +84,6 @@ bitflags! {
         const none = 0b000_0000_0000;
         /// The visitor shouldn't run following preparation.
         const skip = 0b000_0000_0001;
-        #[cfg(feature = "style")]
         /// Style information should be added to context while visiting
         const use_style = 0b000_0010;
     }
@@ -133,7 +104,6 @@ bitflags! {
         const has_script_ref = 0b0001;
         /// Whether the document has a non-empty stylesheet
         const has_stylesheet = 0b0010;
-        #[cfg(feature = "style")]
         /// Whether the computed styles will be used for each element
         const use_style = 0b0100;
         /// Whether this element is a `foreignObject` or a child of one
@@ -146,14 +116,14 @@ bitflags! {
 impl ContextFlags {
     #[cfg(feature = "selectors")]
     /// Queries whether a `<script>` element is within the document
-    pub fn query_has_script<'arena, E: Element<'arena>>(&mut self, root: &E) {
+    pub fn query_has_script<'arena>(&mut self, root: &Element<'arena>) {
         self.set(Self::has_script_ref, has_scripts(root));
     }
 
-    #[cfg(all(feature = "style", feature = "selectors"))]
+    #[cfg(all(feature = "selectors"))]
     /// Queries whether a `<style>` element is within the document
-    pub fn query_has_stylesheet<'arena, E: Element<'arena>>(&mut self, root: &E) {
-        self.set(Self::has_stylesheet, !style::root(root).is_empty());
+    pub fn query_has_stylesheet<'arena>(&mut self, root: &Element<'arena>) {
+        self.set(Self::has_stylesheet, style::root(root).next().is_some());
     }
 
     /// Prevents the children of the current node from being visited
@@ -165,7 +135,7 @@ impl ContextFlags {
 
 /// A trait for visiting or transforming the DOM
 #[allow(unused_variables)]
-pub trait Visitor<'arena, E: Element<'arena>> {
+pub trait Visitor<'arena> {
     /// The type of errors which may be produced by the visitor
     type Error;
 
@@ -175,8 +145,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn document(
         &self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
+        document: &Element<'arena>,
+        context: &Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -187,8 +157,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn exit_document(
         &self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
+        document: &Element<'arena>,
+        context: &Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -199,8 +169,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'arena>,
+        context: &mut Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -211,8 +181,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn exit_element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'arena>,
+        context: &mut Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -221,7 +191,15 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn doctype(&self, doctype: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn doctype(&self, doctype: Ref<'arena>) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Visits the text of a style element
+    ///
+    /// # Errors
+    /// Whether the visitor fails
+    fn style(&self, style: Ref<'arena>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -229,7 +207,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn text_or_cdata(&self, node: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn text_or_cdata(&self, node: Ref<'arena>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -237,7 +215,7 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     ///
     /// # Errors
     /// Whether the visitor fails
-    fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn comment(&self, comment: Ref<'arena>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -247,16 +225,15 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn processing_instruction(
         &self,
-        processing_instruction: &mut <E as Node<'arena>>::Child,
-        context: &Context<'arena, '_, '_, E>,
+        processing_instruction: Ref<'arena>,
+        context: &Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    #[cfg(feature = "style")]
     /// For implementors, determines whether style information should
     /// be gathered and added to context prior to visiting an element.
-    fn use_style(&self, element: &E) -> bool {
+    fn use_style(&self, element: &Element<'arena>) -> bool {
         false
     }
 
@@ -267,8 +244,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// Whether the visitor fails
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
+        document: &Element<'arena>,
+        info: &Info<'arena>,
         context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(PrepareOutcome::none)
@@ -280,8 +257,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// If any of the visitor's methods fail
     fn start(
         &self,
-        root: &mut E,
-        info: &Info<'arena, E>,
+        root: &mut Element<'arena>,
+        info: &Info<'arena>,
         flags: Option<ContextFlags>,
     ) -> Result<PrepareOutcome, Self::Error> {
         let mut flags = flags.unwrap_or_default();
@@ -289,29 +266,20 @@ pub trait Visitor<'arena, E: Element<'arena>> {
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }
-        cfg_if! {
-            if #[cfg(feature = "style")] {
-                let element_styles = &mut std::collections::HashMap::new();
-                if prepare_outcome.contains(PrepareOutcome::use_style) {
-                    let style_source = flag_style_source(&mut flags, root);
-                    let stylesheet = parse_stylesheet(style_source.as_str());
-                    *element_styles = ElementData::new(root);
-                    let mut context = Context::new(root.clone(), flags, element_styles, info);
-                    context.stylesheet = stylesheet;
-                    self.visit(root, &mut context)?;
-                } else {
-                    self.visit(
-                        root,
-                        &mut Context::new(root.clone(), flags, element_styles, info),
-                    )?;
-                };
-            } else {
-                self.visit(
-                    root,
-                    &mut Context::new(root.clone(), flags, info),
-                )?;
-            }
-        }
+        let element_styles = &mut std::collections::HashMap::new();
+        if prepare_outcome.contains(PrepareOutcome::use_style) {
+            let stylesheet = flag_style_source(&mut flags, root);
+            *element_styles = ElementData::new(root);
+            let mut context = Context::new(root.clone(), flags, element_styles, info);
+            context.stylesheet = stylesheet;
+            self.visit(root, &mut context)?;
+        } else {
+            self.visit(
+                root,
+                &mut Context::new(root.clone(), flags, element_styles, info),
+            )?;
+        };
+
         Ok(prepare_outcome)
     }
 
@@ -321,8 +289,8 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// If any of the visitor's methods fail
     fn visit<'i>(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, 'i, '_, E>,
+        element: &Element<'arena>,
+        context: &mut Context<'arena, 'i>,
     ) -> Result<(), Self::Error> {
         match element.node_type() {
             node::Type::Document => {
@@ -334,30 +302,24 @@ pub trait Visitor<'arena, E: Element<'arena>> {
                 log::debug!("visiting {element:?}");
                 let is_root_foreign_object =
                     !context.flags.contains(ContextFlags::within_foreign_object)
-                        && element.prefix().is_none()
-                        && element.local_name().as_ref() == "foreignObject";
+                        && *element.qual_name() == ElementId::ForeignObject;
                 if is_root_foreign_object {
                     context.flags.set(ContextFlags::within_foreign_object, true);
                 }
-                cfg_if! {
-                    if #[cfg(feature = "style")] {
-                        let use_style = context.flags.contains(ContextFlags::use_style);
-                        if use_style && self.use_style(element) {
-                            context.computed_styles = ComputedStyles::<'i>::default().with_all(
-                                element,
-                                &context.stylesheet,
-                                context.element_styles,
-                            );
-                        } else {
-                            context.computed_styles = ComputedStyles::default();
-                            context.flags.set(ContextFlags::use_style, false);
-                        }
-                        self.element(element, context)?;
-                        context.flags.set(ContextFlags::use_style, use_style);
-                    } else {
-                        self.element(element, context)?;
-                    }
+                let use_style = context.flags.contains(ContextFlags::use_style);
+                if use_style && self.use_style(element) {
+                    context.computed_styles = ComputedStyles::default().with_all(
+                        element,
+                        &context.stylesheet,
+                        context.element_styles,
+                    );
+                } else {
+                    context.computed_styles = ComputedStyles::default();
+                    context.flags.set(ContextFlags::use_style, false);
                 }
+                self.element(element, context)?;
+                context.flags.set(ContextFlags::use_style, use_style);
+
                 if context.flags.contains(ContextFlags::skip_children) {
                     context.flags.set(ContextFlags::skip_children, false);
                 } else {
@@ -382,41 +344,42 @@ pub trait Visitor<'arena, E: Element<'arena>> {
     /// If any of the visitor's methods fail
     fn visit_children(
         &self,
-        parent: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        parent: &Element<'arena>,
+        context: &mut Context<'arena, '_>,
     ) -> Result<(), Self::Error> {
         parent
             .child_nodes_iter()
-            .try_for_each(|mut child| match child.node_type() {
+            .try_for_each(|child| match child.node_type() {
                 node::Type::Document | node::Type::Element => {
-                    if let Some(mut child) = <E as Element>::new(child) {
-                        self.visit(&mut child, context)
+                    if let Some(child) = Element::new(child) {
+                        self.visit(&child, context)
                     } else {
                         Ok(())
                     }
                 }
-                node::Type::Text | node::Type::CDataSection => self.text_or_cdata(&mut child),
-                node::Type::Comment => self.comment(&mut child),
-                node::Type::DocumentType => self.doctype(&mut child),
-                node::Type::ProcessingInstruction => {
-                    self.processing_instruction(&mut child, context)
-                }
+                node::Type::Style => self.style(child),
+                node::Type::Text | node::Type::CDataSection => self.text_or_cdata(child),
+                node::Type::Comment => self.comment(child),
+                node::Type::DocumentType => self.doctype(child),
+                node::Type::ProcessingInstruction => self.processing_instruction(child, context),
                 node::Type::Attribute | node::Type::DocumentFragment => Ok(()),
             })
     }
 }
 
-#[cfg(feature = "style")]
-fn parse_stylesheet(code: &str) -> Option<stylesheet::StyleSheet> {
-    stylesheet::StyleSheet::parse(code, stylesheet::ParserOptions::default()).ok()
-}
-
-#[cfg(feature = "style")]
-fn flag_style_source<'arena, E: Element<'arena>>(flags: &mut ContextFlags, root: &E) -> String {
-    let style_source = style::root(root);
+fn flag_style_source<'arena>(
+    flags: &mut ContextFlags,
+    root: &Element<'arena>,
+) -> Option<CssRuleList<'arena>> {
+    let style_source = CssRuleList(style::root(root).peekable().collect());
+    let has_stylesheet = !style_source.0.is_empty();
     flags.set(ContextFlags::use_style, true);
-    flags.set(ContextFlags::has_stylesheet, !style_source.is_empty());
-    style_source
+    flags.set(ContextFlags::has_stylesheet, has_stylesheet);
+    if has_stylesheet {
+        Some(style_source)
+    } else {
+        None
+    }
 }
 
 #[cfg(feature = "selectors")]
@@ -430,7 +393,7 @@ fn flag_style_source<'arena, E: Element<'arena>>(flags: &mut ContextFlags, root:
 /// # Panics
 ///
 /// If the internal selector fails to build
-pub fn has_scripts<'arena, E: Element<'arena>>(root: &E) -> bool {
+pub fn has_scripts<'arena>(root: &Element<'arena>) -> bool {
     // PERF: Find a way to lazily evaluate selector
-    root.select_with_selector(Selector::new::<E>( "script,a[href^='javascript:'],[onbegin],[onend],[onrepeat],[onload],[onabort],[onerror],[onresize],[onscroll],[onunload],[onzoom],[oncopy],[oncut],[onpaste],[oncancel],[oncanplay],[oncanplaythrough],[onchange],[onclick],[onclose],[oncuechange],[ondblclick],[ondrag],[ondragend],[ondragenter],[ondragleave],[ondragover],[ondragstart],[ondrop],[ondurationchange],[onemptied],[onended],[onfocus],[oninput],[oninvalid],[onkeydown],[onkeypress],[onkeyup],[onloadeddata],[onloadedmetadata],[onloadstart],[onmousedown],[onmouseenter],[onmouseleave],[onmousemove],[onmouseout],[onmouseup],[onmousewheel],[onpause],[onplay],[onplaying],[onprogress],[onratechange],[onreset],[onseeked],[onseeking],[onselect],[onshow],[onstalled],[onsubmit],[onsuspend],[ontimeupdate],[ontoggle],[onvolumechange],[onwaiting],[onactivate],[onfocusin],[onfocusout],[onmouseover]" ).expect("known selector")).next().is_some()
+    root.select_with_selector(Selector::new( "script,a[href^='javascript:'],[onbegin],[onend],[onrepeat],[onload],[onabort],[onerror],[onresize],[onscroll],[onunload],[onzoom],[oncopy],[oncut],[onpaste],[oncancel],[oncanplay],[oncanplaythrough],[onchange],[onclick],[onclose],[oncuechange],[ondblclick],[ondrag],[ondragend],[ondragenter],[ondragleave],[ondragover],[ondragstart],[ondrop],[ondurationchange],[onemptied],[onended],[onfocus],[oninput],[oninvalid],[onkeydown],[onkeypress],[onkeyup],[onloadeddata],[onloadedmetadata],[onloadstart],[onmousedown],[onmouseenter],[onmouseleave],[onmousemove],[onmouseout],[onmouseup],[onmousewheel],[onpause],[onplay],[onplaying],[onprogress],[onratechange],[onreset],[onseeked],[onseeking],[onselect],[onshow],[onstalled],[onsubmit],[onsuspend],[ontimeupdate],[ontoggle],[onvolumechange],[onwaiting],[onactivate],[onfocusin],[onfocusout],[onmouseover]" ).expect("known selector")).next().is_some()
 }
