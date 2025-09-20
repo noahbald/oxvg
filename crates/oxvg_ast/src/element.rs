@@ -1,33 +1,53 @@
 //! XML element traits.
 use std::{
-    cell::{Ref, RefMut},
+    cell::{self, Cell, RefCell, RefMut},
     collections::VecDeque,
     fmt::Debug,
-    marker::PhantomData,
+    ops::Deref,
 };
 
+use cfg_if::cfg_if;
+
 use crate::{
+    arena::Arena,
     atom::Atom,
-    attribute::{Attr, Attributes},
+    attribute::{
+        data::{Attr, AttrId},
+        Attributes,
+    },
     class_list::ClassList,
     document::Document,
-    name::Name,
-    node::{self, Node, Type},
+    element::data::Iterator,
+    name::{Prefix, NS},
+    node::{self, Node, NodeData, Ref, Type},
 };
+use data::{ElementId, LocalName};
+
+pub mod category;
+pub mod data;
+
+#[derive(Clone, Hash, Eq)]
+/// An XML element type.
+#[repr(transparent)]
+pub struct Element<'arena>(pub Ref<'arena>);
 
 /// An xml element with attributes, (e.g. `<a xlink:href="#" />`)
 ///
 /// [MDN | Element](https://developer.mozilla.org/en-US/docs/Web/API/Element)
-pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + PartialEq {
-    /// The type representing a singular attribute of the element's list of attributes
-    type Attr: Attr<Name = Self::Name, Atom = <Self as Node<'arena>>::Atom>;
-    /// The type representing a list of attributes in an element
-    type Attributes<'a>: Attributes<'a, Attribute = Self::Attr>;
-    /// `Self` with a lifetime argument
-    type Lifetimed<'a>: Element<'a>;
-
+impl<'arena> Element<'arena> {
     /// Converts the provided node into an element, if the node type matches an element or document
-    fn new(node: Self::Child) -> Option<Self>;
+    pub fn new(node: Ref<'arena>) -> Option<Self> {
+        if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {
+            return None;
+        }
+        cfg_if! {
+            if #[cfg(feature = "selectors")] {
+                Some(Self (node))
+            } else {
+                Some(Self ( node ))
+            }
+        }
+    }
 
     /// Returns this element as [Document], even if it's not a document node.
     ///
@@ -35,18 +55,295 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     /// end up being invalid.
     ///
     /// For other cases, try `element.document()?.as_document()`
-    fn as_document(&self) -> impl Document<'arena, Root = Self>;
+    fn as_document(&self) -> Document<'arena> {
+        Document(self.clone())
+    }
 
     /// Creates an element from an element's parent type.
-    fn from_parent(node: Self::ParentChild) -> Option<Self>;
+    fn from_parent(node: Ref<'arena>) -> Option<Self> {
+        Self::new(node)
+    }
+
+    /// Returns the element's name as a qualified name.
+    pub fn qual_name(&self) -> &ElementId<'arena> {
+        self.data().name
+    }
+
+    /// Returns the local part of the element's qualified name.
+    ///
+    /// [MDN | localName](https://developer.mozilla.org/en-US/docs/Web/API/Element/localName)
+    pub fn local_name(&self) -> &LocalName<'arena> {
+        self.qual_name().local_name()
+    }
+
+    /// Returns the namespace prefix of the element's qualified name.
+    ///
+    /// [MDN | prefix](https://developer.mozilla.org/en-US/docs/Web/API/Element/prefix)
+    pub fn prefix(&self) -> &Prefix {
+        self.qual_name().prefix()
+    }
+
+    /// Returns the element's tag-name (i.e. it's qualified name) in uppercase.
+    ///
+    /// [MDN | tagName](https://developer.mozilla.org/en-US/docs/Web/API/Element/tagName)
+    fn tag_name(&self) -> String {
+        let local_name = self.local_name();
+        match self.prefix() {
+            Prefix::SVG => local_name.to_uppercase(),
+            prefix => format!("{prefix}:{local_name}").to_uppercase(),
+        }
+    }
+
+    /// Returns the value of an attribute of the element specified by it's qualified name.
+    ///
+    /// [MDN | getAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttribute)
+    pub fn get_attribute<'a>(&'a self, name: &AttrId) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.get_attribute_node(name)
+    }
+
+    pub fn get_attribute_local<'a>(
+        &'a self,
+        local_name: &Atom,
+    ) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.get_attribute_node_local(local_name)
+    }
+
+    /// Returns the value of an attribute of the element specified by it's local name and
+    /// namespace.
+    ///
+    /// [MDN | getAttributeNS](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNS)
+    pub fn get_attribute_ns<'a>(
+        &'a self,
+        namespace: &NS<'arena>,
+        local_name: &Atom<'arena>,
+    ) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.get_attribute_node_ns(namespace, local_name)
+    }
+
+    /// Returns a collection of the attribute names of the element.
+    ///
+    /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
+    fn get_attribute_names<'a, B>(&'a self) -> B
+    where
+        B: FromIterator<cell::Ref<'a, AttrId<'arena>>>,
+    {
+        self.attributes()
+            .into_iter()
+            .map(|attr| cell::Ref::map(attr, |attr: &Attr<'arena>| attr.name()))
+            .collect()
+    }
+
+    /// Returns the attribute specified by it's qualified name.
+    ///
+    /// [MDN | getAttributeNode](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNode)
+    fn get_attribute_node<'a>(&'a self, attr_name: &AttrId) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.attributes().get_named_item(attr_name)
+    }
+
+    fn get_attribute_node_local<'a>(
+        &'a self,
+        local_name: &Atom,
+    ) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.attributes().get_named_item_local(local_name)
+    }
+
+    /// See [`Attributes::get_attribute_node`]
+    fn get_attribute_node_mut(
+        &'arena self,
+        attr_name: &AttrId,
+    ) -> Option<RefMut<'arena, Attr<'arena>>> {
+        self.attributes().get_named_item_mut(attr_name)
+    }
+
+    fn get_attribute_node_ns<'a>(
+        &'a self,
+        namespace: &NS<'arena>,
+        local_name: &Atom<'arena>,
+    ) -> Option<cell::Ref<'a, Attr<'arena>>> {
+        self.attributes().get_named_item_ns(namespace, local_name)
+    }
+
+    /// Returns whether the element has the specified attribute or not.
+    ///
+    /// [MDN | hasAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttribute)
+    pub fn has_attribute<'a>(&'a self, name: &AttrId) -> bool {
+        self.get_attribute_node(name).is_some()
+    }
+
+    /// Returns whether the element has any attributes or not.
+    ///
+    /// [MDN | hasAttributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttributes)
+    fn has_attributes(&'arena self) -> bool {
+        !self.attributes().is_empty()
+    }
+
+    /// Returns whether the element is the root of the document.
+    pub fn is_root(&self) -> bool {
+        let Some(parent) = self.parent_node() else {
+            return true;
+        };
+        parent.node_type() == node::Type::Document
+    }
+
+    /// Inserts the node before the first child of the element.
+    ///
+    /// [MDN | prepend](https://developer.mozilla.org/en-US/docs/Web/API/Element/prepend)
+    fn prepend(&self, other: Ref<'arena>) {
+        let Some(parent) = self.parent_node() else {
+            return;
+        };
+        other.remove();
+        other.set_parent_node(&parent);
+        parent.insert_before(other, self);
+    }
+
+    /// Removes the attribute with the specified name from the element.
+    ///
+    /// [MDN | removeAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/removeAttribute)
+    fn remove_attribute(&'arena self, attr_name: &AttrId) {
+        let attrs = self.attributes();
+        attrs.remove_named_item(attr_name);
+    }
+
+    /// Replaces all the children in this element with a new list of children.
+    ///
+    /// [MDN | replaceChildren](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceChildren)
+    fn replace_children(&'arena self, children: Vec<Ref<'arena>>) {
+        self.first_child.set(children.first().copied());
+        self.last_child.set(children.last().copied());
+        for i in 0..children.len() {
+            let current = children.get(i).expect("`i` should be within len");
+            current.parent.set(Some(self));
+            if i > 0 {
+                current.previous_sibling.set(children.get(i - 1).copied());
+            } else {
+                current.previous_sibling.set(None);
+            }
+            current.next_sibling.set(children.get(i + 1).copied());
+        }
+    }
+
+    /// Replaces this element in the children list of it's parent with another.
+    ///
+    /// [MDN | replaceWith](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceWith)
+    fn replace_with(&self, other: Ref<'arena>) {
+        self.after(other);
+        self.remove();
+    }
+
+    /// Sets the value of the specified attribute on the specified element.
+    ///
+    /// [MDN | setAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/setAttribute)
+    fn set_attribute<'a>(&'a self, attr_name: AttrId<'arena>, value: &'arena str) {
+        let attrs = self.attributes();
+        let new_attr = Attr::new(attr_name, value);
+        attrs.set_named_item(new_attr);
+    }
+
+    /// Sets the local name of the element to a new one.
+    ///
+    /// Note that this is usually done by replacing the element with a clone of itself, so
+    /// references to the old element will be detached.
+    fn set_local_name(&self, new_name: Atom<'arena>, arena: &Arena<'arena>) {
+        let NodeData::Element { attrs, .. } = &self.node_data else {
+            panic!("expected an element!");
+        };
+        let replacement = arena.alloc(Node::new(
+            NodeData::Element {
+                name: ElementId::new(Prefix::SVG, new_name),
+                attrs: attrs.clone(),
+                #[cfg(feature = "selectors")]
+                selector_flags: Cell::new(None),
+            },
+            arena.len(),
+        ));
+        self.replace_with(replacement);
+    }
+
+    /// Returns the element immediately following this one in it's parent's child list.
+    ///
+    /// [MDN | nextElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/nextElementSibling)
+    pub fn next_element_sibling(&self) -> Option<Self> {
+        let mut saw_self = false;
+        for sibling in Element::parent_element(self)?.children() {
+            if saw_self {
+                return Some(sibling);
+            } else if sibling.id_eq(self) {
+                saw_self = true;
+            }
+        }
+        None
+    }
+
+    /// Returns the element immediately prior to this one in it's parent's child list.
+    ///
+    /// [MDN | previousElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/previousElementSibling)
+    pub fn previous_element_sibling(&self) -> Option<Self> {
+        let mut previous = None;
+        for sibling in Element::parent_element(self)?.children() {
+            if sibling.id_eq(self) {
+                return previous;
+            }
+            previous = Some(sibling);
+        }
+        None
+    }
+
+    /// Inserts a node in the children list of the [Element]'s parent, just after this [Element]
+    ///
+    /// [MDN | after](https://developer.mozilla.org/en-US/docs/Web/API/Element/after)
+    fn after(&self, node: Ref<'arena>) {
+        let Some(parent) = self.parent_node() else {
+            return;
+        };
+        parent.insert_after(node, self);
+    }
+
+    /// Inserts a node after the last child of the element.
+    ///
+    /// [MDN | append](https://developer.mozilla.org/en-US/docs/Web/API/Element/append)
+    fn append(&'arena self, node: Ref<'arena>) {
+        node.remove();
+        if let Some(last_node) = self.last_child.get() {
+            last_node.next_sibling.set(Some(node));
+            self.last_child.set(Some(node));
+        } else {
+            debug_assert!(self.first_child.get().is_none());
+            self.first_child.set(Some(node));
+            self.last_child.set(Some(node));
+        }
+    }
+
+    /// Inserts a node in the children list of the [Element]'s parent, just before this [Element]
+    ///
+    /// [MDN | before](https://developer.mozilla.org/en-US/docs/Web/API/Element/before)
+    fn before(&'arena self, node: Ref<'arena>) -> Option<()> {
+        let parent = self.parent_node()?;
+        node.remove();
+        node.set_parent_node(&parent);
+        parent.insert_before(node, self);
+        Some(())
+    }
 
     /// Returns a collection of the attributes assigned to the element.
     ///
     /// [MDN | attributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes)
-    fn attributes(&self) -> Self::Attributes<'_>;
+    pub fn attributes<'a>(&'a self) -> Attributes<'a, 'arena> {
+        Attributes(self.data().attrs)
+    }
 
     /// Replaces the element's collection of attributes with a new collection.
-    fn set_attributes(&self, new_attrs: Self::Attributes<'_>);
+    fn set_attributes(&self, new_attrs: Attributes<'_, 'arena>) {
+        let attrs = self.data().attrs;
+        attrs.replace(new_attrs.0.take());
+    }
+
+    /// Returns the element's parent element.
+    ///
+    /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
+    pub fn parent_element(&self) -> Option<Self> {
+        self.parent_node()
+    }
 
     /// Returns the number of child elements of this element.
     ///
@@ -78,21 +375,24 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     }
 
     /// Returns a [`ClassList`] for manipulating the tokens of a class attribute.
-    fn class_list(
-        &self,
-    ) -> impl ClassList<Attribute = <Self::Attributes<'_> as Attributes>::Attribute>;
+    pub fn class_list<'a>(&'a self) -> ClassList<'a, 'arena> {
+        ClassList {
+            attrs: self.attributes(),
+            class_index_memo: Cell::new(0),
+        }
+    }
 
     /// Returns whether a class (e.g. `.my-class` or `my-class`) is in the class attribute
-    fn has_class(&self, token: &Self::Atom) -> bool {
+    fn has_class(&self, token: &str) -> bool {
         let token = token.trim_start_matches('.');
-        self.class_list().contains(&token.into())
+        self.class_list().contains(token)
     }
 
     /// Traverses the element and it's parents until it finds an element that matches the specified
     /// local-name
     ///
     /// Enable the "selectors" feature if you need to use a css string.
-    fn closest_local(&self, name: &<Self::Name as Name>::LocalName) -> Option<Self> {
+    fn closest_local(&self, name: &LocalName) -> Option<Self> {
         let parent = Element::parent_element(self)?;
         if parent.node_type() == node::Type::Document {
             return None;
@@ -106,7 +406,16 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
 
     /// Traverses the element and it's parents until it finds the document node that contains the
     /// element, returning the document as an Element.
-    fn document(&self) -> Option<Self>;
+    pub fn document(&self) -> Option<Self> {
+        let Some(parent) = self.parent_node() else {
+            return Some(self.clone());
+        };
+        match self.node_data {
+            NodeData::Element { .. } => parent.document(),
+            NodeData::Document | NodeData::Root => Some(parent),
+            _ => None,
+        }
+    }
 
     /// Returns whether any of the child nodes of this element are elements
     fn has_child_elements(&self) -> bool {
@@ -116,23 +425,56 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     /// Returns the element's first child element.
     ///
     /// [MDN | firstElementChild](https://developer.mozilla.org/en-US/docs/Web/API/Element/firstElementChild)
-    fn first_element_child(&self) -> Option<Self> {
+    pub fn first_element_child(&self) -> Option<Self> {
         self.children().into_iter().next()
     }
 
     /// Returns an node list containing all the child elements of this element
-    fn child_elements_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
+    pub fn child_elements_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
         self.child_nodes_iter().filter_map(Self::new)
     }
 
-    /// Reorder the children of the element based on the given callback.
-    fn sort_child_elements<F>(&self, f: F)
-    where
-        F: FnMut(Self, Self) -> std::cmp::Ordering;
-
     /// Replaces the element in the DOM with each of it's child nodes, removing the element in the
     /// process.
-    fn flatten(&self);
+    fn flatten(&self) {
+        let parent = self.parent.take();
+        let mut current = self.first_child.get();
+        while let Some(current_child) = current {
+            current_child.parent.set(parent);
+            current = current_child.next_sibling.get();
+        }
+
+        let previous_sibling = self.previous_sibling.take();
+        let next_sibling = self.next_sibling.take();
+        let first_child = self.first_child.take();
+        let last_child = self.last_child.take();
+
+        if let Some(first_child) = first_child {
+            if let Some(previous_sibling) = previous_sibling {
+                previous_sibling.next_sibling.set(Some(first_child));
+                first_child.previous_sibling.set(Some(previous_sibling));
+            } else if let Some(parent) = parent {
+                parent.first_child.set(Some(first_child));
+            }
+        } else if let Some(previous_sibling) = previous_sibling {
+            previous_sibling.next_sibling.set(next_sibling);
+            next_sibling.inspect(|n| n.previous_sibling.set(Some(previous_sibling)));
+        } else if let Some(parent) = parent {
+            parent.first_child.set(next_sibling);
+        }
+        if let Some(last_child) = last_child {
+            if let Some(next_sibling) = next_sibling {
+                last_child.next_sibling.set(Some(next_sibling));
+                next_sibling.previous_sibling.set(Some(last_child));
+            } else if let Some(parent) = parent {
+                parent.last_child.set(Some(last_child));
+            }
+        } else if let Some(next_sibling) = next_sibling {
+            next_sibling.previous_sibling.set(previous_sibling);
+        } else if let Some(parent) = parent {
+            parent.last_child.set(previous_sibling);
+        }
+    }
 
     /// Returns the element's last child element.
     ///
@@ -141,340 +483,67 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
         self.children().into_iter().next_back()
     }
 
-    /// Returns the element's name as a qualified name.
-    fn qual_name(&self) -> &Self::Name;
-
-    /// Returns the local part of the element's qualified name.
-    ///
-    /// [MDN | localName](https://developer.mozilla.org/en-US/docs/Web/API/Element/localName)
-    fn local_name(&self) -> &<Self::Name as Name>::LocalName {
-        self.qual_name().local_name()
-    }
-
-    /// Sets the local name of the element to a new one.
-    ///
-    /// Note that this is usually done by replacing the element with a clone of itself, so
-    /// references to the old element will be detached.
-    fn set_local_name(&self, name: <Self::Name as Name>::LocalName, arena: &Self::Arena);
-
-    /// Returns the element immediately following this one in it's parent's child list.
-    ///
-    /// [MDN | nextElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/nextElementSibling)
-    fn next_element_sibling(&self) -> Option<Self> {
-        let mut saw_self = false;
-        for sibling in Element::parent_element(self)?.children() {
-            if saw_self {
-                return Some(sibling);
-            } else if sibling.id_eq(self) {
-                saw_self = true;
-            }
-        }
-        None
-    }
-
-    /// Returns the namespace prefix of the element's qualified name.
-    ///
-    /// [MDN | prefix](https://developer.mozilla.org/en-US/docs/Web/API/Element/prefix)
-    fn prefix(&self) -> &Option<<Self::Name as Name>::Prefix> {
-        self.qual_name().prefix()
-    }
-
-    /// Returns the element immediately prior to this one in it's parent's child list.
-    ///
-    /// [MDN | previousElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/previousElementSibling)
-    fn previous_element_sibling(&self) -> Option<Self> {
-        let mut previous = None;
-        for sibling in Element::parent_element(self)?.children() {
-            if sibling.id_eq(self) {
-                return previous;
-            }
-            previous = Some(sibling);
-        }
-        None
-    }
-
-    /// Returns the element's tag-name (i.e. it's qualified name) in uppercase.
-    ///
-    /// [MDN | tagName](https://developer.mozilla.org/en-US/docs/Web/API/Element/tagName)
-    fn tag_name(&self) -> Self::Atom {
-        let local_name = self.local_name();
-        match self.prefix() {
-            Some(prefix) => format!("{prefix}:{local_name}").to_uppercase().into(),
-            None => local_name.as_str().to_uppercase().into(),
-        }
-    }
-
-    /// Inserts a node in the children list of the [Element]'s parent, just after this [Element]
-    ///
-    /// [MDN | after](https://developer.mozilla.org/en-US/docs/Web/API/Element/after)
-    fn after(&self, node: <Self as Node<'arena>>::ParentChild) {
-        let Some(mut parent) = self.parent_node() else {
-            return;
-        };
-        parent.insert_after(node, &self.as_parent_child());
-    }
-
-    /// Inserts a node after the last child of the element.
-    ///
-    /// [MDN | append](https://developer.mozilla.org/en-US/docs/Web/API/Element/append)
-    fn append(&self, node: Self::Child);
-
-    /// Inserts a node in the children list of the [Element]'s parent, just before this [Element]
-    ///
-    /// [MDN | before](https://developer.mozilla.org/en-US/docs/Web/API/Element/before)
-    fn before(&self, node: <Self as Node<'arena>>::ParentChild) -> Option<()> {
-        let mut parent = self.parent_node()?;
-        node.remove();
-        node.set_parent_node(&parent);
-        parent.insert_before(node, &self.as_parent_child());
-        Some(())
-    }
-
     /// From a node, do a breadth-first search for the first element contained within it.
-    fn find_element(node: <Self as Node<'arena>>::ParentChild) -> Option<Self>;
+    pub fn find_element(node: Ref<'arena>) -> Option<Self> {
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
 
-    /// Returns the value of an attribute of the element specified by it's qualified name.
-    ///
-    /// [MDN | getAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttribute)
-    fn get_attribute<'a>(
-        &'a self,
-        name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<Ref<'a, Self::Atom>>
+        while let Some(current) = queue.pop_front() {
+            let maybe_element = current.element();
+            if maybe_element
+                .as_ref()
+                .is_some_and(|n| n.node_type() == node::Type::Element)
+            {
+                return maybe_element;
+            }
+
+            for child in current.child_nodes_iter() {
+                queue.push_back(child);
+            }
+        }
+        None
+    }
+
+    /// Reorder the children of the element based on the given callback.
+    fn sort_child_elements<F>(&self, mut f: F)
     where
-        'arena: 'a,
+        F: FnMut(Self, Self) -> std::cmp::Ordering,
     {
-        self.get_attribute_node(name)
-            .map(|a| Ref::map(a, |a| a.value()))
+        let mut children: Vec<_> = self.child_nodes_iter().collect();
+        children.sort_by(|a, b| {
+            let Some(a) = Element::new(a) else {
+                return std::cmp::Ordering::Less;
+            };
+            let Some(b) = Element::new(b) else {
+                return std::cmp::Ordering::Greater;
+            };
+            f(a, b)
+        });
+
+        self.first_child.set(children.first().copied());
+        self.last_child.set(children.last().copied());
+        for i in 0..children.len() {
+            let child = children[i];
+            if i > 0 {
+                child.previous_sibling.set(children.get(i - 1).copied());
+            }
+            child.next_sibling.set(children.get(i + 1).copied());
+        }
     }
-
-    /// Returns the value of an attribute of the element specified by a local name, only if that
-    /// attribute also has no prefix
-    fn get_attribute_local<'a>(
-        &'a self,
-        name: &<<Self::Attr as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, Self::Atom>>
-    where
-        'arena: 'a,
-    {
-        self.get_attribute_node_local(name)
-            .map(|a| Ref::map(a, |a| a.value()))
-    }
-
-    /// Returns the value of an attribute of the element specified by it's local name and
-    /// namespace.
-    ///
-    /// [MDN | getAttributeNS](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNS)
-    fn get_attribute_ns<'a>(
-        &'a self,
-        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
-        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, Self::Atom>>
-    where
-        'arena: 'a,
-    {
-        self.get_attribute_node_ns(namespace, name)
-            .map(|a| Ref::map(a, |a| a.value()))
-    }
-
-    /// Returns a collection of the attribute names of the element.
-    ///
-    /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
-    fn get_attribute_names<'a, B>(&'a self) -> B
-    where
-        B: FromIterator<
-            Ref<'a, <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name>,
-        >,
-        'arena: 'a,
-    {
-        self.attributes()
-            .into_iter()
-            .map(|attr| Ref::map(attr, |attr| attr.name()))
-            .collect()
-    }
-
-    /// Returns the attribute specified by it's qualified name.
-    ///
-    /// [MDN | getAttributeNode](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNode)
-    fn get_attribute_node<'a>(
-        &'a self,
-        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
-        self.attributes().get_named_item(attr_name)
-    }
-
-    /// See [`Attributes::get_attribute_node`]
-    fn get_attribute_node_mut<'a>(
-        &'a self,
-        attr_name: &<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
-        self.attributes().get_named_item_mut(attr_name)
-    }
-
-    /// Returns the attribute of the element specified by a local name, only if that
-    /// attribute also has no prefix
-    fn get_attribute_node_local<'a>(
-        &'a self,
-        attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
-        self.attributes().get_named_item_local(attr_name)
-    }
-
-    /// Returns the mutable attribute of the element specified by a local name, only if that
-    /// attribute also has no prefix
-    fn get_attribute_node_local_mut<'a>(
-        &'a self,
-        attr_name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<RefMut<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
-        self.attributes().get_named_item_local_mut(attr_name)
-    }
-
-    /// Returns the attribute specified by it's localname and namespace
-    ///
-    /// [MDN getAttributeNodeNS](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNodeNS)
-    fn get_attribute_node_ns<'a>(
-        &'a self,
-        namespace: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::Namespace,
-        name: &<<<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name as Name>::LocalName,
-    ) -> Option<Ref<'a, <Self::Attributes<'a> as Attributes<'a>>::Attribute>> {
-        self.attributes().get_named_item_ns(namespace, name)
-    }
-
-    /// Returns whether the element has the specified attribute or not.
-    ///
-    /// [MDN | hasAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttribute)
-    fn has_attribute<'a, N>(&'a self, name: &N) -> bool
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-        'arena: 'a,
-    {
-        self.get_attribute_node(name).is_some()
-    }
-
-    /// Returns whether the element has the specified attribute or not by a local name, only if that
-    /// attribute also has no prefix
-    fn has_attribute_local<'a, N>(&'a self, name: &N) -> bool
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-        'arena: 'a,
-    {
-        self.get_attribute_node_local(name).is_some()
-    }
-
-    /// Returns whether the element has any attributes or not.
-    ///
-    /// [MDN | hasAttributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttributes)
-    fn has_attributes<'a, N>(&'a self) -> bool
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-    {
-        !self.attributes().is_empty()
-    }
-
-    /// Returns whether the element is the root of the document.
-    fn is_root(&self) -> bool {
-        let Some(parent) = self.parent_node() else {
-            return true;
-        };
-        parent.node_type() == node::Type::Document
-    }
-
-    /// Inserts the node before the first child of the element.
-    ///
-    /// [MDN | prepend](https://developer.mozilla.org/en-US/docs/Web/API/Element/prepend)
-    fn prepend(&self, other: Self::ParentChild) {
-        let Some(mut parent) = self.parent_node() else {
-            return;
-        };
-        other.remove();
-        other.set_parent_node(&parent);
-        parent.insert_before(other, &self.as_parent_child());
-    }
-
-    /// Removes the attribute with the specified name from the element.
-    ///
-    /// [MDN | removeAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/removeAttribute)
-    fn remove_attribute<'a, N>(&'a self, attr_name: &N)
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name = N>>,
-        N: Name,
-    {
-        let attrs = self.attributes();
-        attrs.remove_named_item(attr_name);
-    }
-
-    /// Removes the attribute with the specified local name from the element, only if that
-    /// attribute also has no prefix
-    fn remove_attribute_local<'a, N>(
-        &'a self,
-        attr_name: &N,
-    ) -> Option<<Self::Attributes<'a> as Attributes<'a>>::Attribute>
-    where
-        Self::Attributes<'a>: Attributes<'a, Attribute: Attr<Name: Name<LocalName = N>>>,
-        N: Atom,
-    {
-        let attrs = self.attributes();
-        attrs.remove_named_item_local(attr_name)
-    }
-
-    /// Replaces all the children in this element with a new list of children.
-    ///
-    /// [MDN | replaceChildren](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceChildren)
-    fn replace_children(&self, children: Vec<Self::Child>);
-
-    /// Replaces this element in the children list of it's parent with another.
-    ///
-    /// [MDN | replaceWith](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceWith)
-    fn replace_with(&self, other: Self::ParentChild) {
-        self.after(other);
-        self.remove();
-    }
-
-    /// Sets the value of the specified attribute on the specified element.
-    ///
-    /// [MDN | setAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/setAttribute)
-    fn set_attribute<'a>(
-        &'a self,
-        attr_name: <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Name,
-        value: <<Self::Attributes<'a> as Attributes<'a>>::Attribute as Attr>::Atom,
-    ) {
-        let attrs = self.attributes();
-        let new_attr = <Self::Attributes<'a> as Attributes<'a>>::Attribute::new(attr_name, value);
-        attrs.set_named_item(new_attr);
-    }
-
-    /// Sets the value of the specified attribute on the element by local name, without any prefix
-    fn set_attribute_local(
-        &self,
-        attr_name: <<Self::Attr as Attr>::Name as Name>::LocalName,
-        value: <Self::Attr as Attr>::Atom,
-    ) {
-        let attrs = self.attributes();
-        let qual_name = <Self::Attr as Attr>::Name::new(None, attr_name);
-        let new_attr = Self::Attr::new(qual_name, value);
-        attrs.set_named_item(new_attr);
-    }
-
-    /// Returns the element's parent element.
-    ///
-    /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
-    fn parent_element(&self) -> Option<Self>;
 
     /// Returns an iterator over the element and it's descendants
-    fn breadth_first(&self) -> Iterator<'arena, Self> {
+    pub fn breadth_first(&self) -> Iterator<'arena> {
         Iterator::new(self)
     }
 
     #[cfg(feature = "selectors")]
     /// # Errors
     /// If the selector is invalid
-    fn select<'a>(
+    pub fn select<'a>(
         &'a self,
         selector: &'a str,
     ) -> Result<
-        crate::selectors::Select<'arena, Self>,
+        crate::selectors::Select<'arena>,
         cssparser::ParseError<'a, selectors::parser::SelectorParseErrorKind<'a>>,
     > {
         crate::selectors::Select::new(self, selector)
@@ -483,53 +552,80 @@ pub trait Element<'arena>: Node<'arena> + Debug + std::hash::Hash + Eq + Partial
     #[cfg(feature = "selectors")]
     #[allow(clippy::type_complexity)]
     /// Selects an element with the given selector.
-    fn select_with_selector(
+    pub fn select_with_selector(
         &self,
-        selector: crate::selectors::Selector<
-            Self::Atom,
-            <Self::Name as Name>::Prefix,
-            <Self::Name as Name>::LocalName,
-            <Self::Name as Name>::Namespace,
-        >,
-    ) -> crate::selectors::Select<'arena, Self> {
+        selector: crate::selectors::Selector,
+    ) -> crate::selectors::Select<'arena> {
         crate::selectors::Select::new_with_selector(self, selector)
     }
 
     #[cfg(feature = "selectors")]
     /// Sets the selector flags of an element
-    fn set_selector_flags(&self, flags: selectors::matching::ElementSelectorFlags);
-}
+    pub fn set_selector_flags(&self, flags: selectors::matching::ElementSelectorFlags) {
+        let NodeData::Element {
+            ref selector_flags, ..
+        } = self.node_data
+        else {
+            return;
+        };
+        selector_flags.set(Some(flags));
+    }
 
-#[derive(Debug)]
-/// An iterator that goes over an element and it's descendants in a breadth-first fashion
-pub struct Iterator<'arena, E: crate::element::Element<'arena>> {
-    queue: VecDeque<E>,
-    marker: PhantomData<&'arena ()>,
-}
-
-impl<'arena, E: crate::element::Element<'arena>> Iterator<'arena, E> {
-    /// Returns a breadth-first iterator starting at the given element
-    pub fn new(element: &E) -> Self {
-        let mut queue = VecDeque::new();
-        element.child_elements_iter().for_each(|e| {
-            queue.push_back(e);
-        });
-
-        Self {
-            queue,
-            marker: PhantomData,
+    fn data<'a>(&'a self) -> ElementData<'a, 'arena> {
+        if let NodeData::Element {
+            ref name,
+            ref attrs,
+            ..
+        } = self.node_data
+        {
+            ElementData { name, attrs }
+        } else {
+            unreachable!("Element contains non-element data. This is a bug!")
         }
     }
 }
 
-impl<'arena, E: crate::element::Element<'arena>> std::iter::Iterator for Iterator<'arena, E> {
-    type Item = E;
+impl PartialEq for Element<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id_eq(other)
+    }
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.queue.pop_front()?;
-        current.child_elements_iter().for_each(|e| {
-            self.queue.push_back(e);
-        });
-        Some(current)
+/// A reference to an element's data
+pub struct ElementData<'a, 'input> {
+    name: &'a ElementId<'input>,
+    attrs: &'a RefCell<Vec<Attr<'input>>>,
+}
+
+impl<'arena> Deref for Element<'arena> {
+    type Target = Ref<'arena>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Debug for Element<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.node_type() != node::Type::Element {
+            return self.fmt(f);
+        }
+        let name = self.qual_name();
+        let attributes = self.attributes();
+        let child_node_count = self.child_node_count();
+        let text = match child_node_count {
+            1 => self
+                .text_content()
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default(),
+            _ => "".to_string(),
+        };
+        let child_count = match child_node_count {
+            0 => String::from("/>"),
+            len => format!(">{len} child nodes</{name}>"),
+        };
+        f.debug_tuple("Element")
+            .field(&format!("<{name} {attributes:?}{child_count} {text}"))
+            .finish()
     }
 }

@@ -51,6 +51,7 @@ napi = { version = "3.0.0-alpha.33", default-features = false, features = [
   "napi4",
 ] }
 napi-derive = "3.0.0-alpha.29"
+paste = "1.0"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
 rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }
@@ -61,6 +62,7 @@ serde = "1.0"
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.12"
+smallvec = "1.13.2"
 string_cache = "0.8"
 tendril = "0.4"
 tsify = { version = "0.5", default-features = false, features = ["js"] }

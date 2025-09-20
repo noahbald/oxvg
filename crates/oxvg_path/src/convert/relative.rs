@@ -169,7 +169,7 @@ fn convert_command_to_relative(
 fn test_convert_relative() {
     use crate::Path;
 
-    let mut path = Path::parse("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap();
+    let mut path = Path::parse_string("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap();
     path = Path::from(relative(&path));
     assert_eq!(
         String::from(path),
