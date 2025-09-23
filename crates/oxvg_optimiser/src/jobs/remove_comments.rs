@@ -61,7 +61,7 @@ impl napi::bindgen_prelude::FromNapiValue for PreservePattern {
         env: napi::sys::napi_env,
         napi_val: napi::sys::napi_value,
     ) -> napi::Result<Self> {
-        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
+        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
         let regex = obj.get("regex")?.ok_or_else(|| {
             napi::Error::new(
                 napi::Status::InvalidArg,

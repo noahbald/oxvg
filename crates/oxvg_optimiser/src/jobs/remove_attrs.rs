@@ -92,7 +92,7 @@ impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
         env: napi::sys::napi_env,
         napi_val: napi::sys::napi_value,
     ) -> napi::Result<Self> {
-        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
+        let obj = napi::bindgen_prelude::Object::from_napi_value(env, napi_val)?;
         let attrs = obj.get("attrs")?.ok_or_else(|| {
             napi::Error::new(
                 napi::Status::InvalidArg,
