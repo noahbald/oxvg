@@ -1,4 +1,7 @@
 //! Types for the configuration file usable by OXVG
+use std::{env::current_dir, fs::read_to_string, path::PathBuf};
+
+use etcetera::{choose_base_strategy, BaseStrategy};
 use oxvg_optimiser::Extends;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +24,40 @@ pub struct Optimise {
 pub struct Config {
     /// The options for each job to override the specified preset.
     pub optimise: Option<Optimise>,
+}
+
+impl Config {
+    fn load_local() -> std::io::Result<(String, PathBuf)> {
+        let mut path = current_dir()?;
+        path.push("oxvgrc.json");
+        Ok((read_to_string(&path)?, path))
+    }
+
+    fn load_base() -> std::io::Result<(String, PathBuf)> {
+        let mut path = choose_base_strategy()
+            .unwrap_or_else(|err| panic!("{err}"))
+            .config_dir();
+        path.push("oxvg");
+        path.push("config.json");
+        Ok((read_to_string(&path)?, path))
+    }
+
+    /// Tries loading the configuration from well-known paths
+    ///
+    /// # Errors
+    /// When the config is missing
+    ///
+    /// # Panics
+    /// When the config exists but cannot be parsed
+    pub fn load() -> std::io::Result<Self> {
+        let (file, path) = Self::load_local().or_else(|_| Self::load_base())?;
+        Ok(serde_json::from_str(&file).unwrap_or_else(|err| {
+            panic!(
+                "Configuration at {} cannot be parsed: {err}",
+                path.to_string_lossy()
+            )
+        }))
+    }
 }
 
 impl Optimise {

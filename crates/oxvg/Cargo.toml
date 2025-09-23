@@ -29,10 +29,7 @@ oxvg_ast = { workspace = true, features = [
 
 anyhow = { workspace = true }
 clap = { workspace = true }
-config = { version = "0.15", default-features = false, features = [
-  "json",
-  "json5",
-] }
+etcetera = "0.10"
 ignore = "0.4"
 log = { workspace = true }
 serde = { workspace = true }
