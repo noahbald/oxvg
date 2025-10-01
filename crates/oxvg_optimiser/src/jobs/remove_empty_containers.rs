@@ -1,17 +1,14 @@
-use lightningcss::{properties::PropertyId, vendor_prefix::VendorPrefix};
 use oxvg_ast::{
-    attribute::Attributes,
-    element::Element,
-    get_computed_styles_factory,
-    name::Name,
-    style::{Id, PresentationAttrId},
+    element::{category::ElementCategory, Element},
+    has_attribute, has_computed_style, is_element,
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::CONTAINER;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -31,13 +28,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyContainers(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyContainers {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyContainers {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
+        _document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -47,35 +44,37 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyContainers {
         })
     }
 
-    fn use_style(&self, element: &E) -> bool {
-        element.prefix().is_none() && element.local_name().as_ref() == "g"
+    fn use_style(&self, element: &Element<'input, 'arena>) -> bool {
+        is_element!(element, G)
     }
 
     fn exit_element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let name = &element.qual_name().formatter().to_string();
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        let name = element.qual_name();
 
-        if name == "svg" || !CONTAINER.contains(name) || !element.is_empty() {
+        if !name.categories().contains(ElementCategory::Container) || !element.is_empty() {
             return Ok(());
-        } else if name == "pattern" {
+        }
+        if is_element!(element, Svg) {
+            return Ok(());
+        } else if is_element!(element, Pattern) {
             if !element.attributes().is_empty() {
                 return Ok(());
             }
-        } else if name == "mask" {
-            if element.has_attribute_local(&"id".into()) {
+        } else if is_element!(element, Mask) {
+            if has_attribute!(element, Id) {
                 return Ok(());
             }
-        } else if Element::parent_element(element)
-            .is_some_and(|e| e.prefix().is_none() && e.local_name().as_ref() == "switch")
+        } else if element
+            .parent_element()
+            .is_some_and(|e| is_element!(e, Switch))
         {
             return Ok(());
         }
-        if name == "g" && (get_computed_styles!(Filter(VendorPrefix::None)).is_some()) {
+        if is_element!(element, G) && has_computed_style!(context.computed_styles, Filter) {
             return Ok(());
         }
 

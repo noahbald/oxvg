@@ -1,10 +1,25 @@
+use lightningcss::{
+    declaration::DeclarationBlock,
+    properties::{
+        custom::{CustomProperty, Token, TokenOrValue},
+        Property,
+    },
+    values::percentage::DimensionPercentage,
+    visit_types,
+    visitor::{Visit, VisitTypes},
+};
 use oxvg_ast::{
-    attribute::Attr,
-    element::Element,
+    attribute::data::{
+        inheritable::Inheritable,
+        presentation::{EnableBackground, LengthPercentage},
+    },
+    element::{data::ElementId, Element},
+    get_attribute, get_attribute_mut, remove_attribute,
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
-use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::error::JobsError;
 
 use super::ContextFlags;
 
@@ -46,13 +61,13 @@ struct EnableBackgroundDimensions<'a> {
     height: &'a str,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for CleanupEnableBackground {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         if !self.0 {
@@ -65,105 +80,110 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupEnableBackground 
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
-    type Error = String;
+struct EnableBackgroundVisitor;
+impl<'input> lightningcss::visitor::Visitor<'input> for EnableBackgroundVisitor {
+    type Error = JobsError<'input>;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(PROPERTIES)
+    }
+    fn visit_declaration_block(
+        &mut self,
+        decls: &mut DeclarationBlock<'input>,
+    ) -> Result<(), Self::Error> {
+        let first_token = TokenOrValue::Token(Token::Ident("new".into()));
+        let remove_enable_background_new = |property: &Property| match property {
+            Property::Custom(CustomProperty { name, value }) => {
+                name.as_ref() != "enable-background"
+                    || value.0.first() != Some(&first_token)
+                    || todo!("validate this")
+            }
+            _ => true,
+        };
+        decls
+            .important_declarations
+            .retain(remove_enable_background_new);
+        decls.declarations.retain(remove_enable_background_new);
+        Ok(())
+    }
+}
+
+impl<'input, 'arena> Visitor<'input, 'arena> for State {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let style_name = &"style".into();
-        if let Some(mut style) = element.get_attribute_node_local_mut(style_name) {
-            // TODO: use lightningcss visitor instead
-            // TODO: update `<style>` elements
-            let new_value = ENABLE_BACKGROUND
-                .replace_all(style.value().as_ref(), "")
-                .to_string();
-            if new_value.is_empty() {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        let style = get_attribute_mut!(element, Style);
+        if let Some(mut style) = style {
+            style.0.visit(&mut EnableBackgroundVisitor)?;
+            if style.is_empty() {
                 drop(style);
-                element.remove_attribute_local(style_name);
-            } else {
-                style.set_value(new_value.into());
+                remove_attribute!(element, Style);
             }
         }
 
-        let enable_background_localname = "enable-background".into();
         if !self.contains_filter {
-            element.remove_attribute_local(&enable_background_localname);
+            remove_attribute!(element, EnableBackground);
             return Ok(());
         }
 
-        let Some(enable_background) = element.get_attribute_local(&"enable-background".into())
-        else {
+        let mut enable_background = get_attribute_mut!(element, EnableBackground);
+        let Some(Inheritable::Defined(enable_background)) = enable_background.as_deref_mut() else {
             return Ok(());
         };
-        let name = element.local_name();
 
-        let enabled_background_dimensions =
-            EnableBackgroundDimensions::get(enable_background.as_ref());
-        let matches_dimensions = EnableBackgroundDimensions::enabled_background_matches(
-            element,
-            enabled_background_dimensions,
-        );
-        drop(enable_background);
-        if matches_dimensions && name.as_ref() == "svg" {
-            element.remove_attribute_local(&enable_background_localname);
-        } else if matches_dimensions && (name.as_ref() == "mask" || name.as_ref() == "pattern") {
-            element.set_attribute_local(enable_background_localname, "new".into());
+        if !enabled_background_matches(element, &*enable_background) {
+            return Ok(());
+        }
+        match element.qual_name().unaliased() {
+            ElementId::Svg => {
+                remove_attribute!(element, EnableBackground);
+            }
+            ElementId::Mask | ElementId::Pattern => {
+                *enable_background = EnableBackground::New(None);
+            }
+            _ => {}
         }
         Ok(())
     }
 }
 
 impl State {
-    fn new<'arena, E: Element<'arena>>(root: &E) -> Self {
+    fn new<'input, 'arena>(root: &Element<'input, 'arena>) -> Self {
         Self {
-            contains_filter: root.select("filter").unwrap().next().is_some(),
+            contains_filter: root
+                .breadth_first()
+                .any(|element| *element.qual_name() == ElementId::Filter),
         }
     }
 }
 
-impl EnableBackgroundDimensions<'_> {
-    fn get(attr: &str) -> Option<EnableBackgroundDimensions> {
-        let parameters: Vec<_> = attr.split_whitespace().collect();
-        // Only allow `new <x> <y> <width> <height>`
-        if parameters.len() != 5 {
-            return None;
-        }
-
-        Some(EnableBackgroundDimensions {
-            width: parameters.get(3)?,
-            height: parameters.get(4)?,
-        })
-    }
-
-    fn enabled_background_matches<'arena, E: Element<'arena>>(
-        element: &E,
-        dimensions: Option<EnableBackgroundDimensions>,
-    ) -> bool {
-        let Some(dimensions) = dimensions else {
-            return false;
-        };
-        let Some(width) = element.get_attribute_local(&"width".into()) else {
-            return false;
-        };
-        let Some(height) = element.get_attribute_local(&"height".into()) else {
-            return false;
-        };
-        dimensions.width == width.as_ref() && dimensions.height == height.as_ref()
-    }
+fn enabled_background_matches<'input, 'arena>(
+    element: &Element<'input, 'arena>,
+    dimensions: &EnableBackground,
+) -> bool {
+    let EnableBackground::New(Some((_x, _y, eb_width, eb_height))) = dimensions else {
+        return false;
+    };
+    let width = get_attribute!(element, Width);
+    let Some(LengthPercentage(DimensionPercentage::Dimension(width))) = width.as_deref() else {
+        return false;
+    };
+    let height = get_attribute!(element, Height);
+    let Some(LengthPercentage(DimensionPercentage::Dimension(height))) = height.as_deref() else {
+        return false;
+    };
+    width.to_px().is_some_and(|px| px == *eb_width)
+        && height.to_px().is_some_and(|px| px == *eb_height)
 }
 
 impl Default for CleanupEnableBackground {
     fn default() -> Self {
         Self(true)
     }
-}
-
-lazy_static! {
-    static ref ENABLE_BACKGROUND: Regex =
-        Regex::new(r"(^|;)\s*enable-background\s*:\s*new[\d\s]*").unwrap();
 }
 
 #[test]

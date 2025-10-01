@@ -1,12 +1,17 @@
-use std::f64;
+use std::cell;
 
 use itertools::peek_nth;
+use lightningcss::values::length::{Length, LengthOrNumber};
 use oxvg_ast::{
-    element::Element,
+    attribute::data::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
+    element::{data::ElementId, Element},
+    get_attribute, has_attribute, set_attribute,
     visitor::{Context, Info, Visitor},
 };
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
+
+use crate::error::JobsError;
 
 use super::convert_path_data::ConvertPrecision;
 
@@ -38,16 +43,15 @@ pub struct ConvertShapeToPath {
     pub float_precision: ConvertPrecision,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let element = &mut element.clone();
-        let name = element.local_name();
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        let name = element.qual_name();
 
         let path_options = &convert::Options {
             precision: self.float_precision.0,
@@ -55,61 +59,68 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertShapeToPath {
         };
         let convert_arcs = self.convert_arcs;
 
-        match name.as_ref() {
-            "rect" => Self::rect_to_path(element, path_options, context.info),
-            "line" => Self::line_to_path(element, path_options, context.info),
-            "polyline" => Self::poly_to_path(element, path_options, false, context.info),
-            "polygon" => Self::poly_to_path(element, path_options, true, context.info),
-            "circle" if convert_arcs => Self::circle_to_path(element, path_options, context.info),
-            "ellipse" if convert_arcs => Self::ellipse_to_path(element, path_options, context.info),
+        match name {
+            ElementId::Rect => Self::rect_to_path(element, path_options, context.info),
+            ElementId::Line => Self::line_to_path(element, path_options, context.info),
+            ElementId::Polyline => Self::poly_to_path(element, path_options, false, context.info),
+            ElementId::Polygon => Self::poly_to_path(element, path_options, true, context.info),
+            ElementId::Circle if convert_arcs => {
+                Self::circle_to_path(element, path_options, context.info)
+            }
+            ElementId::Ellipse if convert_arcs => {
+                Self::ellipse_to_path(element, path_options, context.info)
+            }
             _ => {}
         }
         Ok(())
     }
 }
 
+fn lp_px(lp: cell::Ref<LengthPercentage>) -> Option<f64> {
+    use lightningcss::values::length::LengthPercentage;
+    match &lp.0 {
+        LengthPercentage::Dimension(d) => d.to_px().map(|px| px as f64),
+        _ => None,
+    }
+}
+fn ln_px(ln: cell::Ref<LengthOrNumber>) -> Option<f64> {
+    match &*ln {
+        LengthOrNumber::Number(n) => Some(*n as f64),
+        LengthOrNumber::Length(Length::Value(l)) => l.to_px().map(|px| px as f64),
+        LengthOrNumber::Length(Length::Calc(_)) => None,
+    }
+}
+fn r_px(r: cell::Ref<Radius>) -> Option<f64> {
+    cell::Ref::filter_map(r, |r| match r {
+        Radius::LengthPercentage(lp) => Some(lp),
+        Radius::Auto => None,
+    })
+    .ok()
+    .and_then(lp_px)
+}
 impl ConvertShapeToPath {
-    fn rect_to_path<'arena, E: Element<'arena>>(
-        element: &mut E,
+    fn rect_to_path<'input, 'arena>(
+        element: &Element<'input, 'arena>,
         options: &convert::Options,
-        info: &Info<'arena, E>,
+        info: &Info<'input, 'arena>,
     ) {
-        if element.has_attribute_local(&"rx".into()) || element.has_attribute_local(&"ry".into()) {
+        if has_attribute!(element, RX | RY) {
             return;
         }
 
-        let x_name = &"x".into();
-        let y_name = &"y".into();
-        let width_name = &"width".into();
-        let height_name = &"height".into();
-        let x = element
-            .get_attribute_local(x_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let y = element
-            .get_attribute_local(y_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let Some(width) = element
-            .get_attribute_local(width_name)
-            .map(|a| a.to_string())
-        else {
+        let Some(x) = get_attribute!(element, X).and_then(lp_px) else {
             return;
         };
-        let Some(height) = element
-            .get_attribute_local(height_name)
-            .map(|a| a.to_string())
-        else {
+        let Some(y) = get_attribute!(element, Y).and_then(lp_px) else {
+            return;
+        };
+        let Some(width) = get_attribute!(element, Width).and_then(lp_px) else {
+            return;
+        };
+        let Some(height) = get_attribute!(element, Height).and_then(lp_px) else {
             return;
         };
 
-        // Units should be stripped of `px` after `cleanupNumericValues`
-        let Ok(x) = x.parse::<f64>() else { return };
-        let Ok(y) = y.parse::<f64>() else { return };
-        let Ok(width) = width.parse::<f64>() else {
-            return;
-        };
-        let Ok(height) = height.parse::<f64>() else {
-            return;
-        };
         let mut path = Path(vec![
             Data::MoveTo([x, y]),
             Data::HorizontalLineTo([x + width]),
@@ -119,40 +130,31 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attribute_local("d".into(), path.to_string().into());
-        element.remove_attribute_local(x_name);
-        element.remove_attribute_local(y_name);
-        element.remove_attribute_local(width_name);
-        element.remove_attribute_local(height_name);
-        element.set_local_name("path".into(), &info.arena);
+        set_attribute!(element, D(path::Path(path)));
+        element.remove_attribute(&AttrId::X);
+        element.remove_attribute(&AttrId::Y);
+        element.remove_attribute(&AttrId::Width);
+        element.remove_attribute(&AttrId::Height);
+        element.set_local_name(ElementId::Path, &info.allocator);
     }
 
-    fn line_to_path<'arena, E: Element<'arena>>(
-        element: &mut E,
+    fn line_to_path<'input, 'arena>(
+        element: &Element<'input, 'arena>,
         options: &convert::Options,
-        info: &Info<'arena, E>,
+        info: &Info<'input, 'arena>,
     ) {
-        let x1_name = &"x1".into();
-        let y1_name = &"y1".into();
-        let x2_name = &"x2".into();
-        let y2_name = &"y2".into();
-        let x1 = element
-            .get_attribute_local(x1_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let y1 = element
-            .get_attribute_local(y1_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let x2 = element
-            .get_attribute_local(x2_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let y2 = element
-            .get_attribute_local(y2_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-
-        let Ok(x1) = x1.parse::<f64>() else { return };
-        let Ok(y1) = y1.parse::<f64>() else { return };
-        let Ok(x2) = x2.parse::<f64>() else { return };
-        let Ok(y2) = y2.parse::<f64>() else { return };
+        let Some(x1) = get_attribute!(element, X1).and_then(ln_px) else {
+            return;
+        };
+        let Some(y1) = get_attribute!(element, Y1).and_then(ln_px) else {
+            return;
+        };
+        let Some(x2) = get_attribute!(element, X2).and_then(ln_px) else {
+            return;
+        };
+        let Some(y2) = get_attribute!(element, Y2).and_then(ln_px) else {
+            return;
+        };
 
         let mut path = Path(vec![
             Data::MoveTo([x1, y1]),
@@ -160,32 +162,24 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attribute_local("d".into(), path.to_string().into());
-        element.remove_attribute_local(x1_name);
-        element.remove_attribute_local(y1_name);
-        element.remove_attribute_local(x2_name);
-        element.remove_attribute_local(y2_name);
-        element.set_local_name("path".into(), &info.arena);
+        set_attribute!(element, D(path::Path(path)));
+        element.remove_attribute(&AttrId::X1);
+        element.remove_attribute(&AttrId::Y1);
+        element.remove_attribute(&AttrId::X2);
+        element.remove_attribute(&AttrId::Y2);
+        element.set_local_name(ElementId::Path, &info.allocator);
     }
 
-    fn poly_to_path<'arena, E: Element<'arena>>(
-        element: &mut E,
+    fn poly_to_path<'input, 'arena>(
+        element: &Element<'input, 'arena>,
         options: &convert::Options,
         is_polygon: bool,
-        info: &Info<'arena, E>,
+        info: &Info<'input, 'arena>,
     ) {
-        let points_name = &"points".into();
-        let Some(coords) = element
-            .get_attribute_local(points_name)
-            .map(|a| a.to_string())
-        else {
+        let Some(coords) = get_attribute!(element, Points) else {
             return;
         };
-
-        let coords = oxvg_collections::regex::NUMERIC_VALUES
-            .find_iter(&coords)
-            .map(|item| item.as_str().parse::<f64>());
-        let mut coords = peek_nth(coords);
+        let mut coords = peek_nth(coords.list.iter());
 
         if coords.peek_nth(3).is_none() {
             element.remove();
@@ -194,13 +188,8 @@ impl ConvertShapeToPath {
 
         let mut data = Vec::with_capacity(2);
         while let (Some(x), Some(y)) = (coords.next(), coords.next()) {
-            let Ok(x) = x else {
-                return;
-            };
-            let Ok(y) = y else {
-                return;
-            };
-
+            let x = *x as f64;
+            let y = *y as f64;
             let command = if data.is_empty() {
                 Data::MoveTo([x, y])
             } else {
@@ -214,33 +203,26 @@ impl ConvertShapeToPath {
         let mut path = Path(data);
         options.round_path(&mut path, options.error());
 
-        element.set_attribute_local("d".into(), path.to_string().into());
-        element.remove_attribute_local(points_name);
-        element.set_local_name("path".into(), &info.arena);
+        set_attribute!(element, D(path::Path(path)));
+        element.remove_attribute(&AttrId::Points);
+        element.set_local_name(ElementId::Path, &info.allocator);
     }
 
     #[allow(clippy::similar_names)]
-    fn circle_to_path<'arena, E: Element<'arena>>(
-        element: &mut E,
+    fn circle_to_path<'input, 'arena>(
+        element: &Element<'input, 'arena>,
         options: &convert::Options,
-        info: &Info<'arena, E>,
+        info: &Info<'input, 'arena>,
     ) {
-        let cx_name = &"cx".into();
-        let cy_name = &"cy".into();
-        let r_name = &"r".into();
-        let cx = element
-            .get_attribute_local(cx_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let cy = element
-            .get_attribute_local(cy_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let r = element
-            .get_attribute_local(r_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-
-        let Ok(cx) = cx.parse::<f64>() else { return };
-        let Ok(cy) = cy.parse::<f64>() else { return };
-        let Ok(r) = r.parse::<f64>() else { return };
+        let Some(cx) = get_attribute!(element, CX).and_then(lp_px) else {
+            return;
+        };
+        let Some(cy) = get_attribute!(element, CY).and_then(lp_px) else {
+            return;
+        };
+        let Some(r) = get_attribute!(element, RCircle).and_then(lp_px) else {
+            return;
+        };
 
         let mut path = Path(vec![
             Data::MoveTo([cx, cy - r]),
@@ -250,40 +232,31 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attribute_local("d".into(), path.to_string().into());
-        element.remove_attribute_local(cx_name);
-        element.remove_attribute_local(cy_name);
-        element.remove_attribute_local(r_name);
-        element.set_local_name("path".into(), &info.arena);
+        set_attribute!(element, D(path::Path(path)));
+        element.remove_attribute(&AttrId::CX);
+        element.remove_attribute(&AttrId::CY);
+        element.remove_attribute(&AttrId::RCircle);
+        element.set_local_name(ElementId::Path, &info.allocator);
     }
 
     #[allow(clippy::similar_names)]
-    fn ellipse_to_path<'arena, E: Element<'arena>>(
-        element: &mut E,
+    fn ellipse_to_path<'input, 'arena>(
+        element: &Element<'input, 'arena>,
         options: &convert::Options,
-        info: &Info<'arena, E>,
+        info: &Info<'input, 'arena>,
     ) {
-        let cx_name = &"cx".into();
-        let cy_name = &"cy".into();
-        let rx_name = &"rx".into();
-        let ry_name = &"ry".into();
-        let cx = element
-            .get_attribute_local(cx_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let cy = element
-            .get_attribute_local(cy_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let rx = element
-            .get_attribute_local(rx_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-        let ry = element
-            .get_attribute_local(ry_name)
-            .map_or_else(|| String::from("0"), |a| a.to_string());
-
-        let Ok(cx) = cx.parse::<f64>() else { return };
-        let Ok(cy) = cy.parse::<f64>() else { return };
-        let Ok(rx) = rx.parse::<f64>() else { return };
-        let Ok(ry) = ry.parse::<f64>() else { return };
+        let Some(cx) = get_attribute!(element, CX).and_then(lp_px) else {
+            return;
+        };
+        let Some(cy) = get_attribute!(element, CY).and_then(lp_px) else {
+            return;
+        };
+        let Some(rx) = get_attribute!(element, RX).and_then(r_px) else {
+            return;
+        };
+        let Some(ry) = get_attribute!(element, RY).and_then(r_px) else {
+            return;
+        };
 
         let mut path = Path(vec![
             Data::MoveTo([cx, cy - ry]),
@@ -293,12 +266,12 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        element.set_attribute_local("d".into(), path.to_string().into());
-        element.remove_attribute_local(cx_name);
-        element.remove_attribute_local(cy_name);
-        element.remove_attribute_local(rx_name);
-        element.remove_attribute_local(ry_name);
-        element.set_local_name("path".into(), &info.arena);
+        set_attribute!(element, D(path::Path(path)));
+        element.remove_attribute(&AttrId::CX);
+        element.remove_attribute(&AttrId::CY);
+        element.remove_attribute(&AttrId::RX);
+        element.remove_attribute(&AttrId::RY);
+        element.set_local_name(ElementId::Path, &info.allocator);
     }
 }
 

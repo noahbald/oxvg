@@ -1,12 +1,15 @@
 use oxvg_ast::{
     element::Element,
-    node::{self, Node},
+    is_element,
+    node::{self},
     visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -31,15 +34,15 @@ pub struct RemoveDesc {
     pub remove_any: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDesc {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDesc {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if element.prefix().is_some() || element.local_name().as_ref() != "desc" {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !is_element!(element, Desc) {
             return Ok(());
         }
 

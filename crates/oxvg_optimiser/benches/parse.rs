@@ -2,7 +2,8 @@
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use oxvg_ast::implementations::roxmltree::parse;
+use oxvg_ast::{arena::Allocator, parse::roxmltree::parse};
+use roxmltree::ParsingOptions;
 
 /// # Panics
 /// Hopefully never, maybe if svg can't be parsed
@@ -24,9 +25,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter_custom(|iters| {
                 let mut result = Duration::default();
                 for _ in 0..iters {
-                    let arena = typed_arena::Arena::new();
                     let start = Instant::now();
-                    let _ = black_box(parse(svg, &arena));
+                    #[allow(clippy::unit_arg)]
+                    black_box({
+                        let xml = roxmltree::Document::parse_with_options(
+                            svg,
+                            ParsingOptions {
+                                allow_dtd: true,
+                                ..ParsingOptions::default()
+                            },
+                        )
+                        .unwrap();
+                        let values = Allocator::new_values();
+                        let mut arena = Allocator::new_arena();
+                        let mut allocator = Allocator::new(&mut arena, &values);
+                        let _ = parse(&xml, &mut allocator);
+                    });
                     result += start.elapsed();
                 }
                 result

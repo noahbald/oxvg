@@ -1,13 +1,16 @@
+use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
-    element::Element,
-    name::Name,
-    node::{self, Node},
+    attribute::data::presentation::LengthPercentage,
+    element::{data::ElementId, Element},
+    get_attribute, is_element, node, remove_attribute,
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -27,13 +30,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveViewBox(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveViewBox {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
+        _document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -45,34 +48,42 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let name = element.qual_name();
-        if name.prefix().is_some() {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !is_element!(element, Pattern | Svg | Symbol) {
             return Ok(());
-        }
-
-        match name.local_name().as_ref() {
-            "pattern" | "svg" | "symbol" => {}
-            _ => return Ok(()),
         };
 
-        let view_box_name = "viewBox".into();
-        let Some(view_box_atom) = element.get_attribute_local(&view_box_name) else {
+        let Some(view_box) = get_attribute!(element, ViewBox) else {
             return Ok(());
         };
-        let view_box = view_box_atom.as_ref();
-        let Some(width_atom) = element.get_attribute_local(&"width".into()) else {
+        let name = element.qual_name().unaliased();
+        let width = match name {
+            ElementId::Svg => get_attribute!(element, WidthSvg),
+            ElementId::Pattern => get_attribute!(element, WidthPattern),
+            _ => get_attribute!(element, Width),
+        };
+        let Some(LengthPercentage(DimensionPercentage::Dimension(width))) = width.as_deref() else {
             return Ok(());
         };
-        let width = width_atom.as_ref();
-        let Some(height_atom) = element.get_attribute_local(&"height".into()) else {
+        let Some(width) = width.to_px() else {
             return Ok(());
         };
-        let height = height_atom.as_ref();
+        let height = match name {
+            ElementId::Svg => get_attribute!(element, HeightSvg),
+            ElementId::Pattern => get_attribute!(element, HeightPattern),
+            _ => get_attribute!(element, Height),
+        };
+        let Some(LengthPercentage(DimensionPercentage::Dimension(height))) = height.as_deref()
+        else {
+            return Ok(());
+        };
+        let Some(height) = height.to_px() else {
+            return Ok(());
+        };
 
-        if name.local_name().as_ref() == "svg"
+        if is_element!(element, Svg)
             && element
                 .parent_node()
                 .is_some_and(|n| n.node_type() != node::Type::Document)
@@ -82,22 +93,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveViewBox {
             return Ok(());
         }
 
-        let mut nums = Vec::with_capacity(4);
-        nums.extend(SEPARATOR.split(view_box));
-        if nums.len() != 4 {
-            return Ok(());
-        }
-
-        if nums[0] == "0"
-            && nums[1] == "0"
-            && width.strip_suffix("px").unwrap_or(width) == nums[2]
-            && height.strip_suffix("px").unwrap_or(height) == nums[3]
+        if view_box.min_x == 0.0
+            && view_box.min_y == 0.0
+            && view_box.width == width
+            && view_box.height == height
         {
-            drop(view_box_atom);
-            drop(width_atom);
-            drop(height_atom);
             log::debug!("removing viewBox from element");
-            element.remove_attribute_local(&view_box_name);
+            remove_attribute!(element, ViewBox);
         }
 
         Ok(())
@@ -108,10 +110,6 @@ impl Default for RemoveViewBox {
     fn default() -> Self {
         Self(true)
     }
-}
-
-lazy_static! {
-    pub static ref SEPARATOR: regex::Regex = regex::Regex::new(r"[ ,]+").unwrap();
 }
 
 #[test]

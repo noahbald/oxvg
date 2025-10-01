@@ -1,31 +1,36 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::HashSet,
-    marker::PhantomData,
+    collections::HashMap,
 };
 
-use derive_where::derive_where;
-use itertools::Itertools as _;
 use lightningcss::{
-    printer::PrinterOptions,
-    properties::{
-        custom::{CustomProperty, CustomPropertyName, TokenOrValue},
-        Property, PropertyId,
-    },
-    traits::ToCss as _,
+    properties::{custom::TokenOrValue, Property},
+    visit_types,
+    visitor::Visit,
 };
 use oxvg_ast::{
-    attribute::Attr,
-    element::Element,
-    name::Name as _,
-    style::{ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
+    atom::Atom,
+    attribute::{
+        content_type::ContentType,
+        data::{
+            core::{Color, Paint},
+            inheritable::Inheritable,
+            Attr, AttrId,
+        },
+    },
+    element::{data::ElementId, Element},
+    get_attribute, get_attribute_mut,
+    name::{Prefix, QualName},
+    node::AllocationID,
+    style::{ComputedStyles, Mode},
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{AttrsGroups, COLORS_PROPS};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -41,24 +46,23 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertOneStopGradients(pub bool);
 
-#[derive_where(Default)]
-struct State<'arena, E: Element<'arena>> {
+#[derive(Default)]
+struct State<'input, 'arena> {
     /// Parent defs with removed gradients
-    effected_defs: RefCell<HashSet<E>>,
+    effected_defs: RefCell<HashMap<AllocationID, Element<'input, 'arena>>>,
     /// All defs and their associated parent
-    all_defs: RefCell<HashSet<E>>,
-    gradients_to_detach: RefCell<HashSet<E>>,
+    all_defs: RefCell<HashMap<AllocationID, Element<'input, 'arena>>>,
+    gradients_to_detach: RefCell<HashMap<AllocationID, Element<'input, 'arena>>>,
     xlink_href_count: Cell<usize>,
-    marker: PhantomData<&'arena ()>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertOneStopGradients {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertOneStopGradients {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -68,13 +72,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertOneStopGradients 
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
+        _document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(PrepareOutcome::use_style)
@@ -82,38 +86,34 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let xlink_attr = <E::Attr as Attr>::Name::new(Some("xlink".into()), "href".into());
-        if element.has_attribute(&xlink_attr) {
+        if element.has_attribute(&AttrId::XLinkHref) {
             self.xlink_href_count.set(self.xlink_href_count.get() + 1);
         }
-        if element.local_name().as_ref() == "defs" {
-            self.all_defs.borrow_mut().insert(element.clone());
+        let name = element.qual_name();
+        if *name == ElementId::Defs {
+            self.all_defs
+                .borrow_mut()
+                .insert(element.id(), element.clone());
             return Ok(());
         }
-        if element.local_name().as_ref() != "linearGradient"
-            && element.local_name().as_ref() != "radialGradient"
-        {
+        if *name != ElementId::LinearGradient && *name != ElementId::RadialGradient {
             return Ok(());
         }
 
         let mut stops = element
             .child_elements_iter()
-            .filter(|child| child.prefix().is_none() && child.local_name().as_ref() == "stop");
+            .filter(|child| *child.qual_name() == ElementId::Stop);
 
-        let href = element
-            .get_attribute_node(&xlink_attr)
-            .or_else(|| element.get_attribute_node_local(&"href".into()));
+        let href = get_attribute!(element, XLinkHref).or_else(|| get_attribute!(element, Href));
         let effective_node = if stops.next().is_none() {
             if let Some(href) = href {
-                if href.value().starts_with('#') {
-                    context
-                        .root
-                        .select(href.value())
-                        .ok()
-                        .and_then(|mut i| i.next())
+                if href.starts_with('#') {
+                    context.root.breadth_first().find(|element| {
+                        get_attribute!(element, Id).is_some_and(|id| id.as_str() == &href[1..])
+                    })
                 } else {
                     Some(element.clone())
                 }
@@ -127,13 +127,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         let mut gradients_to_detach = self.gradients_to_detach.borrow_mut();
         let Some(effective_node) = effective_node else {
             log::debug!("no effective nodes for gradient");
-            gradients_to_detach.insert(element.clone());
+            gradients_to_detach.insert(element.id(), element.clone());
             return Ok(());
         };
 
         let effective_stops: Vec<_> = effective_node
             .child_elements_iter()
-            .filter(|child| child.prefix().is_none() && child.local_name().as_ref() == "stop")
+            .filter(|child| *child.qual_name() == ElementId::Stop)
             .collect();
 
         if effective_stops.len() != 1 {
@@ -142,36 +142,35 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         }
 
         if let Some(parent) = element.parent_element() {
-            if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
-                self.effected_defs.borrow_mut().insert(parent);
+            if *parent.qual_name() == ElementId::Defs {
+                self.effected_defs.borrow_mut().insert(parent.id(), parent);
             }
         }
 
-        gradients_to_detach.insert(element.clone());
+        gradients_to_detach.insert(element.id(), element.clone());
 
-        let color = get_color(context, &effective_stops);
-        let Some(id) = element.get_attribute_local(&"id".into()) else {
+        let color = get_color(context, &effective_stops)?;
+        let Some(id) = get_attribute!(element, Id) else {
             log::debug!("skipping reference updates, no id");
             return Ok(());
         };
         log::debug!("updating colors: {color:?}");
-        let selector_val = format!("url(#{id})");
-        update_color_references(context, color.as_ref(), &selector_val)?;
-        update_style_references(context, color.as_ref(), &selector_val)
+        let Some(color) = color else { return Ok(()) };
+        update_color_references(context, &color, &id);
+        update_style_references(context, &color, &id)
     }
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() || element.local_name().as_ref() != "svg" {
+        if *element.qual_name() != ElementId::Svg {
             return Ok(());
         }
 
-        let xlink_href = <E::Attr as Attr>::Name::new(Some("xlink".into()), "href".into());
-        for gradient in self.gradients_to_detach.borrow().iter() {
-            if gradient.has_attribute(&xlink_href) {
+        for gradient in self.gradients_to_detach.borrow().values() {
+            if gradient.has_attribute(&AttrId::XLinkHref) {
                 self.xlink_href_count.set(self.xlink_href_count.get() - 1);
             }
 
@@ -179,15 +178,15 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         }
 
         if self.xlink_href_count.get() == 0 {
-            element.remove_attribute(&<E::Attr as Attr>::Name::new(
-                Some("xmlns".into()),
-                "xlink".into(),
-            ));
+            element.remove_attribute(&AttrId::Unknown(QualName {
+                prefix: Prefix::XMLNS,
+                local: Atom::Static("xlink"),
+            }));
         }
 
         let effected_defs = self.effected_defs.borrow();
-        for def in self.all_defs.borrow().iter() {
-            if !def.has_child_elements() && effected_defs.contains(def) {
+        for def in self.all_defs.borrow().values() {
+            if !def.has_child_elements() && effected_defs.contains_key(&def.id()) {
                 def.remove();
             }
         }
@@ -196,126 +195,87 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     }
 }
 
-fn get_color<'arena, E: Element<'arena>>(
-    context: &mut Context<'arena, '_, '_, E>,
-    effective_stops: &[E],
-) -> Option<Result<E::Atom, String>> {
+fn get_color<'a, 'input, 'arena>(
+    context: &'a mut Context<'input, 'arena, '_>,
+    effective_stops: &[Element<'input, 'arena>],
+) -> Result<Option<Color>, JobsError<'input>> {
     let effective_stop = effective_stops.first().expect("len should be 1");
-    let computed_styles = ComputedStyles::default().with_all(
-        effective_stop,
-        &context.stylesheet,
-        context.element_styles,
-    );
+    let computed_styles = ComputedStyles::default()
+        .with_all(effective_stop, &context.stylesheet)
+        .map_err(JobsError::ComputedStylesError)?;
 
-    let stop_color_unknown = PropertyId::Custom(CustomPropertyName::Unknown("stop-color".into()));
-    // FIXME: Use `get_computed_styles_factory!`
-    computed_styles
-        .important_declarations
-        .get(&stop_color_unknown)
-        .map(|p| &p.1)
-        .or_else(|| computed_styles.inline_important.get(&stop_color_unknown))
-        .or_else(|| computed_styles.inline.get(&stop_color_unknown))
-        .or_else(|| {
-            computed_styles
-                .declarations
-                .get(&stop_color_unknown)
-                .map(|p| &p.1)
-        })
-        .or_else(|| computed_styles.attr.get(&PresentationAttrId::StopColor))
-        .or_else(|| computed_styles.inherited.get(&Id::CSS(stop_color_unknown)))
-        .or_else(|| {
-            computed_styles
-                .inherited
-                .get(&Id::Attr(PresentationAttrId::StopColor))
-        })
-        .and_then(|style| match style {
-            Style::Static(style) => match style {
-                Static::Css(Property::Custom(CustomProperty { value, .. })) => {
-                    value.0.first().and_then(|token| match token {
-                        TokenOrValue::Color(color) => Some(color),
-                        _ => None,
-                    })
-                }
-                Static::Attr(PresentationAttr::StopColor(color)) => Some(color),
-                _ => None,
-            },
-            Style::Dynamic(_) => None,
-        })
-        .map(|color| {
-            color
-                .to_css_string(PrinterOptions::default())
-                .map_err(|e| e.to_string())
-                .map(Into::into)
-        })
+    if let Some((stop_color, Mode::Static)) = computed_styles.get(&AttrId::StopColor) {
+        return Ok(match stop_color {
+            Attr::StopColor(Inheritable::Defined(color)) => Some(color),
+            Attr::CSSUnknown { value, .. } => value
+                .0
+                 .0
+                .into_iter()
+                .filter_map(|token| match token {
+                    TokenOrValue::Color(color) => Some(color),
+                    _ => None,
+                })
+                .next(),
+            _ => None,
+        });
+    }
+    Ok(None)
 }
 
-fn update_color_references<'arena, E: Element<'arena>>(
-    context: &mut Context<'arena, '_, '_, E>,
-    color: Option<&Result<E::Atom, String>>,
-    selector_val: &str,
-) -> Result<(), String> {
-    let selector = COLORS_PROPS
-        .iter()
-        .map(|attr| format!(r#"[{attr}="{selector_val}"]"#))
-        .join(",");
-    let elements = match context.root.select(&selector) {
-        Ok(elements) => elements,
-        Err(err) => {
-            log::debug!("unable to parse selector `{selector}`: {err:?}");
-            return Ok(());
-        }
-    };
-    for element in elements {
-        for attr in &COLORS_PROPS {
-            let attr_name = (*attr).into();
-            let Some(mut attr) = element.get_attribute_node_local_mut(&attr_name) else {
+fn update_color_references<'input, 'arena>(
+    context: &mut Context<'input, 'arena, '_>,
+    color: &Color,
+    url: &str,
+) {
+    for element in context.root.breadth_first() {
+        for mut attr in element.attributes().into_iter_mut() {
+            let value = attr.value_mut();
+            let ContentType::Paint(mut attr_color) = value else {
                 continue;
             };
-            if attr.value().as_ref() != selector_val {
-                continue;
-            }
-
-            if let Some(color) = color {
-                attr.set_value(color.as_ref().map_err(ToString::to_string)?.clone());
-            } else {
-                drop(attr);
-                element.remove_attribute_local(&attr_name);
+            if let Paint::Url { url: attr_url, .. } = &mut *attr_color {
+                if attr_url.url == url {
+                    *attr_color = Paint::Color(color.clone());
+                }
             }
         }
     }
-    Ok(())
 }
 
-fn update_style_references<'arena, E: Element<'arena>>(
-    context: &Context<'arena, '_, '_, E>,
-    color: Option<&Result<E::Atom, String>>,
-    selector_val: &str,
-) -> Result<(), String> {
-    let styled_selector = format!(r#"[style*="{selector_val}"]"#);
-    let styled_elements = match context.root.select(&styled_selector) {
-        Ok(elements) => elements,
-        Err(err) => {
-            log::debug!("unable to parse selector `{styled_selector}`: {err:?}");
+struct VisitPaint<'a> {
+    url: &'a str,
+    color: &'a Color,
+}
+impl<'i> lightningcss::visitor::Visitor<'i> for VisitPaint<'_> {
+    type Error = JobsError<'i>;
+
+    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
+        visit_types!(PROPERTIES)
+    }
+
+    fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
+        let (Property::Fill(paint) | Property::Stroke(paint)) = property else {
             return Ok(());
+        };
+        if let Paint::Url { url: attr_url, .. } = paint {
+            if attr_url.url == self.url {
+                *paint = Paint::Color(self.color.clone());
+            }
         }
-    };
-    let style = "style".into();
-    for element in styled_elements {
-        let Some(mut attr) = element.get_attribute_node_local_mut(&style) else {
+        Ok(())
+    }
+}
+fn update_style_references<'input, 'arena>(
+    context: &Context<'input, 'arena, '_>,
+    color: &Color,
+    url: &str,
+) -> Result<(), JobsError<'input>> {
+    for element in context.root.breadth_first() {
+        let mut style = get_attribute_mut!(element, Style);
+        let Some(oxvg_ast::attribute::data::core::Style(style)) = style.as_deref_mut() else {
             continue;
         };
-
-        let color = match color {
-            Some(Ok(ref color)) => color,
-            Some(Err(err)) => return Err(err.to_string()),
-            None => *AttrsGroups::Presentation
-                .defaults()
-                .unwrap()
-                .get("stop-color")
-                .unwrap(),
-        };
-        let color = attr.value().as_ref().replace(selector_val, color).into();
-        attr.set_value(color);
+        style.visit(&mut VisitPaint { url, color })?;
     }
     Ok(())
 }

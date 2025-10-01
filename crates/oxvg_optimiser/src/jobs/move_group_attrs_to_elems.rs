@@ -1,17 +1,17 @@
+use std::mem;
+
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    name::Name,
+    attribute::data::AttrId,
+    element::{data::ElementId, Element},
+    get_attribute, get_attribute_mut, remove_attribute, set_attribute,
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
-};
-use oxvg_collections::{
-    collections::{PATH_ELEMS, REFERENCES_PROPS},
-    regex::REFERENCES_URL,
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -30,13 +30,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MoveGroupAttrsToElems(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveGroupAttrsToElems {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MoveGroupAttrsToElems {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
+        _document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -48,50 +48,52 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveGroupAttrsToElems {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let name = element.qual_name();
-        if name.prefix().is_some() || name.local_name().as_ref() != "g" {
+        if *element.qual_name() != ElementId::G {
             return Ok(());
         }
         if element.is_empty() {
             return Ok(());
         }
-        let transform_name = "transform".into();
-        let Some(transform) = element.get_attribute_local(&transform_name) else {
+        let Some(transform) = get_attribute!(element, Transform) else {
             return Ok(());
         };
-        if element.attributes().into_iter().any(|a| {
-            let name = a.name().formatter().to_string();
-            let value = a.value();
-            REFERENCES_PROPS.contains(&name) && REFERENCES_URL.is_match(value.as_ref())
+        if element.attributes().into_iter_mut().any(|mut a| {
+            if *a.name() == AttrId::Id {
+                return false;
+            }
+            let mut value = a.value_mut();
+            let mut references_props = false;
+            let mut references_url = false;
+            value.visit_id(|_| references_props = true);
+            value.visit_id(|url| references_url = references_url || url.starts_with('#'));
+            references_props || references_url
         }) {
             return Ok(());
         }
-        let id_name = &"id".into();
-        if element.child_nodes_iter().any(|n| {
-            let Some(e) = E::new(n) else {
-                return false;
-            };
-            let name = e.qual_name().formatter().to_string();
-            !(PATH_ELEMS.contains(&name) || &name == "g" || &name == "text")
-                || e.has_attribute_local(id_name)
+        if element.child_elements_iter().any(|e| {
+            let name = e.qual_name();
+            !(*name == ElementId::G
+                || name.expected_attributes().contains(&AttrId::D)
+                || *name == ElementId::Text)
+                || e.has_attribute(&AttrId::Id)
         }) {
             return Ok(());
         }
 
-        element.child_elements_iter().for_each(|e| {
-            match e.get_attribute_node_local_mut(&transform_name) {
+        element
+            .child_elements_iter()
+            .for_each(|e| match get_attribute_mut!(e, Transform) {
                 Some(mut child_attr) => {
-                    let value = format!("{} {}", transform.as_ref(), child_attr.value());
-                    child_attr.set_value(value.into());
+                    let value = mem::replace(&mut *child_attr, transform.clone());
+                    child_attr.0.extend(value.0);
                 }
-                None => e.set_attribute_local(transform_name.clone(), transform.clone()),
-            }
-        });
+                None => set_attribute!(e, Transform(transform.clone())),
+            });
         drop(transform);
-        element.remove_attribute_local(&transform_name);
+        remove_attribute!(element, Transform);
 
         Ok(())
     }
