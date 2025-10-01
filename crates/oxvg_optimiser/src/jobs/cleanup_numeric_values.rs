@@ -4,10 +4,10 @@ use oxvg_ast::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::utils::cleanup_values::{self, CleanupValues, Mode};
-
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -21,21 +21,21 @@ use tsify::Tsify;
 ///
 /// # Errors
 ///
-/// Never.
-///
-/// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
+/// When a float-precision greater than the maximum is given.
 pub struct CleanupNumericValues {
     #[serde(default = "default_float_precision")]
-    /// The number of decimal places to round to
+    // WARN: Lightningcss will round values to 5 decimal places
+    /// Number of decimal places to round floating point numbers to, to a maximum of 5.
     pub float_precision: u8,
     #[serde(default = "default_leading_zero")]
-    /// Whether to trim leading zeros
+    #[deprecated(note = "This option has no effect; leading zeroes are always removed")]
+    /// Whether to trim leading zeros.
     pub leading_zero: bool,
     #[serde(default = "default_default_px")]
-    /// Whether to remove `"px"` from the units
+    /// Whether to remove `px` from a number's unit.
     pub default_px: bool,
     #[serde(default = "default_convert_to_px")]
-    /// Whether to convert absolute units to `"px"`
+    /// Whether to convert absolute units like `cm` and `in` to `px`.
     pub convert_to_px: bool,
 }
 
@@ -50,30 +50,31 @@ impl Default for CleanupNumericValues {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupNumericValues {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for CleanupNumericValues {
+    type Error = JobsError<'input>;
 
-    fn element(
+    fn document(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        _document: &Element<'input, 'arena>,
+        _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        CleanupValues::element(self, element, context)
-    }
-}
-
-impl CleanupValues for CleanupNumericValues {
-    fn get_options(&self) -> cleanup_values::Options {
-        cleanup_values::Options {
-            float_precision: self.float_precision as usize,
-            leading_zero: self.leading_zero,
-            default_px: self.default_px,
-            do_convert_to_px: self.convert_to_px,
+        if self.float_precision > 5 {
+            Err(JobsError::CleanupValuesPrecision(self.float_precision))
+        } else {
+            Ok(())
         }
     }
 
-    fn get_mode(&self) -> Mode {
-        Mode::SingleValue
+    fn element(
+        &self,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        element.attributes().into_iter_mut().for_each(|mut attr| {
+            attr.value_mut()
+                .round(self.float_precision as i32, self.convert_to_px, false);
+        });
+        Ok(())
     }
 }
 

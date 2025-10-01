@@ -1,31 +1,30 @@
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashSet};
 
-use lightningcss::{stylesheet::StyleSheet, values::ident::Ident, visit_types};
+use lightningcss::{rules::CssRuleList, values::ident::Ident, visit_types, visitor::Visit};
 use oxvg_ast::{
+    attribute::{data::AttrId, AttributeInfo},
     element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
-};
-use oxvg_collections::{
-    allowed_content::{attrs_group_deprecated_unsafe, ELEMS},
-    collections::CORE,
+    has_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
+use crate::error::JobsError;
+
 const fn default_remove_unsafe() -> bool {
     false
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct AttrStylesheet<'a> {
     names: HashSet<(Option<Ident<'a>>, Ident<'a>)>,
 }
 
-impl<'a> lightningcss::visitor::Visitor<'a> for AttrStylesheet<'a> {
-    type Error = String;
+impl<'input> lightningcss::visitor::Visitor<'input> for AttrStylesheet<'input> {
+    type Error = JobsError<'input>;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
         visit_types!(SELECTORS)
@@ -33,7 +32,7 @@ impl<'a> lightningcss::visitor::Visitor<'a> for AttrStylesheet<'a> {
 
     fn visit_selector(
         &mut self,
-        selector: &mut lightningcss::selector::Selector<'a>,
+        selector: &mut lightningcss::selector::Selector<'input>,
     ) -> Result<(), Self::Error> {
         use parcel_selectors::attr::NamespaceConstraint;
         use parcel_selectors::parser::Component;
@@ -59,19 +58,20 @@ impl<'a> lightningcss::visitor::Visitor<'a> for AttrStylesheet<'a> {
     }
 }
 
-impl<'a> AttrStylesheet<'a> {
-    fn extract(stylesheet: &mut StyleSheet<'a, '_>) -> Result<Self, String> {
-        use lightningcss::visitor::Visitor;
-
+impl<'input> AttrStylesheet<'input> {
+    fn extract(stylesheet: &[RefCell<CssRuleList<'input>>]) -> Result<Self, JobsError<'input>> {
         let mut result = Self::default();
-        result.visit_stylesheet(stylesheet)?;
+        for stylesheet in stylesheet {
+            stylesheet.borrow_mut().visit(&mut result)?;
+        }
         Ok(result)
     }
 
-    fn contains_qual(&self, prefix: Option<&str>, local_name: &str) -> bool {
-        self.names
-            .iter()
-            .any(|n| n.0.as_ref().map(AsRef::as_ref) == prefix && n.1.as_ref() == local_name)
+    fn contains_qual(&self, attr: &AttrId<'input>) -> bool {
+        self.names.iter().any(|(prefix, local_name)| {
+            prefix.as_deref() == attr.prefix().value().as_deref()
+                && **local_name == **attr.local_name()
+        })
     }
 }
 
@@ -107,112 +107,58 @@ impl Default for RemoveDeprecatedAttrs {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDeprecatedAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let Some(elem_config) = ELEMS.get(element.qual_name().formatter().to_string().as_str())
-        else {
-            return Ok(());
-        };
-
-        let attributes_in_stylesheet = match &mut context.stylesheet {
-            Some(ref mut stylesheet) => AttrStylesheet::extract(stylesheet)?,
-            None => AttrStylesheet::default(),
-        };
+        let attributes_in_stylesheet =
+            AttrStylesheet::extract(&context.query_has_stylesheet_result)?;
 
         // # Special cases
         // Removing deprecated xml:lang is safe when the lang attribute exists.
-        if elem_config
-            .attrs_groups
-            .iter()
-            .any(|m| m.map.key == CORE.map.key)
-        {
-            log::debug!("removing lang from core element");
-            let xml_lang_name = E::Name::new(Some("xml".into()), "lang".into());
-            if element.has_attribute(&xml_lang_name)
-                && element.has_attribute_local(&"lang".into())
-                && !attributes_in_stylesheet.contains_qual(Some("xml"), "lang")
+        if let Some(attr) = element.get_attribute(&AttrId::XmlLang) {
+            if has_attribute!(element, Lang) && !attributes_in_stylesheet.contains_qual(attr.name())
             {
-                element.remove_attribute(&xml_lang_name);
+                drop(attr);
+                element.remove_attribute(&AttrId::XmlLang);
             }
         }
 
         // # General cases
-        elem_config.attrs_groups.iter().for_each(|group| {
-            self.process_attributes(
-                element,
-                None,
-                attrs_group_deprecated_unsafe(group),
-                &attributes_in_stylesheet,
-            );
-        });
-
-        self.process_attributes(
-            element,
-            elem_config.deprecated_safe.as_ref(),
-            elem_config.deprecated_unsafe.as_ref(),
-            &attributes_in_stylesheet,
-        );
+        self.process_attributes(element, &attributes_in_stylesheet);
 
         Ok(())
     }
 }
 
 impl RemoveDeprecatedAttrs {
-    fn process_attributes<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-        group_deprecated_safe: Option<&phf::Set<&'static str>>,
-        group_deprecated_unsafe: Option<&phf::Set<&'static str>>,
-        attributes_in_stylesheet: &AttrStylesheet,
-    ) {
-        if let Some(deprecated) = group_deprecated_safe {
-            for deprecated in deprecated {
-                let (prefix, local_name) = match deprecated.split_once(':') {
-                    Some((prefix, local_name)) => (Some(prefix), local_name),
-                    None => (None, *deprecated),
-                };
-                if attributes_in_stylesheet.contains_qual(prefix, local_name) {
-                    continue;
-                }
-                element.remove_attribute(&E::Name::new(prefix.map(Into::into), local_name.into()));
+    fn process_attributes(&self, element: &Element, attributes_in_stylesheet: &AttrStylesheet) {
+        element.attributes().retain(|attr| {
+            if attributes_in_stylesheet.contains_qual(attr.name()) {
+                return true;
             }
-        }
-
-        if self.remove_unsafe {
-            if let Some(deprecated) = group_deprecated_unsafe {
-                for deprecated in deprecated {
-                    let (prefix, local_name) = match deprecated.split_once(':') {
-                        Some((prefix, local_name)) => (Some(prefix), local_name),
-                        None => (None, *deprecated),
-                    };
-                    if attributes_in_stylesheet.contains_qual(prefix, local_name) {
-                        continue;
-                    }
-                    element
-                        .remove_attribute(&E::Name::new(prefix.map(Into::into), local_name.into()));
-                }
+            let info = attr.name().info();
+            if info.contains(AttributeInfo::DeprecatedSafe)
+                || (self.remove_unsafe && info.contains(AttributeInfo::DeprecatedUnsafe))
+            {
+                return false;
             }
-        }
+            true
+        });
     }
-}
-
-lazy_static! {
-    static ref WILDCARD: regex::Regex = regex::Regex::new(".*").unwrap();
 }
 
 #[test]

@@ -1,11 +1,16 @@
+use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
+    attribute::data::{presentation::LengthPercentage, uncategorised::ViewBox, AttrId},
     element::Element,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, has_attribute, is_element, remove_attribute, set_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -28,14 +33,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDimensions(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDimensions {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDimensions {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -46,46 +50,49 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDimensions {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() || element.local_name().as_ref() != "svg" {
+        if !is_element!(element, Svg) {
             return Ok(());
         }
 
-        let view_box_name = "viewBox".into();
-        let view_box = element.get_attribute_local(&view_box_name);
-        if view_box.is_some() {
-            drop(view_box);
-            element.remove_attribute_local(&"width".into());
-            element.remove_attribute_local(&"height".into());
+        if has_attribute!(element, ViewBox) {
+            remove_attribute!(element, WidthSvg);
+            remove_attribute!(element, HeightSvg);
             return Ok(());
         }
-        drop(view_box);
 
-        let width_name = &"width".into();
-        let Some(width_attr) = element.get_attribute_local(width_name) else {
+        let width_attr = get_attribute!(element, WidthSvg);
+        let Some(LengthPercentage(DimensionPercentage::Dimension(width))) = width_attr.as_deref()
+        else {
             return Ok(());
         };
-        let width = width_attr.as_ref();
-
-        let height_name = &"height".into();
-        let Some(height_attr) = element.get_attribute_local(height_name) else {
+        let Some(width) = width.to_px() else {
             return Ok(());
         };
-        let height = height_attr.as_ref();
-
-        if width.parse::<f64>().is_err() || height.parse::<f64>().is_err() {
-            return Ok(());
-        }
-
-        let view_box = format!("0 0 {width} {height}").into();
         drop(width_attr);
+
+        let height_attr = get_attribute!(element, HeightSvg);
+        let Some(LengthPercentage(DimensionPercentage::Dimension(height))) = height_attr.as_deref()
+        else {
+            return Ok(());
+        };
+        let Some(height) = height.to_px() else {
+            return Ok(());
+        };
         drop(height_attr);
 
-        element.remove_attribute_local(width_name);
-        element.remove_attribute_local(height_name);
-        element.set_attribute_local(view_box_name, view_box);
+        let view_box = ViewBox {
+            min_x: 0.0,
+            min_y: 0.0,
+            width,
+            height,
+        };
+
+        element.remove_attribute(&AttrId::WidthSvg);
+        element.remove_attribute(&AttrId::HeightSvg);
+        set_attribute!(element, ViewBox(view_box));
 
         Ok(())
     }

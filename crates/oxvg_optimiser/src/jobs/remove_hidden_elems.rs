@@ -1,33 +1,28 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
-    marker::PhantomData,
 };
 
-use derive_where::derive_where;
 use lightningcss::{
-    properties::{
-        display::{Display, DisplayKeyword, Visibility},
-        Property, PropertyId,
-    },
-    values::alpha::AlphaValue,
+    properties::display::{Display, DisplayKeyword, Visibility},
+    values::{alpha::AlphaValue, percentage::DimensionPercentage},
 };
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    get_computed_styles_factory,
-    name::Name,
-    style::{Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    atom::Atom,
+    attribute::data::{
+        inheritable::Inheritable, presentation::LengthPercentage, uncategorised::Radius, Attr,
+    },
+    element::{category::ElementInfo, data::ElementId, Element, HashableElement},
+    get_attribute, get_computed_style, has_attribute, has_computed_style, is_attribute, is_element,
+    style::{ComputedStyles, Mode},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::NON_RENDERING;
-use oxvg_path::Path;
 use serde::{Deserialize, Serialize};
-
-use crate::utils::find_references;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -94,84 +89,79 @@ pub struct RemoveHiddenElems {
     pub polygon_empty_points: Option<bool>,
 }
 
-#[derive(Clone)]
-#[derive_where(Default, Debug)]
-struct Data<'arena, E: Element<'arena>> {
+#[derive(Clone, Default, Debug)]
+struct Data<'input, 'arena> {
     opacity_zero: bool,
-    non_rendered_nodes: RefCell<HashSet<E>>,
-    removed_def_ids: RefCell<HashSet<String>>,
-    all_defs: RefCell<HashSet<E>>,
+    non_rendered_nodes: RefCell<HashSet<HashableElement<'input, 'arena>>>,
+    removed_def_ids: RefCell<HashSet<Atom<'input>>>,
+    all_defs: RefCell<HashSet<HashableElement<'input, 'arena>>>,
     all_references: RefCell<HashSet<String>>,
-    references_by_id: RefCell<HashMap<String, Vec<(E, E)>>>,
-    marker: PhantomData<&'arena ()>,
+    references_by_id: RefCell<HashMap<String, Vec<Element<'input, 'arena>>>>,
 }
 
-struct State<'o, 'arena, E: Element<'arena>> {
+struct State<'o, 'input, 'arena> {
     options: &'o RemoveHiddenElems,
-    data: &'o mut Data<'arena, E>,
+    data: &'o mut Data<'input, 'arena>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Data<'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        _info: &Info<'arena, E>,
-        context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        context_flags.query_has_script(document);
-        context_flags.query_has_stylesheet(document);
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, element: &E) -> bool {
-        let name = element.qual_name().formatter().to_string();
-        !NON_RENDERING.contains(&name)
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if !context.flags.contains(ContextFlags::use_style) {
-            self.non_rendered_nodes.borrow_mut().insert(element.clone());
+        if element
+            .qual_name()
+            .info()
+            .contains(ElementInfo::NonRendering)
+        {
+            self.non_rendered_nodes
+                .borrow_mut()
+                .insert(HashableElement::new(element.clone()));
             context.flags.visit_skip();
             return Ok(());
         }
 
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
-        if self.opacity_zero {
-            if let Some(opacity) = get_computed_styles!(Opacity) {
-                if opacity.is_static()
-                    && matches!(
-                        opacity.inner(),
-                        Static::Attr(PresentationAttr::Opacity(AlphaValue(0.0)))
-                            | Static::Css(Property::Opacity(AlphaValue(0.0)))
-                    )
-                {
-                    let name = element.qual_name();
-                    if name.prefix().is_none() && name.local_name().as_ref() == "path" {
-                        self.non_rendered_nodes.borrow_mut().insert(element.clone());
-                        context.flags.visit_skip();
-                        return Ok(());
-                    }
-                    self.remove_element(element);
-                }
+        self.ref_element(element);
+        let computed_styles = ComputedStyles::default()
+            .with_all(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        if self.opacity_zero
+            && matches!(
+                get_computed_style!(computed_styles, Opacity),
+                Some((Inheritable::Defined(AlphaValue(0.0)), Mode::Static))
+            )
+        {
+            if is_element!(element, Path) {
+                self.non_rendered_nodes
+                    .borrow_mut()
+                    .insert(HashableElement::new(element.clone()));
+                context.flags.visit_skip();
+                return Ok(());
             }
+            self.remove_element(element);
         }
         Ok(())
     }
 }
 
-impl<'arena, E: Element<'arena>> Data<'arena, E> {
-    fn remove_element(&self, element: &E) {
+impl<'input, 'arena> Data<'input, 'arena> {
+    fn remove_element(&self, element: &Element<'input, 'arena>) {
         if let Some(parent) = Element::parent_element(element) {
-            if parent.prefix().is_none() && parent.local_name().as_ref() == "defs" {
-                if let Some(id) = element.get_attribute_local(&"id".into()) {
-                    self.removed_def_ids.borrow_mut().insert(id.to_string());
+            if is_element!(parent, Defs) {
+                if let Some(id) = get_attribute!(element, Id) {
+                    self.removed_def_ids.borrow_mut().insert(id.clone());
                 }
                 if parent.child_element_count() == 1 {
                     log::debug!("data: removing parent");
@@ -183,110 +173,130 @@ impl<'arena, E: Element<'arena>> Data<'arena, E> {
         log::debug!("data: removing element: {element:?}");
         element.remove();
     }
+
+    fn ref_element(&self, element: &Element<'input, 'arena>) {
+        match element.qual_name().unaliased() {
+            ElementId::Defs => {
+                self.all_defs
+                    .borrow_mut()
+                    .insert(HashableElement::new(element.clone()));
+            }
+            ElementId::Use => {
+                for attr in element.attributes() {
+                    let (Attr::Href(value) | Attr::XLinkHref(value)) = &*attr else {
+                        continue;
+                    };
+                    let id = &value[1..];
+
+                    let mut references_by_id = self.references_by_id.borrow_mut();
+                    let refs = references_by_id.get_mut(id);
+                    match refs {
+                        Some(refs) => refs.push(element.clone()),
+                        None => {
+                            references_by_id.insert(id.into(), vec![element.clone()]);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveHiddenElems {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveHiddenElems {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         log::debug!("collecting data");
-        context_flags.query_has_script(document);
-        context_flags.query_has_stylesheet(document);
+        context.query_has_script(document);
         let document = &mut document.clone();
         let mut data = Data {
             opacity_zero: self.opacity_zero.unwrap_or(true),
             ..Data::default()
         };
-        data.start(document, info, Some(context_flags.clone()))?;
+        data.start(document, context.info, Some(context.flags.clone()))?;
         log::debug!("data collected");
         State {
             options: self,
             data: &mut data,
         }
-        .start(document, info, Some(context_flags.clone()))?;
+        .start(document, context.info, Some(context.flags.clone()))?;
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, _element: &E) -> bool {
-        true
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let Some(parent) = Element::parent_element(element) else {
-            return Ok(());
-        };
-        let name = element.qual_name().formatter().to_string();
-
-        self.ref_element(element, &parent, &name);
-        if self.is_hidden_style(element, &name, context)
-            || self.is_hidden_ellipse(element, &name)
-            || self.is_hidden_rect(element, &name)
-            || self.is_hidden_pattern(element, &name)
-            || self.is_hidden_image(element, &name)
-            || self.is_hidden_path(element, &name, context)
-            || self.is_hidden_poly(element, &name)
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        let computed_styles = ComputedStyles::default()
+            .with_all(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        if self.is_hidden_style(element, &computed_styles, context)
+            || self.is_hidden_ellipse(element)
+            || self.is_hidden_rect(element)
+            || self.is_hidden_pattern(element)
+            || self.is_hidden_image(element)
+            || self.is_hidden_path(element, &computed_styles)
+            || self.is_hidden_poly(element)
         {
             log::debug!("RemoveHiddenElems: removing hidden");
             self.data.remove_element(element);
             return Ok(());
         }
 
-        for attr in element.attributes().into_iter() {
-            let local_name = attr.local_name();
-            let value = attr.value();
-
-            let ids = find_references(local_name.as_ref(), value.as_ref());
-            if let Some(ids) = ids {
-                let mut all_references = self.data.all_references.borrow_mut();
-                ids.filter_map(|id| id.get(1))
-                    .map(|id| id.as_str().to_string())
-                    .for_each(|id| {
-                        all_references.insert(id);
-                    });
+        for mut attr in element.attributes().into_iter_mut() {
+            if is_attribute!(attr, Id) {
+                continue;
             }
+            let mut all_references = self.data.all_references.borrow_mut();
+            let mut value = attr.value_mut();
+            value.visit_url(|url| {
+                if let Some(url) = url.strip_prefix('#') {
+                    all_references.insert(url.to_string());
+                }
+            });
+            value.visit_id(|id| {
+                all_references.insert(id.to_string());
+            });
         }
         Ok(())
     }
 
     fn exit_document(
         &self,
-        _document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
+        _document: &Element<'input, 'arena>,
+        context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for id in &*self.data.removed_def_ids.borrow() {
-            if let Some(refs) = self.data.references_by_id.borrow().get(id) {
-                for (node, _parent_node) in refs {
+            if let Some(refs) = self.data.references_by_id.borrow().get(&**id) {
+                for node in refs {
                     log::debug!("RemoveHiddenElems: remove referenced by id");
                     node.remove();
                 }
             }
         }
 
-        let deoptimized = context
-            .flags
-            .intersects(ContextFlags::has_stylesheet & ContextFlags::has_script_ref);
+        let deoptimized = context.flags.intersects(
+            ContextFlags::query_has_stylesheet_result | ContextFlags::query_has_script_result,
+        );
         if !deoptimized {
             for non_rendered_node in &*self.data.non_rendered_nodes.borrow() {
                 if self.can_remove_non_rendering_node(non_rendered_node) {
@@ -307,178 +317,178 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
-    fn can_remove_non_rendering_node(&self, element: &E) -> bool {
-        if let Some(id) = element.get_attribute_local(&"id".into()) {
-            if self.data.all_references.borrow().contains(id.as_ref()) {
+impl<'input, 'arena> State<'_, 'input, 'arena> {
+    fn can_remove_non_rendering_node(&self, element: &Element<'input, 'arena>) -> bool {
+        if let Some(id) = get_attribute!(element, Id) {
+            if self.data.all_references.borrow().contains(&**id) {
                 return false;
             }
         }
         element
-            .child_nodes_iter()
-            .all(|e| E::new(e).is_none_or(|e| self.can_remove_non_rendering_node(&e)))
-    }
-
-    fn ref_element(&self, element: &E, parent: &E, name: &str) {
-        if name == "defs" {
-            self.data.all_defs.borrow_mut().insert(element.clone());
-        } else if name == "use" {
-            for attr in element.attributes().into_iter() {
-                if attr.local_name().as_ref() != "href" {
-                    continue;
-                }
-                let value = attr.value();
-                let id = &value.as_ref()[1..];
-
-                let mut references_by_id = self.data.references_by_id.borrow_mut();
-                let refs = references_by_id.get_mut(id);
-                match refs {
-                    Some(refs) => refs.push((element.clone(), parent.clone())),
-                    None => {
-                        references_by_id
-                            .insert(id.to_string(), vec![(element.clone(), parent.clone())]);
-                    }
-                }
-            }
-        }
+            .child_elements_iter()
+            .all(|e| self.can_remove_non_rendering_node(&e))
     }
 
     fn is_hidden_style(
         &self,
-        element: &E,
-        name: &str,
-        context: &Context<'arena, '_, '_, E>,
+        element: &Element,
+        computed_styles: &ComputedStyles,
+        context: &mut Context,
     ) -> bool {
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
+        let mut is_hidden = false;
         if self.options.is_hidden.unwrap_or(true) {
-            if let Some(visibility) = get_computed_styles!(Visibility) {
-                if visibility.is_static()
-                    && matches!(
-                        visibility.inner(),
-                        Static::Attr(PresentationAttr::Visibility(Visibility::Hidden))
-                            | Static::Css(Property::Visibility(Visibility::Hidden))
+            if let Some((Inheritable::Defined(Visibility::Hidden), Mode::Static)) =
+                get_computed_style!(computed_styles, Visibility)
+            {
+                if !element.breadth_first().any(|child| {
+                    matches!(
+                        get_attribute!(child, Visibility).as_deref(),
+                        Some(Inheritable::Defined(Visibility::Visible) | Inheritable::Inherited)
                     )
-                    && element
-                        .select("[visibility=visible]")
-                        .unwrap()
-                        .next()
-                        .is_none()
-                {
-                    return true;
+                }) {
+                    is_hidden = true;
                 }
             }
         }
 
-        if self.options.display_none.unwrap_or(true) {
-            if let Some(display) = get_computed_styles!(Display) {
-                if display.is_static()
-                    && matches!(
-                        display.inner(),
-                        Static::Attr(PresentationAttr::Display(Display::Keyword(
-                            DisplayKeyword::None
-                        ))) | Static::Css(Property::Display(Display::Keyword(
-                            DisplayKeyword::None
-                        )))
-                    )
-                    && name != "marker"
-                {
-                    return true;
-                }
+        if !is_hidden && self.options.display_none.unwrap_or(true) {
+            if let Some((Inheritable::Defined(Display::Keyword(DisplayKeyword::None)), _)) =
+                get_computed_style!(computed_styles, Display)
+            {
+                is_hidden = !is_element!(element, Marker);
             }
         }
-        false
+        if is_hidden {
+            // Protect references that may use non-visible data
+            let references_by_id = self.data.references_by_id.borrow();
+            if let Some(id) = get_attribute!(element, Id) {
+                if references_by_id.contains_key(id.as_str()) {
+                    context.flags.visit_skip();
+                    return false;
+                }
+            }
+            return !element.breadth_first().any(|child| {
+                if let Some(id) = get_attribute!(child, Id) {
+                    if references_by_id.contains_key(id.as_str()) {
+                        return true;
+                    }
+                }
+                false
+            });
+        }
+        is_hidden
     }
 
-    fn is_hidden_ellipse(&self, element: &E, name: &str) -> bool {
-        if name == "circle"
+    fn is_hidden_ellipse(&self, element: &Element<'input, 'arena>) -> bool {
+        if is_element!(element, Circle)
             && element.is_empty()
             && self.options.circle_r_zero.unwrap_or(true)
-            && element
-                .get_attribute_local(&"r".into())
-                .is_some_and(|v| v.as_ref() == "0")
         {
-            log::debug!("RemoveHiddenElement: removing hidden ellipse");
-            element.remove();
-            return true;
+            if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                get_attribute!(element, RGeometry).as_deref()
+            {
+                if length.to_px() == Some(0.0) {
+                    log::debug!("RemoveHiddenElement: removing hidden ellipse");
+                    element.remove();
+                    return true;
+                }
+            }
         }
 
-        if name == "ellipse" && element.is_empty() {
-            if self.options.ellipse_rx_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"rx".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+        if is_element!(element, Ellipse) {
+            if self.options.ellipse_rx_zero.unwrap_or(true) {
+                if let Some(Radius::LengthPercentage(LengthPercentage(
+                    DimensionPercentage::Dimension(length),
+                ))) = get_attribute!(element, RX).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
 
-            if self.options.ellipse_ry_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"ry".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+            if self.options.ellipse_ry_zero.unwrap_or(true) {
+                if let Some(Radius::LengthPercentage(LengthPercentage(
+                    DimensionPercentage::Dimension(length),
+                ))) = get_attribute!(element, RY).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    fn is_hidden_rect(&self, element: &Element<'input, 'arena>) -> bool {
+        if is_element!(element, Rect) && element.is_empty() {
+            if self.options.rect_width_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, WidthRect).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
+            }
+            if self.options.rect_height_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, HeightRect).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
         }
         false
     }
 
-    fn is_hidden_rect(&self, element: &E, name: &str) -> bool {
-        if name == "rect" && element.is_empty() && self.options.rect_width_zero.unwrap_or(true) {
-            if element
-                .get_attribute_local(&"width".into())
-                .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+    fn is_hidden_pattern(&self, element: &Element<'input, 'arena>) -> bool {
+        if is_element!(element, Pattern) {
+            if self.options.pattern_width_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, WidthPattern).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
-            if self.options.rect_height_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"height".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
-            }
-        }
-        false
-    }
-
-    fn is_hidden_pattern(&self, element: &E, name: &str) -> bool {
-        if name == "pattern" {
-            if self.options.pattern_width_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"width".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
-            }
-
-            if self.options.pattern_height_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"height".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+            if self.options.pattern_height_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, HeightPattern).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
         }
         false
     }
 
-    fn is_hidden_image(&self, element: &E, name: &str) -> bool {
-        if name == "image" {
-            if self.options.image_width_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"width".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+    fn is_hidden_image(&self, element: &Element<'input, 'arena>) -> bool {
+        if is_element!(element, Image) {
+            if self.options.image_width_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, WidthImage).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
-
-            if self.options.image_height_zero.unwrap_or(true)
-                && element
-                    .get_attribute_local(&"height".into())
-                    .is_some_and(|v| v.as_ref() == "0")
-            {
-                return true;
+            if self.options.image_height_zero.unwrap_or(true) {
+                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+                    get_attribute!(element, HeightImage).as_deref()
+                {
+                    if length.to_px() == Some(0.0) {
+                        return true;
+                    }
+                }
             }
         }
         false
@@ -486,40 +496,32 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
 
     fn is_hidden_path(
         &self,
-        element: &E,
-        name: &str,
-        context: &Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        computed_styles: &ComputedStyles<'input>,
     ) -> bool {
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
-        if self.options.path_empty_d.unwrap_or(true) && name == "path" {
-            let Some(d) = element.get_attribute_local(&"d".into()) else {
+        if self.options.path_empty_d.unwrap_or(true) && is_element!(element, Path) {
+            let Some(d) = get_attribute!(element, D) else {
                 return true;
             };
-            return match Path::parse(d.as_ref()) {
-                Ok(d) => {
-                    d.0.is_empty()
-                        || (d.0.len() == 1
-                            && get_computed_styles!(MarkerStart).is_none()
-                            && get_computed_styles!(MarkerEnd).is_none())
-                }
-                Err(_) => true,
-            };
+            return d.0 .0.is_empty()
+                || (d.0 .0.len() == 1
+                    && !has_computed_style!(computed_styles, MarkerStart)
+                    && !has_computed_style!(computed_styles, MarkerEnd));
         }
         false
     }
 
-    fn is_hidden_poly(&self, element: &E, name: &str) -> bool {
+    fn is_hidden_poly(&self, element: &Element<'input, 'arena>) -> bool {
         if self.options.polyline_empty_points.unwrap_or(true)
-            && name == "polyline"
-            && element.get_attribute_local(&"points".into()).is_none()
+            && is_element!(element, Polyline)
+            && !has_attribute!(element, Points)
         {
             return true;
         }
 
         if self.options.polygon_empty_points.unwrap_or(true)
-            && name == "polygon"
-            && element.get_attribute_local(&"points".into()).is_none()
+            && is_element!(element, Polygon)
+            && !has_attribute!(element, Points)
         {
             return true;
         }

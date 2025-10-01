@@ -1,21 +1,22 @@
-use lightningcss::{
-    printer::PrinterOptions,
-    properties::transform::{Matrix, TransformList},
-    traits::ToCss,
-};
+use std::cell::RefMut;
+
+use lightningcss::properties::transform::Matrix;
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    style::{
-        Id, Precision, PresentationAttr, PresentationAttrId, SVGTransform, SVGTransformList,
-        Static, Style,
+    attribute::data::{
+        inheritable,
+        transform::{Precision, SVGTransform, SVGTransformList},
+        AttrId,
     },
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    element::Element,
+    get_attribute_mut,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -77,55 +78,35 @@ impl Default for ConvertTransform {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertTransform {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertTransform {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, element: &E) -> bool {
-        element.attributes().into_iter().any(|attr| {
-            matches!(
-                attr.local_name().as_ref(),
-                "transform" | "gradientTransform" | "patternTransform"
-            )
-        })
+        context.query_has_script(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if let Some(transform) = context
-            .computed_styles
-            .attr
-            .get(&PresentationAttrId::Transform)
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if let Some(transform) =
+            get_attribute_mut!(element, Transform).and_then(inheritable::map_ref_mut)
         {
-            self.transform_attr(transform, "transform", element);
+            self.transform_attr(transform, &AttrId::Transform, element);
+        }
+        if let Some(gradient_transform) = get_attribute_mut!(element, GradientTransform) {
+            self.transform_attr(gradient_transform, &AttrId::GradientTransform, element);
+        }
+        if let Some(pattern_transform) = get_attribute_mut!(element, PatternTransform) {
+            self.transform_attr(pattern_transform, &AttrId::PatternTransform, element);
         }
 
-        if let Some(gradient_transform) = context
-            .computed_styles
-            .attr
-            .get(&PresentationAttrId::GradientTransform)
-        {
-            self.transform_attr(gradient_transform, "patternTransform", element);
-        }
-
-        if let Some(pattern_transform) = context
-            .computed_styles
-            .attr
-            .get(&PresentationAttrId::PatternTransform)
-        {
-            self.transform_attr(pattern_transform, "patternTransform", element);
-        }
         Ok(())
     }
 }
@@ -184,98 +165,63 @@ impl ConvertTransform {
         (deg_precision, transform_precision)
     }
 
-    fn transform_attr<'arena, E: Element<'arena>>(&self, value: &Style, name: &str, element: &E) {
+    fn transform_attr(
+        &self,
+        mut transform: RefMut<SVGTransformList>,
+        name: &AttrId,
+        element: &Element,
+    ) {
         log::debug!("transform_attr: found {name} to transform");
-        if value.is_unparsed() {
-            element.remove_attribute_local(&name.into());
-            return;
-        }
-        if let Some(transform) = self.transform(value) {
-            if transform.0.is_empty() {
-                log::debug!("transform_attr: removing {name}");
-                element.remove_attribute_local(&name.into());
-            } else {
-                log::debug!("transform_attr: updating {name}");
-                let value = match value.inner().id() {
-                    Id::Attr(PresentationAttrId::Transform) => {
-                        transform.to_css_string(PrinterOptions {
-                            minify: true,
-                            ..Default::default()
-                        })
-                    }
-                    Id::Attr(
-                        PresentationAttrId::GradientTransform
-                        | PresentationAttrId::PatternTransform,
-                    ) => Into::<TransformList>::into(transform).to_css_string(PrinterOptions {
-                        minify: true,
-                        ..Default::default()
-                    }),
-                    _ => return,
-                }
-                .unwrap_or_default();
-                element.set_attribute_local(name.into(), value.into());
-            }
+
+        self.transform(&mut transform);
+        if transform.0.is_empty() {
+            log::debug!("transform_attr: removing {name}");
+            drop(transform);
+            element.remove_attribute(name);
         }
     }
 
-    fn transform(&self, value: &Style) -> Option<SVGTransformList> {
-        let transform = match value {
-            Style::Static(Static::Attr(
-                PresentationAttr::Transform(transform)
-                | PresentationAttr::GradientTransform(transform)
-                | PresentationAttr::PatternTransform(transform),
-            )) => transform.clone(),
-            Style::Static(Static::Attr(PresentationAttr::Unparsed(_))) => return None,
-            _ => unreachable!("dynamic or non-transform style provided"),
-        };
-
-        let mut data = if self.collapse_into_one && transform.0.len() > 1 {
+    fn transform(&self, transform: &mut SVGTransformList) {
+        if self.collapse_into_one && transform.0.len() > 1 {
             if let Some(matrix) = transform.to_matrix_2d() {
                 log::debug!("collapsing transform to matrix");
-                SVGTransformList(vec![SVGTransform::Matrix(matrix)])
-            } else {
-                transform
+                transform.0 = vec![SVGTransform::Matrix(matrix)];
             }
-        } else {
-            transform
-        };
-        log::debug!(r#"working with data "{:?}""#, data);
+        }
+        log::debug!(r#"working with data "{:?}""#, transform);
 
-        let data = self.convert_to_shorts(&mut data);
-        log::debug!(r#"converted transforms to short "{:?}""#, data);
-        let data = self.remove_useless(data);
-        log::debug!(r#"removed useless transform "{:?}""#, data);
-        Some(SVGTransformList(data))
+        self.convert_to_shorts(transform);
+        log::debug!(r#"converted transforms to short "{:?}""#, transform);
+        self.remove_useless(transform);
+        log::debug!(r#"removed useless transform "{:?}""#, transform);
     }
 
-    fn remove_useless(&self, data: Vec<SVGTransform>) -> Vec<SVGTransform> {
+    fn remove_useless(&self, data: &mut SVGTransformList) {
         if !self.remove_useless {
-            return data;
+            return;
         }
 
-        data.into_iter()
-            .filter(|item| {
-                !matches!(
-                    item,
-                    SVGTransform::Translate(0.0, 0.0)
-                        | SVGTransform::Rotate(0.0, _, _)
-                        | SVGTransform::SkewX(0.0)
-                        | SVGTransform::SkewY(0.0)
-                        | SVGTransform::Scale(1.0, 1.0)
-                        | SVGTransform::Matrix(Matrix {
-                            a: 1.0,
-                            b: 0.0,
-                            c: 0.0,
-                            d: 1.0,
-                            e: 0.0,
-                            f: 0.0
-                        })
-                )
-            })
-            .collect()
+        data.0.retain(|item| {
+            !matches!(
+                item,
+                SVGTransform::Translate(0.0, 0.0)
+                    | SVGTransform::Rotate(0.0, _, _)
+                    | SVGTransform::SkewX(0.0)
+                    | SVGTransform::SkewY(0.0)
+                    | SVGTransform::Scale(1.0, 1.0)
+                    | SVGTransform::Matrix(Matrix {
+                        a: 1.0,
+                        b: 0.0,
+                        c: 0.0,
+                        d: 1.0,
+                        e: 0.0,
+                        f: 0.0
+                    })
+            )
+        });
     }
 
-    fn convert_to_shorts(&self, data: &mut SVGTransformList) -> Vec<SVGTransform> {
+    fn convert_to_shorts(&self, data: &mut SVGTransformList) {
         let (deg_precision, transform_precision) = self.define_precision(data);
         let precision = Precision {
             float: self.float_precision,
@@ -342,9 +288,9 @@ impl ConvertTransform {
                 skip = 2;
             }
             log::debug!(r#"shortened rotates: "{:?}""#, result);
-            result
+            data.0 = result;
         } else {
-            shorts
+            data.0 = shorts;
         }
     }
 }

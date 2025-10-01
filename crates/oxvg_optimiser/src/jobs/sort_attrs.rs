@@ -1,5 +1,4 @@
 use oxvg_ast::{
-    attribute::Attributes,
     element::Element,
     visitor::{Context, Visitor},
 };
@@ -7,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
@@ -53,43 +54,28 @@ pub struct SortAttrs {
     pub xmlns_order: Option<XMLNSOrder>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for SortAttrs {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let order = self.order.as_ref().unwrap_or_else(|| &DEFAULT_ORDER);
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let xmlns_order = self.xmlns_order.is_none() || self.xmlns_order == Some(XMLNSOrder::Front);
-        element.attributes().sort(order, xmlns_order);
+        match self.order.as_ref() {
+            Some(order) => element.attributes().sort(order, xmlns_order),
+            None => element.attributes().sort(DEFAULT_ORDER, xmlns_order),
+        }
 
         Ok(())
     }
 }
 
-lazy_static! {
-    pub static ref DEFAULT_ORDER: Vec<String> = vec![
-        String::from("id"),
-        String::from("width"),
-        String::from("height"),
-        String::from("x"),
-        String::from("x1"),
-        String::from("x2"),
-        String::from("y"),
-        String::from("y1"),
-        String::from("y2"),
-        String::from("cx"),
-        String::from("cy"),
-        String::from("r"),
-        String::from("fill"),
-        String::from("stroke"),
-        String::from("marker"),
-        String::from("d"),
-        String::from("points"),
-    ];
-}
+const DEFAULT_ORDER: &[&str] = &[
+    "id", "width", "height", "x", "x1", "x2", "y", "y1", "y2", "cx", "cy", "r", "fill", "stroke",
+    "marker", "d", "points",
+];
 
 #[test]
 fn sort_attrs() -> anyhow::Result<()> {

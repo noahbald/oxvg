@@ -1,11 +1,12 @@
-use std::fmt::Display;
-
 use oxvg_ast::{
     element::Element,
+    node::Ref,
     visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+
+use crate::error::JobsError;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
@@ -44,9 +45,14 @@ macro_rules! jobs {
 
         impl Jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
-            fn run_jobs<'arena, E: Element<'arena>>(&self, element: &mut E, info: &Info<'arena, E>) -> Result<usize, String> {
+            fn run_jobs<'input, 'arena>(
+                &self,
+                element: &mut Element<'input, 'arena>,
+                info: &Info<'input, 'arena>
+            ) -> Result<usize, JobsError<'input>> {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_ref() {
+                    log::debug!(concat!("💼 starting ", stringify!($name)));
                     if !job.start(element, info, None)?.contains(PrepareOutcome::skip) {
                         count += 1;
                     }
@@ -224,39 +230,20 @@ jobs! {
     remove_xlink: RemoveXlink, // Should remove xlinks added by other jobs
 }
 
-#[derive(Debug)]
-/// The type of errors which may occur while optimising a document.
-pub enum Error {
-    /// A basic error message created by one of the jobs.
-    Generic(String),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Generic(s) => s.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
 impl Jobs {
     /// # Errors
     /// When any job fails for the first time
-    pub fn run<'arena, E: Element<'arena>>(
+    pub fn run<'input, 'arena>(
         &self,
-        root: &E::ParentChild,
-        info: &Info<'arena, E>,
-    ) -> Result<(), Error> {
-        let Some(mut root_element) = <E as Element>::from_parent(root.clone()) else {
+        root: Ref<'input, 'arena>,
+        info: &Info<'input, 'arena>,
+    ) -> Result<(), JobsError<'input>> {
+        let Some(mut root_element) = Element::from_parent(root) else {
             log::warn!("No elements found in the document, skipping");
             return Ok(());
         };
 
-        let count = self
-            .run_jobs(&mut root_element, info)
-            .map_err(Error::Generic)?;
+        let count = self.run_jobs(&mut root_element, info)?;
         log::debug!("completed {count} jobs");
         Ok(())
     }
@@ -306,40 +293,58 @@ impl Jobs {
 }
 
 #[cfg(test)]
-pub(crate) fn test_config_default_svg_comment(
-    config_json: &str,
-    comment: &str,
-) -> anyhow::Result<String> {
-    test_config(
-        config_json,
-        Some(&format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- {comment} -->
+#[macro_export]
+#[doc(hidden)]
+macro_rules! test_config {
+    ($config_json:literal, comment: $comment:literal$(,)?) => {
+        $crate::jobs::test_config(
+            $config_json,
+            Some(concat!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- "#,
+                $comment,
+                r#" -->
     test
 </svg>"#
-        )),
-    )
+            )),
+        )
+    };
+    ($config_json:literal, svg: $svg:literal$(,)?) => {
+        $crate::jobs::test_config($config_json, Some($svg))
+    };
+    ($config_json:literal) => {
+        $crate::jobs::test_config($config_json, None)
+    };
 }
 
 #[cfg(test)]
-pub(crate) fn test_config(config_json: &str, svg: Option<&str>) -> anyhow::Result<String> {
+pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        implementations::{roxmltree::parse, shared::Element},
+        arena::Allocator,
+        parse::roxmltree::parse,
         serialize::{Node, Options},
     };
+    use roxmltree;
 
     let jobs: Jobs = serde_json::from_str(config_json)?;
-    let arena = typed_arena::Arena::new();
-    let dom = parse(
+    let xml = roxmltree::Document::parse_with_options(
         svg.unwrap_or(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     test
 </svg>"#,
         ),
-        &arena,
+        roxmltree::ParsingOptions {
+            allow_dtd: true,
+            ..roxmltree::ParsingOptions::default()
+        },
     )
     .unwrap();
-    jobs.run(&dom, &Info::<Element>::new(&arena))?;
+    let values = Allocator::new_values();
+    let mut arena = Allocator::new_arena();
+    let mut allocator = Allocator::new(&mut arena, &values);
+    let dom = parse(&xml, &mut allocator).unwrap();
+    jobs.run(dom, &Info::new(allocator))
+        .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
     Ok(dom.serialize_with_options(Options::default())?)
 }
 

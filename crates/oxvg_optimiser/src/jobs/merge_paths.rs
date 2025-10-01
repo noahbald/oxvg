@@ -1,23 +1,25 @@
-use lightningcss::{
-    properties::{
-        effects::{Filter, FilterList},
-        svg::SVGPaint,
-        Property, PropertyId,
-    },
-    vendor_prefix::VendorPrefix,
+use std::cell::{self, RefMut};
+
+use itertools::Itertools as _;
+use lightningcss::properties::{
+    effects::{Filter, FilterList},
+    svg::SVGPaint,
 };
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::data::{inheritable::Inheritable, path},
     element::Element,
-    get_computed_property_factory, get_computed_styles_factory,
-    style::{ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, get_attribute_mut, get_computed_style, has_attribute, has_computed_style,
+    has_computed_style_css, is_attribute, is_element, set_attribute,
+    style::{ComputedStyles, Mode},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_path::{command, Path};
+use oxvg_path::command;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -54,69 +56,64 @@ impl Default for MergePaths {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     #[allow(clippy::too_many_lines)]
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let children = element.children();
         if children.len() <= 1 {
             return Ok(());
         }
 
-        let mut prev_path_data: Option<Path> = None;
-        let d_name = "d".into();
+        let mut prev_path_data: Option<path::Path> = None;
 
-        for window in children.windows(2) {
-            let child = &window[1];
-            let prev_child = &window[0];
+        for (prev_child, child) in children.iter().tuple_windows() {
             log::debug!("trying to merge {child:?}");
             macro_rules! update_previous_path {
-                () => {
-                    if let Some(data) = &mut prev_path_data {
-                        prev_child.set_attribute_local(d_name.clone(), data.to_string().into());
+                ($prev_child:ident) => {
+                    if let Some(data) = prev_path_data.take() {
+                        set_attribute!(prev_child, D(data));
                     }
                     prev_path_data = None;
                 };
             }
 
-            if prev_child.prefix().is_some()
-                || prev_child.local_name().as_ref() != "path"
+            if !is_element!(prev_child, Path)
                 || !prev_child.is_empty()
-                || !prev_child.has_attribute_local(&d_name)
+                || has_attribute!(prev_child, Id)
             {
                 log::debug!("ending merge, prev not a plain path");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             }
 
-            if child.prefix().is_some()
-                || child.local_name().as_ref() != "path"
-                || !child.is_empty()
-            {
+            if !is_element!(child, Path) || !child.is_empty() {
                 log::debug!("ending merge, current not a plain path");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             }
-            let Some(mut current_path_data) = child
-                .get_attribute_local(&d_name)
-                .and_then(|d| Path::parse(d.as_ref()).ok())
+            let computed_styles = ComputedStyles::default()
+                .with_all(child, &context.query_has_stylesheet_result)
+                .map_err(JobsError::ComputedStylesError)?;
+            let Some(mut current_path_data) =
+                get_attribute_mut!(child, D).map(|d| RefMut::map(d, |path::Path(d)| d))
             else {
                 log::debug!("ending merge, current has no `d`");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             };
             if let Some(first) = current_path_data.0.first_mut() {
@@ -131,43 +128,28 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
                     }
                 }
             }
+            drop(current_path_data);
 
-            let computed_styles = ComputedStyles::default().with_all(
-                child,
-                &context.stylesheet,
-                context.element_styles,
-            );
-            get_computed_styles_factory!(computed_styles);
-            get_computed_property_factory!(computed_styles);
-            if get_computed_styles!(MarkerStart)
-                .or_else(|| get_computed_styles!(MarkerMid))
-                .or_else(|| get_computed_styles!(MarkerEnd))
-                .or_else(|| get_computed_styles!(ClipPath(VendorPrefix::None)))
-                .or_else(|| get_computed_styles!(Mask(VendorPrefix::None)))
-                .or_else(|| get_computed_property!(MaskImage(VendorPrefix::None)))
-                .is_some()
-                || get_computed_styles!(Fill).is_some_and(|s| {
-                    s.is_static()
-                        && matches!(s.inner(), Static::Attr(PresentationAttr::Fill(SVGPaint::Url { url, .. }))
-                            | Static::Css(Property::Fill(SVGPaint::Url { url, .. })) if url.url.starts_with('#'))
+            if
+                has_computed_style!(
+                    computed_styles,
+                    MarkerStart | MarkerMid | MarkerEnd | ClipPath | Mask
+                )
+                || has_computed_style_css!(computed_styles, MaskImage(None))
+                || get_computed_style!(computed_styles, Fill).is_some_and(|(fill, mode)| {
+                    matches!(mode, Mode::Static)
+                        && matches!(fill.option(), Some(SVGPaint::Url { url,.. }) if url.url.starts_with('#'))
                 })
-                || get_computed_styles!(Filter(VendorPrefix::None)).is_some_and(|s| {
-                    s.is_static()
-                        && matches!(s.inner(), Static::Attr(PresentationAttr::Filter(FilterList::Filters(
-                                filters,
-                            )))
-                            | Static::Css(Property::Filter(FilterList::Filters(filters), _)) if filters.iter().any(|f| matches!(f, Filter::Url(url) if url.url.starts_with('#'))))
+                || get_computed_style!(computed_styles, Filter).is_some_and(|(filter, mode)| {
+                    matches!(mode, Mode::Static)
+                        && matches!(filter, Inheritable::Defined(FilterList::Filters(filters)) if filters.iter().any(|filter| matches!(filter, Filter::Url(url) if url.url.starts_with('#'))))
                 })
-                || get_computed_styles!(Stroke).is_some_and(|s| {
-                    s.is_static()
-                        && matches!(s.inner(), Static::Attr(PresentationAttr::Stroke(SVGPaint::Url {
-                                url, ..
-                            }))
-                            | Static::Css(Property::Stroke(SVGPaint::Url { url, .. })) if url.url.starts_with('#'))
+                || get_computed_style!(computed_styles, Stroke).is_some_and(|(stroke, mode)| {
+                    matches!(mode, Mode::Static) && matches!(stroke.option(), Some(SVGPaint::Url { url,.. }) if url.url.starts_with('#'))
                 })
             {
                 log::debug!("ending merge, has forbidden style or reference");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             }
 
@@ -175,30 +157,28 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
             let attrs = child.attributes();
             if prev_attrs.len() != attrs.len() {
                 log::debug!("ending merge, current attrs length different to prev");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             }
 
             let are_any_attr_diff = attrs.into_iter().any(|a| {
-                (a.prefix().is_some() || a.local_name().as_ref() != "d")
-                    && prev_attrs
-                        .get_named_item(a.name())
-                        .is_none_or(|p| p.value() != a.value())
+                !is_attribute!(a, D) && prev_attrs.get_named_item(a.name()).is_none_or(|p| *p != *a)
             });
             if are_any_attr_diff {
                 log::debug!("ending merge, current attrs equal to prev");
-                update_previous_path!();
+                update_previous_path!(prev_child);
                 continue;
             }
 
             let has_prev_path = prev_path_data.is_some();
             if prev_path_data.is_none() {
-                prev_path_data = prev_child
-                    .get_attribute_local(&d_name)
-                    .and_then(|v| Path::parse(v.as_ref()).ok());
+                prev_path_data = get_attribute!(prev_child, D).as_deref().cloned();
             }
 
-            if let Some(prev_path_data) = &mut prev_path_data {
+            let current_path_data = get_attribute!(child, D)
+                .map(|d| cell::Ref::map(d, |path::Path(d)| d))
+                .expect("D previously used");
+            if let Some(path::Path(prev_path_data)) = &mut prev_path_data {
                 if prev_path_data.0.last().is_some_and(|d| {
                     matches!(
                         d.id().as_explicit(),
@@ -209,7 +189,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
                 }
                 if self.force || !prev_path_data.intersects(&current_path_data) {
                     log::debug!("merging, current doesn't intersect prev");
-                    prev_path_data.0.extend(current_path_data.0);
+                    prev_path_data.0.extend(current_path_data.0.clone());
                     prev_child.remove();
                     continue;
                 }
@@ -217,16 +197,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergePaths {
 
             log::debug!("ending merge, current doesn't intersect prev");
             if has_prev_path {
-                update_previous_path!();
+                update_previous_path!(prev_child);
             } else {
                 prev_path_data = None;
             }
         }
         if let Some(prev_path_data) = prev_path_data {
-            element
-                .last_element_child()
-                .unwrap()
-                .set_attribute_local(d_name, prev_path_data.to_string().into());
+            set_attribute!(element.last_element_child().unwrap(), D(prev_path_data));
         }
 
         Ok(())

@@ -1,12 +1,14 @@
 use oxvg_ast::{
     element::Element,
     node::Node,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -26,14 +28,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXMLProcInst(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLProcInst {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveXMLProcInst {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -44,10 +45,10 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXMLProcInst {
 
     fn processing_instruction(
         &self,
-        processing_instruction: &mut <E as Node<'arena>>::Child,
-        _context: &Context<'arena, '_, '_, E>,
+        processing_instruction: &Node<'input, 'arena>,
+        _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if processing_instruction.node_name() == "xml".into() {
+        if &*processing_instruction.node_name() == "xml" {
             processing_instruction.remove();
         }
         Ok(())

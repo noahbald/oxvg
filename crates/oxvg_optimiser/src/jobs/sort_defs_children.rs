@@ -1,14 +1,15 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use oxvg_ast::{
-    element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    element::{data::ElementId, Element},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -21,7 +22,7 @@ use tsify::Tsify;
 ///
 /// # Correctness
 ///
-/// This job should never visually change the document.
+/// This job may affect the document if selectors or scripts depend on ordering.
 ///
 /// # Errors
 ///
@@ -30,14 +31,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct SortDefsChildren(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -48,20 +48,20 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for SortDefsChildren {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if element.prefix().is_some() || element.local_name().as_ref() != "defs" {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if *element.qual_name() != ElementId::Defs {
             return Ok(());
         }
 
         let mut frequencies = HashMap::new();
         element.child_elements_iter().for_each(|e| {
-            let name = e.qual_name().clone();
-            if let Some(frequency) = frequencies.get_mut(&name) {
+            let name = e.qual_name();
+            if let Some(frequency) = frequencies.get_mut(name) {
                 *frequency += 1;
             } else {
-                frequencies.insert(name, 1);
+                frequencies.insert(name.clone(), 1);
             }
         });
         element.sort_child_elements(|a, b| {

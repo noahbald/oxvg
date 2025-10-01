@@ -1,19 +1,22 @@
-use lightningcss::{
-    properties::PropertyId,
-    stylesheet::{ParserOptions, StyleAttribute},
-    vendor_prefix::VendorPrefix,
-};
+use std::mem;
+
+use lightningcss::{properties::PropertyId, vendor_prefix::VendorPrefix};
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    atom::Atom,
+    attribute::{
+        content_type::ContentType,
+        data::{inheritable::Inheritable, Attr, AttrId},
+    },
+    element::{category::ElementCategory, Element},
+    get_attribute, has_attribute, is_element,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{ElementGroup, Group, INHERITABLE_ATTRS};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -34,14 +37,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CollapseGroups(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CollapseGroups {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for CollapseGroups {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -52,17 +54,17 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CollapseGroups {
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(());
         };
 
-        if element.is_root() || parent.local_name().as_ref() == "switch" {
+        if element.is_root() || is_element!(parent, Switch) {
             return Ok(());
         }
-        if element.local_name().as_ref() != "g" || !element.has_child_elements() {
+        if !is_element!(element, G) || !element.has_child_elements() {
             return Ok(());
         }
 
@@ -78,7 +80,7 @@ impl Default for CollapseGroups {
     }
 }
 
-fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
+fn move_attributes_to_child(element: &Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
     let children = element.children();
@@ -93,7 +95,7 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
     }
 
     let attrs = element.attributes();
-    if attrs.len() == 0 {
+    if attrs.is_empty() {
         log::debug!("collapse_groups: not moving attrs: no attrs to move");
         return;
     }
@@ -111,35 +113,35 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
 
     let mut removals = Vec::default();
     let first_child_attrs = first_child.attributes();
-    for attr in attrs.into_iter() {
-        let name = attr.name();
-        let local_name = name.local_name();
-        let local_name: &str = local_name.as_ref();
-        let value = attr.value();
-
-        let child_attr = first_child_attrs.get_named_item_mut(name);
-        if has_animated_attr(first_child, name) {
+    for mut attr in attrs.into_iter_mut() {
+        let name = attr.name().clone();
+        let child_attr = first_child_attrs.get_named_item_mut(&name);
+        if has_animated_attr(first_child, name.local_name()) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
 
-        removals.push(attr.name().clone());
+        removals.push(name);
         let Some(mut child_attr) = child_attr else {
-            log::debug!("collapse_groups: moved {name:?}: same as parent",);
+            log::debug!("collapse_groups: moved {attr:?}: same as parent",);
             first_child_attrs.set_named_item(attr.clone());
             continue;
         };
 
-        let child_attr_value = child_attr.value();
-        if name.local_name().as_ref() == "transform" {
+        if let Attr::Transform(Inheritable::Defined(value)) = &mut *attr {
+            let Attr::Transform(Inheritable::Defined(child_value)) = &mut *child_attr else {
+                continue;
+            };
             log::debug!("collapse_groups: moved transform: is transform");
-            let value = format!("{value} {child_attr_value}");
-            child_attr.set_value(value.into());
-        } else if child_attr_value.as_ref() == "inherit" {
-            log::debug!("collapse_groups: moved {name:?}: is explicit inherit");
-            child_attr.set_value(value.clone());
-        } else if !INHERITABLE_ATTRS.contains(local_name) && child_attr.value() != value {
-            log::debug!("collapse_groups: removing {name:?}: inheritable attr is not inherited");
+            value.0.extend(mem::take(&mut child_value.0));
+            mem::swap(&mut value.0, &mut child_value.0);
+        } else if let ContentType::Inheritable(inheritable) = child_attr.value() {
+            if Inheritable::Inherited == inheritable {
+                log::debug!("collapse_groups: moved {attr:?}: is explicit inherit");
+                *child_attr = attr.clone();
+            }
+        } else if *attr != *child_attr {
+            log::debug!("collapse_groups: removing {attr:?}: inheritable attr is not inherited");
             removals.pop();
             break;
         }
@@ -150,18 +152,18 @@ fn move_attributes_to_child<'arena, E: Element<'arena>>(element: &E) {
     }
 }
 
-fn flatten_when_all_attributes_moved<'arena, E: Element<'arena>>(element: &E) {
+fn flatten_when_all_attributes_moved(element: &Element) {
     if !element.attributes().is_empty() {
         log::debug!("skipping flatten: has attributes");
         return;
     }
 
-    let animation_group = oxvg_collections::collections::Group::set(&ElementGroup::Animation);
     {
         if element.breadth_first().any(|child| {
-            let local_name = child.local_name();
-            let name: &str = local_name.as_ref();
-            animation_group.contains(name)
+            child
+                .qual_name()
+                .categories()
+                .contains(ElementCategory::Animation)
         }) {
             log::debug!("skipping flatten: has animating child");
             return;
@@ -171,16 +173,13 @@ fn flatten_when_all_attributes_moved<'arena, E: Element<'arena>>(element: &E) {
     element.flatten();
 }
 
-fn has_animated_attr<'arena, E: Element<'arena>>(element: &E, name: &impl Name) -> bool {
-    let local_name = name.local_name();
-    let node_name: &str = local_name.as_ref();
+fn has_animated_attr<'input>(element: &Element<'input, '_>, local_name: &Atom<'input>) -> bool {
     for child in std::iter::once(element.clone()).chain(element.breadth_first()) {
-        let child_name_local = child.local_name();
-        let child_name: &str = child_name_local.as_ref();
-        if Group::set(&ElementGroup::Animation).contains(child_name)
-            && child
-                .get_attribute_local(&"attributeName".into())
-                .is_some_and(|attr| attr.as_ref() == node_name)
+        if child
+            .qual_name()
+            .categories()
+            .intersects(ElementCategory::Animation)
+            && get_attribute!(child, AttributeName).is_some_and(|attr| &*attr == local_name)
         {
             return true;
         }
@@ -188,32 +187,27 @@ fn has_animated_attr<'arena, E: Element<'arena>>(element: &E, name: &impl Name) 
     false
 }
 
-fn is_group_identifiable<'arena, E: Element<'arena>>(node: &E, child: &E) -> bool {
-    let class = &"class".into();
-    child.has_attribute_local(&"id".into())
-        && (!node.has_attribute_local(class) || !child.has_attribute_local(class))
+fn is_group_identifiable<'input, 'arena>(
+    node: &Element<'input, 'arena>,
+    child: &Element<'input, 'arena>,
+) -> bool {
+    child.has_attribute(&AttrId::Id)
+        && (!has_attribute!(node, Class) || !has_attribute!(child, Class))
 }
 
-fn is_position_visually_unstable<'arena, E: Element<'arena>>(node: &E, child: &E) -> bool {
-    let is_node_clipping =
-        node.has_attribute_local(&"clip-path".into()) || node.has_attribute_local(&"mask".into());
-    let is_child_transformed_group =
-        child.local_name().as_ref() == "g" && child.has_attribute_local(&"transform".into());
+fn is_position_visually_unstable<'input, 'arena>(
+    node: &Element<'input, 'arena>,
+    child: &Element<'input, 'arena>,
+) -> bool {
+    let is_node_clipping = has_attribute!(node, ClipPath | Mask);
+    let is_child_transformed_group = is_element!(child, G) && has_attribute!(child, Transform);
     is_node_clipping || is_child_transformed_group
 }
 
-fn is_node_with_filter<'arena, E: Element<'arena>>(node: &E) -> bool {
-    node.has_attribute_local(&"filter".into())
-        || node
-            .get_attribute_local(&"style".into())
-            .is_some_and(|code| {
-                StyleAttribute::parse(code.as_ref(), ParserOptions::default()).is_ok_and(|style| {
-                    style
-                        .declarations
-                        .get(&PropertyId::Filter(VendorPrefix::None))
-                        .is_some()
-                })
-            })
+fn is_node_with_filter(node: &Element) -> bool {
+    has_attribute!(node, Filter)
+        || get_attribute!(node, Style)
+            .is_some_and(|style| style.get(&PropertyId::Filter(VendorPrefix::None)).is_some())
 }
 
 #[test]

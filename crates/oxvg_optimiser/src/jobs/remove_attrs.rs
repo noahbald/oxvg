@@ -1,7 +1,15 @@
+use std::sync::LazyLock;
+
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::{
+        content_type::{ContentType, ContentTypeRef},
+        data::{
+            core::{Color, Paint},
+            inheritable::Inheritable,
+        },
+    },
     element::Element,
-    name::Name,
+    serialize::{PrinterOptions, ToAtom},
     visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
@@ -17,10 +25,10 @@ const fn default_preserve_current_color() -> bool {
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::utils::regex_memo;
+use crate::{error::JobsError, utils::regex_memo};
 
-#[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Remove attributes based on whether it matches a pattern.
@@ -85,54 +93,70 @@ fn create_regex(part: &str) -> Result<regex::Regex, regex::Error> {
 }
 
 impl RemoveAttrs {
-    fn parse_pattern(&self, pattern: &str) -> Result<[regex::Regex; 3], regex::Error> {
+    fn parse_pattern<'input>(&self, pattern: &str) -> Result<[regex::Regex; 3], JobsError<'input>> {
         let list = match pattern.split_once(&self.elem_separator) {
             Some((start, rest)) => match rest.split_once(&self.elem_separator) {
                 Some((middle, end)) => [
-                    create_regex(start)?,
-                    create_regex(middle)?,
-                    create_regex(end)?,
+                    create_regex(start).map_err(JobsError::InvalidUserRegex)?,
+                    create_regex(middle).map_err(JobsError::InvalidUserRegex)?,
+                    create_regex(end).map_err(JobsError::InvalidUserRegex)?,
                 ],
-                None => [create_regex(start)?, create_regex(rest)?, WILDCARD.clone()],
+                None => [
+                    create_regex(start).map_err(JobsError::InvalidUserRegex)?,
+                    create_regex(rest).map_err(JobsError::InvalidUserRegex)?,
+                    WILDCARD.clone(),
+                ],
             },
-            None => [WILDCARD.clone(), create_regex(pattern)?, WILDCARD.clone()],
+            None => [
+                WILDCARD.clone(),
+                create_regex(pattern).map_err(JobsError::InvalidUserRegex)?,
+                WILDCARD.clone(),
+            ],
         };
         Ok(list)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttrs {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
         for pattern in &self.attrs {
-            let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
+            let list = self.parse_pattern(pattern)?;
             parsed_attrs.push(list);
         }
         for pattern in parsed_attrs {
-            if !pattern[0].is_match(&element.qual_name().formatter().to_string()) {
+            if !pattern[0].is_match(&element.qual_name().to_string()) {
                 continue;
             }
 
             element.attributes().retain(|attr| {
-                let is_current_color = self.preserve_current_color
-                    && attr.prefix().is_none()
-                    && matches!(attr.local_name().as_ref(), "fill" | "stroke")
-                    && attr.value().as_ref().to_lowercase() == "currentcolor";
-                if is_current_color {
+                if self.preserve_current_color
+                    && matches!(
+                        attr.value(),
+                        ContentType::Inheritable(Inheritable::Defined(attr)) if matches!(*attr, ContentType::Paint(
+                            ContentTypeRef::Ref(&Paint::Color(Color::CurrentColor)),
+                        ))
+                    )
+                {
                     return true;
                 }
 
-                if !pattern[2].is_match(attr.value().as_ref()) {
+                if !pattern[2].is_match(
+                    &attr
+                        .value()
+                        .to_atom_string(PrinterOptions::default())
+                        .unwrap(),
+                ) {
                     return true;
                 }
 
-                let name = attr.name().formatter().to_string();
+                let name = attr.name().to_string();
                 !pattern[1].is_match(&name)
             });
         }
@@ -141,9 +165,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
     }
 }
 
-lazy_static! {
-    static ref WILDCARD: regex::Regex = regex::Regex::new(".*").unwrap();
-}
+static WILDCARD: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(".*").unwrap());
 
 #[test]
 fn remove_attrs() -> anyhow::Result<()> {

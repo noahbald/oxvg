@@ -1,13 +1,14 @@
 use oxvg_ast::{
-    attribute::Attr,
     element::Element,
-    name::Name,
+    has_attribute, is_element,
     visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -39,26 +40,26 @@ pub struct RemoveEmptyText {
     pub tref: Option<bool>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyText {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyText {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let name = element.qual_name().formatter().to_string();
-
-        if self.text.unwrap_or(true) && &name == "text" && element.is_empty() {
+        if self.text.unwrap_or(true) && is_element!(element, Text) && element.is_empty() {
             element.remove();
         }
 
-        if self.tspan.unwrap_or(true) && &name == "tspan" && element.is_empty() {
+        if self.tspan.unwrap_or(true) && is_element!(element, TSpan) && element.is_empty() {
             element.remove();
         }
 
-        let xlink_name = <E::Attr as Attr>::Name::new(Some("xlink".into()), "href".into());
-        if self.tref.unwrap_or(true) && &name == "tref" && !element.has_attribute(&xlink_name) {
+        if self.tref.unwrap_or(true)
+            && is_element!(element, TRef)
+            && !has_attribute!(element, XLinkHref)
+        {
             element.remove();
         }
 

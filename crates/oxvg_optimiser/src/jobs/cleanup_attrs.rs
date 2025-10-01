@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::content_type::{ContentType, ContentTypeRef},
     element::Element,
     visitor::{Context, Visitor},
 };
@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -42,30 +44,26 @@ pub struct CleanupAttrs {
     pub spaces: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for CleanupAttrs {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         for mut attr in element.attributes().into_iter_mut() {
-            let mut value = attr.value().to_string();
-            let original_len = value.len();
-            if self.newlines {
-                value = value.replace('\n', " ");
-            }
-            let value = if self.trim {
-                value.trim()
-            } else {
-                value.as_ref()
+            let ContentType::Anything(ContentTypeRef::RefMut(value)) = attr.value_mut() else {
+                continue;
             };
+            if self.newlines {
+                *value = value.replace('\n', " ").into();
+            }
+            if self.trim {
+                *value = value.trim().to_string().into();
+            }
             if self.spaces {
-                let value = value.split_whitespace().join(" ");
-                attr.set_value(value.into());
-            } else if value.len() < original_len {
-                attr.set_value(value.into());
+                *value = value.split_whitespace().join(" ").into();
             }
         }
         Ok(())

@@ -1,14 +1,19 @@
 use std::cell::RefCell;
 
+use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
+    attribute::data::{path, presentation::LengthPercentage, uncategorised::ViewBox},
     element::Element,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, get_attribute_mut, has_attribute, is_element,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -30,77 +35,62 @@ use tsify::Tsify;
 pub struct RemoveOffCanvasPaths(pub bool);
 
 struct State {
-    view_box_data: RefCell<Option<ViewBoxData>>,
+    view_box_data: RefCell<Option<ViewBox>>,
 }
 
-#[derive(Default, Clone, Debug)]
-pub struct ViewBoxData {
-    pub top: f64,
-    pub right: f64,
-    pub bottom: f64,
-    pub left: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveOffCanvasPaths {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveOffCanvasPaths {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
             State {
                 view_box_data: RefCell::new(None),
             }
-            .start(&mut document.clone(), info, None)?;
+            .start(&mut document.clone(), context.info, None)?;
         }
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.is_root() && element.prefix().is_none() && element.local_name().as_ref() == "svg"
-        {
-            self.view_box_data
-                .replace(ViewBoxData::gather(element).ok());
+        if element.is_root() && is_element!(element, Svg) {
+            self.view_box_data.replace(gather(element).ok());
         }
 
-        if element.has_attribute_local(&"transform".into()) {
+        if has_attribute!(element, Transform) {
             context.flags.visit_skip();
             return Ok(());
         }
 
-        if element.prefix().is_some() || element.local_name().as_ref() != "path" {
+        if !is_element!(element, Path) {
             return Ok(());
         }
         let view_box_data = self.view_box_data.borrow();
         let Some(view_box_data) = view_box_data.as_ref() else {
             return Ok(());
         };
-        let Some(d) = element.get_attribute_local(&"d".into()) else {
-            return Ok(());
-        };
-        let Ok(mut path) = oxvg_path::Path::parse(d.as_ref()) else {
+        let mut path = get_attribute_mut!(element, D);
+        let Some(path::Path(path)) = path.as_deref_mut() else {
             return Ok(());
         };
 
         let visible = path.0.iter().any(|c| match c.as_explicit() {
             Data::MoveTo([x, y]) => {
-                x >= &view_box_data.left
-                    && x <= &view_box_data.right
-                    && y >= &view_box_data.top
-                    && y <= &view_box_data.bottom
+                *x >= view_box_data.min_x as f64
+                    && *x <= (view_box_data.min_x + view_box_data.width) as f64
+                    && *y >= view_box_data.min_y as f64
+                    && *y <= (view_box_data.min_y + view_box_data.height) as f64
             }
             _ => false,
         });
@@ -111,22 +101,21 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
         if path.0.len() == 2 {
             path.0.push(Data::ClosePath);
         }
-        let ViewBoxData {
-            top,
-            left,
+        let ViewBox {
+            min_x,
+            min_y,
             width,
             height,
-            ..
-        } = view_box_data.clone();
+        } = view_box_data;
         let view_box_path_data = Path(vec![
-            Data::MoveTo([left, top]),
-            Data::HorizontalLineBy([width]),
-            Data::VerticalLineBy([height]),
-            Data::HorizontalLineTo([left]),
+            Data::MoveTo([*min_x as f64, *min_y as f64]),
+            Data::HorizontalLineBy([*width as f64]),
+            Data::VerticalLineBy([*height as f64]),
+            Data::HorizontalLineTo([*min_x as f64]),
             Data::ClosePath,
         ]);
 
-        if !view_box_path_data.intersects(&path) {
+        if !view_box_path_data.intersects(path) {
             element.remove();
         }
         Ok(())
@@ -135,81 +124,34 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State {
 
 enum GatherViewboxDataError {
     ParseFloatError,
-    MissingParameter,
     MissingViewbox,
 }
 
-impl ViewBoxData {
-    fn gather<'arena, E: Element<'arena>>(element: &mut E) -> Result<Self, GatherViewboxDataError> {
-        let width = element.get_attribute_local(&"width".into());
-        let height = element.get_attribute_local(&"height".into());
-        let Some(viewbox) = element.get_attribute_local(&"viewBox".into()) else {
-            match (width, height) {
-                (Some(width), Some(height)) => {
-                    return Ok(ViewBoxData::fallback(
-                        width
-                            .as_ref()
-                            .trim()
-                            .strip_suffix("px")
-                            .unwrap_or(width.as_ref())
-                            .parse()
-                            .map_err(|_| GatherViewboxDataError::ParseFloatError)?,
-                        height
-                            .as_ref()
-                            .trim()
-                            .strip_suffix("px")
-                            .unwrap_or(height.as_ref())
-                            .parse()
-                            .map_err(|_| GatherViewboxDataError::ParseFloatError)?,
-                    ))
-                }
-                _ => return Err(GatherViewboxDataError::MissingViewbox),
+fn gather(element: &Element) -> Result<ViewBox, GatherViewboxDataError> {
+    let width = get_attribute!(element, WidthSvg);
+    let height = get_attribute!(element, HeightSvg);
+    let Some(viewbox) = get_attribute!(element, ViewBox) else {
+        match (width.as_deref(), height.as_deref()) {
+            (
+                Some(LengthPercentage(DimensionPercentage::Dimension(width))),
+                Some(LengthPercentage(DimensionPercentage::Dimension(height))),
+            ) => {
+                return Ok(ViewBox {
+                    min_x: 0.0,
+                    min_y: 0.0,
+                    width: width
+                        .to_px()
+                        .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    height: height
+                        .to_px()
+                        .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                })
             }
-        };
-
-        let mut viewbox = viewbox
-            .as_ref()
-            .split_whitespace()
-            .flat_map(|s| s.split(','))
-            .map(str::trim)
-            .map(|s| s.strip_suffix("px").unwrap_or(s))
-            .map(str::parse::<f64>)
-            .map(|r| r.map_err(|_| GatherViewboxDataError::ParseFloatError));
-
-        let left = viewbox
-            .next()
-            .ok_or(GatherViewboxDataError::MissingParameter)??;
-        let top = viewbox
-            .next()
-            .ok_or(GatherViewboxDataError::MissingParameter)??;
-        let width = viewbox
-            .next()
-            .ok_or(GatherViewboxDataError::MissingParameter)??;
-        let height = viewbox
-            .next()
-            .ok_or(GatherViewboxDataError::MissingParameter)??;
-
-        Ok(ViewBoxData {
-            left,
-            top,
-            right: left + width,
-            bottom: top + height,
-            width,
-            height,
-        })
-    }
-}
-
-impl ViewBoxData {
-    fn fallback(width: f64, height: f64) -> Self {
-        Self {
-            right: width,
-            bottom: height,
-            width,
-            height,
-            ..Self::default()
+            _ => return Err(GatherViewboxDataError::MissingViewbox),
         }
-    }
+    };
+
+    Ok(viewbox.clone())
 }
 
 #[test]

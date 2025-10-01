@@ -1,12 +1,13 @@
 use oxvg_ast::{
     element::Element,
-    name::Name,
     visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -36,29 +37,22 @@ pub struct Selector {
 /// If the selector fails to parse.
 pub struct RemoveAttributesBySelector(pub Vec<Selector>);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttributesBySelector {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttributesBySelector {
+    type Error = JobsError<'input>;
 
     fn document(
         &self,
-        document: &mut E,
-        _context: &Context<'arena, '_, '_, E>,
+        document: &Element<'input, 'arena>,
+        _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for item in &self.0 {
-            let selected = match document.select(&item.selector) {
-                Ok(iter) => iter,
-                Err(error) => return Err(format!("{error:?}")),
-            };
-            let attribute_names: Vec<_> = item
-                .attributes
-                .iter()
-                .map(String::as_str)
-                .map(E::Name::parse)
-                .collect();
+            let selected = document
+                .select(&item.selector)
+                .map_err(|e| JobsError::InvalidUserSelector(format!("{e:#?}")))?;
             for element in selected {
-                for attr in &attribute_names {
-                    element.remove_attribute(attr);
-                }
+                element
+                    .attributes()
+                    .retain(|attr| !item.attributes.contains(&attr.name().to_string()));
             }
         }
 
@@ -72,7 +66,7 @@ fn remove_attributes_by_selector() -> anyhow::Result<()> {
 
     insta::assert_snapshot!(test_config(
         r#"{ "removeAttributesBySelector": [{
-            "selector": "[fill='#00ff00']",
+            "selector": "[fill='#0f0']",
             "attributes": ["fill"]
         }] }"#,
         Some(
@@ -84,7 +78,7 @@ fn remove_attributes_by_selector() -> anyhow::Result<()> {
 
     insta::assert_snapshot!(test_config(
         r#"{ "removeAttributesBySelector": [{
-            "selector": "[fill='#00ff00']",
+            "selector": "[fill='#0f0']",
             "attributes": ["fill", "stroke"]
         }] }"#,
         Some(
@@ -97,7 +91,7 @@ fn remove_attributes_by_selector() -> anyhow::Result<()> {
     insta::assert_snapshot!(test_config(
         r##"{ "removeAttributesBySelector": [
             {
-                "selector": "[fill='#00ff00']",
+                "selector": "[fill='#0f0']",
                 "attributes": ["fill"]
             },
             {

@@ -1,14 +1,14 @@
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::AttributeGroup,
     element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::CONDITIONAL_PROCESSING;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -27,14 +27,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveEmptyAttrs(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -45,16 +44,17 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEmptyAttrs {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         element.attributes().retain(|a| {
-            if a.value().as_ref() != "" {
+            if a.name()
+                .attribute_group()
+                .contains(AttributeGroup::ConditionalProcessing)
+            {
                 return true;
             }
-
-            let name = a.name();
-            name.prefix().is_none() && CONDITIONAL_PROCESSING.contains(name.local_name().as_ref())
+            !a.value().is_empty()
         });
         Ok(())
     }

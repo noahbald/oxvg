@@ -1,22 +1,22 @@
-use lightningcss::{printer::PrinterOptions, stylesheet::ParserOptions};
-use oxvg_ast::{
-    atom::Atom,
-    attribute::{Attr, Attributes},
-    node,
-    style::{Id, PresentationAttr, PresentationAttrId, Style},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome},
-};
-use std::collections::{HashMap, HashSet};
+use std::sync::LazyLock;
 
-use oxvg_ast::{document::Document, element::Element, name::Name, node::Node, visitor::Visitor};
-use oxvg_collections::{
-    allowed_content::ELEMS,
-    collections::{AttrsGroups, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS},
+use oxvg_ast::{
+    attribute::{content_type::ContentTypeId, AttributeGroup, AttributeInfo},
+    element::data::ElementId,
+    has_attribute, is_attribute, is_prefix,
+    name::Prefix,
+    node::{self, Ref},
+    style::{ComputedStyles, Mode},
+    visitor::{Context, ContextFlags, PrepareOutcome},
 };
+
+use oxvg_ast::{element::Element, visitor::Visitor};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -27,6 +27,10 @@ use tsify::Tsify;
 /// attributes that are not expected on a given element. Removes attributes that are
 /// the default for a given element. Removes elements that are not expected as a child
 /// for a given element.
+///
+/// # Differences to SVGO
+///
+/// SVGO will avoid removing `<tspan>` from `<a>`, whereas we will remove it.
 ///
 /// # Correctness
 ///
@@ -79,185 +83,162 @@ impl Default for RemoveUnknownsAndDefaults {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUnknownsAndDefaults {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, element: &E) -> bool {
-        element.attributes().len() > 0
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn processing_instruction(
         &self,
-        processing_instruction: &mut <E as oxvg_ast::node::Node<'arena>>::Child,
-        context: &Context<'arena, '_, '_, E>,
+        processing_instruction: Ref<'input, 'arena>,
+        context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !self.default_markup_declarations {
             return Ok(());
         }
 
         let (target, data) = processing_instruction.processing_instruction().unwrap();
-        let Some(mut parent) = processing_instruction.parent_node() else {
+        let Some(data) = data else {
+            return Ok(());
+        };
+        let Some(parent) = processing_instruction.parent_node() else {
             return Ok(());
         };
         let data = PI_STANDALONE.replace(data.as_str(), "").to_string().into();
         let new_pi = context.root.as_document().create_processing_instruction(
             target.clone(),
             data,
-            &context.info.arena,
+            &context.info.allocator,
         );
         log::debug!("replacing processing instruction");
-        parent.replace_child(new_pi, &processing_instruction.as_parent_child());
+        parent.replace_child(new_pi, &processing_instruction);
         Ok(())
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         if context.flags.contains(ContextFlags::within_foreign_object) {
             return Ok(());
         }
 
         let name = element.qual_name();
-        if name.prefix().is_some() {
+        if !name.prefix().is_empty() {
             return Ok(());
         }
 
         self.remove_unknown_content(element);
-        self.remove_unknown_and_default_attrs(element, &context.computed_styles.inherited);
+        let inherited = ComputedStyles::default()
+            .with_inherited(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        self.remove_unknown_and_default_attrs(element, &inherited);
 
         Ok(())
     }
 }
 
 impl RemoveUnknownsAndDefaults {
-    fn remove_unknown_content<'arena, E: Element<'arena>>(&self, element: &E) {
+    fn remove_unknown_content(&self, element: &Element) {
         if !self.unknown_content {
             return;
         }
+
+        let name = element.qual_name().unaliased();
+        if matches!(name, ElementId::Unknown(_)) {
+            log::debug!("removing unknown element type");
+            element.remove();
+        }
+
         let Some(parent) = Element::parent_element(element) else {
             return;
         };
         if parent.node_type() == node::Type::Document {
             return;
         }
-        let parent_name = parent.qual_name().formatter().to_string();
-        let name = element.qual_name().formatter().to_string();
 
-        let allowed_children = allowed_per_element.children.get(parent_name.as_str());
-        if allowed_children.is_none_or(HashSet::is_empty) {
-            if !allowed_per_element.children.contains_key(name.as_str()) {
-                log::debug!("removing unknown element type");
-                element.remove();
-            }
-        } else if let Some(allowed_children) = allowed_children {
-            if !allowed_children.contains(name.as_str()) {
-                log::debug!("removing unknown element of parent");
-                element.remove();
-            }
+        let parent_name = parent.qual_name();
+        if !parent_name.is_permitted_child(name) {
+            log::debug!("removing unknown element of parent");
+            element.remove();
         }
     }
 
-    fn remove_unknown_and_default_attrs<'arena, E: Element<'arena>>(
+    fn remove_unknown_and_default_attrs<'input>(
         &self,
-        element: &E,
-        inherited_styles: &HashMap<Id, Style>,
+        element: &Element<'input, '_>,
+        inherited_styles: &ComputedStyles<'input>,
     ) {
-        let element_name = element.qual_name().formatter().to_string();
-        let allowed_attrs = allowed_per_element.attrs.get(element_name.as_str());
-        let default_attrs = allowed_per_element.defaults.get(element_name.as_str());
-        let has_id = element.get_attribute_local(&"id".into()).is_some();
+        let element_name = element.qual_name();
+        let has_id = has_attribute!(element, Id);
 
         element.attributes().retain(|attr| {
-            let name = attr.name();
+            let name = attr.name().unaliased();
             let local_name = name.local_name();
-            log::debug!("trying to remove attr: \"{local_name}\"");
-            if let Some(prefix) = name.prefix() {
-                if prefix.as_str() != "xml" && prefix.as_str() != "xlink" {
-                    log::debug!("ignoring prefix: {}", prefix.as_str());
-                    return true;
-                }
-            } else {
-                if self.keep_data_attrs && local_name.as_str().starts_with("data-") {
-                    log::debug!("keeping data attribute");
-                    return true;
-                }
-                if self.keep_aria_attrs && local_name.as_str().starts_with("aria-") {
-                    log::debug!("keeping aria attribute");
-                    return true;
-                }
-                if self.keep_role_attr && local_name.as_str() == "role" {
-                    log::debug!("keeping role attribute");
-                    return true;
-                }
+            let prefix = attr.prefix();
+            let inheritable = matches!(name.r#type(), ContentTypeId::Inheritable(_));
+            if is_prefix!(prefix, XML | XLink | XMLNS) || matches!(prefix, Prefix::Unknown { .. }) {
+                log::debug!("ignoring prefix: {prefix:?}");
+                return true;
+            } else if self.keep_data_attrs && local_name.starts_with("data-") {
+                log::debug!("keeping data attribute");
+                return true;
+            } else if local_name.as_str().starts_with("aria-") {
+                log::debug!("keeping aria attribute: {}", self.keep_aria_attrs);
+                return self.keep_aria_attrs;
+            } else if is_attribute!(name, Role) {
+                log::debug!("keeping role attribute: {}", self.keep_role_attr);
+                return self.keep_role_attr;
             }
 
-            let name_string = name.formatter().to_string();
-            if let Some(allowed_attrs) = allowed_attrs {
-                if self.unknown_attrs
-                    && name_string != "xmlns"
-                    && !allowed_attrs.contains(name_string.as_str())
-                {
-                    log::debug!("removing unknown attr");
-                    return false;
-                }
+            if self.unknown_attrs
+                && !is_attribute!(name, XMLNS)
+                && !element_name.is_permitted_attribute(name)
+            {
+                log::debug!("removing unknown attr");
+                return false;
             }
 
-            let value = attr.value();
-            let inherited_value = if name.prefix().is_none() {
-                let presentation_attr_id = PresentationAttrId::from(local_name.as_ref());
-                if presentation_attr_id.inheritable() {
-                    inherited_styles
-                        .get(&Id::Attr(presentation_attr_id))
-                        .or_else(|| inherited_styles.get(&Id::CSS(local_name.as_ref().into())))
+            let inherited_value = if name.prefix().is_empty() {
+                if inheritable {
+                    inherited_styles.get(name.unaliased())
                 } else {
                     None
                 }
             } else {
                 None
             };
-            if let Some(default_attrs) = default_attrs {
-                if self.default_attrs
-                    && !has_id
-                    && default_attrs.get(name_string.as_str()) == Some(&attr.value().as_str())
-                    && inherited_value.is_none()
-                {
-                    log::debug!(r#"removing "{local_name}" attr with default value"#);
-                    return false;
-                }
+            if self.default_attrs
+                && !has_id
+                && inherited_value.is_none()
+                && name.default().is_some_and(|a| a == *attr)
+            {
+                log::debug!(r#"removing "{name}" attr with default value"#);
+                return false;
             }
 
             if self.useless_overrides
                 && !has_id
-                && !PRESENTATION_NON_INHERITABLE_GROUP_ATTRS.contains(name_string.as_str())
-                && inherited_value.is_some_and(|s| {
-                    if !s.is_static() {
+                && name
+                    .attribute_group()
+                    .contains(AttributeGroup::Presentation)
+                && !name
+                    .info()
+                    .contains(AttributeInfo::PresentationNonInheritableGroupAttrs)
+                && inherited_value.is_some_and(|(inherited, mode)| {
+                    if matches!(mode, Mode::Dynamic) {
                         log::debug!("not removing attr with inherited dynamic value");
                         return false;
                     }
-                    let id = PresentationAttrId::from(local_name.as_ref());
-                    let style = PresentationAttr::parse_string(
-                        id,
-                        value.as_ref(),
-                        ParserOptions::default(),
-                    );
-                    if let Ok(style) = style {
-                        s.inner().to_css_string(false, PrinterOptions::default())
-                            == style.value_to_css_string(PrinterOptions::default()).ok()
-                    } else {
-                        log::debug!("not removing unknown inherited value");
-                        false
-                    }
+                    inherited.value() == attr.value()
                 })
             {
                 log::debug!("removing useless override");
@@ -265,52 +246,6 @@ impl RemoveUnknownsAndDefaults {
             }
             true
         });
-    }
-}
-
-#[derive(Default)]
-struct AllowedPerElement {
-    children: HashMap<&'static str, HashSet<&'static str>>,
-    attrs: HashMap<&'static str, HashSet<&'static str>>,
-    defaults: HashMap<&'static str, HashMap<&'static str, &'static str>>,
-}
-
-impl AllowedPerElement {
-    fn new() -> Self {
-        let mut output = Self::default();
-        for (key, value) in ELEMS.entries() {
-            let mut allowed_children = HashSet::<&str>::new();
-            if let Some(content) = &value.content {
-                allowed_children.extend(content);
-            }
-            if let Some(content_groups) = value.content_groups {
-                for group in content_groups {
-                    allowed_children.extend(group.iter());
-                }
-            }
-
-            let mut allowed_attrs = HashSet::<&str>::new();
-            if let Some(attrs) = &value.attrs {
-                allowed_attrs.extend(attrs);
-            }
-
-            let mut allowed_attr_defaults = HashMap::<&str, &str>::new();
-            if let Some(defaults) = &value.defaults {
-                allowed_attr_defaults.extend(defaults);
-            }
-
-            for attrs_group in value.attrs_groups {
-                allowed_attrs.extend(attrs_group.iter());
-                if let Some(attrs_group_defaults) = AttrsGroups::defaults_from_static(attrs_group) {
-                    allowed_attr_defaults.extend(attrs_group_defaults);
-                }
-            }
-
-            output.children.insert(key, allowed_children);
-            output.attrs.insert(key, allowed_attrs);
-            output.defaults.insert(key, allowed_attr_defaults);
-        }
-        output
     }
 }
 
@@ -339,11 +274,8 @@ const fn default_keep_role_attr() -> bool {
     false
 }
 
-lazy_static! {
-    static ref allowed_per_element: AllowedPerElement = AllowedPerElement::new();
-    static ref PI_STANDALONE: regex::Regex =
-        regex::Regex::new(r#"\s*standalone\s*=\s*["']no["']"#).unwrap();
-}
+static PI_STANDALONE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r#"\s*standalone\s*=\s*["']no["']"#).unwrap());
 
 #[test]
 #[allow(clippy::too_many_lines)]
@@ -356,8 +288,8 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
             r##"<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:test="http://" attr="val" x="0" y="10" test:attr="val" xml:space="preserve">
     <!-- preserve xmlns and unknown prefixes -->
     <!-- preserves id'd attributes -->
-    <rect fill="#000"/>
-    <rect fill="#000" id="black-rect"/>
+    <rect fill="#000" d="M0 0"/>
+    <rect fill="#000" d="M0 0" id="black-rect"/>
 </svg>"##
         ),
     )?);

@@ -1,23 +1,21 @@
 use std::cell::Cell;
 
-use lightningcss::{
-    properties::{svg::SVGPaint, Property, PropertyId},
-    traits::Zero,
-    values::alpha::AlphaValue,
-};
+use lightningcss::{properties::svg::SVGPaint, traits::Zero, values::alpha::AlphaValue};
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    get_computed_styles_factory,
-    name::Name,
-    style::{Id, PresentationAttr, PresentationAttrId, Static},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    attribute::data::{inheritable::Inheritable, AttrId},
+    element::{category::ElementCategory, Element},
+    get_computed_style, has_computed_style, is_attribute,
+    name::Prefix,
+    set_attribute,
+    style::{ComputedStyles, Mode},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -51,82 +49,81 @@ struct State<'o> {
     id_rc_byte: Cell<Option<usize>>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessStrokeAndFill {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessStrokeAndFill {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        context_flags.query_has_script(document);
-        context_flags.query_has_stylesheet(document);
         State {
             options: self,
             id_rc_byte: Cell::new(None),
         }
-        .start(&mut document.clone(), info, Some(context_flags.clone()))?;
+        .start(
+            &mut document.clone(),
+            &context.info.clone(),
+            Some(context.flags.clone()),
+        )?;
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
+        context.query_has_script(document);
+        context.query_has_stylesheet(document);
         Ok(
-            if context_flags.intersects(ContextFlags::has_stylesheet | ContextFlags::has_script_ref)
-            {
+            if context.flags.intersects(
+                ContextFlags::query_has_stylesheet_result | ContextFlags::query_has_script_result,
+            ) {
                 PrepareOutcome::skip
             } else {
-                PrepareOutcome::use_style
+                PrepareOutcome::none
             },
         )
     }
 
-    fn use_style(&self, element: &E) -> bool {
-        if self.id_rc_byte.get().is_some() {
-            return false;
-        }
-
-        if element.has_attribute_local(&"id".into()) {
-            log::debug!("flagged as id root");
-            self.id_rc_byte.set(Some(element.id()));
-            return false;
-        }
-
-        let name = element.qual_name();
-        name.prefix().is_none()
-            && ElementGroup::Shape
-                .set()
-                .contains(name.local_name().as_ref())
-    }
-
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if !context.flags.contains(ContextFlags::use_style) {
-            log::debug!("use_style indicated non-removable context");
+        if self.id_rc_byte.get().is_some() {
+            return Ok(());
+        }
+        if element.has_attribute(&AttrId::Id) {
+            log::debug!("flagged as id root");
+            self.id_rc_byte.set(Some(element.id()));
+            return Ok(());
+        }
+        if !element
+            .qual_name()
+            .categories()
+            .intersects(ElementCategory::Shape)
+        {
             return Ok(());
         }
 
-        self.remove_stroke(element, context);
-        self.remove_fill(element, context);
+        let computed_styles = ComputedStyles::default()
+            .with_all(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        self.remove_stroke(element, &computed_styles);
+        self.remove_fill(element, &computed_styles);
         Ok(())
     }
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.id_rc_byte.get().is_some_and(|b| b == element.id()) {
             log::debug!("unflagged as id root");
@@ -138,67 +135,51 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_> {
 }
 
 impl State<'_> {
-    fn remove_stroke<'arena, E: Element<'arena>>(
+    fn remove_stroke<'input>(
         &self,
-        element: &E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, '_>,
+        computed_styles: &ComputedStyles<'input>,
     ) {
         if !self.options.stroke {
             return;
         }
 
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
-
-        let marker_end = get_computed_styles!(MarkerEnd);
-
-        let stroke_width = get_computed_styles!(StrokeWidth);
-        let is_stroke_width_zero = stroke_width.is_some_and(|s| {
-            if s.is_dynamic() {
+        let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
+        let is_stroke_width_zero = stroke_width.is_some_and(|(stroke_width, mode)| {
+            if matches!(mode, Mode::Dynamic) {
                 return false;
-            };
-            if let Static::Css(Property::StrokeWidth(length))
-            | Static::Attr(PresentationAttr::StrokeWidth(length)) = s.inner()
-            {
+            }
+            if let Inheritable::Defined(length) = stroke_width {
                 length.is_zero()
             } else {
                 false
             }
         });
 
-        if marker_end.is_some() && !is_stroke_width_zero {
+        if !is_stroke_width_zero && has_computed_style!(computed_styles, MarkerEnd) {
             log::debug!("skipping stroke removal, has marker");
             return;
         }
 
-        let stroke = get_computed_styles!(Stroke);
-        let mut is_stroke_eq_none = stroke.is_some_and(|s| {
-            matches!(
-                s.inner(),
-                Static::Attr(PresentationAttr::Stroke(SVGPaint::None))
-                    | Static::Css(Property::Stroke(SVGPaint::None))
-            )
-        });
-        let is_stroke_none = stroke.is_none_or(|s| s.is_static() && is_stroke_eq_none);
+        let stroke = get_computed_style!(computed_styles, Stroke);
+        let mut is_stroke_eq_none = stroke
+            .as_ref()
+            .is_some_and(|(stroke, _)| matches!(stroke.option_ref(), Some(SVGPaint::None)));
+        let is_stroke_none =
+            stroke.is_none_or(|(_, mode)| matches!(mode, Mode::Static) && is_stroke_eq_none);
 
-        let stroke_opacity = get_computed_styles!(StrokeOpacity);
-        let is_stroke_opacity_zero = stroke_opacity.is_some_and(|s| {
-            s.is_static()
-                && matches!(
-                    s.inner(),
-                    Static::Attr(PresentationAttr::StrokeOpacity(AlphaValue(0.0)))
-                        | Static::Css(Property::StrokeOpacity(AlphaValue(0.0)))
-                )
+        let stroke_opacity = get_computed_style!(computed_styles, StrokeOpacity);
+        let is_stroke_opacity_zero = stroke_opacity.is_some_and(|(stroke_opacity, mode)| {
+            matches!(mode, Mode::Static)
+                && matches!(stroke_opacity, Inheritable::Defined(AlphaValue(0.0)))
         });
 
-        let stroke_width = get_computed_styles!(StrokeWidth);
-        let is_stroke_width_zero = stroke_width.is_some_and(|s| {
-            if s.is_dynamic() {
+        let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
+        let is_stroke_width_zero = stroke_width.is_some_and(|(stroke_width, mode)| {
+            if matches!(mode, Mode::Dynamic) {
                 return false;
-            };
-            if let Static::Css(Property::StrokeWidth(length))
-            | Static::Attr(PresentationAttr::StrokeWidth(length)) = s.inner()
-            {
+            }
+            if let Inheritable::Defined(length) = stroke_width {
                 length.is_zero()
             } else {
                 false
@@ -211,27 +192,15 @@ impl State<'_> {
             log::debug!("stroke opacity zero: {is_stroke_opacity_zero}");
             log::debug!("stroke width zero: {is_stroke_width_zero}");
             element.attributes().retain(|attr| {
-                attr.prefix().is_some() || !attr.local_name().as_ref().starts_with("stroke")
+                *attr.prefix() != Prefix::SVG || !attr.local_name().starts_with("stroke")
             });
 
-            if let Some(parent_stroke) = computed_styles
-                .inherited
-                .get(&Id::CSS(PropertyId::Stroke))
-                .or_else(|| {
-                    computed_styles
-                        .inherited
-                        .get(&Id::Attr(PresentationAttrId::Stroke))
-                })
-            {
-                if parent_stroke.is_static()
-                    && !matches!(
-                        parent_stroke.inner(),
-                        Static::Css(Property::Stroke(SVGPaint::None))
-                            | Static::Attr(PresentationAttr::Stroke(SVGPaint::None))
-                    )
+            if let Some((parent_stroke, mode)) = computed_styles.get_inherited("stroke") {
+                if matches!(mode, Mode::Static)
+                    && !is_attribute!(parent_stroke, Stroke(Inheritable::Defined(SVGPaint::None)))
                 {
                     log::debug!("stroke is also inherited, setting to `none`");
-                    element.set_attribute_local("stroke".into(), "none".into());
+                    set_attribute!(element, Stroke(Inheritable::Defined(SVGPaint::None)));
                     is_stroke_eq_none = true;
                 }
             }
@@ -243,48 +212,37 @@ impl State<'_> {
         }
     }
 
-    fn remove_fill<'arena, E: Element<'arena>>(
+    fn remove_fill<'input>(
         &self,
-        element: &E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, '_>,
+        computed_styles: &ComputedStyles<'input>,
     ) {
         if !self.options.fill {
             return;
         }
 
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
-
-        let fill = get_computed_styles!(Fill);
-        let mut is_fill_eq_none = fill.is_some_and(|s| {
-            matches!(
-                s.inner(),
-                Static::Css(Property::Fill(SVGPaint::None))
-                    | Static::Attr(PresentationAttr::Fill(SVGPaint::None))
-            )
+        let fill = get_computed_style!(computed_styles, Fill);
+        let mut is_fill_eq_none = fill.as_ref().is_some_and(|fill| {
+            matches!(fill, (Inheritable::Defined(SVGPaint::None), Mode::Static))
         });
-        let is_fill_none = fill.is_some_and(|s| s.is_static() && is_fill_eq_none);
+        let is_fill_none = fill
+            .as_ref()
+            .is_some_and(|(_, mode)| matches!(mode, Mode::Static) && is_fill_eq_none);
 
-        let fill_opacity = get_computed_styles!(FillOpacity);
-        let is_fill_opacity_zero = fill_opacity.is_some_and(|s| {
-            s.is_static()
-                && matches!(
-                    s.inner(),
-                    Static::Css(Property::FillOpacity(AlphaValue(0.0)))
-                        | Static::Attr(PresentationAttr::FillOpacity(AlphaValue(0.0)))
-                )
-        });
+        let fill_opacity = get_computed_style!(computed_styles, FillOpacity);
+        let is_fill_opacity_zero = fill_opacity
+            .is_some_and(|s| matches!(s, (Inheritable::Defined(AlphaValue(0.0)), Mode::Static)));
 
         if is_fill_none || is_fill_opacity_zero {
             log::debug!("removing useless fill");
             log::debug!("fill none: {is_fill_none}");
             log::debug!("fill opacity zero: {is_fill_opacity_zero}");
             element.attributes().retain(|attr| {
-                attr.prefix().is_some() || !attr.local_name().as_ref().starts_with("fill-")
+                *attr.prefix() != Prefix::SVG || !attr.local_name().starts_with("fill-")
             });
 
             if fill.is_none() || !is_fill_eq_none {
-                element.set_attribute_local("fill".into(), "none".into());
+                set_attribute!(element, Fill(Inheritable::Defined(SVGPaint::None)));
                 is_fill_eq_none = true;
             }
         }
@@ -375,7 +333,7 @@ fn remove_useless_stroke_and_fill() -> anyhow::Result<()> {
             r##"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- ignore documents with `style` -->
     <style>
-        …
+        * {}
     </style>
     <circle fill="none" fill-rule="evenodd" cx="60" cy="60" r="50"/>
     <circle fill-opacity="0" fill-rule="evenodd" cx="90" cy="60" r="50"/>

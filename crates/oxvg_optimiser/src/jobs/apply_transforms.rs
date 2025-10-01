@@ -1,30 +1,29 @@
 use core::ops::Mul;
 use std::f64;
 
-use lightningcss::{
-    printer::PrinterOptions,
-    properties::{
-        svg::{self, SVGPaint},
-        transform::{Matrix, TransformList},
-        Property, PropertyId,
-    },
-    traits::ToCss,
-    values::{length::LengthValue, percentage::DimensionPercentage},
-    vendor_prefix::VendorPrefix,
+use lightningcss::properties::{
+    svg::{SVGPaint, StrokeDasharray},
+    transform::{Matrix, TransformList},
 };
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    atom::Atom,
+    attribute::data::{
+        core::SVGTransformList, inheritable::Inheritable, presentation::LengthPercentage, Attr,
+        AttrId,
+    },
     element::Element,
-    get_computed_styles_factory,
-    style::{self, ComputedStyles, Id, PresentationAttr, PresentationAttrId, Static, Style},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, get_attribute_mut, get_computed_style, get_computed_style_css, has_attribute,
+    is_attribute,
+    style::{ComputedStyles, Mode},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{collections, regex::REFERENCES_URL};
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -60,93 +59,93 @@ pub struct ApplyTransforms {
     pub apply_transforms_stroked: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ApplyTransforms {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, element: &E) -> bool {
-        element.get_attribute_local(&"d".into()).is_some()
+        context.query_has_stylesheet(document);
+        context.query_has_script(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let d_localname = "d".into();
-        let Some(path_atom) = element.get_attribute_local(&d_localname) else {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !has_attribute!(element, D) {
             log::debug!("run: path has no d");
             return Ok(());
-        };
-        let Ok(mut path) = Path::parse(path_atom.as_ref()) else {
-            log::debug!("run: failed to parse path");
-            return Ok(());
-        };
-        drop(path_atom);
-
-        for attr in element.attributes().into_iter() {
-            if attr.local_name().as_ref() == "id" || attr.local_name().as_ref() == "style" {
+        }
+        for mut attr in element.attributes().into_iter_mut() {
+            if is_attribute!(attr, Id | Style) {
                 log::debug!("run: element has id");
                 return Ok(());
             }
 
-            let is_reference_prop =
-                collections::REFERENCES_PROPS.contains(attr.local_name().as_ref());
-            if is_reference_prop && REFERENCES_URL.captures(attr.value().as_ref()).is_some() {
-                log::debug!("run: element has reference");
+            let mut references_props = false;
+            let mut value = attr.value_mut();
+            value.visit_id(|_| references_props = true);
+            if references_props {
+                log::debug!("run: element id reference");
+                return Ok(());
+            }
+
+            let mut references_url = false;
+            value.visit_url(|url| references_url = references_url || url.starts_with('#'));
+            if references_url {
+                log::debug!("run: element url reference");
                 return Ok(());
             }
         }
 
-        let Some(Style::Static(Static::Attr(PresentationAttr::Transform(transform)))) = context
-            .computed_styles
-            .attr
-            .get(&PresentationAttrId::Transform)
-        else {
+        let computed_styles = ComputedStyles::default()
+            .with_all(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        let Some(transform_attr) = get_attribute!(element, Transform) else {
             log::debug!("run: element has no transform");
+            return Ok(());
+        };
+        let Some(transform) = transform_attr.option_ref() else {
+            log::debug!("run: cannot handle inherit transform");
             return Ok(());
         };
         if transform.0.is_empty() {
             log::debug!("run: cannot handle empty transform");
             return Ok(());
         }
-        let computed_styles = &context.computed_styles;
-        get_computed_styles_factory!(computed_styles);
-        if let Some(css_transform) = get_computed_styles!(Transform(VendorPrefix::None)) {
-            if css_transform.is_static()
-                && css_transform.to_css_string(false)
-                    != transform.to_css_string(PrinterOptions::default()).ok()
+        if let Some((css_transform, Mode::Static)) =
+            get_computed_style_css!(computed_styles, Transform(None))
+        {
+            if (&css_transform)
+                .try_into()
+                .ok()
+                .is_none_or(|css_transform: SVGTransformList| {
+                    transform.to_matrix_2d() != css_transform.to_matrix_2d()
+                })
             {
                 log::debug!("run: another transform is applied to this element");
                 return Ok(());
             }
-        };
+        }
 
-        let stroke = get_computed_styles!(Stroke);
-        if stroke.is_some_and(Style::is_dynamic) {
+        let stroke = get_computed_style!(computed_styles, Stroke);
+        if matches!(stroke, Some((_, Mode::Dynamic))) {
             log::debug!("run: cannot handle dynamic stroke");
             return Ok(());
         }
-        let stroke = stroke.map(Style::inner);
 
-        let stroke_width = get_computed_styles!(StrokeWidth);
-        if stroke_width.is_some_and(Style::is_dynamic) {
+        let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
+        if matches!(stroke_width, Some((_, Mode::Dynamic))) {
             log::debug!("run: cannot handle dynamic stroke_width");
             return Ok(());
         }
-        let stroke_width = stroke_width.map(|s| match s.inner() {
-            Static::Attr(PresentationAttr::StrokeWidth(p))
-            | Static::Css(Property::StrokeWidth(p)) => p,
-            _ => unreachable!(),
-        });
+        let stroke_width = stroke_width.map(|(stroke_width, _)| stroke_width);
+
         let css_transform: TransformList = transform.clone().into();
         let Some(matrix) = css_transform.to_matrix() else {
             log::debug!("run: cannot get matrix");
@@ -158,39 +157,34 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ApplyTransforms {
         };
         let matrix = matrix32_to_slice(&matrix);
 
-        if let Some(
-            Static::Attr(PresentationAttr::Stroke(stroke)) | Static::Css(Property::Stroke(stroke)),
-        ) = stroke
-        {
-            if self.apply_stroked(
-                &matrix,
-                &context.computed_styles,
-                &stroke,
-                stroke_width.as_ref(),
-                element,
-            ) {
+        drop(transform_attr);
+        if let Some((Inheritable::Defined(stroke), Mode::Static)) = stroke {
+            if self.apply_stroked(&matrix, &stroke, stroke_width, element) {
                 return Ok(());
             }
         }
 
-        apply_matrix_to_path_data(&mut path, &matrix);
-        let path = convert::cleanup_unpositioned(&path).to_string().into();
+        let Some(mut d) = get_attribute_mut!(element, D) else {
+            unreachable!();
+        };
+        let path = &mut d.0;
+        apply_matrix_to_path_data(path, &matrix);
+        *path = convert::cleanup_unpositioned(path);
         log::debug!("new d <- {path}");
-        element.set_attribute_local(d_localname, path);
-        element.remove_attribute_local(&"transform".into());
+        drop(d);
+        element.remove_attribute(&AttrId::Transform);
         Ok(())
     }
 }
 
 impl ApplyTransforms {
     #[allow(clippy::float_cmp, clippy::cast_possible_truncation)]
-    fn apply_stroked<'arena, E: Element<'arena>>(
+    fn apply_stroked(
         &self,
         matrix: &[f64; 6],
-        style: &ComputedStyles,
         stroke: &SVGPaint,
-        stroke_width: Option<&DimensionPercentage<LengthValue>>,
-        element: &E,
+        stroke_width: Option<Inheritable<LengthPercentage>>,
+        element: &Element,
     ) -> bool {
         if matches!(stroke, SVGPaint::None) {
             return false;
@@ -206,14 +200,13 @@ impl ApplyTransforms {
             return true;
         }
 
-        let vector_effect = element.get_attribute_local(&"vector-effect".into());
-        if vector_effect
-            .as_ref()
-            .is_some_and(|v| v.as_ref() == "non-scaling-stroke")
-        {
-            return false;
+        if let Some(vector_effect) = element.get_attribute_local(&Atom::Static("vector-effect")) {
+            if let Attr::Unparsed { value, .. } = vector_effect.unaliased() {
+                if value.as_str() == "non-scaling-stroke" {
+                    return false;
+                }
+            }
         }
-        drop(vector_effect);
 
         let mut scale = f64::sqrt((matrix[0] * matrix[0]) + (matrix[1] * matrix[1])); // hypot
         if let Some(transform_precision) = self.transform_precision {
@@ -222,51 +215,26 @@ impl ApplyTransforms {
         if scale == 1.0 {
             return false;
         }
+        let scale = scale as f32;
 
-        let mut stroke_width = match stroke_width {
-            Some(value) => value.clone(),
-            None => DimensionPercentage::px(1.0),
+        let stroke_width = match stroke_width {
+            Some(Inheritable::Defined(value)) => LengthPercentage(value.0.mul(scale)),
+            // NOTE: Default stroke-width value is 1
+            None | Some(Inheritable::Inherited) => LengthPercentage::px(scale),
         };
-        stroke_width = stroke_width.mul(scale as f32);
-        if let Ok(value) = stroke_width.to_css_string(PrinterOptions::default()) {
-            element.set_attribute_local("stroke-width".into(), value.trim_end_matches("px").into());
+        element.set_attribute(Attr::StrokeWidth(Inheritable::Defined(stroke_width)));
+
+        if let Some(Inheritable::Defined(LengthPercentage(stroke_dashoffset))) =
+            get_attribute_mut!(element, StrokeDashoffset).as_deref_mut()
+        {
+            *stroke_dashoffset = stroke_dashoffset.clone().mul(scale);
         }
-
-        if let Some(
-            Static::Attr(PresentationAttr::StrokeDashoffset(l))
-            | Static::Css(Property::StrokeDashoffset(l)),
-        ) = style
-            .attr
-            .get(&PresentationAttrId::StrokeDashoffset)
-            .map(Style::inner)
+        if let Some(Inheritable::Defined(StrokeDasharray::Values(stroke_dasharray))) =
+            get_attribute_mut!(element, StrokeDasharray).as_deref_mut()
         {
-            if let Ok(value) = l
-                .clone()
-                .mul(scale as f32)
-                .to_css_string(PrinterOptions::default())
-            {
-                element.set_attribute_local("stroke-dashoffset".into(), value.into());
-            };
-        };
-
-        if let Some(
-            Static::Attr(PresentationAttr::StrokeDasharray(svg::StrokeDasharray::Values(v)))
-            | Static::Css(Property::StrokeDasharray(svg::StrokeDasharray::Values(v))),
-        ) = style
-            .attr
-            .get(&PresentationAttrId::StrokeDasharray)
-            .map(Style::inner)
-        {
-            let value = v
-                .clone()
-                .into_iter()
-                .map(|l| l.mul(scale as f32))
-                .collect::<Vec<_>>();
-            if let Ok(value) =
-                svg::StrokeDasharray::Values(value).to_css_string(PrinterOptions::default())
-            {
-                element.set_attribute_local("stroke-dasharray".into(), value.into());
-            }
+            stroke_dasharray
+                .iter_mut()
+                .for_each(|dash| *dash = dash.clone().mul(scale));
         }
 
         false
@@ -298,14 +266,14 @@ fn apply_matrix_to_path_data(path_data: &mut Path, matrix: &[f64; 6]) {
     path_data.0.iter_mut().for_each(|data| {
         if let Data::Implicit(_) = data {
             *data = data.as_explicit().clone();
-        };
+        }
         match data {
             Data::HorizontalLineTo(args) => *data = Data::LineTo([args[0], cursor[1]]),
             Data::HorizontalLineBy(args) => *data = Data::LineBy([args[0], 0.0]),
             Data::VerticalLineTo(args) => *data = Data::LineTo([cursor[0], args[0]]),
             Data::VerticalLineBy(args) => *data = Data::LineBy([0.0, args[0]]),
             _ => {}
-        };
+        }
         match data {
             Data::MoveTo(args) => {
                 cursor[0] = args[0];
@@ -484,10 +452,6 @@ fn multiply_transform_matrices(matrix: &[f64; 6], ellipse: [f64; 6]) -> [f64; 6]
         matrix[0] * ellipse[4] + matrix[2] * ellipse[5] + matrix[4],
         matrix[1] * ellipse[4] + matrix[3] * ellipse[5] + matrix[5],
     ]
-}
-
-lazy_static! {
-    static ref TRANSFORM_ID: style::Id<'static> = style::Id::Attr(PresentationAttrId::Transform);
 }
 
 #[test]

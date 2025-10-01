@@ -1,15 +1,15 @@
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::{content_type::ContentTypeId, AttributeGroup, AttributeInfo},
     element::Element,
-    name::Name,
-    style::PresentationAttrId,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    is_element,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{AttrsGroups, Group, PRESENTATION_NON_INHERITABLE_GROUP_ATTRS};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -28,14 +28,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveNonInheritableGroupAttrs(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveNonInheritableGroupAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveNonInheritableGroupAttrs {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -46,23 +45,25 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveNonInheritableGrou
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let name = element.qual_name();
-        if name.prefix().is_some() || name.local_name().as_ref() != "g" {
+        if !is_element!(element, G) {
             return Ok(());
         }
 
         element.attributes().retain(|attr| {
-            if attr.prefix().is_some() {
+            let name = attr.name();
+            if name.local_name().as_str() == "vector-effect" {
                 return false;
             }
-
-            let name = attr.local_name();
-            PRESENTATION_NON_INHERITABLE_GROUP_ATTRS.contains(name.as_ref())
-                || !AttrsGroups::Presentation.set().contains(name.as_ref())
-                || PresentationAttrId::from(name.as_ref()).inheritable()
+            !name
+                .attribute_group()
+                .contains(AttributeGroup::Presentation)
+                || name
+                    .info()
+                    .contains(AttributeInfo::PresentationNonInheritableGroupAttrs)
+                || matches!(name.r#type(), ContentTypeId::Inheritable(_))
         });
 
         Ok(())

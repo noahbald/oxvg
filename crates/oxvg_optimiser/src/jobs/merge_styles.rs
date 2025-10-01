@@ -1,28 +1,27 @@
-use std::{
-    cell::{Cell, RefCell},
-    marker::PhantomData,
-};
+use std::cell::{Cell, RefCell};
 
-use derive_where::derive_where;
+use lightningcss::rules::{media::MediaRule, CssRule, CssRuleList, Location};
 use oxvg_ast::{
-    atom::Atom,
-    document::Document,
+    attribute::data::uncategorised::MediaQueryList,
     element::Element,
+    get_attribute, is_element,
     node::{self, Node},
-    visitor::{Context, Info, PrepareOutcome, Visitor},
+    remove_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
+
+use crate::error::JobsError;
 
 use super::ContextFlags;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-#[derive_where(Debug)]
-struct State<'arena, E: Element<'arena>> {
-    first_style: RefCell<Option<E>>,
+#[derive(Debug)]
+struct State<'input, 'arena> {
+    first_style: RefCell<Option<Element<'input, 'arena>>>,
     is_cdata: Cell<bool>,
-    marker: PhantomData<&'arena ()>,
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -42,36 +41,35 @@ struct State<'arena, E: Element<'arena>> {
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MergeStyles(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MergeStyles {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MergeStyles {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
-            State::default().start(&mut document.clone(), info, None)?;
+            State::default().start(&mut document.clone(), context.info, None)?;
         }
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if element.prefix().is_none() && element.local_name().as_str() != "style" {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !is_element!(element, Style) {
             return Ok(());
         }
 
-        if let Some(style_type) = element.get_attribute_local(&"type".into()) {
-            if !style_type.is_empty() && style_type.as_ref() != "text/css" {
+        if let Some(style_type) = get_attribute!(element, TypeStyle) {
+            if !style_type.is_empty() && &**style_type != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
@@ -82,42 +80,45 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
             return Ok(());
         }
 
-        let mut css = String::new();
+        let mut css = Vec::new();
         element.child_nodes_iter().for_each(|node| {
-            if let Some(text) = node.text_content() {
-                css.push_str(&text);
+            if let Some(style) = node.style() {
+                css.extend(style.borrow().0.clone());
             }
             if node.node_type() == node::Type::CDataSection {
                 self.is_cdata.set(true);
             }
         });
-        let css = css.trim();
         if css.is_empty() {
             log::debug!("Removed empty style");
             element.remove();
             return Ok(());
         }
 
-        let media_name = &"media".into();
-        let css = if let Some(media) = element.get_attribute_local(media_name) {
-            let css = format!("@media {}{{{css}}}", media.as_ref());
-            drop(media);
-            element.remove_attribute_local(media_name);
-            css
-        } else {
-            css.to_string()
-        };
+        if let Some(MediaQueryList(query)) = remove_attribute!(element, Media) {
+            css = vec![CssRule::Media(MediaRule {
+                query,
+                rules: CssRuleList(css),
+                loc: Location {
+                    source_index: 0,
+                    line: 0,
+                    column: 0,
+                },
+            })];
+        }
 
         let first_style = self.first_style.borrow();
         if let Some(node) = &*first_style {
-            node.append_child(node.text(css.into(), &context.info.arena));
+            if let Some(style) = node.style() {
+                style.borrow_mut().0.extend(css);
+            } else {
+                unreachable!("Style node should have been set");
+            }
             element.remove();
             log::debug!("Merged style");
         } else {
             drop(first_style);
-            element
-                .clone()
-                .set_text_content(css.into(), &context.info.arena);
+            element.set_style_content(CssRuleList(css), &context.info.allocator);
             self.first_style.replace(Some(element.clone()));
             log::debug!("Assigned first style");
         }
@@ -126,9 +127,9 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
 
     fn exit_document(
         &self,
-        document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        document: &Element<'input, 'arena>,
+        context: &Context<'input, 'arena, '_>,
+    ) -> Result<(), JobsError<'input>> {
         if !self.is_cdata.get() {
             return Ok(());
         }
@@ -136,15 +137,15 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
         let Some(style) = &mut *self.first_style.borrow_mut() else {
             return Ok(());
         };
-        let Some(text) = style.text_content() else {
+        let Some(css) = style.style() else {
             style.remove();
             return Ok(());
         };
-        style.child_nodes_iter().for_each(|child| child.remove());
-        let c_data = document
+        style.child_nodes_iter().for_each(Node::remove);
+        let child = document
             .as_document()
-            .create_c_data_section(text, &context.info.arena);
-        style.append_child(c_data);
+            .create_style_node(css.replace(CssRuleList(vec![])), &context.info.allocator);
+        style.append_child(child);
         Ok(())
     }
 }
@@ -155,12 +156,11 @@ impl Default for MergeStyles {
     }
 }
 
-impl<'arena, E: Element<'arena>> Default for State<'arena, E> {
+impl Default for State<'_, '_> {
     fn default() -> Self {
         Self {
             first_style: RefCell::new(None),
             is_cdata: Cell::new(false),
-            marker: PhantomData,
         }
     }
 }
