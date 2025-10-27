@@ -51,7 +51,6 @@ markup5ever = "0.14"
 napi = { version = "3.4", default-features = false, features = [
   "serde-json",
   "napi7",
-  "compat-mode",
 ] }
 napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
