@@ -36,6 +36,7 @@ oxvg_collections = { workspace = true }
 
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
+dashmap = { workspace = true }
 derive_more = { workspace = true }
 derive-where = { workspace = true }
 itertools = { workspace = true }

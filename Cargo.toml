@@ -35,6 +35,7 @@ clap = { version = "4.5.4", features = ["derive"] }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.34.0"
+dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
 getrandom = { version = "0.2", features = ["js"] }

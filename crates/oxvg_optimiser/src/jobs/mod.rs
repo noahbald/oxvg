@@ -7,8 +7,6 @@ use oxvg_ast::{
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-pub use prefix_ids::PrefixGenerator;
-
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
