@@ -31,6 +31,11 @@ use tsify::Tsify;
 pub enum ConvertCase {
     Upper,
     Lower,
+    #[doc(hidden)]
+    #[cfg(feature = "napi")]
+    /// Compatibility option for NAPI
+    // FIXME: force discriminated union to prevent NAPI from failing CI
+    Napi(),
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]

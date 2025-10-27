@@ -18,6 +18,12 @@ pub enum Mode {
     #[default]
     List,
     SingleValue,
+    #[doc(hidden)]
+    #[cfg(feature = "napi")]
+    #[allow(dead_code)]
+    /// Compatibility option for NAPI
+    // FIXME: force discriminated union to prevent NAPI from failing CI
+    Napi(),
 }
 
 pub trait CleanupValues {
@@ -134,6 +140,8 @@ impl Mode {
             ),
             // TODO: visitor for styles
             Self::SingleValue => !matches!(name, "version" | "style"),
+            #[cfg(feature = "napi")]
+            Self::Napi() => panic!("Napi variant is not allowed!"),
         }
     }
 
@@ -159,6 +167,8 @@ impl Mode {
                     rounded_list.push(value.to_string());
                 }
             }
+            #[cfg(feature = "napi")]
+            Self::Napi() => panic!("Napi variant is not allowed!"),
         }
     }
 }

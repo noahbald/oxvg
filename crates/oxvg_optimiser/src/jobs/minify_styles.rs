@@ -30,6 +30,11 @@ pub enum RemoveUnused {
     #[default]
     True,
     Force,
+    #[doc(hidden)]
+    #[cfg(feature = "napi")]
+    /// Compatibility option for NAPI
+    // FIXME: force discriminated union to prevent NAPI from failing CI
+    Napi(),
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -280,6 +285,8 @@ impl Serialize for RemoveUnused {
             RemoveUnused::True => true.serialize(serializer),
             RemoveUnused::False => false.serialize(serializer),
             RemoveUnused::Force => "force".serialize(serializer),
+            #[cfg(feature = "napi")]
+            Self::Napi() => panic!("Napi variant is not allowed!"),
         }
     }
 }

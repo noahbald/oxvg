@@ -1,4 +1,4 @@
-use std::sync::{LazyLock, OnceLock};
+use std::sync::LazyLock;
 
 use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,8 @@ use serde_with::skip_serializing_none;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::utils::regex_memo;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -36,43 +38,10 @@ pub struct RemoveComments {
     pub preserve_patterns: Option<Vec<PreservePattern>>,
 }
 
-#[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "napi", napi(object))]
 #[derive(Debug, Clone)]
 pub struct PreservePattern {
     pub regex: String,
-    parsed_regex_memo: OnceLock<Result<regex::Regex, regex::Error>>,
-}
-
-#[cfg(feature = "napi")]
-#[napi]
-impl PreservePattern {
-    #[napi(constructor)]
-    pub fn new(regex: String) -> Self {
-        Self {
-            regex,
-            parsed_regex_memo: OnceLock::new(),
-        }
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::FromNapiValue for PreservePattern {
-    unsafe fn from_napi_value(
-        env: napi::sys::napi_env,
-        napi_val: napi::sys::napi_value,
-    ) -> napi::Result<Self> {
-        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
-        let regex = obj.get("regex")?.ok_or_else(|| {
-            napi::Error::new(
-                napi::Status::InvalidArg,
-                "Missing field `PreservePattern.regex`",
-            )
-        })?;
-        Ok(Self {
-            regex,
-            parsed_regex_memo: OnceLock::new(),
-        })
-    }
 }
 
 impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
@@ -94,11 +63,9 @@ impl RemoveComments {
             .as_ref()
             .unwrap_or(&DEFAULT_PRESERVE_PATTERNS)
         {
-            if pattern
-                .parsed_regex_memo
-                .get_or_init(|| regex::Regex::new(&pattern.regex))
-                .as_ref()
-                .map_err(ToString::to_string)?
+            if regex_memo::get(&pattern.regex)
+                .map_err(|err| err.to_string())?
+                .value()
                 .is_match(value.as_ref())
             {
                 return Ok(());
@@ -116,10 +83,7 @@ impl<'de> Deserialize<'de> for PreservePattern {
         D: serde::Deserializer<'de>,
     {
         let regex = String::deserialize(deserializer)?;
-        Ok(Self {
-            regex,
-            parsed_regex_memo: OnceLock::new(),
-        })
+        Ok(Self { regex })
     }
 }
 
@@ -135,7 +99,6 @@ impl Serialize for PreservePattern {
 static DEFAULT_PRESERVE_PATTERNS: LazyLock<Vec<PreservePattern>> = LazyLock::new(|| {
     vec![PreservePattern {
         regex: "^!".to_string(),
-        parsed_regex_memo: OnceLock::new(),
     }]
 });
 

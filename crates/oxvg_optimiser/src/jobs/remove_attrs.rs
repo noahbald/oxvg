@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use oxvg_ast::{
     attribute::{Attr, Attributes},
     element::Element,
@@ -19,7 +17,9 @@ const fn default_preserve_current_color() -> bool {
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-#[cfg_attr(feature = "napi", napi)]
+use crate::utils::regex_memo;
+
+#[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -65,59 +65,6 @@ pub struct RemoveAttrs {
     #[serde(default = "default_preserve_current_color")]
     /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
-    // FIXME: Can't produce napi bindgen
-    // https://github.com/napi-rs/napi-rs/issues/2582
-    #[serde(skip_deserializing, skip_serializing)]
-    parsed_attrs_memo: OnceLock<Result<Vec<[regex::Regex; 3]>, String>>,
-}
-
-#[cfg(feature = "napi")]
-#[napi]
-impl RemoveAttrs {
-    #[napi(constructor)]
-    /// Instantiates and instance of remove attributes with the given configuration options.
-    pub fn new(attrs: Vec<String>, elem_separator: String, preserve_current_color: bool) -> Self {
-        Self {
-            attrs,
-            elem_separator,
-            preserve_current_color,
-            parsed_attrs_memo: OnceLock::default(),
-        }
-    }
-}
-
-#[cfg(feature = "napi")]
-impl napi::bindgen_prelude::FromNapiValue for RemoveAttrs {
-    unsafe fn from_napi_value(
-        env: napi::sys::napi_env,
-        napi_val: napi::sys::napi_value,
-    ) -> napi::Result<Self> {
-        let obj = napi::JsObject::from_napi_value(env, napi_val)?;
-        let attrs = obj.get("attrs")?.ok_or_else(|| {
-            napi::Error::new(
-                napi::Status::InvalidArg,
-                "Missing field `RemoveAttrs.attrs`",
-            )
-        })?;
-        let elem_separator = obj.get("elemSeparator")?.ok_or_else(|| {
-            napi::Error::new(
-                napi::Status::InvalidArg,
-                "Missing field `RemoveAttrs.elemSeparator`",
-            )
-        })?;
-        let preserve_current_color = obj.get("preserveCurrentColor")?.ok_or_else(|| {
-            napi::Error::new(
-                napi::Status::InvalidArg,
-                "Missing field `RemoveAttrs.preserveCurrentColor`",
-            )
-        })?;
-        Ok(Self {
-            attrs,
-            elem_separator,
-            preserve_current_color,
-            parsed_attrs_memo: OnceLock::new(),
-        })
-    }
 }
 
 impl Default for RemoveAttrs {
@@ -126,7 +73,6 @@ impl Default for RemoveAttrs {
             attrs: Vec::default(),
             elem_separator: default_elem_separator(),
             preserve_current_color: default_preserve_current_color(),
-            parsed_attrs_memo: OnceLock::default(),
         }
     }
 }
@@ -135,7 +81,7 @@ fn create_regex(part: &str) -> Result<regex::Regex, regex::Error> {
     if matches!(part, "*" | ".*") {
         return Ok(WILDCARD.clone());
     }
-    regex::Regex::new(&format!("^{part}$"))
+    regex_memo::get(&format!("^{part}$")).map(|memo| memo.value().clone())
 }
 
 impl RemoveAttrs {
@@ -163,18 +109,11 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveAttrs {
         element: &mut E,
         _context: &mut Context<'arena, '_, '_, E>,
     ) -> Result<(), Self::Error> {
-        let parsed_attrs = self.parsed_attrs_memo.get_or_init(|| {
-            let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
-            for pattern in &self.attrs {
-                let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
-                parsed_attrs.push(list);
-            }
-            Ok(parsed_attrs)
-        });
-        let parsed_attrs = match parsed_attrs {
-            Ok(a) => a,
-            Err(e) => return Err(e.clone()),
-        };
+        let mut parsed_attrs = Vec::with_capacity(self.attrs.len());
+        for pattern in &self.attrs {
+            let list = self.parse_pattern(pattern).map_err(|e| e.to_string())?;
+            parsed_attrs.push(list);
+        }
         for pattern in parsed_attrs {
             if !pattern[0].is_match(&element.qual_name().formatter().to_string()) {
                 continue;

@@ -31,10 +31,11 @@ oxvg_path = { path = "crates/oxvg_path", version = ">=0.0" }
 anyhow = "1.0"
 bitflags = { version = "2.7.0" }
 cfg-if = { version = "1.0" }
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.34.0"
+dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
 getrandom = { version = "0.2", features = ["js"] }
@@ -47,10 +48,12 @@ lightningcss = { version = "1.0.0-alpha.63", default-features = false, features 
 ] }
 log = "0.4"
 markup5ever = "0.14"
-napi = { version = "3.0.0-alpha.33", default-features = false, features = [
-  "napi4",
+napi = { version = "3.4", default-features = false, features = [
+  "serde-json",
+  "napi7",
 ] }
-napi-derive = "3.0.0-alpha.29"
+napi-build = { version = "2.2", default-features = false }
+napi-derive = { version = "3.3" }
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
 rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }
@@ -60,7 +63,7 @@ selectors = "0.26"
 serde = "1.0"
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
-serde_with = "3.12"
+serde_with = "3.15"
 string_cache = "0.8"
 tendril = "0.4"
 tsify = { version = "0.5", default-features = false, features = ["js"] }

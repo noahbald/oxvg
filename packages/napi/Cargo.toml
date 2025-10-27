@@ -20,10 +20,10 @@ oxvg_optimiser = { workspace = true, features = ["napi"] }
 oxvg_ast = { workspace = true }
 
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
-napi = { workspace = true, features = ["serde-json"] }
+napi = { workspace = true }
 napi-derive = { workspace = true }
 serde_json = { workspace = true }
 typed-arena = { workspace = true }
 
 [build-dependencies]
-napi-build = "2.0.1"
+napi-build = { workspace = true }
