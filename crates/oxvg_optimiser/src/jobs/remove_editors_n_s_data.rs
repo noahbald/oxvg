@@ -1,16 +1,18 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
 
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::data::{Attr, AttrId},
     element::Element,
-    name::Name,
-    visitor::{Context, Info, PrepareOutcome, Visitor},
+    name::{Prefix, QualName},
+    visitor::{Context, Visitor},
 };
 use oxvg_collections::collections::EDITOR_NAMESPACES;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -36,95 +38,51 @@ pub struct RemoveEditorsNSData {
     pub additional_namespaces: Option<HashSet<String>>,
 }
 
-struct State<'o, 'arena, E: Element<'arena>> {
-    options: &'o RemoveEditorsNSData,
-    prefixes: HashSet<<E::Name as Name>::Prefix>,
-    marker: PhantomData<&'arena ()>,
-}
-
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEditorsNSData {
-    type Error = String;
-
-    fn prepare(
-        &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut oxvg_ast::visitor::ContextFlags,
-    ) -> Result<PrepareOutcome, Self::Error> {
-        let mut state = State {
-            options: self,
-            prefixes: HashSet::new(),
-            marker: PhantomData,
-        };
-        document.child_elements_iter().for_each(|ref e| {
-            state.collect_svg_namespace(e);
-        });
-        state.start(&mut document.clone(), info, None)?;
-        Ok(PrepareOutcome::skip)
-    }
-}
-
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        self.remove_editor_attributes(element);
-        self.remove_editor_element(element);
-        Ok(())
-    }
-}
-
-impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
-    fn collect_svg_namespace(&mut self, element: &E) {
-        if element.local_name().as_ref() != "svg" {
-            return;
+        let uri = element.prefix().ns().uri();
+        if EDITOR_NAMESPACES.contains(uri)
+            || self
+                .additional_namespaces
+                .as_ref()
+                .is_some_and(|set| set.contains(&**uri))
+        {
+            element.remove();
+            return Ok(());
         }
 
-        element.attributes().retain(|a| {
-            if a.prefix().as_ref().is_none_or(|p| p.as_ref() != "xmlns") {
-                return true;
-            }
-            let value = a.value().as_ref();
-            if !EDITOR_NAMESPACES.contains(value)
-                && !self
-                    .options
-                    .additional_namespaces
-                    .as_ref()
-                    .is_some_and(|set| set.contains(value))
-            {
-                return true;
-            }
-
-            let name = a.local_name();
-            log::debug!("Adding {name} to prefixes");
-            self.prefixes.insert(name.as_ref().into());
-            false
-        });
-    }
-
-    fn remove_editor_attributes(&self, element: &E) {
         element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
-                return true;
+            if let Attr::Unparsed {
+                attr_id:
+                    AttrId::Unknown(QualName {
+                        prefix: Prefix::XMLNS,
+                        local: _,
+                    }),
+                value,
+            } = attr
+            {
+                return !EDITOR_NAMESPACES.contains(value)
+                    && !self
+                        .additional_namespaces
+                        .as_ref()
+                        .is_some_and(|set| set.contains(&**value));
             };
 
-            !self.prefixes.contains(prefix)
+            let uri = attr.prefix().ns().uri();
+            !EDITOR_NAMESPACES.contains(uri)
+                && !self
+                    .additional_namespaces
+                    .as_ref()
+                    .is_some_and(|set| set.contains(&**uri))
         });
-    }
 
-    fn remove_editor_element(&self, element: &E) {
-        let Some(prefix) = element.prefix() else {
-            return;
-        };
-
-        if self.prefixes.contains(prefix) {
-            log::debug!("Removing element with prefix: {prefix}");
-            element.remove();
-        }
+        Ok(())
     }
 }
 

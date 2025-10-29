@@ -1,14 +1,14 @@
 use oxvg_ast::{
-    atom::Atom,
-    element::Element,
-    name::Name,
+    element::{category::ElementInfo, Element},
+    has_attribute, is_element,
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{ElementGroup, Group};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -27,13 +27,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUselessDefs(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessDefs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessDefs {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
+        _document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -45,22 +45,17 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessDefs {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let name = element.qual_name();
-        if name.prefix().is_some() {
-            return Ok(());
-        }
-        let name = name.local_name();
-        if name.as_ref() != "defs"
-            && (!ElementGroup::NonRendering.matches(name.as_str())
-                || element.get_attribute_local(&"id".into()).is_some())
+        if !is_element!(element, Defs)
+            && (!name.info().contains(ElementInfo::NonRendering) || has_attribute!(element, Id))
         {
             return Ok(());
         }
 
-        let mut useful_nodes = vec![];
+        let mut useful_nodes: Vec<Element<'input, 'arena>> = Vec::new();
         collect_useful_nodes(element, &mut useful_nodes);
 
         if useful_nodes.is_empty() {
@@ -68,17 +63,18 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveUselessDefs {
             return Ok(());
         }
 
-        element.replace_children(useful_nodes);
+        element.replace_children(useful_nodes.into_iter().map(|e| *e));
         Ok(())
     }
 }
 
-fn collect_useful_nodes<'arena, E: Element<'arena>>(element: &E, useful_nodes: &mut Vec<E::Child>) {
+fn collect_useful_nodes<'input, 'arena>(
+    element: &Element<'input, 'arena>,
+    useful_nodes: &mut Vec<Element<'input, 'arena>>,
+) {
     element.child_elements_iter().for_each(|child| {
-        if child.prefix().is_none() && child.local_name().as_ref() == "style"
-            || child.get_attribute_local(&"id".into()).is_some()
-        {
-            useful_nodes.push(child.as_child());
+        if is_element!(child, Style) || has_attribute!(child, Id) {
+            useful_nodes.push(child);
         } else {
             collect_useful_nodes(&child, useful_nodes);
         }

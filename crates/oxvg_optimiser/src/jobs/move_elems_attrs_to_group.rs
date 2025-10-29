@@ -1,16 +1,20 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    name::Name,
+    attribute::{
+        data::{Attr, AttrId},
+        AttributeInfo,
+    },
+    element::{data::ElementId, Element},
+    get_attribute_mut, has_attribute,
     visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -29,13 +33,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MoveElemsAttrsToGroup(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        _info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_stylesheet(document);
@@ -50,78 +54,70 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let name = element.qual_name();
-        if name.prefix().is_some() {
-            return Ok(());
-        }
-        if name.local_name().as_ref() != "g" {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if *element.qual_name() != ElementId::G {
             return Ok(());
         }
 
-        let children = element.children();
-        if children.len() <= 1 {
+        if element.child_elements_iter().nth(1).is_none() {
             log::debug!("not moving attrs, only 1 or 0 children");
             return Ok(());
         }
 
-        let every_child_is_path = children.iter().all(|e| {
-            let child_name = e.qual_name();
-            child_name.prefix().is_none() && PATH_ELEMS.contains(child_name.local_name().as_ref())
-        });
-        let mut common_attributes = get_common_attributes(&children);
+        let every_child_is_path = element
+            .child_elements_iter()
+            .all(|e| e.qual_name().expected_attributes().contains(&AttrId::D));
+        let mut common_attributes = get_common_attributes(element);
 
-        let transform_name = <E::Attr as Attr>::Name::new(None, "transform".into());
         if
         // preserve for other jobs
         every_child_is_path
             // preserve for pass-through attributes
-            || element.has_attribute_local(&"filter".into())
-            || element.has_attribute_local(&"clip-path".into())
-            || element.has_attribute_local(&"mask".into())
+            || has_attribute!(element, Filter)
+            || has_attribute!(element, ClipPath)
+            || has_attribute!(element, Mask)
         {
-            common_attributes.remove(&transform_name);
+            common_attributes.remove(&AttrId::Transform);
         }
 
         for name in common_attributes.keys() {
-            for child in &children {
+            for child in element.child_elements_iter() {
                 child.remove_attribute(name);
             }
         }
-        for (name, value) in common_attributes {
-            if name != transform_name {
-                element.set_attribute(name, value);
+        for value in common_attributes.into_values() {
+            let Attr::Transform(value) = value else {
+                element.set_attribute(value);
                 continue;
-            }
+            };
 
-            if let Some(mut attr) = element.get_attribute_node_mut(&transform_name) {
-                let value = format!("{} {value}", attr.value());
-                attr.set_value(value.into());
+            if let Some(mut attr) = get_attribute_mut!(element, Transform) {
+                attr.0.extend(value.0);
             } else {
-                element.set_attribute(name, value);
+                element.set_attribute(Attr::Transform(value));
             }
         }
         Ok(())
     }
 }
 
-fn get_common_attributes<'arena, E: Element<'arena>>(children: &[E]) -> BTreeMap<E::Name, E::Atom> {
-    let mut child_iter = children.iter().map(Element::attributes);
-    let mut common_attributes: BTreeMap<_, _> = child_iter
-        .next()
+fn get_common_attributes<'input, 'arena>(
+    parent: &Element<'input, 'arena>,
+) -> HashMap<AttrId<'input>, Attr<'input>> {
+    let mut common_attributes: HashMap<_, _> = parent
+        .first_element_child()
         .expect("element should have >1 child")
+        .attributes()
         .into_iter()
-        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().formatter().to_string()))
-        .map(|a| (a.name().clone(), a.value().clone()))
+        .filter(|a| a.name().info().contains(AttributeInfo::Inheritable))
+        .map(|a| (a.name().clone(), a.clone()))
         .collect();
-    child_iter.for_each(|attrs| {
-        common_attributes.retain(|name, value| {
-            attrs
-                .get_named_item(name)
-                .is_some_and(|a| a.value() == value)
-        });
+    parent.child_elements_iter().for_each(|e| {
+        let attrs = e.attributes();
+        common_attributes
+            .retain(|name, value| attrs.get_named_item(name).is_some_and(|a| &*a == value));
     });
 
     common_attributes

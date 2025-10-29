@@ -1,13 +1,14 @@
-use itertools::Itertools;
 use oxvg_ast::{
-    class_list::ClassList,
     element::Element,
+    get_attribute,
     visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -32,18 +33,17 @@ pub struct RemoveElementsByAttr {
     pub class: Vec<String>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveElementsByAttr {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveElementsByAttr {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), JobsError<'input>> {
         if !self.id.is_empty() {
-            if let Some(id) = element.get_attribute_local(&"id".into()) {
-                let id: &str = id.as_ref();
-                if self.id.iter().map(String::as_str).contains(id) {
+            if let Some(id) = get_attribute!(element, Id) {
+                if self.id.iter().any(|i| i == &**id) {
                     element.remove();
                     return Ok(());
                 }
@@ -51,13 +51,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveElementsByAttr {
         }
 
         if !self.class.is_empty() {
-            for class in element.class_list().values() {
-                let class: &str = class.as_ref();
-                if self.class.iter().map(String::as_str).contains(class) {
-                    element.remove();
-                    return Ok(());
+            element.class_list().with_iter(|i| {
+                for class in i {
+                    if self.class.iter().any(|i| i == &**class) {
+                        element.remove();
+                    }
                 }
-            }
+            });
         }
 
         Ok(())

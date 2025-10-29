@@ -39,6 +39,7 @@ extern crate napi_derive;
 
 #[cfg(test)]
 mod configuration;
+pub mod error;
 mod jobs;
 mod utils;
 

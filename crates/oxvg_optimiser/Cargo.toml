@@ -27,15 +27,15 @@ wasm = [
 [dependencies]
 oxvg_ast = { workspace = true, features = [
   "selectors",
-  "visitor",
-  "style",
   "serialize",
+  "visitor",
 ] }
 oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }
 
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
+cssparser = { workspace = true }
 dashmap = { workspace = true }
 derive_more = { workspace = true }
 derive-where = { workspace = true }
@@ -62,6 +62,7 @@ ctor = { workspace = true }
 criterion = { workspace = true }
 env_logger = { workspace = true }
 insta = { workspace = true }
+roxmltree = { workspace = true }
 
 [[bench]]
 name = "parse"

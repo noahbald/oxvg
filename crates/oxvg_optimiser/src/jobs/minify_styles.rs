@@ -1,22 +1,25 @@
-use std::{cell::RefCell, collections::HashSet};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+};
 
 use lightningcss::{
-    printer::PrinterOptions,
     rules::CssRule,
     selector::Component,
-    stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
-    traits::ToCss as _,
     visit_types,
     visitor::{self, Visit as _, VisitTypes},
 };
 use oxvg_ast::{
-    attribute::Attr as _,
-    class_list::ClassList as _,
-    element::Element,
-    name::Name,
+    atom::Atom,
+    attribute::data::AttrId,
+    element::{data::ElementId, Element},
+    get_attribute, get_attribute_mut,
+    name::Prefix,
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
+
+use crate::{error::JobsError, utils::minify_style};
 
 use super::ContextFlags;
 
@@ -64,24 +67,24 @@ pub struct MinifyStyles {
 }
 
 #[derive(Debug)]
-struct State<'a, 'arena, E: Element<'arena>> {
+struct State<'a, 'input, 'arena> {
     options: &'a MinifyStyles,
-    style_elements: RefCell<HashSet<E>>,
-    elements_with_style: RefCell<HashSet<E>>,
-    tags_usage: RefCell<HashSet<<E::Name as Name>::LocalName>>,
-    ids_usage: RefCell<HashSet<E::Atom>>,
-    classes_usage: RefCell<HashSet<E::Atom>>,
+    style_elements: RefCell<HashMap<usize, Element<'input, 'arena>>>,
+    elements_with_style: RefCell<HashMap<usize, Element<'input, 'arena>>>,
+    tags_usage: RefCell<HashSet<Atom<'input>>>,
+    ids_usage: RefCell<HashSet<Atom<'input>>>,
+    classes_usage: RefCell<HashSet<Atom<'input>>>,
 }
 
-struct StyleVisitor<'a, 'b, 'arena, E: Element<'arena>>(&'b State<'a, 'arena, E>);
+struct StyleVisitor<'a, 'b, 'input, 'arena>(&'b State<'a, 'input, 'arena>);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MinifyStyles {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        info: &Info<'input, 'arena>,
         _context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         State::new(self).start(&mut document.clone(), info, None)?;
@@ -89,13 +92,13 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MinifyStyles {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        _info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        _info: &Info<'input, 'arena>,
         context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_script(document);
@@ -104,49 +107,52 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.local_name().as_ref() == "style" && element.child_nodes_iter().next().is_some() {
-            self.style_elements.borrow_mut().insert(element.clone());
-        } else if element.has_attribute_local(&"style".into()) {
+        if *element.qual_name() == ElementId::Style && element.child_nodes_iter().next().is_some() {
+            self.style_elements
+                .borrow_mut()
+                .insert(element.id(), element.clone());
+        } else if element.has_attribute(&AttrId::Style) {
             self.elements_with_style
                 .borrow_mut()
-                .insert(element.clone());
+                .insert(element.id(), element.clone());
         }
 
         if matches!(self.options.remove_unused, RemoveUnused::False) {
             return Ok(());
         }
 
-        self.tags_usage
-            .borrow_mut()
-            .insert(element.local_name().clone());
+        if *element.prefix() != Prefix::SVG {
+            return Ok(());
+        }
+        HashSet::insert(
+            &mut self.tags_usage.borrow_mut(),
+            element.local_name().clone(),
+        );
 
-        if let Some(id) = element.get_attribute_local(&"id".into()) {
+        if let Some(id) = get_attribute!(element, Id) {
             self.ids_usage.borrow_mut().insert(id.clone());
         }
 
-        for class in element.class_list().iter() {
-            self.classes_usage.borrow_mut().insert(class.clone());
-        }
+        element
+            .class_list()
+            .with_iter(|iter| self.classes_usage.borrow_mut().extend(iter.cloned()));
 
         Ok(())
     }
 
     fn exit_document(
         &self,
-        _document: &mut E,
-        context: &Context<'arena, '_, '_, E>,
+        _document: &Element<'input, 'arena>,
+        context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        for style_element in self.style_elements.borrow().iter() {
-            let css_text = style_element
-                .text_content()
-                .expect("non-style element used");
-
-            let Ok(mut style_sheet) = StyleSheet::parse(&css_text, ParserOptions::default()) else {
+        for style_element in self.style_elements.borrow().values() {
+            let Some(style_sheet) = style_element.child_nodes_iter().find_map(|n| n.style()) else {
                 continue;
             };
+            let mut style_sheet = style_sheet.borrow_mut();
 
             let mut visitor = StyleVisitor(self);
             match self.options.remove_unused {
@@ -158,57 +164,36 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
                 _ => {}
             }
 
-            if style_sheet.minify(MinifyOptions::default()).is_err() {
+            if minify_style::style_list(&mut style_sheet).is_err() {
                 continue;
             }
-            let Ok(minified) = style_sheet.rules.to_css_string(PrinterOptions {
-                minify: true,
-                ..PrinterOptions::default()
-            }) else {
-                continue;
-            };
-
-            if minified.is_empty() {
+            if style_sheet.0.is_empty() {
                 style_element.remove();
-            } else {
-                style_element.set_text_content(minified.into(), &context.info.arena);
             }
         }
 
-        for element_with_style in self.elements_with_style.borrow().iter() {
-            let mut style_attr = element_with_style
-                .get_attribute_node_local_mut(&"style".into())
-                .expect("element without style used");
+        for element_with_style in self.elements_with_style.borrow().values() {
+            let mut style_sheet =
+                get_attribute_mut!(element_with_style, Style).expect("element without style used");
 
-            let Ok(mut style_sheet) =
-                StyleAttribute::parse(style_attr.value(), ParserOptions::default())
-            else {
-                continue;
-            };
-            style_sheet.minify(MinifyOptions::default());
-            let Ok(minified) = style_sheet.declarations.to_css_string(PrinterOptions {
-                minify: true,
-                ..PrinterOptions::default()
-            }) else {
-                continue;
-            };
-            drop(style_sheet);
-            let minified = minified.into();
-            style_attr.set_value(minified);
+            minify_style::style(&mut style_sheet.0);
+            if style_sheet.0.is_empty() {
+                element_with_style.remove_attribute(&AttrId::Style);
+            }
         }
 
         Ok(())
     }
 }
 
-impl<'i, 'arena, E: Element<'arena>> visitor::Visitor<'i> for StyleVisitor<'_, '_, 'arena, E> {
-    type Error = String;
+impl<'input> visitor::Visitor<'input> for StyleVisitor<'_, '_, 'input, '_> {
+    type Error = JobsError<'input>;
 
     fn visit_types(&self) -> VisitTypes {
         visit_types!(RULES)
     }
 
-    fn visit_rule(&mut self, rule: &mut CssRule<'i>) -> Result<(), Self::Error> {
+    fn visit_rule(&mut self, rule: &mut CssRule<'input>) -> Result<(), Self::Error> {
         let CssRule::Style(style) = rule else {
             return Ok(());
         };
@@ -243,12 +228,12 @@ impl<'i, 'arena, E: Element<'arena>> visitor::Visitor<'i> for StyleVisitor<'_, '
     }
 }
 
-impl<'a, 'arena, E: Element<'arena>> State<'a, 'arena, E> {
+impl<'a> State<'a, '_, '_> {
     fn new(options: &'a MinifyStyles) -> Self {
         Self {
             options,
-            style_elements: RefCell::new(HashSet::new()),
-            elements_with_style: RefCell::new(HashSet::new()),
+            style_elements: RefCell::new(HashMap::new()),
+            elements_with_style: RefCell::new(HashMap::new()),
             tags_usage: RefCell::new(HashSet::new()),
             ids_usage: RefCell::new(HashSet::new()),
             classes_usage: RefCell::new(HashSet::new()),

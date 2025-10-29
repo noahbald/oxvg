@@ -1,13 +1,13 @@
 use std::sync::LazyLock;
 
-use oxvg_ast::{element::Element, node::Node, visitor::Visitor};
+use oxvg_ast::{node::Node, visitor::Visitor};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::utils::regex_memo;
+use crate::{error::JobsError, utils::regex_memo};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -44,16 +44,19 @@ pub struct PreservePattern {
     pub regex: String,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveComments {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveComments {
+    type Error = JobsError<'input>;
 
-    fn comment(&self, comment: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn comment(&self, comment: &Node<'input, 'arena>) -> Result<(), Self::Error> {
         self.remove_comment(comment)
     }
 }
 
 impl RemoveComments {
-    fn remove_comment<'arena, N: Node<'arena>>(&self, comment: &N) -> Result<(), String> {
+    fn remove_comment<'input, 'arena>(
+        &self,
+        comment: &Node<'input, 'arena>,
+    ) -> Result<(), JobsError<'input>> {
         let value = comment
             .node_value()
             .expect("Comment nodes should always have a value");
@@ -64,7 +67,7 @@ impl RemoveComments {
             .unwrap_or(&DEFAULT_PRESERVE_PATTERNS)
         {
             if regex_memo::get(&pattern.regex)
-                .map_err(|err| err.to_string())?
+                .map_err(JobsError::InvalidUserRegex)?
                 .value()
                 .is_match(value.as_ref())
             {

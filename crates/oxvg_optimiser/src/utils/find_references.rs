@@ -4,7 +4,11 @@ use oxvg_collections::{
 };
 use regex::CaptureMatches;
 
-pub fn find_references<'a>(name: &str, value: &'a str) -> Option<CaptureMatches<'static, 'a>> {
+#[deprecated]
+pub(crate) fn find_references<'a>(
+    name: &str,
+    value: &'a str,
+) -> Option<CaptureMatches<'static, 'a>> {
     let matches = match name {
         "href" => REFERENCES_HREF.captures_iter(value),
         "begin" => REFERENCES_BEGIN.captures_iter(value),

@@ -3,16 +3,17 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 
-use derive_where::derive_where;
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
+    attribute::{
+        content_type::Reference,
+        data::{Attr, AttrId},
+    },
     element::Element,
-    name::Name,
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
-use crate::utils::find_references;
+use crate::error::JobsError;
 
 use super::ContextFlags;
 
@@ -28,22 +29,20 @@ struct GeneratedId {
     prevent_collision: BTreeSet<String>,
 }
 
-#[derive(Debug)]
-#[derive_where(Clone)]
-struct RefRename<'arena, E: Element<'arena>> {
-    element_ref: E,
-    name: <E::Attr as Attr>::Name,
+#[derive(Debug, Clone)]
+struct RefRename<'input, 'arena> {
+    element_ref: Element<'input, 'arena>,
+    name: AttrId<'input>,
     referenced_id: String,
 }
 
-#[derive(Debug)]
-#[derive_where(Clone)]
-struct State<'o, 'arena, E: Element<'arena>> {
+#[derive(Debug, Clone)]
+struct State<'o, 'input, 'arena> {
     options: &'o CleanupIds,
     ignore_document: bool,
     replaceable_ids: BTreeSet<String>,
     id_renames: BTreeMap<String, String>,
-    ref_renames: RefCell<Vec<RefRename<'arena, E>>>,
+    ref_renames: RefCell<Vec<RefRename<'input, 'arena>>>,
     generated_id: RefCell<GeneratedId>,
 }
 
@@ -52,6 +51,10 @@ struct State<'o, 'arena, E: Element<'arena>> {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 /// Removes unused ids and minifies used ids.
+///
+/// # Differences to SVGO
+///
+/// The generated ids may be different to those produced by SVGO
 ///
 /// # Correctness
 ///
@@ -98,13 +101,13 @@ impl Default for CleanupIds {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for CleanupIds {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
+        document: &Element<'input, 'arena>,
+        info: &Info<'input, 'arena>,
         context_flags: &mut ContextFlags,
     ) -> Result<PrepareOutcome, Self::Error> {
         context_flags.query_has_stylesheet(document);
@@ -128,53 +131,52 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for CleanupIds {
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         if self.ignore_document {
             return Ok(());
         }
 
         // Find references in attributes
-        for attr in element.attributes().into_iter() {
-            let name = attr.name();
-            let local_name = name.local_name();
-            let value = attr.value();
-            let Some(matches) = find_references(local_name.as_ref(), value.as_ref()) else {
-                continue;
-            };
-            let mut ref_renames = self.ref_renames.borrow_mut();
-            let mut generated_id = self.generated_id.borrow_mut();
-            matches
-                .filter_map(|item| item.get(1))
-                .map(|item| item.as_str())
-                .for_each(|item| {
-                    if self.replaceable_ids.contains(item) {
-                        log::debug!("CleanupIds::run: found potential reference: {item}");
-                        ref_renames.push(RefRename {
-                            element_ref: element.clone(),
-                            name: name.clone(),
-                            referenced_id: item.to_string(),
-                        });
-                    } else {
-                        log::debug!("CleanupIds::run: found unmatched reference: {item}");
-                        generated_id.insert_prevent_collision(item.to_string());
-                    }
-                });
+        let mut ref_renames = self.ref_renames.borrow_mut();
+        let mut generated_id = self.generated_id.borrow_mut();
+        let mut track_reference = |reference: &str, attr: &AttrId<'input>| {
+            if self.replaceable_ids.contains(reference) {
+                ref_renames.push(RefRename {
+                    element_ref: element.clone(),
+                    name: attr.clone(),
+                    referenced_id: reference.to_string(),
+                })
+            } else {
+                generated_id.insert_prevent_collision(reference.to_string());
+            }
+        };
+        for mut attr in element.attributes().into_iter_mut() {
+            let name = attr.name().clone();
+            let mut value = attr.value_mut();
+            value.visit_url(|reference| {
+                if !reference.starts_with('#') {
+                    return;
+                }
+                let reference = &reference[1..];
+                track_reference(reference, &name);
+            });
+            value.visit_id(|reference| track_reference(&reference, &name));
         }
         Ok(())
     }
 
     fn exit_document(
         &self,
-        document: &mut E,
-        _context: &Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        document: &Element<'input, 'arena>,
+        _context: &Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let remove = self.options.remove;
 
         let Some(root) = &document.find_element() else {
@@ -190,59 +192,86 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
         } in &*self.ref_renames.borrow()
         {
             let element = element_ref;
-            let Some(ref mut attr) = element.get_attribute_node_mut(name) else {
+            let Some(mut attr) = element.get_attribute_node_mut(name) else {
                 log::debug!("CleanupIds::breakdown: {name:?} attribute missing");
                 continue;
             };
-            let minified_id = used_ids
-                .get(referenced_id)
-                .unwrap_or(&generated_id.current)
-                .clone();
-            let replacements =
-                replace_id_in_attr(attr.value().to_string(), referenced_id, &minified_id);
-            if replacements.count() == &0 {
-                continue;
-            }
-            let is_new = used_ids
-                .insert(referenced_id.clone(), minified_id.clone())
-                .is_none();
-            if is_new {
-                generated_id.next();
-            }
-            if self.options.minify {
-                log::debug!(
-                    "CleanupIds::breakdown: updating reference: {name:?} <-> {referenced_id}"
-                );
-                attr.set_value(replacements.0.as_str().into());
-            }
+            let mut value = attr.value_mut();
+            value.visit_url(|reference| {
+                if !reference.starts_with('#') || &reference[1..] != referenced_id {
+                    return;
+                }
+                let minified_id = used_ids
+                    .get(referenced_id)
+                    .unwrap_or(&generated_id.current)
+                    .clone();
+                let is_new = used_ids
+                    .insert(referenced_id.clone(), minified_id.clone())
+                    .is_none();
+                if is_new {
+                    generated_id.next();
+                }
+                if self.options.minify {
+                    log::debug!(
+                        "CleanupIds::breakdown: updating url reference: {name:?} <-> {referenced_id}"
+                    );
+                    let minified_id = format!("#{minified_id}");
+                    match reference {
+                        Reference::Atom(str) => *str = minified_id.into(),
+                        Reference::Css(str) => *str = minified_id.into(),
+                    }
+                }
+            });
+            value.visit_id(|reference| {
+                if &*reference != referenced_id {
+                    return;
+                }
+                let minified_id = used_ids
+                    .get(referenced_id)
+                    .unwrap_or(&generated_id.current)
+                    .clone();
+                let is_new = used_ids
+                    .insert(referenced_id.clone(), minified_id.clone())
+                    .is_none();
+                if is_new {
+                    generated_id.next();
+                }
+                if self.options.minify {
+                    log::debug!(
+                        "CleanupIds::breakdown: updating id reference: {name:?} <-> {referenced_id}"
+                    );
+                    match reference {
+                        Reference::Atom(str) => *str = minified_id.into(),
+                        Reference::Css(str) => *str = minified_id.into(),
+                    }
+                }
+            });
         }
         log::debug!(
             "CleanupIds::breakdown: replacing: {:#?} <-> {:#?}",
             &self.id_renames,
             &used_ids,
         );
-        let id_localname = "id".into();
-        for element in root.select("[id]").unwrap() {
-            let Some(mut attr) = element.get_attribute_node_local_mut(&id_localname) else {
-                continue;
-            };
-            let id = attr.value().to_string();
-            if let Some(rename) = used_ids
-                .get(&id)
-                .or_else(|| used_ids.get(&urlencoding::encode(&id).to_string()))
-            {
-                attr.set_value(rename.as_str().into());
-            } else if remove && self.replaceable_ids.contains(&id) {
-                drop(attr);
-                element.remove_attribute_local(&id_localname);
-            };
+        if remove {
+            for element in root.breadth_first() {
+                element.attributes().retain(|attr| {
+                    let Attr::Id(id) = attr else {
+                        return true;
+                    };
+                    !self.replaceable_ids.contains(&id.to_string())
+                });
+            }
         }
         Ok(())
     }
 }
 
-impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
-    fn prepare_ignore_document(&self, root: &E, context_flags: &ContextFlags) -> bool {
+impl<'input, 'arena> State<'_, 'input, 'arena> {
+    fn prepare_ignore_document(
+        &self,
+        root: &Element<'input, 'arena>,
+        context_flags: &ContextFlags,
+    ) -> bool {
         if self.options.force {
             // Then we don't care, just pretend we don't have a script or style
             return false;
@@ -257,7 +286,7 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
     /// Prepares tracking of ids for removal/renaming
     /// - Adds non-preserved ids to `self.replaceable_ids`
     /// - Removes any duplicate replaceable ids
-    fn prepare_id_rename(&mut self, root: &E) {
+    fn prepare_id_rename(&mut self, root: &Element<'input, 'arena>) {
         let mut preserved_ids = Vec::new();
         log::debug!(
             "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",
@@ -265,59 +294,43 @@ impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
             &self.options.preserve_prefixes
         );
         // Find ids
-        let id_localname = &"id".into();
-        for element in root.select("[id]").unwrap() {
-            let Some(attr) = element.get_attribute_local(id_localname) else {
-                continue;
-            };
-            let value = attr.to_string();
-            log::debug!("CleanupIds: prepare_id: found id: {value}");
-            if self.replaceable_ids.contains(&value) || value.chars().all(char::is_numeric) {
-                drop(attr);
-                element.remove_attribute_local(id_localname);
-                log::debug!("CleanupIds: prepare_id: removed redundant id: {value}");
-                continue;
-            }
-            let is_preserved_prefix = self
-                .options
-                .preserve_prefixes
-                .as_ref()
-                .is_some_and(|prefixes| prefixes.iter().any(|prefix| value.starts_with(prefix)));
-            let is_preserve = self
-                .options
-                .preserve
-                .as_ref()
-                .is_some_and(|preserve| preserve.contains(&value));
-            if is_preserved_prefix || is_preserve {
-                preserved_ids.push(value);
-                continue;
-            }
-            self.replaceable_ids.insert(value.clone());
-            let encoded_id = urlencoding::encode(&value);
-            if encoded_id != value {
-                self.replaceable_ids.insert(encoded_id.to_string());
-            }
+        for element in root.breadth_first() {
+            element.attributes().retain(|attr| {
+                let Attr::Id(id) = attr else {
+                    return true;
+                };
+                log::debug!("CleanupIds: prepare_id: found id: {id}");
+                let id = id.to_string();
+                if self.replaceable_ids.contains(&id) || id.chars().all(char::is_numeric) {
+                    log::debug!("CleanupIds: prepare_id: removed redundant id: {id}");
+                    return false;
+                }
+                let is_preserved_prefix = self
+                    .options
+                    .preserve_prefixes
+                    .as_ref()
+                    .is_some_and(|prefixes| prefixes.iter().any(|prefix| id.starts_with(prefix)));
+                let is_preserve = self
+                    .options
+                    .preserve
+                    .as_ref()
+                    .is_some_and(|preserve| preserve.contains(&id));
+                if is_preserved_prefix || is_preserve {
+                    preserved_ids.push(id);
+                    return true;
+                }
+                let encoded_id = urlencoding::encode(&id);
+                if encoded_id != id {
+                    self.replaceable_ids.insert(encoded_id.to_string());
+                }
+                self.replaceable_ids.insert(id);
+                true
+            });
         }
         self.generated_id
             .borrow_mut()
             .set_prevent_collision(preserved_ids);
     }
-}
-
-fn replace_id_in_attr(attr: String, id: &str, new_id: &str) -> ReplaceCounter {
-    let has_hash = attr.contains('#');
-    let mut replacer = ReplaceCounter::new(attr);
-    if has_hash {
-        replacer = replacer
-            .replace(
-                &format!("#{}", urlencoding::encode(id)),
-                &format!("#{new_id}"),
-            )
-            .replace(&format!("#{id}"), &format!("#{new_id}"));
-    } else {
-        replacer = replacer.replace(&format!("{id}."), &format!("{new_id}."));
-    }
-    replacer
 }
 
 impl ReplaceCounter {
