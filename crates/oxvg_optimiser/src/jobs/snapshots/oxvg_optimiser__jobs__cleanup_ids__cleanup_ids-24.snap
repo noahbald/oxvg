@@ -5,7 +5,7 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
     <!-- Handle non-ascii and URI encoding correctly -->
     <defs>
-        <path id="a" d="M1 1l2 2" stroke="black"/>
+        <path id="a" d="M1 1l2 2" stroke="#000"/>
     </defs>
     <use href="#a"/>
 </svg>

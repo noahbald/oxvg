@@ -5,7 +5,7 @@ expression: "test_config(r#\"{ \"removeDeprecatedAttrs\": { \"removeUnsafe\": tr
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100">
     <!-- keep selected `version` -->
     <style>
-        svg[version="1.1"]{fill:blue;}rect[clip]{fill:green;}
+        svg[version="1.1"]{fill:#00f}rect[clip]{fill:green}
     </style>
     <rect x="10" y="10" width="80" height="80" clip="1"/>
 </svg>

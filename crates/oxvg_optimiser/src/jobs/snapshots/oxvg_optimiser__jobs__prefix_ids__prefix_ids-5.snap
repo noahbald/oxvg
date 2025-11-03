@@ -10,10 +10,10 @@ expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefi
         </linearGradient>
         <linearGradient id="prefixIds_05_svg_txt__gradient_2">
             <stop offset="5%" stop-color="red"/>
-            <stop offset="95%" stop-color="black"/>
+            <stop offset="95%" stop-color="#000"/>
         </linearGradient>
         <linearGradient id="prefixIds_05_svg_txt__gradient_3">
-            <stop offset="5%" stop-color="blue"/>
+            <stop offset="5%" stop-color="#00f"/>
             <stop offset="95%" stop-color="orange"/>
         </linearGradient>
     </defs>

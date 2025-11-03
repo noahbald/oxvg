@@ -1,22 +1,22 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
-expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:x=\"http://www.w3.org/1999/xlink\">\n    <!-- Minify ids and references to ids -->\n    <defs>\n        <g id=\"mid-line\"/>\n        <g id=\"line-plus\">\n            <use href=\"#mid-line\"/>\n            <use href=\"#plus\"/>\n        </g>\n        <g id=\"plus\"/>\n        <g id=\"line-circle\">\n            <use href=\"#mid-line\"/>\n        </g>\n    </defs>\n    <path d=\"M0 0\" id=\"a\"/>\n    <use href=\"#a\" x=\"50\" y=\"50\"/>\n    <use href=\"#line-plus\"/>\n    <use href=\"#line-circle\"/>\n</svg>\"##))?"
+expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Minify ids and references to ids -->\n    <defs>\n        <g id=\"mid-line\"/>\n        <g id=\"line-plus\">\n            <use href=\"#mid-line\"/>\n            <use href=\"#plus\"/>\n        </g>\n        <g id=\"plus\"/>\n        <g id=\"line-circle\">\n            <use href=\"#mid-line\"/>\n        </g>\n    </defs>\n    <path d=\"M0 0\" id=\"a\"/>\n    <use href=\"#a\" x=\"50\" y=\"50\"/>\n    <use href=\"#line-plus\"/>\n    <use href=\"#line-circle\"/>\n</svg>\"##))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Minify ids and references to ids -->
     <defs>
         <g id="a"/>
-        <g id="d">
+        <g id="b">
             <use href="#a"/>
-            <use href="#b"/>
+            <use href="#c"/>
         </g>
-        <g id="b"/>
-        <g id="e">
+        <g id="c"/>
+        <g id="d">
             <use href="#a"/>
         </g>
     </defs>
-    <path d="M0 0" id="c"/>
-    <use href="#c" x="50" y="50"/>
+    <path d="M0 0" id="e"/>
+    <use href="#e" x="50" y="50"/>
+    <use href="#b"/>
     <use href="#d"/>
-    <use href="#e"/>
 </svg>

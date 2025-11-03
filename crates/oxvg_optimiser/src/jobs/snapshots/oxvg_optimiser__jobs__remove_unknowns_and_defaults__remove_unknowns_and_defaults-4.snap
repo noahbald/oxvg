@@ -4,7 +4,7 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- remove attributes equal to inherited value -->
-    <g fill="black">
+    <g fill="#000">
         <g fill="red">
             <path d="M118.8 186.9l79.2"/>
         </g>

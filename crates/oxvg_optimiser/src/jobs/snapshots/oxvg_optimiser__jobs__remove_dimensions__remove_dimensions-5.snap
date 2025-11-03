@@ -2,6 +2,6 @@
 source: crates/oxvg_optimiser/src/jobs/remove_dimensions.rs
 expression: "test_config(r#\"{ \"removeDimensions\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100.5\" height=\"0.5\">\n    test\n</svg>\"#),)?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100.5 0.5">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100.5 .5">
     test
 </svg>

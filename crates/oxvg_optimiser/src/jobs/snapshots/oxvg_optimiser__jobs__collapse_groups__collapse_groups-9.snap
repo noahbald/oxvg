@@ -5,8 +5,7 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should preserve groups with classes -->
     <style>
-        .n{display:none}
-        .i{display:inline}
+        .n{display:none}.i{display:inline}
     </style>
     <g class="i" id="a"/>
     <g class="n">

@@ -5,17 +5,17 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg xmlns=\"h
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5 400 400">
     <!-- don't merge paths with a clip-path -->
     <style>
-        path.lg{clip-path:url(#myClip);}
+        path.lg{clip-path:url(#myClip)}
     </style>
     <clipPath id="myClip" clipPathUnits="objectBoundingBox">
         <circle cx=".5" cy=".5" r=".5"/>
     </clipPath>
-    <path clip-path="url(#myClip)" fill="red" d="M 0 0 H 100 V 80 H 0 z"/>
-    <path clip-path="url(#myClip)" fill="red" d="M 200 0 H 300 V 80 H 200 z"/>
-    <path style="clip-path:url(#myClip)" fill="red" d="M 0 100 h 100 v 80 H 0 z"/>
-    <path style="clip-path:url(#myClip)" fill="red" d="M 200 100 H 300 v 80 H 200 z"/>
-    <path class="lg" fill="red" d="M 0 200 h 100 v 80 H 0 z"/>
-    <path class="lg" fill="red" d="M 200 200 H 300 v 80 H 200 z"/>
-    <path style="clip-path:circle(25%)" fill="red" d="M 0 300 h 100 v 80 H 0 z"/>
-    <path style="clip-path:circle(25%)" fill="red" d="M 200 300 H 300 v 80 H 200 z"/>
+    <path clip-path="url(#myClip)" fill="red" d="M0 0H100V80H0Z"/>
+    <path clip-path="url(#myClip)" fill="red" d="M200 0H300V80H200Z"/>
+    <path style="clip-path:url(#myClip)" fill="red" d="M0 100h100v80H0Z"/>
+    <path style="clip-path:url(#myClip)" fill="red" d="M200 100H300v80H200Z"/>
+    <path class="lg" fill="red" d="M0 200h100v80H0Z"/>
+    <path class="lg" fill="red" d="M200 200H300v80H200Z"/>
+    <path style="clip-path:circle(25%)" fill="red" d="M0 300h100v80H0Z"/>
+    <path style="clip-path:circle(25%)" fill="red" d="M200 300H300v80H200Z"/>
 </svg>

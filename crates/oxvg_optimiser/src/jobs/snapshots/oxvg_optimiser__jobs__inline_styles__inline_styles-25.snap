@@ -8,6 +8,6 @@ expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\
     </style>
     <path d="M10 10h20" stroke="red" style="stroke:red"/>
     <path d="M10 20h20"/>
-    <path d="M10 30h20" stroke="yellow"/>
+    <path d="M10 30h20" stroke="#ff0"/>
     <path d="M10 40h20"/>
 </svg>

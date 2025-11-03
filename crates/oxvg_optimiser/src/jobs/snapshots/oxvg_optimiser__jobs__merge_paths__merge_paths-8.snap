@@ -5,16 +5,16 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r##\"<svg xmlns=\"
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
     <!-- don't merge paths with a linearGradient fill -->
     <style>
-        path.lg{fill:url(#gradient);}
+        path.lg{fill:url(#gradient)}
     </style>
     <linearGradient id="gradient">
-        <stop offset="0" stop-color="#ff0000"/>
-        <stop offset="1" stop-color="#0000ff"/>
+        <stop offset="0" stop-color="red"/>
+        <stop offset="1" stop-color="#00f"/>
     </linearGradient>
-    <path fill="url(#gradient)" d="M 0 0 H 100 V 80 H 0 z"/>
-    <path fill="url(#gradient)" d="M 200 0 H 300 V 80 H 200 z"/>
-    <path style="fill:url(#gradient)" d="M 0 100 h 100 v 80 H 0 z"/>
-    <path style="fill:url(#gradient)" d="M 200 100 H 300 v 80 H 200 z"/>
-    <path class="lg" d="M 0 200 h 100 v 80 H 0 z"/>
-    <path class="lg" d="M 200 200 H 300 v 80 H 200 z"/>
+    <path fill="url(#gradient)" d="M0 0H100V80H0Z"/>
+    <path fill="url(#gradient)" d="M200 0H300V80H200Z"/>
+    <path style="fill:url(#gradient)" d="M0 100h100v80H0Z"/>
+    <path style="fill:url(#gradient)" d="M200 100H300v80H200Z"/>
+    <path class="lg" d="M0 200h100v80H0Z"/>
+    <path class="lg" d="M200 200H300v80H200Z"/>
 </svg>

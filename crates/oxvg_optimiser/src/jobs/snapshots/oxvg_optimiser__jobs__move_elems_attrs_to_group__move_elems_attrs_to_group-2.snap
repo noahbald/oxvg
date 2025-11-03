@@ -4,7 +4,7 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<
 ---
 <svg>
     <!-- overwrite with child attributes -->
-    <g fill="blue">
+    <g fill="#00f">
         <rect/>
         <circle/>
     </g>

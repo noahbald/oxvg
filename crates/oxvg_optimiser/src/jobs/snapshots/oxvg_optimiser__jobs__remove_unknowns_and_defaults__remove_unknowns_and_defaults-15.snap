@@ -5,6 +5,6 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="480" height="360">
     <!-- handle xlink and xmlns -->
     <text x="50" y="50">
-        A <a xlink:href="#"><tspan>link around tspan</tspan></a> for testing
+        A <a xlink:href="#"/> for testing
     </text>
 </svg>

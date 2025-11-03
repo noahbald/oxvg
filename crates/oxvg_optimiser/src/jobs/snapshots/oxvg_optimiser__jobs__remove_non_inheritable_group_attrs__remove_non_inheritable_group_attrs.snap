@@ -4,7 +4,7 @@ expression: "test_config(r#\"{ \"removeNonInheritableGroupAttrs\": true }\"#,\nS
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- retain inheritable attrs -->
-    <g class="test" clip-path="url(#clip1)" transform="rotate(45)" display="none" opacity="0.5" visibility="visible">
-        <path d="M0 0 L 10 20"/>
+    <g class="test" clip-path="url(#clip1)" transform="rotate(45)" display="none" opacity=".5" visibility="visible">
+        <path d="M0 0 10 20"/>
     </g>
 </svg>

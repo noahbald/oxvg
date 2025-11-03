@@ -8,7 +8,7 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<
         .ColorScheme-Highlight{color:#3daee9}
     </style>
     <g>
-        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-28h26v2H5z"/>
-        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-29h26v1H5z"/>
+        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-28h26v2H5Z"/>
+        <path transform="matrix(-1 0 0 1 72 51)" class="ColorScheme-Highlight" fill="currentColor" d="M5-29h26v1H5Z"/>
     </g>
 </svg>
