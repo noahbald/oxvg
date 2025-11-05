@@ -1135,6 +1135,7 @@ dependencies = [
  "log",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde",
  "serde_json",
  "typed-arena",
@@ -1205,6 +1206,7 @@ dependencies = [
  "napi-derive",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde_json",
  "typed-arena",
 ]
@@ -1214,6 +1216,7 @@ name = "oxvg_optimiser"
 version = "0.0.3"
 dependencies = [
  "anyhow",
+ "bitflags",
  "clap",
  "criterion",
  "cssparser 0.34.0",
@@ -1273,6 +1276,7 @@ dependencies = [
  "getrandom",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde-wasm-bindgen",
  "serde_json",
  "typed-arena",

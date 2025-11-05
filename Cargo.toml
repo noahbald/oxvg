@@ -7,12 +7,16 @@ missing_docs = { level = "warn" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# Too noisy and not really an issue
-must_use_candidate = "allow"
-return_self_not_must_use = "allow"
+# Willing to accept lossy conversions
+cast_lossless = "allow"
+# Willing to accept lossy conversions
+cast_possible_truncation = "allow"
+# dbg should only be used for debugging
+dbg_macro = "warn"
 # Not a priority for svgo parity
 float_cmp = "allow"
-dbg_macro = "warn"
+# Too noisy and not really an issue
+must_use_candidate = "allow"
 
 [workspace.package]
 authors = ["Noah <noahwbaldwin@gmail.com>"]
