@@ -19,13 +19,12 @@ format = ["ryu"]
 jsonschema = ["schemars", "serde"]
 napi = ["dep:napi", "dep:napi-derive"]
 optimise = ["format", "bitflags"]
-oxvg = ["dep:lightningcss", "dep:oxvg_ast"]
+oxvg = ["dep:lightningcss"]
 parse = ["bitflags"]
 serde = ["dep:serde"]
 wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:tsify"]
 
 [dependencies]
-oxvg_ast = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 lightningcss = { workspace = true, optional = true }
 log = { workspace = true }

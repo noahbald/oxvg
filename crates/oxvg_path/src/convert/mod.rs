@@ -23,9 +23,6 @@ use crate::geometry::MakeArcs;
 use crate::math::to_fixed;
 use crate::{command, Path};
 
-#[cfg(feature = "oxvg")]
-use oxvg_ast;
-
 bitflags! {
     /// External style information that may be relevant when optimising a path
     ///
@@ -116,7 +113,7 @@ pub struct Options {
 /// use oxvg_path::Path;
 /// use oxvg_path::convert::{Options, StyleInfo, run};
 ///
-/// let path = Path::parse("M 10,50 L 10,50").unwrap();
+/// let path = Path::parse_string("M 10,50 L 10,50").unwrap();
 /// let options = Options::default();
 /// let style_info = StyleInfo::conservative();
 ///
@@ -166,93 +163,6 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
 }
 
 impl StyleInfo {
-    #[cfg(feature = "oxvg")]
-    /// Determine the path optimisations that are allowed based on relevant context
-    pub fn gather(computed_styles: &oxvg_ast::style::ComputedStyles) -> Self {
-        use lightningcss::properties::{
-            svg::{StrokeLinecap, StrokeLinejoin},
-            PropertyId,
-        };
-        use oxvg_ast::{
-            get_computed_styles_factory,
-            style::{Id, PresentationAttrId},
-        };
-
-        let has_marker = computed_styles
-            .attr
-            .contains_key(&PresentationAttrId::MarkerStart)
-            || computed_styles
-                .attr
-                .contains_key(&PresentationAttrId::MarkerEnd);
-        get_computed_styles_factory!(computed_styles);
-        let has_marker_mid = get_computed_styles!(MarkerMid).is_some();
-        let stroke = get_computed_styles!(Stroke);
-
-        let maybe_has_stroke = stroke.is_some_and(|property| {
-            property.is_dynamic()
-                || !matches!(
-                    property.inner(),
-                    oxvg_ast::style::Static::Attr(oxvg_ast::style::PresentationAttr::Stroke(
-                        lightningcss::properties::svg::SVGPaint::None
-                    )) | oxvg_ast::style::Static::Css(lightningcss::properties::Property::Stroke(
-                        lightningcss::properties::svg::SVGPaint::None
-                    ))
-                )
-        });
-
-        let linecap = get_computed_styles!(StrokeLinecap);
-        let maybe_has_linecap = linecap.as_ref().is_some_and(|property| {
-            property.is_dynamic()
-                || !matches!(
-                    property.inner(),
-                    oxvg_ast::style::Static::Attr(
-                        oxvg_ast::style::PresentationAttr::StrokeLinecap(StrokeLinecap::Butt)
-                    ) | oxvg_ast::style::Static::Css(
-                        lightningcss::properties::Property::StrokeLinecap(StrokeLinecap::Butt)
-                    )
-                )
-        });
-
-        let linejoin = get_computed_styles!(StrokeLinejoin);
-        let is_safe_to_use_z = if maybe_has_stroke {
-            linecap.is_some_and(|property| {
-                property.is_static()
-                    && matches!(
-                        property.inner(),
-                        oxvg_ast::style::Static::Attr(
-                            oxvg_ast::style::PresentationAttr::StrokeLinecap(StrokeLinecap::Round)
-                        ) | oxvg_ast::style::Static::Css(
-                            lightningcss::properties::Property::StrokeLinecap(StrokeLinecap::Round)
-                        )
-                    )
-            }) && linejoin.is_some_and(|property| {
-                property.is_static()
-                    && matches!(
-                        property.inner(),
-                        oxvg_ast::style::Static::Attr(
-                            oxvg_ast::style::PresentationAttr::StrokeLinejoin(
-                                StrokeLinejoin::Round
-                            )
-                        ) | oxvg_ast::style::Static::Css(
-                            lightningcss::properties::Property::StrokeLinejoin(
-                                StrokeLinejoin::Round
-                            )
-                        )
-                    )
-            })
-        } else {
-            true
-        };
-
-        let mut result = Self::empty();
-        result.set(Self::has_marker_mid, has_marker_mid);
-        result.set(Self::maybe_has_stroke, maybe_has_stroke);
-        result.set(Self::maybe_has_linecap, maybe_has_linecap);
-        result.set(Self::is_safe_to_use_z, is_safe_to_use_z);
-        result.set(Self::has_marker, has_marker);
-        result
-    }
-
     /// Returns a safe set of style-info
     ///
     /// Use this if no contextual details are available
@@ -425,8 +335,8 @@ impl Precision {
 fn test_convert() {
     use crate::Path;
 
-    let mut path = Path::parse("m 1208.23,1821.01 c 74.07,14.24 196.57,17.09 293.43,-14.24 122.5,-42.74 22.79,-199.42 48.43,-207.97 25.64,-8.55 59.83,108.25 287.73,96.86 230.75,-11.39 256.39,-113.95 287.73,-96.86 31.34,17.09 -31.34,284.88 313.37,222.21 0,0 -361.8,96.86 -344.71,-165.23 0,0 -207.96,159.53 -498.54,17.09 2.85,0 76.92,245 -387.44,148.14").unwrap();
-    path = Path::from(run(&path, &Default::default(), &Default::default()));
+    let mut path = Path::parse_string("m 1208.23,1821.01 c 74.07,14.24 196.57,17.09 293.43,-14.24 122.5,-42.74 22.79,-199.42 48.43,-207.97 25.64,-8.55 59.83,108.25 287.73,96.86 230.75,-11.39 256.39,-113.95 287.73,-96.86 31.34,17.09 -31.34,284.88 313.37,222.21 0,0 -361.8,96.86 -344.71,-165.23 0,0 -207.96,159.53 -498.54,17.09 2.85,0 76.92,245 -387.44,148.14").unwrap();
+    path = run(&path, &Options::default(), &StyleInfo::default());
     assert_eq!(
         String::from(path),
         String::from("M1208.23 1821.01c74.07 14.24 196.57 17.09 293.43-14.24 122.5-42.74 22.79-199.42 48.43-207.97s59.83 108.25 287.73 96.86c230.75-11.39 256.39-113.95 287.73-96.86s-31.34 284.88 313.37 222.21c0 0-361.8 96.86-344.71-165.23 0 0-207.96 159.53-498.54 17.09 2.85 0 76.92 245-387.44 148.14")
