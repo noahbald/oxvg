@@ -17,10 +17,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 oxvg_optimiser = { workspace = true, features = ["wasm"] }
-oxvg_ast = { workspace = true }
+oxvg_ast = { workspace = true, features = ["roxmltree", "serialize"] }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true }
+roxmltree = { workspace = true }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 typed-arena = { workspace = true }

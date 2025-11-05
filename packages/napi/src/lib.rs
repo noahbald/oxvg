@@ -1,7 +1,8 @@
 //! NAPI bindings for OXVG
 use napi::{Error, Status};
 use oxvg_ast::{
-  implementations::{roxmltree::parse, shared::Element},
+  arena::Allocator,
+  parse::roxmltree::parse,
   serialize::{self, Node as _, Options},
   visitor::Info,
 };
@@ -48,11 +49,15 @@ extern crate napi_derive;
 /// );
 /// ```
 pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Status>> {
-  let arena = typed_arena::Arena::new();
-  let dom = parse(&svg, &arena).map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?;
+  let xml = roxmltree::Document::parse(&svg).map_err(generic_error)?;
+  let values = Allocator::new_values();
+  let mut arena = Allocator::new_arena();
+  let mut allocator = Allocator::new(&mut arena, &values);
+  let dom =
+    parse(&xml, &mut allocator).map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?;
   config
     .unwrap_or_default()
-    .run(&dom, &Info::<Element>::new(&arena))
+    .run(dom, &Info::new(allocator))
     .map_err(generic_error)?;
 
   dom
