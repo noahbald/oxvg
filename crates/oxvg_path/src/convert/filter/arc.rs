@@ -365,8 +365,8 @@ impl Convert {
             } else {
                 0.0
             };
-            let cx = (k * rx * y) / ry + (x1 + x2) / 2.0;
-            let cy = (k * -ry * x) / rx + (y1 + y2) / 2.0;
+            let cx = (k * rx * y) / ry + f64::midpoint(x1, x2);
+            let cy = (k * -ry * x) / rx + f64::midpoint(y1, y2);
             let f1 = f64::asin((y1 - cy) / ry);
             let f2 = f64::asin((y2 - cy) / ry);
 
