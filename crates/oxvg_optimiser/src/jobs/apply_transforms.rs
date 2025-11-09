@@ -397,7 +397,7 @@ fn transform_arc(cursor: [f64; 2], args: &mut [f64; 7], matrix: &[f64; 6]) {
         args[1] = args[0];
         args[2] = 0.0;
     } else {
-        let major_axis_square = (square_sum + root) / 2.0;
+        let major_axis_square = f64::midpoint(square_sum, root);
         let minor_axis_square = (square_sum - root) / 2.0;
         let major = f64::abs(major_axis_square - last_col) > 1e-6;
         let sub = if major {
