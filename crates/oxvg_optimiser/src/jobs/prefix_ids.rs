@@ -326,7 +326,7 @@ impl<'a> GeneratePrefix<'a> {
     }
 }
 
-fn get_basename(path: &std::path::Path) -> Option<Match> {
+fn get_basename(path: &std::path::Path) -> Option<Match<'_>> {
     let path = path.as_os_str().to_str()?;
     BASENAME_CAPTURE
         .captures_iter(path)
