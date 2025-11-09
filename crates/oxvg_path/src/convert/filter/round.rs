@@ -43,7 +43,7 @@ pub fn relative_coordinates(
         let relative_subpoint = state.relative_subpoints[index];
         state.base_path[0] = relative_subpoint[0];
         state.base_path[1] = relative_subpoint[1];
-    };
+    }
 }
 
 fn update_relative_subpoint(
