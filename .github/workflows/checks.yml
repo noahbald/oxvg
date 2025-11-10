@@ -1,6 +1,7 @@
 name: checks
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
 
 on:
   push:
@@ -18,3 +19,15 @@ jobs:
           toolchain: stable
       - name: Rust formatting
         run: cargo fmt --all --check
+
+  clippy:
+    name: Rust check (clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Rust clippy
+        run: cargo clippy --workspace --profile=test --locked
