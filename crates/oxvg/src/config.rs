@@ -114,10 +114,10 @@ fn resolve_jobs() {
     };
 
     let resolved = config.resolve_jobs();
-    assert!(resolved.precheck.is_none(), "ommited value should be None");
+    assert!(resolved.precheck.is_none(), "omitted value should be None");
     assert!(
         resolved.remove_doctype.is_none(),
-        "ommited value shoud be None"
+        "omitted value should be None"
     );
     assert!(
         resolved.remove_scripts.is_some(),

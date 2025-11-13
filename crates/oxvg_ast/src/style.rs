@@ -265,7 +265,7 @@ macro_rules! define_presentation_attrs {
                 Self::parse(presentation_attr_id, &mut parser, &options)
             }
 
-            /// Serializes the presntation attribute without it's name.
+            /// Serializes the presentation attribute without it's name.
             ///
             /// # Errors
             /// If the value cannot be serialized
@@ -396,7 +396,7 @@ define_presentation_attrs! {
 }
 
 // TODO: Port all these to `lighningscss::properties::presentation`
-// TODO: Use `enum_propery!` after porting where possible
+// TODO: Use `enum_property!` after porting where possible
 #[derive(Debug, PartialEq, Clone)]
 /// The `alignment-baseline` attribute specifies how an object is aligned with respect to its parent.
 pub enum AlignmentBaseline {
@@ -1542,7 +1542,7 @@ pub enum Mode {
     #[default]
     /// The application of a style based on an attribute, style attribute, or static stylesheet selector
     Static,
-    /// The application of a style based on an at-rule or psuedo-class
+    /// The application of a style based on an at-rule or pseudo-class
     Dynamic,
 }
 

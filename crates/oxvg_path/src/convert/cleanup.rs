@@ -24,7 +24,7 @@ pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
 pub fn cleanup(path: &Path) -> Path {
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);
-    let mut result = ensure_implicity(&mut result);
+    let mut result = ensure_implicitly(&mut result);
     if result.0.len() == 1 {
         if let command::Data::MoveBy(a) = result.0[0].command {
             result.0[0].command = command::Data::MoveTo(a);
@@ -135,7 +135,7 @@ fn switch_leading_move(path: &mut Path) {
     }
 }
 
-fn ensure_implicity(path: &mut Path) -> Path {
+fn ensure_implicitly(path: &mut Path) -> Path {
     // TODO: Fix emplicity corrections elsewhere
     let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {

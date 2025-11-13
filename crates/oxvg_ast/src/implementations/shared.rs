@@ -71,7 +71,7 @@ pub struct Attribute {
 /// The list of attributes of an element.
 pub struct Attributes<'arena>(pub &'arena RefCell<Vec<Attribute>>);
 
-/// A whitespace seperated set of tokens of a class attribute's value.
+/// A whitespace separated set of tokens of a class attribute's value.
 pub struct ClassList<'arena> {
     pub(crate) attrs: Attributes<'arena>,
     pub(crate) class_index_memo: Cell<usize>,
@@ -546,7 +546,7 @@ impl crate::class_list::ClassList for ClassList<'_> {
         self.tokens.remove(index);
 
         let Some((start, end)) = self.get_token_range(token) else {
-            log::debug!("class not removed, not present in actual attrubute");
+            log::debug!("class not removed, not present in actual attribute");
             return;
         };
 

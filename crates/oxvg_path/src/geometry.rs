@@ -295,7 +295,7 @@ impl Point {
 }
 
 impl Circle {
-    /// From a curve, which is potentially an arc, find the correspoding circle
+    /// From a curve, which is potentially an arc, find the corresponding circle
     pub fn find(curve: &Curve, make_arcs: &MakeArcs, error: f64) -> Option<Self> {
         let mid_point = Point::cubic_bezier(curve, 0.5).0;
         let m1 = [mid_point[0] / 2.0, mid_point[1] / 2.0];
