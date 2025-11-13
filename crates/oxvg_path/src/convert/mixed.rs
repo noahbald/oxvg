@@ -49,7 +49,7 @@ pub fn mixed(path: Path, options: &convert::Options) -> Path {
             // will have space (l0 20l10 20 -> l0 20 10 20); and
             // FIXME: BREAK: Should we use `prev.command.next_implicit()` instead?
             && prev.command.id() == item.command.id()
-            // will omiting space be worth it; and
+            // will omitting space be worth it; and
             && absolute_command_max_len == relative_command_max_len - 1
             // will omit space
             && (

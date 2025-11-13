@@ -66,7 +66,7 @@ pub struct RemoveAttrs {
     /// A list of patterns that match attributes.
     pub attrs: Vec<String>,
     #[serde(default = "default_elem_separator")]
-    /// The seperator for different parts of the pattern. By default this is `":"`.
+    /// The separator for different parts of the pattern. By default this is `":"`.
     ///
     /// You may need to use this if you need to match attributes with a `:` (i.e. prefixed attributes).
     pub elem_separator: String,

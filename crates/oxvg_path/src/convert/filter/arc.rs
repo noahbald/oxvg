@@ -233,7 +233,7 @@ impl Convert {
                 relative_circle.center.0[1] -= next_data.0[5];
                 let old_arc = output
                     .last_mut()
-                    .expect("output is inisialised with an arc, which is never removed");
+                    .expect("output is initialised with an arc, which is never removed");
                 *old_arc = arc;
             } else {
                 // full circle, make a half-circle arc and add a second one

@@ -671,7 +671,7 @@ export interface Jobs {
 }
 
 /**
- * Merge multipe paths into one
+ * Merge multiple paths into one
  *
  * # Differences to SVGO
  *
@@ -885,7 +885,7 @@ export interface RemoveAttrs {
   /** A list of patterns that match attributes. */
   attrs: Array<string>
   /**
-   * The seperator for different parts of the pattern. By default this is `":"`.
+   * The separator for different parts of the pattern. By default this is `":"`.
    *
    * You may need to use this if you need to match attributes with a `:` (i.e. prefixed attributes).
    */

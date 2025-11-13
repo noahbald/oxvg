@@ -1,4 +1,4 @@
-//! Collection for attributes when speficied as a list
+//! Collection for attributes when specified as a list
 use std::ops::Deref;
 
 #[cfg(feature = "parse")]

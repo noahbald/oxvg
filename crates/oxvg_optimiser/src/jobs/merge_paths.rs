@@ -25,7 +25,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-/// Merge multipe paths into one
+/// Merge multiple paths into one
 ///
 /// # Differences to SVGO
 ///

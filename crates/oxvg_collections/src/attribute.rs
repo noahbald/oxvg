@@ -1106,7 +1106,7 @@ define_attrs! {
         name: "k4",
         default: 0.0,
     },
-    KernalMatrix(ListOf<Number, SpaceOrComma>) {
+    KernelMatrix(ListOf<Number, SpaceOrComma>) {
         name: "kernelMatrix",
     },
     KernelUnitLength(NumberOptionalNumber) {

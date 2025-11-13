@@ -73,7 +73,7 @@ pub enum Mode {
     #[default]
     /// The application of a style based on an attribute, style attribute, or static stylesheet selector
     Static,
-    /// The application of a style based on an at-rule or psuedo-class
+    /// The application of a style based on an at-rule or pseudo-class
     Dynamic,
 }
 
@@ -328,7 +328,7 @@ impl<'input> ComputedStyles<'input> {
             .map(|(css, mode)| {
                 (
                     css.try_into()
-                        .expect("attr convertable to property should also be able to convert back"),
+                        .expect("attr convertible to property should also be able to convert back"),
                     mode,
                 )
             })
@@ -353,7 +353,7 @@ impl<'input> ComputedStyles<'input> {
             return self.get(&attr_id).map(|(attr, mode)| {
                 (
                     attr.try_into()
-                        .expect("property convertable to attr should also be able to convert back"),
+                        .expect("property convertible to attr should also be able to convert back"),
                     mode,
                 )
             });

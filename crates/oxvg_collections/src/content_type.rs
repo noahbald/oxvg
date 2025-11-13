@@ -145,7 +145,7 @@ impl<'input, F: FnMut(Reference<'_, 'input>)> visitor::Visitor<'input>
 macro_rules! define_content_types {
     ($($name:ident($ty:ty)$(<$i:lifetime>)?,)+) => {
         #[derive(Debug, PartialEq)]
-        /// A reference to an attribute's value, mutably mapped to it's conent type
+        /// A reference to an attribute's value, mutably mapped to it's content type
         pub enum ContentType<'a, 'input> {
             $(
                 #[doc=concat!("a `", stringify!($name), "` value")]
@@ -573,7 +573,7 @@ impl<'input> ContentType<'_, 'input> {
             | Self::Frequency(ContentTypeRef::RefMut(Frequency::Hz(n) | Frequency::KHz(n)))
             // Opacity
             | Self::Opacity(ContentTypeRef::RefMut(AlphaValue(n)))
-            // RepeateCount
+            // RepeatCount
             | Self::RepeatCount(ContentTypeRef::RefMut(RepeatCount::Number(n)))
             // Rotate
             | Self::Rotate(ContentTypeRef::RefMut(Rotate::Number(n)))
@@ -617,7 +617,7 @@ impl<'input> ContentType<'_, 'input> {
         }
     }
 
-    /// Rounds any safetly roundable numbers in the content type
+    /// Rounds any safely roundable numbers in the content type
     pub fn round(&mut self, float_precision: i32, convert_px: bool, round_list: bool) {
         debug_assert!(
             float_precision <= 5,

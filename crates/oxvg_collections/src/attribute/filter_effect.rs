@@ -52,7 +52,7 @@ enum_attr!(
         ///
         /// `values` is a real number in degrees
         HueRotate: "hueRotate",
-        /// Applies a matrix to convert luminence to alpha
+        /// Applies a matrix to convert luminance to alpha
         ///
         /// `values` is not applicable
         LuminanceToAlpha: "luminanceToAlpha",
@@ -89,7 +89,7 @@ enum_attr!(
     /// [w3 | SVG 2](https://drafts.fxtf.org/filter-effects/#element-attrdef-feconvolvematrix-edgemode)
     #[derive(Default)]
     EdgeMode {
-        /// Etend the image at it's edge by duplication
+        /// Extend the image at it's edge by duplication
         #[default]
         Duplicate: "duplicate",
         /// Extend the image at it's edges by taking the colours from the opposite edge
