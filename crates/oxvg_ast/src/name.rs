@@ -39,7 +39,7 @@ pub trait Name:
         self.prefix().is_none() && self.local_name().is_empty()
     }
 
-    /// Creates a qualified name from a string optionally seperating the
+    /// Creates a qualified name from a string optionally separating the
     /// prefix from a local-name with a `:`
     fn parse(value: &str) -> Self {
         let mut parts = value.split(':');
