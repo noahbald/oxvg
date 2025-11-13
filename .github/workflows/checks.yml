@@ -40,3 +40,12 @@ jobs:
       - uses: gwen-lg/taplo-action@v1
         with:
           format: true
+
+  spelling:
+    name: Spell Check with Typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1
