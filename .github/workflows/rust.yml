@@ -21,8 +21,8 @@ jobs:
       - name: Rust formatting
         run: cargo fmt --all --check
 
-  clippy:
-    name: Rust check (clippy)
+  rust_checks:
+    name: Rust checks (clippy, doc)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,10 @@ jobs:
           toolchain: stable
       - name: Rust clippy
         run: cargo clippy --workspace --locked
+      - name: Rust doc
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --workspace --no-deps --locked
 
   toml:
     name: Toml formatting
