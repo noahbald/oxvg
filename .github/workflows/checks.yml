@@ -34,6 +34,7 @@ jobs:
       - name: Rust doc
         env:
           RUSTDOCFLAGS: "-D warnings"
+        if: $${{ always() }} # run even if clippy failed
         run: cargo doc --workspace --no-deps --locked
 
   toml:
