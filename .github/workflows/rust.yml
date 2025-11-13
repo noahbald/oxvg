@@ -33,6 +33,15 @@ jobs:
       - name: Rust clippy
         run: cargo clippy --workspace --locked
 
+  toml:
+    name: Toml formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gwen-lg/taplo-action@v1
+        with:
+          format: true
+
   build:
     strategy:
       fail-fast: false
