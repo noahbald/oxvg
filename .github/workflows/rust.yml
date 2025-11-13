@@ -42,6 +42,15 @@ jobs:
         with:
           format: true
 
+  spelling:
+    name: Spell Check with Typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1.39.2
+
   build:
     strategy:
       fail-fast: false
