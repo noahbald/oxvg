@@ -4,8 +4,8 @@ env:
   RUSTFLAGS: -D warnings
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - "wip*"
   pull_request:
 
 jobs:
