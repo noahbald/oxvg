@@ -218,7 +218,7 @@ fn cleanup_enable_background() -> anyhow::Result<()> {
         r#"{ "cleanupEnableBackground": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" enable-background="new 0 0 100 50">
-    <!-- Keep svg's enable-background on mis-matching size -->
+    <!-- Keep svg's enable-background on mismatching size -->
     <defs>
         <filter id="ShiftBGAndBlur">
             <feOffset dx="0" dy="75"/>

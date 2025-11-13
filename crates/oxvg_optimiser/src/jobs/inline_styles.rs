@@ -833,7 +833,7 @@ fn inline_styles() -> anyhow::Result<()> {
         r#"{ "inlineStyles": {} }"#,
         Some(
             r#"<svg id="test" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <!-- important styles take precendence over inline styles -->
+    <!-- important styles take precedence over inline styles -->
     <style>
         .red {
             fill: red !important;

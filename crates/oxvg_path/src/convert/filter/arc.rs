@@ -332,7 +332,7 @@ impl Convert {
         recursive: Option<&[f64]>,
     ) -> Vec<f64> {
         let [mut x1, mut y1] = *base_point;
-        let [mut rx, mut ry, angle, large_arc_flage, sweep_flag, mut x2, mut y2] = *data;
+        let [mut rx, mut ry, angle, large_arc_flag, sweep_flag, mut x2, mut y2] = *data;
         // for more information of where this Math came from visit:
         // https://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes
         let rad = (PI / 180.0) * angle;
@@ -358,7 +358,7 @@ impl Convert {
             };
             let rx2 = rx * rx;
             let ry2 = ry * ry;
-            let k = if large_arc_flage == (if sweep_flag == 0.0 { 1.0 } else { -1.0 }) {
+            let k = if large_arc_flag == (if sweep_flag == 0.0 { 1.0 } else { -1.0 }) {
                 f64::sqrt(f64::abs(
                     (rx2 * ry2 - rx2 * y * y - ry2 * x * x) / (rx2 * y * y + ry2 * x * x),
                 ))
