@@ -2,13 +2,13 @@ use std::cell::{Cell, RefCell};
 
 use lightningcss::rules::{media::MediaRule, CssRule, CssRuleList, Location};
 use oxvg_ast::{
-    attribute::data::uncategorised::MediaQueryList,
     element::Element,
     get_attribute, is_element,
     node::{self, Node},
     remove_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::uncategorised::MediaQueryList;
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;

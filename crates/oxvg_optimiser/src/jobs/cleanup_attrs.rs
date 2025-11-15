@@ -1,9 +1,9 @@
 use itertools::Itertools;
 use oxvg_ast::{
-    attribute::content_type::{ContentType, ContentTypeRef},
     element::Element,
     visitor::{Context, Visitor},
 };
+use oxvg_collections::content_type::{ContentType, ContentTypeRef};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

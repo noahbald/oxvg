@@ -6,13 +6,13 @@ use lightningcss::properties::{
     svg::SVGPaint,
 };
 use oxvg_ast::{
-    attribute::data::{inheritable::Inheritable, path},
     element::Element,
     get_attribute, get_attribute_mut, get_computed_style, has_attribute, has_computed_style,
     has_computed_style_css, is_attribute, is_element, set_attribute,
     style::{ComputedStyles, Mode},
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::{inheritable::Inheritable, path};
 use oxvg_path::command;
 use serde::{Deserialize, Serialize};
 

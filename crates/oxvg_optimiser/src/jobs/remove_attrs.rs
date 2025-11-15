@@ -1,17 +1,17 @@
 use std::sync::LazyLock;
 
 use oxvg_ast::{
-    attribute::{
-        content_type::{ContentType, ContentTypeRef},
-        data::{
-            core::{Color, Paint},
-            inheritable::Inheritable,
-        },
-    },
     element::Element,
-    serialize::{PrinterOptions, ToAtom},
     visitor::{Context, Visitor},
 };
+use oxvg_collections::{
+    attribute::{
+        core::{Color, Paint},
+        inheritable::Inheritable,
+    },
+    content_type::{ContentType, ContentTypeRef},
+};
+use oxvg_serialize::{PrinterOptions, ToValue as _};
 use serde::{Deserialize, Serialize};
 
 fn default_elem_separator() -> String {
@@ -150,7 +150,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttrs {
                 if !pattern[2].is_match(
                     &attr
                         .value()
-                        .to_atom_string(PrinterOptions::default())
+                        .to_value_string(PrinterOptions::default())
                         .unwrap(),
                 ) {
                     return true;

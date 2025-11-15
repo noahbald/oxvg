@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
 use oxvg_ast::{
-    attribute::data::Attr,
-    element::{data::ElementId, Element},
+    element::Element,
+    is_element,
     visitor::{Context, Visitor},
 };
+use oxvg_collections::attribute::Attr;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -74,7 +75,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for AddAttributesToSVGElement {
     ) -> Result<(), Self::Error> {
         let element_id = element.qual_name();
 
-        if !element.is_root() || *element_id != ElementId::Svg {
+        if !element.is_root() || !is_element!(element_id, Svg) {
             return Ok(());
         }
 

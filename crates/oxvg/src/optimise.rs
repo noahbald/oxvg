@@ -11,8 +11,9 @@ use oxvg_ast::{
     arena::Allocator,
     node::Ref,
     parse::roxmltree::parse,
-    serialize::{Indent, Node as _, Options},
+    serialize::Node as _,
     visitor::Info,
+    xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 use roxmltree::ParsingOptions;

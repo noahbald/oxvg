@@ -1,13 +1,17 @@
 //! Animation timing attribute types as specified in [animations](https://svgwg.org/specs/animations/#TimingAttributes)
-use cssparser_lightningcss::Token;
 use lightningcss::values::number::CSSNumber;
 
-use crate::{
-    enum_attr,
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, ToAtom},
+#[cfg(feature = "parse")]
+use cssparser_lightningcss::Token;
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
 };
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+
+use crate::enum_attr;
 
 use super::core::{Integer, Number};
 
@@ -48,6 +52,7 @@ impl ClockValue {
         }
     }
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ClockValue {
     fn parse<'t>(
         input: &mut Parser<'input, 't>,
@@ -144,19 +149,17 @@ impl<'input> Parse<'input> for ClockValue {
         }
     }
 }
-impl ToAtom for ClockValue {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for ClockValue {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::TimecountValue { timecount, metric } => {
-                timecount.write_atom(dest)?;
+                timecount.write_value(dest)?;
                 if !matches!(metric, Metric::Second) {
-                    metric.write_atom(dest)?;
+                    metric.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -164,12 +167,12 @@ impl ToAtom for ClockValue {
                 if *minutes < 10 {
                     dest.write_char('0')?;
                 }
-                minutes.write_atom(dest)?;
+                minutes.write_value(dest)?;
                 dest.write_char(':')?;
                 if *seconds < 10.0 {
                     dest.write_char('0')?;
                 }
-                seconds.write_atom(dest)?;
+                seconds.write_value(dest)?;
                 Ok(())
             }
             Self::FullClockValue {
@@ -180,17 +183,17 @@ impl ToAtom for ClockValue {
                 if *hours < 10 {
                     dest.write_char('0')?;
                 }
-                hours.write_atom(dest)?;
+                hours.write_value(dest)?;
                 dest.write_char(':')?;
                 if *minutes < 10 {
                     dest.write_char('0')?;
                 }
-                minutes.write_atom(dest)?;
+                minutes.write_value(dest)?;
                 dest.write_char(':')?;
                 if *seconds < 10.0 {
                     dest.write_char('0')?;
                 }
-                seconds.write_atom(dest)?;
+                seconds.write_value(dest)?;
                 Ok(())
             }
         }
@@ -210,6 +213,7 @@ pub enum Metric {
     /// Milli-second
     MilliSecond,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Metric {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -225,11 +229,9 @@ impl<'input> Parse<'input> for Metric {
         })
     }
 }
-impl ToAtom for Metric {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Metric {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -255,6 +257,7 @@ pub enum Dur {
     /// Indefinite
     Indefinite,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Dur {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -269,13 +272,14 @@ impl<'input> Parse<'input> for Dur {
             .or_else(|()| ClockValue::parse(input).map(Self::ClockValue))
     }
 }
-impl ToAtom for Dur {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Dur {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::ClockValue(clock_value) => clock_value.write_atom(dest),
+            Self::ClockValue(clock_value) => clock_value.write_value(dest),
             Self::Media => dest.write_str("media"),
             Self::Indefinite => dest.write_str("indefinite"),
         }
@@ -306,6 +310,7 @@ pub enum MinMax {
     /// For an element with a defined media, that media's duration
     Media,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for MinMax {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -313,13 +318,14 @@ impl<'input> Parse<'input> for MinMax {
             .or_else(|_| Ok(Self::ClockValue(ClockValue::parse(input)?)))
     }
 }
-impl ToAtom for MinMax {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for MinMax {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::ClockValue(clock_value) => clock_value.write_atom(dest),
+            Self::ClockValue(clock_value) => clock_value.write_value(dest),
             Self::Media => dest.write_str("media"),
         }
     }
@@ -336,6 +342,7 @@ pub enum RepeatCount {
     /// The animation will repeat indefinitely
     Indefinite,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RepeatCount {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let result = input
@@ -355,13 +362,14 @@ impl<'input> Parse<'input> for RepeatCount {
         Ok(result)
     }
 }
-impl ToAtom for RepeatCount {
-    fn write_atom<W>(&self, dest: &mut crate::serialize::Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for RepeatCount {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) => number.write_atom(dest),
+            Self::Number(number) => number.write_value(dest),
             Self::Indefinite => dest.write_str("indefinite"),
         }
     }
@@ -378,6 +386,7 @@ pub enum RepeatDur {
     /// The animation repeats indefinitely
     Indefinite,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RepeatDur {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -389,13 +398,14 @@ impl<'input> Parse<'input> for RepeatDur {
             .or_else(|_| Ok(Self::ClockValue(ClockValue::parse(input)?)))
     }
 }
-impl ToAtom for RepeatDur {
-    fn write_atom<W>(&self, dest: &mut crate::serialize::Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for RepeatDur {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::ClockValue(clock_value) => clock_value.write_atom(dest),
+            Self::ClockValue(clock_value) => clock_value.write_value(dest),
             Self::Indefinite => dest.write_str("indefinite"),
         }
     }
@@ -418,68 +428,68 @@ enum_attr!(
 
 #[test]
 fn clock_value() {
-    use crate::serialize::PrinterOptions;
+    use oxvg_serialize::PrinterOptions;
 
     assert_eq!(
         ClockValue::parse_string("00:30:03")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("00:30:03")
     );
     assert_eq!(
         ClockValue::parse_string("50:00:10.25")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("50:00:10.25")
     );
     assert_eq!(
         ClockValue::parse_string("02:33")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("02:33")
     );
     assert_eq!(
         ClockValue::parse_string("00:10.5")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("00:10.5")
     );
     assert_eq!(
         ClockValue::parse_string("-3.2h")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("-3.2h")
     );
     assert_eq!(
         ClockValue::parse_string("+45min")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("45min")
     );
     assert_eq!(
         ClockValue::parse_string("30s")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("30")
     );
     assert_eq!(
         ClockValue::parse_string("5ms")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("5ms")
     );
     assert_eq!(
         ClockValue::parse_string("12.467")
             .unwrap()
-            .to_atom_string(PrinterOptions::default())
+            .to_value_string(PrinterOptions::default())
             .unwrap(),
         String::from("12.467")
     );

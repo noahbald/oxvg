@@ -2,14 +2,15 @@ use std::mem;
 
 use lightningcss::{properties::PropertyId, vendor_prefix::VendorPrefix};
 use oxvg_ast::{
-    atom::Atom,
-    attribute::{
-        content_type::ContentType,
-        data::{inheritable::Inheritable, Attr, AttrId},
-    },
-    element::{category::ElementCategory, Element},
+    element::Element,
     get_attribute, has_attribute, is_element,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{inheritable::Inheritable, Attr, AttrId},
+    content_type::ContentType,
+    element::ElementCategory,
 };
 use serde::{Deserialize, Serialize};
 

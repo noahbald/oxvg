@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 
 use oxvg_ast::{
-    attribute::data::{Attr, AttrId},
     element::Element,
-    name::{Prefix, QualName},
     visitor::{Context, Visitor},
 };
-use oxvg_collections::collections::EDITOR_NAMESPACES;
+use oxvg_collections::{
+    attribute::{Attr, AttrId},
+    name::{Prefix, QualName},
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -47,7 +48,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let uri = element.prefix().ns().uri();
-        if EDITOR_NAMESPACES.contains(uri)
+        if is_editor_namespace(uri)
             || self
                 .additional_namespaces
                 .as_ref()
@@ -67,15 +68,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
                 value,
             } = attr
             {
-                return !EDITOR_NAMESPACES.contains(value)
+                return !is_editor_namespace(value)
                     && !self
                         .additional_namespaces
                         .as_ref()
                         .is_some_and(|set| set.contains(&**value));
-            };
+            }
 
             let uri = attr.prefix().ns().uri();
-            !EDITOR_NAMESPACES.contains(uri)
+            !is_editor_namespace(uri)
                 && !self
                     .additional_namespaces
                     .as_ref()
@@ -84,6 +85,34 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
 
         Ok(())
     }
+}
+
+fn is_editor_namespace(uri: &str) -> bool {
+    matches!(
+        uri,
+        "http://creativecommons.org/ns#"
+            | "http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd"
+            | "http://ns.adobe.com/AdobeIllustrator/10.0/"
+            | "http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/"
+            | "http://ns.adobe.com/Extensibility/1.0/"
+            | "http://ns.adobe.com/Flows/1.0/"
+            | "http://ns.adobe.com/GenericCustomNamespace/1.0/"
+            | "http://ns.adobe.com/Graphs/1.0/"
+            | "http://ns.adobe.com/ImageReplacement/1.0/"
+            | "http://ns.adobe.com/SaveForWeb/1.0/"
+            | "http://ns.adobe.com/Variables/1.0/"
+            | "http://ns.adobe.com/XPath/1.0/"
+            | "http://purl.org/dc/elements/1.1/"
+            | "http://schemas.microsoft.com/visio/2003/SVGExtensions/"
+            | "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+            | "http://taptrix.com/vectorillustrator/svg_extensions"
+            | "http://www.bohemiancoding.com/sketch/ns"
+            | "http://www.figma.com/figma/ns"
+            | "http://www.inkscape.org/namespaces/inkscape"
+            | "http://www.serif.com/"
+            | "http://www.vector.evaxdesign.sk"
+            | "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    )
 }
 
 #[test]

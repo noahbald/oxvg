@@ -1,13 +1,13 @@
 use std::mem;
 
 use oxvg_ast::{
-    attribute::data::{
-        inheritable::{self, Inheritable},
-        AttrId,
-    },
     element::Element,
     get_attribute_mut, has_attribute, is_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::attribute::{
+    inheritable::{self, Inheritable},
+    AttrId,
 };
 use serde::{Deserialize, Serialize};
 

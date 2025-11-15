@@ -5,16 +5,10 @@ use std::{
 };
 
 use itertools::Itertools;
-use lightningcss::{printer::PrinterOptions, rules::CssRuleList};
+use lightningcss::{printer::PrinterOptions, rules::CssRuleList, traits::ToCss};
+use oxvg_collections::{atom::Atom, attribute::Attr, element::ElementId};
 
-use crate::{
-    arena::Allocator,
-    atom::Atom,
-    attribute::data::Attr,
-    element::{data::ElementId, Element},
-    is_element,
-    serialize::ToAtom as _,
-};
+use crate::{arena::Allocator, element::Element, is_element};
 
 /// The unique ID for the node in a given arena
 pub type AllocationID = usize;
@@ -182,7 +176,8 @@ impl<'input, 'arena> Node<'input, 'arena> {
             }
             NodeData::Style(style) => style
                 .borrow()
-                .to_atom_string(PrinterOptions::default())
+                .0
+                .to_css_string(PrinterOptions::default())
                 .map(Into::into)
                 .ok(),
             NodeData::Document | NodeData::Root => None,
@@ -484,7 +479,8 @@ impl<'input, 'arena> Node<'input, 'arena> {
             }
             NodeData::Style(style) => style
                 .borrow()
-                .to_atom_string(PrinterOptions::default())
+                .0
+                .to_css_string(PrinterOptions::default())
                 .map(Into::into)
                 .ok(),
             NodeData::Element { .. } => Some(Atom::default()),

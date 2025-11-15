@@ -1,7 +1,10 @@
-//! Collections of data and utilities about SVG
-#[macro_use]
-extern crate lazy_static;
+//! Collections of data and types for SVG
 
-pub mod allowed_content;
-pub mod collections;
-pub mod regex;
+#[macro_use]
+extern crate bitflags;
+
+pub mod atom;
+pub mod attribute;
+pub mod content_type;
+pub mod element;
+pub mod name;

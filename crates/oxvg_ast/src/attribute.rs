@@ -1,15 +1,12 @@
 //! XML element attribute traits.
 use std::cell::{self, Ref, RefCell, RefMut};
 
-use data::{Attr, AttrId};
-
-use crate::{atom::Atom, is_prefix, name::NS};
-
-pub use group::{AttributeGroup, AttributeInfo};
-
-pub mod content_type;
-pub mod data;
-mod group;
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    is_prefix,
+    name::NS,
+};
 
 #[macro_export]
 /// Returns whether the attribute matches the given names
@@ -17,10 +14,10 @@ mod group;
 /// # Examples
 ///
 /// ```
-/// use oxvg_ast::{
+/// use oxvg_ast::is_attribute;
+/// use oxvg_collections::{
 ///   atom::Atom,
-///   attribute::data::Attr,
-///   is_attribute,
+///   attribute::Attr,
 /// };
 /// use lightningcss::properties::svg::SVGPaint;
 ///
@@ -30,10 +27,8 @@ mod group;
 /// ```
 ///
 /// ```
-/// use oxvg_ast::{
-///   attribute::data::{Attr, inheritable::Inheritable},
-///   is_attribute,
-/// };
+/// use oxvg_ast::is_attribute;
+/// use oxvg_collections::attribute::{Attr, inheritable::Inheritable};
 /// use lightningcss::properties::svg::SVGPaint;
 ///
 /// // Matching attribute values
@@ -42,10 +37,10 @@ mod group;
 /// ```
 macro_rules! is_attribute {
     ($attr:expr, $($name:ident $(|)?)+$(,)?) => {
-        matches!($attr.name().unaliased(), $(| $crate::attribute::data::AttrId::$name)+)
+        matches!($attr.name().unaliased(), $(| oxvg_collections::attribute::AttrId::$name)+)
     };
     ($attr:expr, $name:ident($value:pat)$(,)?) => {
-        matches!($attr.unaliased(), $crate::attribute::data::Attr::$name($value))
+        matches!($attr.unaliased(), oxvg_collections::attribute::Attr::$name($value))
     };
 }
 
@@ -53,12 +48,12 @@ macro_rules! is_attribute {
 /// Returns whether the given attribute is on the [`crate::element::Element`] or [`Attributes`]
 macro_rules! has_attribute {
     ($element:expr, $attr:ident$(,)?) => {
-        $element.has_attribute(&$crate::attribute::data::AttrId::$attr)
+        $element.has_attribute(&oxvg_collections::attribute::AttrId::$attr)
     };
     ($element:expr, $($attr:ident $(|)?)+$(,)?) => {
         $element.attributes().into_iter().any(
             |attr|
-            matches!(attr.name().unaliased(), $(| $crate::attribute::data::AttrId::$attr)+)
+            matches!(attr.name().unaliased(), $(| oxvg_collections::attribute::AttrId::$attr)+)
         )
     }
 }
@@ -67,7 +62,7 @@ macro_rules! has_attribute {
 /// Sets the given attribute to the [`crate::element::Element`] or [`Attributes`]
 macro_rules! set_attribute {
     ($element:expr, $attr:ident$(($inner:expr))?$(,)?) => {
-        $element.set_attribute($crate::attribute::data::Attr::$attr$(($inner))?)
+        $element.set_attribute(oxvg_collections::attribute::Attr::$attr$(($inner))?)
     };
 }
 
@@ -76,11 +71,11 @@ macro_rules! set_attribute {
 macro_rules! get_attribute {
     ($element:expr, $attr:ident$(,)?) => {
         $element
-            .get_attribute(&$crate::attribute::data::AttrId::$attr)
+            .get_attribute(&oxvg_collections::attribute::AttrId::$attr)
             .and_then(|attr| {
                 std::cell::Ref::filter_map(attr, |attr| match attr.unaliased() {
-                    $crate::attribute::data::Attr::$attr(inner) => Some(inner),
-                    $crate::attribute::data::Attr::Unparsed { .. } => None,
+                    oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
+                    oxvg_collections::attribute::Attr::Unparsed { .. } => None,
                     _ => unreachable!("{attr:?} did not match {}", stringify!($attr)),
                 }).ok()
             })
@@ -98,11 +93,11 @@ macro_rules! get_attribute {
 macro_rules! get_attribute_mut {
     ($element:expr, $attr:ident$(,)?) => {
         $element
-            .get_attribute_node_mut(&$crate::attribute::data::AttrId::$attr)
+            .get_attribute_node_mut(&oxvg_collections::attribute::AttrId::$attr)
             .and_then(|attr| {
                 std::cell::RefMut::filter_map(attr, |attr| match attr {
-                    $crate::attribute::data::Attr::$attr(inner) => Some(inner),
-                    $crate::attribute::data::Attr::Unparsed { .. } => None,
+                    oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
+                    oxvg_collections::attribute::Attr::Unparsed { .. } => None,
                     _ => unreachable!(),
                 })
                 .ok()
@@ -115,12 +110,12 @@ macro_rules! get_attribute_mut {
 macro_rules! remove_attribute {
     ($element:expr, $attr:ident$(,)?) => {
         $element
-            .remove_attribute(&$crate::attribute::data::AttrId::$attr)
+            .remove_attribute(&oxvg_collections::attribute::AttrId::$attr)
             .and_then(|attr| match attr {
-                $crate::attribute::data::Attr::$attr(inner) => Some(inner),
-                $crate::attribute::data::Attr::Unparsed { .. } => None,
-                $crate::attribute::data::Attr::Aliased { value, .. } => match *value {
-                    $crate::attribute::data::Attr::$attr(inner) => Some(inner),
+                oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
+                oxvg_collections::attribute::Attr::Unparsed { .. } => None,
+                oxvg_collections::attribute::Attr::Aliased { value, .. } => match *value {
+                    oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
                     _ => unreachable!(),
                 },
                 _ => unreachable!(),

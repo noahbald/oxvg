@@ -1,27 +1,27 @@
 //! Container for all the possible content that can be used by an attribute
-use super::data::animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
-use super::data::animation_addition::{Accumulate, Additive};
-use super::data::animation_timing::{
+use super::attribute::animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
+use super::attribute::animation_addition::{Accumulate, Additive};
+use super::attribute::animation_timing::{
     ClockValue, Dur, Fill, MinMax, RepeatCount, RepeatDur, Restart,
 };
-use super::data::aria::{
+use super::attribute::aria::{
     AriaAutocomplete, AriaCurrent, AriaDropEffect, AriaHasPopup, AriaInvalid, AriaLive,
     AriaOrientation, AriaRelevant, AriaSort, IDReference, Role, Tristate,
 };
-use super::data::core::{
+use super::attribute::core::{
     Angle, Anything, Boolean, Class, Color, Frequency, FuncIRI, Id, Integer, Length, Name,
     NonWhitespace, Number, NumberOptionalNumber, Opacity, Paint, Percentage, SVGTransformList,
     Style, Time, TokenList, Url, IRI,
 };
-use super::data::filter_effect::{
+use super::attribute::filter_effect::{
     ChannelSelector, EdgeMode, In, OperatorFeComposite, OperatorFeMorphology,
     StitchTilesFeTurbulence, TypeFeColorMatrix, TypeFeTurbulence,
 };
-use super::data::fonts::{ArabicForm, Orientation};
-use super::data::inheritable::Inheritable;
-use super::data::list_of::{ListOf, Seperators};
-use super::data::path::{Path, Points};
-use super::data::presentation::{
+use super::attribute::fonts::{ArabicForm, Orientation};
+use super::attribute::inheritable::Inheritable;
+use super::attribute::list_of::{ListOf, Seperators};
+use super::attribute::path::{Path, Points};
+use super::attribute::presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
     ColorRendering, Cursor, Direction, Display, DominantBaseline, EnableBackground, FillRule,
     FilterList, Font, FontFamily, FontSize, FontSizeAdjust, FontStretch, FontStyle, FontVariant,
@@ -30,16 +30,16 @@ use super::data::presentation::{
     ShapeRendering, Spacing, StrokeDasharray, StrokeLinecap, StrokeLinejoin, TextAnchor,
     TextDecoration, TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
 };
-use super::data::transfer_function::TransferFunctionType;
-use super::data::uncategorised::{
+use super::attribute::transfer_function::TransferFunctionType;
+use super::attribute::uncategorised::{
     BlendMode, ColorProfileName, CrossOrigin, LengthAdjust, LinkType, MarkerUnits, MediaQueryList,
     MediaType, NumberPercentage, Orient, Origin, Playbackorder, PreserveAspectRatio, Radius, RefX,
     RefY, ReferrerPolicy, RenderingIntent, Rotate, SpreadMethod, Target, TextPathMethod,
     TextPathSide, TextPathSpacing, Timelinebegin, Transform, TrueFalse, TrueFalseUndefined,
     TypeAnimateTransform, Units, ViewBox, ZoomAndPan,
 };
-use super::data::xlink::{XLinkActuate, XLinkShow, XLinkType};
-use super::data::xml::XmlSpace;
+use super::attribute::xlink::{XLinkActuate, XLinkShow, XLinkType};
+use super::attribute::xml::XmlSpace;
 use lightningcss::values::string::CowArcStr;
 use lightningcss::values::{
     alpha::AlphaValue, length::LengthValue, percentage::DimensionPercentage,
@@ -49,7 +49,6 @@ use lightningcss::{visit_types, visitor};
 use std::ops::{Deref, DerefMut};
 
 use crate::atom::Atom;
-use crate::serialize::ToAtom;
 
 #[derive(Debug, PartialEq)]
 /// A reference to the content type, as received from [`Attr::value`] or [`Attr::value_mut`]
@@ -170,14 +169,15 @@ macro_rules! define_content_types {
             Inheritable(Box<ContentTypeId>),
         }
 
-        impl ToAtom for ContentType<'_, '_> {
-            fn write_atom<W>(&self, dest: &mut crate::serialize::Printer<W>) -> Result<(), crate::error::PrinterError>
+        #[cfg(feature = "serialize")]
+        impl oxvg_serialize::ToValue for ContentType<'_, '_> {
+            fn write_value<W>(&self, dest: &mut oxvg_serialize::Printer<W>) -> Result<(), oxvg_serialize::error::PrinterError>
                 where
                     W: std::fmt::Write {
                 match self {
-                    $(Self::$name(value) => value.write_atom(dest),)+
-                    Self::Inheritable(value) => value.write_atom(dest),
-                    Self::ListOf(value) => value.write_atom(dest),
+                    $(Self::$name(value) => value.write_value(dest),)+
+                    Self::Inheritable(value) => value.write_value(dest),
+                    Self::ListOf(value) => value.write_value(dest),
                 }
             }
         }

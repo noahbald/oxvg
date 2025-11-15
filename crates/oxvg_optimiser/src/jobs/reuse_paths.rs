@@ -2,13 +2,15 @@ use std::{cell::RefCell, collections::HashSet};
 
 use lightningcss::{properties::svg::SVGPaint, rules::CssRuleList, visit_types};
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::{core::Url, inheritable::Inheritable, path, Attr, AttrId},
-    element::{data::ElementId, Element},
-    get_attribute, get_attribute_mut, is_element,
-    name::{Prefix, QualName, NS},
-    remove_attribute, set_attribute,
+    element::Element,
+    get_attribute, get_attribute_mut, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{core::Url, inheritable::Inheritable, path, Attr, AttrId},
+    element::ElementId,
+    name::{Prefix, QualName, NS},
 };
 use oxvg_path::Path;
 use parcel_selectors::parser::Component;

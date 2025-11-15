@@ -1,7 +1,8 @@
 //! Error types.
 use std::fmt::Display;
 
-use oxvg_ast::{atom::Atom, error::ComputedStylesError};
+use oxvg_ast::error::ComputedStylesError;
+use oxvg_collections::atom::Atom;
 
 #[derive(Debug, Clone)]
 /// Represents conditions in which the precheck job dissallows processing of a document

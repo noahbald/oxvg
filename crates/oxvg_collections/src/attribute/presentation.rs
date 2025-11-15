@@ -22,14 +22,16 @@ pub use lightningcss::{
     },
     values::{length::LengthOrNumber, shape::FillRule},
 };
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
+};
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 use smallvec::{smallvec, SmallVec};
 
-use crate::{
-    enum_attr,
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, ToAtom},
-};
+use crate::enum_attr;
 
 enum_attr!(
     /// The `alignment-baseline` attribute specifies how an object is aligned with respect to its parent.
@@ -90,6 +92,7 @@ pub enum BaselineShift {
     /// Raise or lower by a specified length
     Length(LengthValue),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for BaselineShift {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -111,8 +114,9 @@ impl<'input> Parse<'input> for BaselineShift {
             .or_else(|_| LengthValue::parse(input).map(Self::Length))
     }
 }
-impl ToAtom for BaselineShift {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for BaselineShift {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -123,8 +127,8 @@ impl ToAtom for BaselineShift {
             Self::Top => dest.write_str("top"),
             Self::Center => dest.write_str("center"),
             Self::Bottom => dest.write_str("bottom"),
-            Self::Percentage(percentage) => percentage.write_atom(dest),
-            Self::Length(length) => length.write_atom(dest),
+            Self::Percentage(percentage) => percentage.write_value(dest),
+            Self::Length(length) => length.write_value(dest),
         }
     }
 }
@@ -141,6 +145,7 @@ pub enum Clip {
     /// Clips along the bounds of the viewport
     Auto,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Clip {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -164,8 +169,9 @@ impl<'input> Parse<'input> for Clip {
             })
     }
 }
-impl ToAtom for Clip {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Clip {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -173,13 +179,13 @@ impl ToAtom for Clip {
             Self::Auto => dest.write_str("auto"),
             Self::Shape([top, right, bottom, left]) => {
                 dest.write_str("rect(")?;
-                top.write_atom(dest)?;
+                top.write_value(dest)?;
                 dest.write_char(' ')?;
-                right.write_atom(dest)?;
+                right.write_value(dest)?;
                 dest.write_char(' ')?;
-                bottom.write_atom(dest)?;
+                bottom.write_value(dest)?;
                 dest.write_char(' ')?;
-                left.write_atom(dest)?;
+                left.write_value(dest)?;
                 dest.write_char(')')
             }
         }
@@ -200,6 +206,7 @@ pub enum ColorProfile<'i> {
     /// A reference to the colour profile
     IRI(IRI<'i>),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ColorProfile<'input> {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -219,16 +226,17 @@ impl<'input> Parse<'input> for ColorProfile<'input> {
             .or_else(|_| IRI::parse(input).map(Self::IRI))
     }
 }
-impl ToAtom for ColorProfile<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for ColorProfile<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
             Self::SRGB => dest.write_str("sRGB"),
-            Self::Name(name) => name.write_atom(dest),
-            Self::IRI(iri) => iri.write_atom(dest),
+            Self::Name(name) => name.write_value(dest),
+            Self::IRI(iri) => iri.write_value(dest),
         }
     }
 }
@@ -274,6 +282,7 @@ pub enum EnableBackground {
     /// Enables children to access a new background image
     New(Option<(Number, Number, Number, Number)>),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for EnableBackground {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -299,8 +308,9 @@ impl<'input> Parse<'input> for EnableBackground {
             })
     }
 }
-impl ToAtom for EnableBackground {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for EnableBackground {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -309,13 +319,13 @@ impl ToAtom for EnableBackground {
             Self::New(None) => dest.write_str("new"),
             Self::New(Some((x, y, width, height))) => {
                 dest.write_str("new ")?;
-                x.write_atom(dest)?;
+                x.write_value(dest)?;
                 dest.write_char(' ')?;
-                y.write_atom(dest)?;
+                y.write_value(dest)?;
                 dest.write_char(' ')?;
-                width.write_atom(dest)?;
+                width.write_value(dest)?;
                 dest.write_char(' ')?;
-                height.write_atom(dest)
+                height.write_value(dest)
             }
         }
     }
@@ -328,17 +338,19 @@ impl ToAtom for EnableBackground {
 pub struct FontFamily<'input>(
     pub ListOf<lightningcss::properties::font::FontFamily<'input>, Comma>,
 );
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontFamily<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         Ok(Self(ListOf::parse(input)?))
     }
 }
-impl ToAtom for FontFamily<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontFamily<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.0.write_atom(dest)
+        self.0.write_value(dest)
     }
 }
 
@@ -352,6 +364,7 @@ pub enum FontSizeAdjust {
     /// Use the default x-height
     None,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontSizeAdjust {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -359,13 +372,14 @@ impl<'input> Parse<'input> for FontSizeAdjust {
             .or_else(|_| Number::parse(input).map(Self::Number))
     }
 }
-impl ToAtom for FontSizeAdjust {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontSizeAdjust {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) => number.write_atom(dest),
+            Self::Number(number) => number.write_value(dest),
             Self::None => dest.write_str("none"),
         }
     }
@@ -396,6 +410,7 @@ pub enum FontVariant {
         font_variant_emoji: Option<FontVariantEmoji>,
     },
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariant {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -464,8 +479,9 @@ impl<'input> Parse<'input> for FontVariant {
             })
     }
 }
-impl ToAtom for FontVariant {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontVariant {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -482,42 +498,42 @@ impl ToAtom for FontVariant {
             } => {
                 let mut after = false;
                 if *font_variant_ligatures != FontVariantLigatures::default() {
-                    font_variant_ligatures.write_atom(dest)?;
+                    font_variant_ligatures.write_value(dest)?;
                     after = true;
                 }
                 if let Some(value) = font_variant_caps {
                     if after {
                         dest.write_char(' ')?;
                     }
-                    value.write_atom(dest)?;
+                    value.write_value(dest)?;
                     after = true;
                 }
                 if *font_variant_numeric != FontVariantNumeric::default() {
                     if after {
                         dest.write_char(' ')?;
                     }
-                    font_variant_numeric.write_atom(dest)?;
+                    font_variant_numeric.write_value(dest)?;
                     after = true;
                 }
                 if *font_variant_east_asian != FontVariantEastAsian::default() {
                     if after {
                         dest.write_char(' ')?;
                     }
-                    font_variant_east_asian.write_atom(dest)?;
+                    font_variant_east_asian.write_value(dest)?;
                     after = true;
                 }
                 if let Some(value) = font_variant_position {
                     if after {
                         dest.write_char(' ')?;
                     }
-                    value.write_atom(dest)?;
+                    value.write_value(dest)?;
                     after = true;
                 }
                 if let Some(value) = font_variant_emoji {
                     if after {
                         dest.write_char(' ')?;
                     }
-                    value.write_atom(dest)?;
+                    value.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -535,6 +551,7 @@ pub struct FontVariantLigatures {
     historical_lig_values: Option<HistoricalLigValues>,
     contextual_alt_values: Option<ContextualAltValues>,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantLigatures {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let mut result = FontVariantLigatures {
@@ -573,22 +590,23 @@ impl<'input> Parse<'input> for FontVariantLigatures {
         Ok(result)
     }
 }
-impl ToAtom for FontVariantLigatures {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontVariantLigatures {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         if let Some(value) = &self.common_lig_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.discretionary_lig_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.historical_lig_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.contextual_alt_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         Ok(())
     }
@@ -666,6 +684,7 @@ pub struct FontVariantNumeric {
     /// Enables `zero`
     slashed_zero: bool,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantNumeric {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let mut result = Self {
@@ -715,19 +734,20 @@ impl<'input> Parse<'input> for FontVariantNumeric {
         Ok(result)
     }
 }
-impl ToAtom for FontVariantNumeric {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontVariantNumeric {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         if let Some(value) = &self.numeric_figure_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.numeric_spacing_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.numeric_fraction_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if self.ordinal {
             dest.write_str("ordinal")?;
@@ -750,6 +770,7 @@ pub enum GlyphOrientationVertical {
     /// An angle to be rounded to the closest 90deg interval
     Angle(Angle),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for GlyphOrientationVertical {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -757,14 +778,15 @@ impl<'input> Parse<'input> for GlyphOrientationVertical {
             .or_else(|_| Angle::parse(input).map(Self::Angle))
     }
 }
-impl ToAtom for GlyphOrientationVertical {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for GlyphOrientationVertical {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
-            Self::Angle(angle) => angle.write_atom(dest),
+            Self::Angle(angle) => angle.write_value(dest),
         }
     }
 }
@@ -780,6 +802,7 @@ pub enum Kerning {
     /// Auto-kerning is disabled. Instead, inter-character spacing is set to the given length.
     Length(Length),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Kerning {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -787,14 +810,15 @@ impl<'input> Parse<'input> for Kerning {
             .or_else(|_| Length::parse(input).map(Self::Length))
     }
 }
-impl ToAtom for Kerning {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Kerning {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
-            Self::Length(length) => length.write_atom(dest),
+            Self::Length(length) => length.write_value(dest),
         }
     }
 }
@@ -827,13 +851,15 @@ impl LengthPercentage {
         ))
     }
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for LengthPercentage {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         lightningcss::values::length::LengthPercentage::parse(input).map(Self)
     }
 }
-impl ToAtom for LengthPercentage {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for LengthPercentage {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -842,9 +868,9 @@ impl ToAtom for LengthPercentage {
         ))) = self
         {
             // NOTE: We're omitting length-value unit, since this is allowed in SVG 1.1
-            px.write_atom(dest)
+            px.write_value(dest)
         } else {
-            self.0.write_atom(dest)
+            self.0.write_value(dest)
         }
     }
 }
@@ -866,17 +892,19 @@ impl DerefMut for LengthPercentage {
 /// [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/masking.html#MaskProperty)
 /// [SVG 2](https://drafts.fxtf.org/css-masking-1/#propdef-mask)
 pub struct Mask<'input>(pub ListOf<lightningcss::properties::masking::Mask<'input>, Comma>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Mask<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         ListOf::parse(input).map(Self)
     }
 }
-impl ToAtom for Mask<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Mask<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.0.write_atom(dest)
+        self.0.write_value(dest)
     }
 }
 
@@ -920,6 +948,7 @@ pub struct FontVariantEastAsian {
     /// Enables `ruby`
     ruby: bool,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantEastAsian {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let mut result = Self {
@@ -953,16 +982,17 @@ impl<'input> Parse<'input> for FontVariantEastAsian {
         Ok(result)
     }
 }
-impl ToAtom for FontVariantEastAsian {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for FontVariantEastAsian {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         if let Some(value) = &self.east_asian_variant_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if let Some(value) = &self.east_asian_width_values {
-            value.write_atom(dest)?;
+            value.write_value(dest)?;
         }
         if self.ruby {
             dest.write_str("ruby")?;
@@ -1047,6 +1077,7 @@ impl PaintOrder {
         inner[0] == Paint::Fill && inner[1] == Paint::Stroke && inner[2] == Paint::Markers
     }
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for PaintOrder {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -1079,8 +1110,9 @@ impl<'input> Parse<'input> for PaintOrder {
         Ok(Self(paint_order))
     }
 }
-impl ToAtom for PaintOrder {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for PaintOrder {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -1088,11 +1120,11 @@ impl ToAtom for PaintOrder {
         if self.is_normal() {
             return dest.write_str("normal");
         }
-        self.0[0].write_atom(dest)?;
+        self.0[0].write_value(dest)?;
         dest.write_char(' ')?;
-        self.0[1].write_atom(dest)?;
+        self.0[1].write_value(dest)?;
         dest.write_char(' ')?;
-        self.0[2].write_atom(dest)
+        self.0[2].write_value(dest)
     }
 }
 

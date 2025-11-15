@@ -1,11 +1,10 @@
 //! Filter effect attributes as specified in [filter-effects](https://drafts.fxtf.org/filter-effects/)
-use crate::{
-    atom::Atom,
-    enum_attr,
-    error::{ParseErrorKind, PrinterError},
-    parse::Parse,
-    serialize::{Printer, ToAtom},
-};
+#[cfg(feature = "parse")]
+use oxvg_parse::{error::ParseError, Parse, Parser};
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+
+use crate::{atom::Atom, enum_attr};
 
 enum_attr!(
     /// Indicates which channel from `in2` to use to display the pixels in `in` by
@@ -165,10 +164,9 @@ pub enum In<'input> {
     /// The `result` of some preceding element within the `filter` element
     Reference(Atom<'input>),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for In<'input> {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -185,8 +183,9 @@ impl<'input> Parse<'input> for In<'input> {
             .or_else(|()| Atom::parse(input).map(Self::Reference))
     }
 }
-impl ToAtom for In<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for In<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {

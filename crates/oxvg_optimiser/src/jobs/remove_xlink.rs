@@ -1,13 +1,16 @@
 use std::cell::RefCell;
 
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::{uncategorised::Target, xlink::XLinkShow, Attr, AttrId},
-    element::{category::ElementInfo, data::ElementId, Element},
-    get_attribute, has_attribute, is_attribute, is_element, is_prefix,
-    name::{Prefix, QualName, NS},
-    remove_attribute, set_attribute,
+    element::Element,
+    get_attribute, has_attribute, is_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{uncategorised::Target, xlink::XLinkShow, Attr, AttrId},
+    element::{ElementId, ElementInfo},
+    is_prefix,
+    name::{QualName, NS},
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,7 +88,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
             else {
                 continue;
             };
-            if *prefix != Prefix::XMLNS {
+            if !is_prefix!(prefix, XMLNS) {
                 continue;
             }
             if value == NS::XLink.uri() {

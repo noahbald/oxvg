@@ -1,8 +1,11 @@
 use oxvg_ast::{
-    attribute::data::{presentation::LengthPercentage, uncategorised::Radius},
-    element::{data::ElementId, Element},
-    get_attribute, remove_attribute, set_attribute,
+    element::Element,
+    get_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{presentation::LengthPercentage, uncategorised::Radius},
+    element::ElementId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,8 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertEllipseToCircle {
         element: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let name = element.qual_name();
-        if *name != ElementId::Ellipse {
+        if !is_element!(element, Ellipse) {
             return Ok(());
         }
 

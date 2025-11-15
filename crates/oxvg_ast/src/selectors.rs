@@ -6,6 +6,14 @@ use std::{
 };
 
 use cssparser::ToCss;
+use lightningcss::printer::PrinterOptions;
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    element::ElementId,
+    name::{self, Prefix, QualName},
+};
+use oxvg_serialize::ToValue as _;
 use precomputed_hash::PrecomputedHash;
 use selectors::{
     context::SelectorCaches,
@@ -15,13 +23,8 @@ use selectors::{
 };
 
 use crate::{
-    atom::Atom,
-    attribute::data::{Attr, AttrId},
-    element::{self, data::ElementId, Element},
-    get_attribute, is_attribute, is_element,
-    name::{self, Prefix, QualName},
-    node,
-    serialize::{PrinterOptions, ToAtom},
+    element::{self, Element},
+    get_attribute, is_attribute, is_element, node,
 };
 
 type A<'input> = Atom<'input>;
@@ -208,7 +211,7 @@ impl selectors::SelectorImpl for SelectorImpl {
 /// An iterator for the elements matching a given selector.
 #[allow(clippy::type_complexity)]
 pub struct Select<'input, 'arena> {
-    inner: element::data::Iterator<'input, 'arena>,
+    inner: element::Iterator<'input, 'arena>,
     scope: Option<Element<'input, 'arena>>,
     selector: Selector,
     selector_caches: SelectorCaches,
@@ -427,7 +430,7 @@ impl selectors::Element for SelectElement<'_, '_> {
         let Some(value) = value else {
             return false;
         };
-        let Ok(value) = value.to_atom_string(PrinterOptions::default()) else {
+        let Ok(value) = value.to_value_string(PrinterOptions::default()) else {
             return false;
         };
         operation.eval_str(&value)
@@ -468,7 +471,7 @@ impl selectors::Element for SelectElement<'_, '_> {
         }
         (match self.element.qual_name() {
             ElementId::A => true,
-            ElementId::Unknown(QualName { local, .. }) => matches!(&**local, "area" | "link"),
+            ElementId::Unknown(QualName { local, .. }) => matches!(local.as_str(), "area" | "link"),
             _ => false,
         }) && self.element.has_attribute(&AttrId::Href)
     }

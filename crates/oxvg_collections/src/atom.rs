@@ -5,8 +5,6 @@ use lightningcss::values::string::CowArcStr;
 #[cfg(feature = "markup5ever")]
 use tendril::SliceExt;
 
-use crate::{parse::Parse, serialize::ToAtom};
-
 #[derive(Debug, Clone)]
 /// Represents a constant value found while parsing the document.
 ///
@@ -121,13 +119,11 @@ impl<'input> From<CowArcStr<'input>> for Atom<'input> {
     }
 }
 
-impl<'input> Parse<'input> for Atom<'input> {
+#[cfg(feature = "parse")]
+impl<'input> oxvg_parse::Parse<'input> for Atom<'input> {
     fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<
-        Self,
-        cssparser_lightningcss::ParseError<'input, crate::error::ParseErrorKind<'input>>,
-    > {
+        input: &mut oxvg_parse::Parser<'input, 't>,
+    ) -> Result<Self, oxvg_parse::error::ParseError<'input>> {
         let start = input.position();
         while input.next().is_ok() {}
         Ok(Self::Cow(input.slice_from(start).into()))
@@ -140,11 +136,12 @@ impl std::fmt::Display for Atom<'_> {
     }
 }
 
-impl ToAtom for Atom<'_> {
-    fn write_atom<W>(
+#[cfg(feature = "serialize")]
+impl oxvg_serialize::ToValue for Atom<'_> {
+    fn write_value<W>(
         &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+        dest: &mut oxvg_serialize::Printer<W>,
+    ) -> Result<(), oxvg_serialize::error::PrinterError>
     where
         W: std::fmt::Write,
     {

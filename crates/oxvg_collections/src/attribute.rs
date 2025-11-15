@@ -51,14 +51,18 @@ use uncategorised::{
 use xlink::{XLinkActuate, XLinkShow, XLinkType};
 use xml::XmlSpace;
 
-use super::content_type::{ContentType, ContentTypeId, ContentTypeRef};
-use crate::{
+use super::{
     atom::Atom,
-    attribute::{AttributeGroup, AttributeInfo},
+    content_type::{ContentType, ContentTypeId, ContentTypeRef},
     name::{Prefix, QualName},
-    parse::Parse,
-    serialize::ToAtom,
 };
+
+#[cfg(feature = "parse")]
+use oxvg_parse::Parse;
+
+pub use group::{AttributeGroup, AttributeInfo};
+
+mod group;
 
 pub mod animation;
 pub mod animation_addition;
@@ -99,10 +103,11 @@ macro_rules! enum_attr {
             )+
         }
 
-        impl<'input> $crate::attribute::data::Parse<'input> for $attr {
+        #[cfg(feature = "parse")]
+        impl<'input> $crate::attribute::Parse<'input> for $attr {
             fn parse<'t>(
-                input: &mut $crate::parse::Parser<'input, 't>,
-            ) -> Result<Self, $crate::error::ParseError<'input>> {
+                input: &mut oxvg_parse::Parser<'input, 't>,
+            ) -> Result<Self, oxvg_parse::error::ParseError<'input>> {
                 let location = input.current_source_location();
                 let ident = input.expect_ident()?;
                 let str: &str = &*ident;
@@ -115,11 +120,12 @@ macro_rules! enum_attr {
             }
         }
 
-        impl $crate::serialize::ToAtom for $attr {
-            fn write_atom<W>(
+        #[cfg(feature = "serialize")]
+        impl oxvg_serialize::ToValue for $attr {
+            fn write_value<W>(
                 &self,
-                dest: &mut $crate::serialize::Printer<W>,
-            ) -> Result<(), $crate::error::PrinterError>
+                dest: &mut oxvg_serialize::Printer<W>,
+            ) -> Result<(), oxvg_serialize::error::PrinterError>
             where
                 W: std::fmt::Write,
             {
@@ -348,6 +354,7 @@ macro_rules! define_attrs {
         }
 
         impl<'input> Attr<'input> {
+            #[cfg(feature = "parse")]
             /// Creates a new attribute
             pub fn new(name: AttrId<'input>, value: &'input str) -> Self {
                 match name {
@@ -437,15 +444,16 @@ macro_rules! define_attrs {
             }
         }
 
-        impl ToAtom for Attr<'_> {
-            fn write_atom<W>(&self, dest: &mut crate::serialize::Printer<W>) -> Result<(), crate::error::PrinterError>
+        #[cfg(feature = "serialize")]
+        impl oxvg_serialize::ToValue for Attr<'_> {
+            fn write_value<W>(&self, dest: &mut oxvg_serialize::Printer<W>) -> Result<(), oxvg_serialize::error::PrinterError>
                 where
                     W: std::fmt::Write {
                 match self {
-                    $(Self::$attr(value) => value.write_atom(dest),)+
-                    Self::Aliased { value, .. } => value.write_atom(dest),
-                    Self::Unparsed { value, .. } => value.write_atom(dest),
-                    Self::CSSUnknown { value, .. } => value.write_atom(dest),
+                    $(Self::$attr(value) => value.write_value(dest),)+
+                    Self::Aliased { value, .. } => value.write_value(dest),
+                    Self::Unparsed { value, .. } => value.write_value(dest),
+                    Self::CSSUnknown { value, .. } => value.write_value(dest),
                 }
             }
         }

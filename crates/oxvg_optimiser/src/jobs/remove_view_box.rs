@@ -1,10 +1,11 @@
 use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
-    atom::Atom,
-    attribute::{content_type::ContentType, data::presentation::LengthPercentage},
     element::Element,
     get_attribute, is_element, node, remove_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom, attribute::presentation::LengthPercentage, content_type::ContentType,
 };
 use serde::{Deserialize, Serialize};
 

@@ -12,12 +12,14 @@ use lightningcss::{
     rules::CssRuleList,
     stylesheet::{ParserFlags, ParserOptions, StyleSheet},
 };
+use oxvg_collections::{
+    attribute::{Attr, AttrId},
+    element::ElementId,
+    name::{Prefix, QualName},
+};
 
 use crate::{
     arena::Allocator,
-    attribute::data::{Attr, AttrId},
-    element::data::ElementId,
-    name::{Prefix, QualName},
     node::{Node, NodeData, Ref},
 };
 
@@ -333,10 +335,6 @@ impl std::error::Error for ParseError {}
 #[test]
 #[allow(clippy::too_many_lines)]
 fn parse_roxmltree() {
-    use crate::{
-        atom::Atom,
-        attribute::data::{inheritable::Inheritable, presentation::LengthPercentage},
-    };
     use lightningcss::{
         properties::svg::SVGPaint,
         values::{
@@ -344,6 +342,10 @@ fn parse_roxmltree() {
             length::LengthValue,
             percentage::{DimensionPercentage, Percentage},
         },
+    };
+    use oxvg_collections::{
+        atom::Atom,
+        attribute::{inheritable::Inheritable, presentation::LengthPercentage},
     };
     let source = r#"<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg">
   <rect width="100%" height="100%" fill="black" />

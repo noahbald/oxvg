@@ -1,8 +1,11 @@
 use oxvg_ast::{
-    attribute::{content_type::ContentTypeId, AttributeGroup, AttributeInfo},
     element::Element,
     is_element,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{AttributeGroup, AttributeInfo},
+    content_type::ContentTypeId,
 };
 use serde::{Deserialize, Serialize};
 

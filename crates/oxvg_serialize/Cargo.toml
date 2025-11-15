@@ -1,0 +1,17 @@
+[package]
+name = "oxvg_serialize"
+version = "0.0.3"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../../readme.md"
+keywords = ["svg", "svgo"]
+description = "Serializing primitives for SVG"
+
+[lints]
+workspace = true
+
+[dependencies]
+cssparser_lightningcss = { workspace = true }
+lightningcss = { workspace = true }

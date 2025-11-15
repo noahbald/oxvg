@@ -1,10 +1,10 @@
 //! A container for attributes which accept and `"inherited"` value
-use crate::{
-    error::{ParseError, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, ToAtom},
-};
 use std::fmt::{Debug, Write};
+
+#[cfg(feature = "parse")]
+use oxvg_parse::{error::ParseError, Parse, Parser};
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
 #[derive(Debug, PartialEq)]
 /// Wraps a type that can be provided with `"inherited"` as a value
@@ -69,6 +69,7 @@ impl<T: Debug + PartialEq> Inheritable<T> {
         }
     }
 }
+#[cfg(feature = "parse")]
 impl<'input, T: Parse<'input> + Debug + PartialEq> Parse<'input> for Inheritable<T> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -80,29 +81,31 @@ impl<'input, T: Parse<'input> + Debug + PartialEq> Parse<'input> for Inheritable
             .or_else(|_| T::parse(input).map(Self::Defined))
     }
 }
-impl<T: ToAtom + Debug + PartialEq> Inheritable<Box<T>> {
-    /// See [`crate::serialize::ToAtom::write_atom`]
+#[cfg(feature = "serialize")]
+impl<T: ToValue + Debug + PartialEq> Inheritable<Box<T>> {
+    /// See [`crate::serialize::ToValue::write_value`]
     ///
     /// # Errors
     /// If the printer fails
-    pub fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    pub fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: Write,
     {
         match self {
             Self::Inherited => dest.write_str("inherit"),
-            Self::Defined(inner) => inner.write_atom(dest),
+            Self::Defined(inner) => inner.write_value(dest),
         }
     }
 }
-impl<T: ToAtom + Debug + PartialEq> ToAtom for Inheritable<T> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl<T: ToValue + Debug + PartialEq> ToValue for Inheritable<T> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: Write,
     {
         match self {
             Self::Inherited => dest.write_str("inherit"),
-            Self::Defined(inner) => inner.write_atom(dest),
+            Self::Defined(inner) => inner.write_value(dest),
         }
     }
 }

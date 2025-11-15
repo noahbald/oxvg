@@ -3,8 +3,9 @@ extern crate console_error_panic_hook;
 use oxvg_ast::{
     arena::Allocator,
     parse::roxmltree::parse,
-    serialize::{self, Node as _, Options},
+    serialize::Node as _,
     visitor::Info,
+    xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 
@@ -61,7 +62,7 @@ pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
         .map_err(|err| err.to_string())?;
 
     dom.serialize_with_options(Options {
-        indent: serialize::Indent::None,
+        indent: Indent::None,
         ..Default::default()
     })
     .map_err(|err| err.to_string())

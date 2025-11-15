@@ -1,20 +1,22 @@
 //! Miscellaneous attribute types
-use cssparser_lightningcss::Token;
 use lightningcss::media_query::MediaList;
 
-use crate::{
-    atom::Atom,
-    enum_attr,
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::Parser,
-    serialize::{Printer, ToAtom},
+#[cfg(feature = "parse")]
+use cssparser_lightningcss::Token;
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
 };
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+
+use crate::{atom::Atom, enum_attr};
 
 use super::{
     core::{Angle, Number, Percentage},
     presentation::{LengthOrNumber, LengthPercentage},
     transform::SVGTransform,
-    Parse,
 };
 
 enum_attr!(
@@ -88,6 +90,7 @@ pub struct PreserveAspectRatio {
     /// Condition to complete scaling
     pub meet_or_slice: PreserveAspectRatioMeetOrSlice,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for PreserveAspectRatio {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -102,15 +105,16 @@ impl<'input> Parse<'input> for PreserveAspectRatio {
         })
     }
 }
-impl ToAtom for PreserveAspectRatio {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for PreserveAspectRatio {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.align.write_atom(dest)?;
+        self.align.write_value(dest)?;
         if self.meet_or_slice != PreserveAspectRatioMeetOrSlice::default() {
             dest.write_char(' ')?;
-            self.meet_or_slice.write_atom(dest)?;
+            self.meet_or_slice.write_value(dest)?;
         }
         Ok(())
     }
@@ -318,6 +322,7 @@ pub type MediaType<'i> = Atom<'i>;
 ///
 /// [w3](https://svgwg.org/svg2-draft/styling.html#StyleElementMediaAttribute)
 pub struct MediaQueryList<'i>(pub MediaList<'i>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for MediaQueryList<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         MediaList::parse(input)
@@ -325,12 +330,13 @@ impl<'input> Parse<'input> for MediaQueryList<'input> {
             .map_err(ParseErrorKind::from_css)
     }
 }
-impl ToAtom for MediaQueryList<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for MediaQueryList<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.0.write_atom(dest)
+        self.0.write_value(dest)
     }
 }
 
@@ -342,6 +348,7 @@ pub enum NumberPercentage {
     /// Percentage
     Percentage(Percentage),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NumberPercentage {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -351,14 +358,15 @@ impl<'input> Parse<'input> for NumberPercentage {
             .or_else(|_| Number::parse(input).map(Self::Number))
     }
 }
-impl ToAtom for NumberPercentage {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for NumberPercentage {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) => number.write_atom(dest),
-            Self::Percentage(percentage) => percentage.write_atom(dest),
+            Self::Number(number) => number.write_value(dest),
+            Self::Percentage(percentage) => percentage.write_value(dest),
         }
     }
 }
@@ -377,6 +385,7 @@ pub enum Orient {
     /// The element is rotated exclusively in the direction specified, in degrees
     Number(Number),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Orient {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -396,16 +405,17 @@ impl<'input> Parse<'input> for Orient {
             .or_else(|_| Number::parse(input).map(Self::Number))
     }
 }
-impl ToAtom for Orient {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Orient {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
             Self::AutoStartReverse => dest.write_str("auto-start-reverse"),
-            Self::Angle(angle) => angle.write_atom(dest),
-            Self::Number(number) => number.write_atom(dest),
+            Self::Angle(angle) => angle.write_value(dest),
+            Self::Number(number) => number.write_value(dest),
         }
     }
 }
@@ -430,6 +440,7 @@ pub enum Radius {
     /// The length inherits the length of some other attribute
     Auto,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Radius {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -444,14 +455,15 @@ impl<'input> Parse<'input> for Radius {
             .or_else(|_| LengthPercentage::parse(input).map(Self::LengthPercentage))
     }
 }
-impl ToAtom for Radius {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Radius {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
-            Self::LengthPercentage(v) => v.write_atom(dest),
+            Self::LengthPercentage(v) => v.write_value(dest),
         }
     }
 }
@@ -467,6 +479,7 @@ pub enum ColorProfileName<'input> {
     /// The name of an icc-color specification.
     Name(Atom<'input>),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ColorProfileName<'input> {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -476,14 +489,15 @@ impl<'input> Parse<'input> for ColorProfileName<'input> {
             .unwrap_or_else(|_| Self::Name(input.slice_from(input.position()).into())))
     }
 }
-impl ToAtom for ColorProfileName<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for ColorProfileName<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Srbg => dest.write_str("sRGB"),
-            Self::Name(name) => name.write_atom(dest),
+            Self::Name(name) => name.write_value(dest),
         }
     }
 }
@@ -522,6 +536,7 @@ pub enum RefX {
     /// The right edge of the shape
     Right,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RefX {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -542,13 +557,14 @@ impl<'input> Parse<'input> for RefX {
             })
     }
 }
-impl ToAtom for RefX {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for RefX {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::LengthOrNumber(length_or_number) => length_or_number.write_atom(dest),
+            Self::LengthOrNumber(length_or_number) => length_or_number.write_value(dest),
             Self::Left => dest.write_str("left"),
             Self::Center => dest.write_str("center"),
             Self::Right => dest.write_str("right"),
@@ -570,6 +586,7 @@ pub enum RefY {
     /// The bottom edge of the shape
     Bottom,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RefY {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -590,13 +607,14 @@ impl<'input> Parse<'input> for RefY {
             })
     }
 }
-impl ToAtom for RefY {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for RefY {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::LengthOrNumber(length_or_number) => length_or_number.write_atom(dest),
+            Self::LengthOrNumber(length_or_number) => length_or_number.write_value(dest),
             Self::Top => dest.write_str("top"),
             Self::Center => dest.write_str("center"),
             Self::Bottom => dest.write_str("bottom"),
@@ -661,6 +679,7 @@ pub enum Rotate {
     /// The object is rotated over time by the angle of the direction of the motion path plus 180 degrees.
     AutoReverse,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Rotate {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -680,15 +699,16 @@ impl<'input> Parse<'input> for Rotate {
             })
     }
 }
-impl ToAtom for Rotate {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Rotate {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Auto => dest.write_str("auto"),
             Self::AutoReverse => dest.write_str("auto-reverse"),
-            Self::Number(number) => number.write_atom(dest),
+            Self::Number(number) => number.write_value(dest),
         }
     }
 }
@@ -724,6 +744,7 @@ pub enum Target<'input> {
     /// Specifies the name of the browsing context (tab, inline frame, object, etc.) for display of the linked content. If a context with this name already exists, and can be securely accessed from this document, it is re-used, replacing the existing content.
     XMLName(Atom<'input>),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Target<'input> {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -742,8 +763,9 @@ impl<'input> Parse<'input> for Target<'input> {
             .unwrap_or_else(|()| Self::XMLName(input.slice_from(input.position()).into())))
     }
 }
-impl ToAtom for Target<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Target<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -752,7 +774,7 @@ impl ToAtom for Target<'_> {
             Self::_Parent => dest.write_str("_parent"),
             Self::_Top => dest.write_str("_top"),
             Self::_Blank => dest.write_str("_blank"),
-            Self::XMLName(name) => name.write_atom(dest),
+            Self::XMLName(name) => name.write_value(dest),
         }
     }
 }
@@ -804,6 +826,7 @@ pub type Transform = SVGTransform;
 ///
 /// [w3](https://www.w3.org/TR/wai-aria-1.1/#valuetype_true-false)
 pub struct TrueFalse(pub bool);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for TrueFalse {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let location = input.current_source_location();
@@ -816,11 +839,9 @@ impl<'input> Parse<'input> for TrueFalse {
         }))
     }
 }
-impl ToAtom for TrueFalse {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for TrueFalse {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -837,6 +858,7 @@ impl ToAtom for TrueFalse {
 ///
 /// [w3](https://www.w3.org/TR/wai-aria-1.1/#valuetype_true-false-undefined)
 pub struct TrueFalseUndefined(pub Option<TrueFalse>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for TrueFalseUndefined {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -848,16 +870,14 @@ impl<'input> Parse<'input> for TrueFalseUndefined {
             .or_else(|_| TrueFalse::parse(input).map(Some).map(Self))
     }
 }
-impl ToAtom for TrueFalseUndefined {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for TrueFalseUndefined {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match &self.0 {
-            Some(true_false) => true_false.write_atom(dest),
+            Some(true_false) => true_false.write_value(dest),
             None => dest.write_str("undefined"),
         }
     }
@@ -895,6 +915,7 @@ pub struct ViewBox {
     /// The height of the viewbox
     pub height: Number,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ViewBox {
     fn parse<'t>(
         input: &mut cssparser_lightningcss::Parser<'input, 't>,
@@ -928,18 +949,19 @@ impl<'input> Parse<'input> for ViewBox {
         })
     }
 }
-impl ToAtom for ViewBox {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for ViewBox {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.min_x.write_atom(dest)?;
+        self.min_x.write_value(dest)?;
         dest.write_char(' ')?;
-        self.min_y.write_atom(dest)?;
+        self.min_y.write_value(dest)?;
         dest.write_char(' ')?;
-        self.width.write_atom(dest)?;
+        self.width.write_value(dest)?;
         dest.write_char(' ')?;
-        self.height.write_atom(dest)
+        self.height.write_value(dest)
     }
 }
 

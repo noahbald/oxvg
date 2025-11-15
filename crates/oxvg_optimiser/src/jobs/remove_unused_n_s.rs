@@ -1,11 +1,14 @@
 use std::{cell::Cell, collections::HashSet};
 
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::{Attr, AttrId},
-    element::{data::ElementId, Element},
-    name::{Prefix, QualName},
+    element::Element,
+    is_element,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    name::{Prefix, QualName},
 };
 use serde::{Deserialize, Serialize};
 
@@ -112,7 +115,7 @@ impl<'input> State<'input> {
         element: &Element<'input, '_>,
         unused_namespaces: &mut HashSet<Atom<'input>>,
     ) {
-        if *element.qual_name() != ElementId::Svg {
+        if !is_element!(element) {
             return;
         }
 
@@ -136,7 +139,7 @@ impl<'input> State<'input> {
         element: &Element<'input, '_>,
         unused_namespaces: &mut HashSet<Atom<'input>>,
     ) {
-        if *element.qual_name() != ElementId::Svg {
+        if !is_element!(element) {
             return;
         }
 

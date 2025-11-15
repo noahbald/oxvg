@@ -1,5 +1,4 @@
 //! The transform attribute type
-use cssparser_lightningcss::Token;
 use itertools::Itertools as _;
 use lightningcss::{
     properties::transform::{Matrix, Matrix3d, Transform, TransformList},
@@ -9,11 +8,15 @@ use lightningcss::{
     },
 };
 
-use crate::{
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, PrinterOptions, ToAtom},
+#[cfg(feature = "parse")]
+use cssparser_lightningcss::Token;
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
 };
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, PrinterOptions, ToValue};
 
 use super::core::{Angle, Number};
 
@@ -100,6 +103,7 @@ impl SVGTransform {
             .for_each(|transform| transform.round(precision));
     }
 
+    #[cfg(feature = "serialize")]
     /// Converts a matrix to the shortest form of a transform
     pub fn matrix_to_transform(&self, precision: &Precision) -> Vec<Self> {
         let mut shortest = vec![self.clone()];
@@ -110,7 +114,7 @@ impl SVGTransform {
         let decomposed = Self::get_compositions(m);
 
         Self::round_vec(&mut shortest, precision);
-        let Ok(starting_string) = shortest[0].to_atom_string(PrinterOptions::default()) else {
+        let Ok(starting_string) = shortest[0].to_value_string(PrinterOptions::default()) else {
             return vec![self.clone()];
         };
         let mut shortest_len = starting_string.len();
@@ -124,7 +128,7 @@ impl SVGTransform {
             let optimized_string = optimized
                 .iter()
                 .map(|item| {
-                    item.to_atom_string(PrinterOptions::default())
+                    item.to_value_string(PrinterOptions::default())
                         .unwrap_or_default()
                 })
                 .join("");
@@ -259,6 +263,7 @@ impl SVGTransform {
     }
 }
 
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for SVGTransform {
     #[allow(clippy::many_single_char_names)]
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
@@ -340,70 +345,68 @@ impl<'input> Parse<'input> for SVGTransform {
             .or_else(|_| Ok(SVGTransform::CssTransform(Transform::parse(input)?)))
     }
 }
-impl ToAtom for SVGTransform {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for SVGTransform {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             SVGTransform::Matrix(Matrix { a, b, c, d, e, f }) => {
                 dest.write_str("matrix(")?;
-                a.write_atom(dest)?;
+                a.write_value(dest)?;
                 dest.write_char(' ')?;
-                b.write_atom(dest)?;
+                b.write_value(dest)?;
                 dest.write_char(' ')?;
-                c.write_atom(dest)?;
+                c.write_value(dest)?;
                 dest.write_char(' ')?;
-                d.write_atom(dest)?;
+                d.write_value(dest)?;
                 dest.write_char(' ')?;
-                e.write_atom(dest)?;
+                e.write_value(dest)?;
                 dest.write_char(' ')?;
-                f.write_atom(dest)?;
+                f.write_value(dest)?;
                 dest.write_char(')')
             }
             SVGTransform::Translate(x, y) => {
                 dest.write_str("translate(")?;
-                x.write_atom(dest)?;
+                x.write_value(dest)?;
                 if *y != 0.0 {
                     dest.write_char(' ')?;
-                    y.write_atom(dest)?;
+                    y.write_value(dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::Scale(x, y) => {
                 dest.write_str("scale(")?;
-                x.write_atom(dest)?;
+                x.write_value(dest)?;
                 if x != y {
                     dest.write_char(' ')?;
-                    y.write_atom(dest)?;
+                    y.write_value(dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::Rotate(angle, x, y) => {
                 dest.write_str("rotate(")?;
-                angle.write_atom(dest)?;
+                angle.write_value(dest)?;
                 if *x != 0.0 || *y != 0.0 {
                     dest.write_char(' ')?;
-                    x.write_atom(dest)?;
+                    x.write_value(dest)?;
                     dest.write_char(' ')?;
-                    y.write_atom(dest)?;
+                    y.write_value(dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::SkewX(angle) => {
                 dest.write_str("skewX(")?;
-                angle.write_atom(dest)?;
+                angle.write_value(dest)?;
                 dest.write_char(')')
             }
             SVGTransform::SkewY(angle) => {
                 dest.write_str("skewY(")?;
-                angle.write_atom(dest)?;
+                angle.write_value(dest)?;
                 dest.write_char(')')
             }
-            SVGTransform::CssTransform(transform) => transform.write_atom(dest),
+            SVGTransform::CssTransform(transform) => transform.write_value(dest),
         }
     }
 }
@@ -486,6 +489,7 @@ impl TryFrom<&Transform> for SVGTransform {
         })
     }
 }
+#[cfg(feature = "parse")]
 fn skip_comma_and_whitespace(input: &mut Parser<'_, '_>) {
     input.skip_whitespace();
     let _ = input.try_parse(Parser::expect_comma);
@@ -584,6 +588,7 @@ impl TryFrom<&TransformList> for SVGTransformList {
     }
 }
 
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for SVGTransformList {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let mut result = Vec::new();
@@ -599,17 +604,18 @@ impl<'input> Parse<'input> for SVGTransformList {
         }
     }
 }
-impl ToAtom for SVGTransformList {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for SVGTransformList {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         let mut items = self.0.iter();
         if let Some(first) = items.next() {
-            first.write_atom(dest)?;
+            first.write_value(dest)?;
         }
         for item in items {
-            item.write_atom(dest)?;
+            item.write_value(dest)?;
         }
         Ok(())
     }

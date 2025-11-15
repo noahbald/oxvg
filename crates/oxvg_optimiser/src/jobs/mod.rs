@@ -320,9 +320,7 @@ macro_rules! test_config {
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        arena::Allocator,
-        parse::roxmltree::parse,
-        serialize::{Node, Options},
+        arena::Allocator, parse::roxmltree::parse, serialize::Node as _, serialize::Options,
     };
     use roxmltree;
 

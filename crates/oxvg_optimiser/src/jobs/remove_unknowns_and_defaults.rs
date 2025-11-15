@@ -1,16 +1,20 @@
 use std::sync::LazyLock;
 
 use oxvg_ast::{
-    attribute::{content_type::ContentTypeId, AttributeGroup, AttributeInfo},
-    element::data::ElementId,
-    has_attribute, is_attribute, is_prefix,
-    name::Prefix,
+    has_attribute, is_attribute,
     node::{self, Ref},
     style::{ComputedStyles, Mode},
     visitor::{Context, ContextFlags, PrepareOutcome},
 };
 
 use oxvg_ast::{element::Element, visitor::Visitor};
+use oxvg_collections::{
+    attribute::{AttributeGroup, AttributeInfo},
+    content_type::ContentTypeId,
+    element::ElementId,
+    is_prefix,
+    name::Prefix,
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

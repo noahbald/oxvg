@@ -1,7 +1,6 @@
 //! Content types as specified in [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html) and [SVG 2](https://svgwg.org/svg2-draft/propidx.html)
 use std::ops::Deref;
 
-use cssparser_lightningcss::Token;
 use lightningcss::{
     declaration::DeclarationBlock,
     properties::svg::SVGPaint,
@@ -19,12 +18,17 @@ pub use lightningcss::{
     values::{percentage::Percentage, time::Time},
 };
 
-use crate::{
-    atom::Atom,
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, ToAtom},
+#[cfg(feature = "parse")]
+use cssparser_lightningcss::Token;
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
 };
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+
+use crate::atom::Atom;
 
 pub use super::transform::SVGTransformList;
 
@@ -40,6 +44,7 @@ pub type Class<'i> = NonWhitespace<'i>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// A sequence of non-whitespace characters
 pub struct NonWhitespace<'i>(pub Anything<'i>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NonWhitespace<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let start = input.position();
@@ -58,8 +63,9 @@ impl<'input> Parse<'input> for NonWhitespace<'input> {
         }
     }
 }
-impl ToAtom for NonWhitespace<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for NonWhitespace<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -84,6 +90,7 @@ impl<'a> From<&'a str> for NonWhitespace<'a> {
 ///
 /// [HTML](https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#boolean-attribute)
 pub struct Boolean<'input>(Option<Atom<'input>>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Boolean<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         Ok(Self(
@@ -96,11 +103,9 @@ impl<'input> Parse<'input> for Boolean<'input> {
         ))
     }
 }
-impl ToAtom for Boolean<'_> {
-    fn write_atom<W>(
-        &self,
-        _dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Boolean<'_> {
+    fn write_value<W>(&self, _dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -123,6 +128,7 @@ pub enum Length {
     /// A relative length
     Percentage(Percentage),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Length {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -132,19 +138,17 @@ impl<'input> Parse<'input> for Length {
             .or_else(|_| Number::parse(input).map(Self::Number))
     }
 }
-impl ToAtom for Length {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Length {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) => number.write_atom(dest),
-            Self::Length(LengthValue::Px(length)) => length.write_atom(dest),
-            Self::Length(length) => length.write_atom(dest),
-            Self::Percentage(percentage) => percentage.write_atom(dest),
+            Self::Number(number) => number.write_value(dest),
+            Self::Length(LengthValue::Px(length)) => length.write_value(dest),
+            Self::Length(length) => length.write_value(dest),
+            Self::Percentage(percentage) => percentage.write_value(dest),
         }
     }
 }
@@ -157,6 +161,7 @@ pub enum Frequency {
     /// Kilohertz; cycles per nano-second
     KHz(Number),
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Frequency {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let number = Number::parse(input)?;
@@ -170,21 +175,19 @@ impl<'input> Parse<'input> for Frequency {
         })
     }
 }
-impl ToAtom for Frequency {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Frequency {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
             Self::Hz(number) => {
-                number.write_atom(dest)?;
+                number.write_value(dest)?;
                 dest.write_str("Hz")
             }
             Self::KHz(number) => {
-                number.write_atom(dest)?;
+                number.write_value(dest)?;
                 dest.write_str("KHz")
             }
         }
@@ -212,6 +215,7 @@ pub type Number = CSSNumber;
 #[derive(Clone, Debug, PartialEq)]
 /// A pair of numbers, where the second is optional, seperated by a comma or whitespace
 pub struct NumberOptionalNumber(pub Number, pub Option<Number>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NumberOptionalNumber {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         let a = Number::parse(input)?;
@@ -227,18 +231,16 @@ impl<'input> Parse<'input> for NumberOptionalNumber {
         Ok(Self(a, b))
     }
 }
-impl ToAtom for NumberOptionalNumber {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for NumberOptionalNumber {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.0.write_atom(dest)?;
+        self.0.write_value(dest)?;
         if let Some(b) = self.1 {
             dest.write_char(' ')?;
-            b.write_atom(dest)?;
+            b.write_value(dest)?;
         }
         Ok(())
     }
@@ -252,6 +254,7 @@ pub type Paint<'i> = SVGPaint<'i>;
 #[derive(Clone, Debug, PartialEq)]
 /// A CSS style declaration block
 pub struct Style<'i>(pub DeclarationBlock<'i>);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Style<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         DeclarationBlock::parse(input, &ParserOptions::default())
@@ -259,12 +262,13 @@ impl<'input> Parse<'input> for Style<'input> {
             .map_err(ParseErrorKind::from_css)
     }
 }
-impl ToAtom for Style<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Style<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
-        self.0.write_atom(dest)
+        self.0.write_value(dest)
     }
 }
 impl<'input> Deref for Style<'input> {
@@ -278,11 +282,9 @@ impl<'input> Deref for Style<'input> {
 #[derive(Clone, Debug, PartialEq)]
 /// A raw list of CSS tokens
 pub struct TokenList<'input>(pub lightningcss::properties::custom::TokenList<'input>);
-impl ToAtom for TokenList<'_> {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for TokenList<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {

@@ -1,15 +1,17 @@
 //! Data that can be assigned to an element node.
 //!
 //! Essentially an embedding of the [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/eltindex.html) and [SVG 2](https://svgwg.org/svg2-draft/eltindex.html) spec.
-use crate::element::Element;
 
 use crate::{
     atom::Atom,
-    attribute::{data::AttrId, AttributeGroup},
-    element::category::{ElementCategory, ElementInfo},
+    attribute::{AttrId, AttributeGroup},
     name::{Prefix, QualName},
 };
-use std::{collections::VecDeque, fmt::Display};
+use std::fmt::Display;
+
+pub use category::{ElementCategory, ElementInfo};
+
+mod category;
 
 /// An element's category.
 type C = ElementCategory;
@@ -2104,34 +2106,4 @@ define_elements! {
             AttrId::K,
         ],
     },
-}
-
-#[derive(Debug)]
-/// An iterator that goes over an element and it's descendants in a breadth-first fashion
-pub struct Iterator<'input, 'arena> {
-    queue: VecDeque<Element<'input, 'arena>>,
-}
-
-impl<'input, 'arena> Iterator<'input, 'arena> {
-    /// Returns a breadth-first iterator starting at the given element
-    pub fn new(element: &Element<'input, 'arena>) -> Self {
-        let mut queue = VecDeque::new();
-        element.child_elements_iter().for_each(|e| {
-            queue.push_back(e);
-        });
-
-        Self { queue }
-    }
-}
-
-impl<'input, 'arena> std::iter::Iterator for Iterator<'input, 'arena> {
-    type Item = Element<'input, 'arena>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.queue.pop_front()?;
-        current.child_elements_iter().for_each(|e| {
-            self.queue.push_back(e);
-        });
-        Some(current)
-    }
 }

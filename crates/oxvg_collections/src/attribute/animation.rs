@@ -1,11 +1,13 @@
 //! Animation attribute types as specified in [animations](https://svgwg.org/specs/animations/)
-use crate::{
-    atom::Atom,
-    enum_attr,
-    error::{ParseError, ParseErrorKind, PrinterError},
-    parse::{Parse, Parser},
-    serialize::{Printer, ToAtom},
+#[cfg(feature = "parse")]
+use oxvg_parse::{
+    error::{ParseError, ParseErrorKind},
+    Parse, Parser,
 };
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+
+use crate::{atom::Atom, enum_attr};
 
 use super::{
     animation_timing::ClockValue,
@@ -71,6 +73,7 @@ pub enum BeginEnd<'i> {
     /// "indefinite"
     Indefinite,
 }
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for BeginEnd<'input> {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input
@@ -145,13 +148,14 @@ impl<'input> Parse<'input> for BeginEnd<'input> {
             })
     }
 }
-impl ToAtom for BeginEnd<'_> {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for BeginEnd<'_> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::OffsetValue(clock_value) => clock_value.write_atom(dest),
+            Self::OffsetValue(clock_value) => clock_value.write_value(dest),
             Self::SyncbaseValue { id, begin, offset } => {
                 dest.write_str(id)?;
                 dest.write_char('.')?;
@@ -164,7 +168,7 @@ impl ToAtom for BeginEnd<'_> {
                     if !clock_value.is_negative() {
                         dest.write_char('+')?;
                     }
-                    clock_value.write_atom(dest)?;
+                    clock_value.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -178,7 +182,7 @@ impl ToAtom for BeginEnd<'_> {
                     if !clock_value.is_negative() {
                         dest.write_char('+')?;
                     }
-                    clock_value.write_atom(dest)?;
+                    clock_value.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -188,13 +192,13 @@ impl ToAtom for BeginEnd<'_> {
                     dest.write_char('.')?;
                 }
                 dest.write_str("repeat(")?;
-                repeat.write_atom(dest)?;
+                repeat.write_value(dest)?;
                 dest.write_char(')')?;
                 if let Some(clock_value) = offset {
                     if !clock_value.is_negative() {
                         dest.write_char('+')?;
                     }
-                    clock_value.write_atom(dest)?;
+                    clock_value.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -206,7 +210,7 @@ impl ToAtom for BeginEnd<'_> {
                     if !clock_value.is_negative() {
                         dest.write_char('+')?;
                     }
-                    clock_value.write_atom(dest)?;
+                    clock_value.write_value(dest)?;
                 }
                 Ok(())
             }
@@ -239,6 +243,7 @@ enum_attr!(
 /// A set of Bézier control points associated with the ‘keyTimes’ list
 /// [w3](https://svgwg.org/specs/animations/#KeySplinesAttribute)
 pub struct ControlPoint(pub [Number; 4]);
+#[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ControlPoint {
     fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
         input.skip_whitespace();
@@ -258,18 +263,19 @@ impl<'input> Parse<'input> for ControlPoint {
         Ok(Self([x1, y1, x2, y2]))
     }
 }
-impl ToAtom for ControlPoint {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for ControlPoint {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         let Self([x1, y1, x2, y2]) = self;
-        x1.write_atom(dest)?;
+        x1.write_value(dest)?;
         dest.write_char(' ')?;
-        y1.write_atom(dest)?;
+        y1.write_value(dest)?;
         dest.write_char(' ')?;
-        x2.write_atom(dest)?;
+        x2.write_value(dest)?;
         dest.write_char(' ')?;
-        y2.write_atom(dest)
+        y2.write_value(dest)
     }
 }

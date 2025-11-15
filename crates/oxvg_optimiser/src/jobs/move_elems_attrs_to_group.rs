@@ -1,16 +1,13 @@
 use std::collections::BTreeMap;
 
 use oxvg_ast::{
-    attribute::{
-        data::{
-            inheritable::{self, Inheritable},
-            Attr, AttrId,
-        },
-        AttributeInfo,
-    },
     element::Element,
     get_attribute_mut, has_attribute, is_attribute, is_element,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+};
+use oxvg_collections::attribute::{
+    inheritable::{self, Inheritable},
+    Attr, AttrId, AttributeInfo,
 };
 use serde::{Deserialize, Serialize};
 

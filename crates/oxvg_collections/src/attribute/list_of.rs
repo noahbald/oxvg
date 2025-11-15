@@ -1,11 +1,10 @@
 //! Collection for attributes when speficied as a list
 use std::ops::Deref;
 
-use crate::{
-    error::ParseError,
-    parse::{Parse, Parser},
-    serialize::ToAtom,
-};
+#[cfg(feature = "parse")]
+use oxvg_parse::{error::ParseError, Parse, Parser};
+#[cfg(feature = "serialize")]
+use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A `' '` delimiter
@@ -32,14 +31,25 @@ pub enum Seperators {
     /// A `';'` delimiter
     Semicolon,
 }
+#[cfg(not(feature = "serialize"))]
+trait SeperatorBound {}
+#[cfg(feature = "serialize")]
+trait SeperatorBound: ToValue {}
+#[cfg(not(feature = "serialize"))]
+impl<T> SeperatorBound for T {}
+#[cfg(feature = "serialize")]
+impl<T: ToValue> SeperatorBound for T {}
 /// A trait for seperators of [`ListOf`]
-pub trait Seperator: Clone + ToAtom {
+#[allow(private_bounds)]
+pub trait Seperator: Clone + SeperatorBound {
+    #[cfg(feature = "parse")]
     /// Returns whether whitespace is intrinsic to this seperator
     fn maybe_skip_whitespace(_input: &mut Parser<'_, '_>) {}
     /// Constructs this seperator
     fn new() -> Self;
     /// Returns an enumerable instance of seperators
     fn id(&self) -> Seperators;
+    #[cfg(feature = "parse")]
     /// Parses the seperator
     ///
     /// # Errors
@@ -53,17 +63,16 @@ impl Seperator for Space {
     fn new() -> Self {
         Self
     }
+    #[cfg(feature = "parse")]
     fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
         input.expect_whitespace()?;
         input.skip_whitespace();
         Ok(())
     }
 }
-impl ToAtom for Space {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Space {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -71,6 +80,7 @@ impl ToAtom for Space {
     }
 }
 impl Seperator for Comma {
+    #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(input: &mut Parser<'_, '_>) {
         input.skip_whitespace();
     }
@@ -80,16 +90,15 @@ impl Seperator for Comma {
     fn id(&self) -> Seperators {
         Seperators::Comma
     }
+    #[cfg(feature = "parse")]
     fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
         input.expect_comma()?;
         Ok(())
     }
 }
-impl ToAtom for Comma {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Comma {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -103,6 +112,7 @@ impl Seperator for SpaceOrComma {
     fn new() -> Self {
         Self
     }
+    #[cfg(feature = "parse")]
     fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
         if input.try_parse(Parser::expect_whitespace).is_ok() {
             input.skip_whitespace();
@@ -115,11 +125,9 @@ impl Seperator for SpaceOrComma {
         Ok(())
     }
 }
-impl ToAtom for SpaceOrComma {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for SpaceOrComma {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -127,6 +135,7 @@ impl ToAtom for SpaceOrComma {
     }
 }
 impl Seperator for Semicolon {
+    #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(input: &mut Parser<'_, '_>) {
         input.skip_whitespace();
     }
@@ -136,16 +145,15 @@ impl Seperator for Semicolon {
     fn id(&self) -> Seperators {
         Seperators::Semicolon
     }
+    #[cfg(feature = "parse")]
     fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
         input.expect_semicolon()?;
         Ok(())
     }
 }
-impl ToAtom for Semicolon {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Semicolon {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -153,6 +161,7 @@ impl ToAtom for Semicolon {
     }
 }
 impl Seperator for Seperators {
+    #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(_input: &mut Parser<'_, '_>) {
         unreachable!()
     }
@@ -162,23 +171,22 @@ impl Seperator for Seperators {
     fn id(&self) -> Seperators {
         self.clone()
     }
+    #[cfg(feature = "parse")]
     fn parse<'input>(_input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
         unreachable!()
     }
 }
-impl ToAtom for Seperators {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl ToValue for Seperators {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         match self {
-            Self::Space => Space.write_atom(dest),
-            Self::Comma => Comma.write_atom(dest),
-            Self::SpaceOrComma => SpaceOrComma.write_atom(dest),
-            Self::Semicolon => Semicolon.write_atom(dest),
+            Self::Space => Space.write_value(dest),
+            Self::Comma => Comma.write_value(dest),
+            Self::SpaceOrComma => SpaceOrComma.write_value(dest),
+            Self::Semicolon => Semicolon.write_value(dest),
         }
     }
 }
@@ -209,6 +217,7 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> Deref for ListOf<T, S> {
     }
 }
 
+#[cfg(feature = "parse")]
 impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse<'input>
     for ListOf<T, S>
 {
@@ -230,44 +239,40 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse
         })
     }
 }
-impl<T: ToAtom + std::fmt::Debug + PartialEq, S: Seperator> ListOf<Box<T>, S> {
+#[cfg(feature = "serialize")]
+impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ListOf<Box<T>, S> {
     /// Serialize self into CSS or an attribute value
     ///
     /// # Errors
     /// If the printer fails.
-    pub fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+    pub fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         let mut iter = self.list.iter();
         if let Some(t) = iter.next() {
-            t.write_atom(dest)?;
+            t.write_value(dest)?;
         }
         for t in iter {
-            self.seperator.write_atom(dest)?;
-            t.write_atom(dest)?;
+            self.seperator.write_value(dest)?;
+            t.write_value(dest)?;
         }
         Ok(())
     }
 }
-impl<T: ToAtom + std::fmt::Debug + PartialEq, S: Seperator> ToAtom for ListOf<T, S> {
-    fn write_atom<W>(
-        &self,
-        dest: &mut crate::serialize::Printer<W>,
-    ) -> Result<(), crate::error::PrinterError>
+#[cfg(feature = "serialize")]
+impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ToValue for ListOf<T, S> {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
         let mut iter = self.list.iter();
         if let Some(t) = iter.next() {
-            t.write_atom(dest)?;
+            t.write_value(dest)?;
         }
         for t in iter {
-            self.seperator.write_atom(dest)?;
-            t.write_atom(dest)?;
+            self.seperator.write_value(dest)?;
+            t.write_value(dest)?;
         }
         Ok(())
     }

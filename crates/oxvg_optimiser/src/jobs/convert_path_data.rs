@@ -1,5 +1,4 @@
 use oxvg_ast::{
-    attribute::data::path::gather_style_info,
     element::Element,
     get_attribute_mut, has_attribute,
     style::ComputedStyles,
@@ -12,7 +11,7 @@ use serde_json::Value;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::error::JobsError;
+use crate::{error::JobsError, utils::style_info::gather_style_info};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]

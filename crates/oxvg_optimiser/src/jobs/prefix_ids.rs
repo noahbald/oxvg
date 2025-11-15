@@ -4,11 +4,11 @@ use lightningcss::{
     rules::CssRuleList, selector::Component, values::ident::Ident, visit_types, visitor::Visit,
 };
 use oxvg_ast::{
-    attribute::content_type::Reference,
     element::Element,
     is_element,
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
+use oxvg_collections::content_type::Reference;
 use regex::Match;
 use serde::{Deserialize, Serialize};
 

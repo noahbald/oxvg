@@ -336,7 +336,7 @@ pub trait Visitor<'input, 'arena> {
 /// - An `onbegin`, `onend`, `on...`, etc. attribute
 /// - A `href="javascript:..."` URL
 pub fn has_scripts(root: &Element<'_, '_>) -> bool {
-    use crate::attribute::{data::Attr, AttributeGroup};
+    use oxvg_collections::attribute::{Attr, AttributeGroup};
 
     let event = AttributeGroup::event();
     root.breadth_first().any(|element| {

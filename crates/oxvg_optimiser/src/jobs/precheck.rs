@@ -4,9 +4,8 @@ of [svgcleaner](https://github.com/RazrFalcon/svgcleaner/blob/master/src/task/pr
 
 See [license](https://github.com/RazrFalcon/svgcleaner/blob/master/LICENSE.txt)
 */
-use oxvg_ast::{
-    attribute::AttributeGroup, element::Element, get_attribute, is_element, visitor::Visitor,
-};
+use oxvg_ast::{element::Element, get_attribute, is_element, visitor::Visitor};
+use oxvg_collections::attribute::AttributeGroup;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

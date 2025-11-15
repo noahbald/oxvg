@@ -178,6 +178,15 @@ macro_rules! define_prefix {
     };
 }
 
+/// A qualified name used for the names of tags and attributes.
+#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+pub struct QualName<'input> {
+    /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
+    pub prefix: Prefix<'input>,
+    /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
+    pub local: Atom<'input>,
+}
+
 impl Display for QualName<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(prefix) = self.prefix.value() {
@@ -247,13 +256,4 @@ impl PartialOrd for Prefix<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
-}
-
-/// A qualified name used for the names of tags and attributes.
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
-pub struct QualName<'input> {
-    /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
-    pub prefix: Prefix<'input>,
-    /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
-    pub local: Atom<'input>,
 }

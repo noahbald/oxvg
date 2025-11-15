@@ -8,25 +8,20 @@ use std::{
 
 use cfg_if::cfg_if;
 use itertools::Itertools as _;
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    element::ElementId,
+    name::{Prefix, QualName, NS},
+};
 
 use crate::{
     arena::Allocator,
-    atom::Atom,
-    attribute::{
-        data::{Attr, AttrId},
-        Attributes,
-    },
+    attribute::Attributes,
     class_list::ClassList,
     document::Document,
-    element::data::Iterator,
-    name::{Prefix, QualName, NS},
     node::{self, NodeData, Ref},
 };
-use data::ElementId;
-
-pub mod category;
-
-pub mod data;
 
 #[macro_export]
 /// Returns whether the element matches the given names
@@ -37,10 +32,10 @@ macro_rules! is_element {
         $element.node_type() == $crate::node::Type::Element
     };
     ($element:expr, $name:ident$(,)?) => {
-        *$element.qual_name() == $crate::element::data::ElementId::$name
+        *$element.qual_name() == oxvg_collections::element::ElementId::$name
     };
     ($element:expr, $($name:ident)|+$(,)?) => {
-        matches!($element.qual_name().unaliased(), $($crate::element::data::ElementId::$name)|+)
+        matches!($element.qual_name().unaliased(), $(oxvg_collections::element::ElementId::$name)|+)
     };
 }
 
@@ -60,23 +55,18 @@ impl<'input, 'arena> HashableElement<'input, 'arena> {
         Self(element)
     }
 }
-impl<'input, 'arena> Deref for HashableElement<'input, 'arena> {
-    type Target = Element<'input, 'arena>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+
+/// A reference to an element's data
+pub struct ElementData<'a, 'input> {
+    name: &'a ElementId<'input>,
+    attrs: &'a RefCell<Vec<Attr<'input>>>,
 }
-impl std::hash::Hash for HashableElement<'_, '_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id().hash(state);
-    }
+
+#[derive(Debug)]
+/// An iterator that goes over an element and it's descendants in a breadth-first fashion
+pub struct Iterator<'input, 'arena> {
+    queue: VecDeque<Element<'input, 'arena>>,
 }
-impl PartialEq for HashableElement<'_, '_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.id_eq(other)
-    }
-}
-impl Eq for HashableElement<'_, '_> {}
 
 /// An xml element with attributes, (e.g. `<a xlink:href="#" />`)
 ///
@@ -765,12 +755,6 @@ impl PartialEq for Element<'_, '_> {
     }
 }
 
-/// A reference to an element's data
-pub struct ElementData<'a, 'input> {
-    name: &'a ElementId<'input>,
-    attrs: &'a RefCell<Vec<Attr<'input>>>,
-}
-
 impl<'input, 'arena> Deref for Element<'input, 'arena> {
     type Target = Ref<'input, 'arena>;
 
@@ -800,5 +784,47 @@ impl Debug for Element<'_, '_> {
             .field("text", &text)
             .field("child_count", &child_node_count)
             .finish()
+    }
+}
+
+impl<'input, 'arena> Deref for HashableElement<'input, 'arena> {
+    type Target = Element<'input, 'arena>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::hash::Hash for HashableElement<'_, '_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+    }
+}
+impl PartialEq for HashableElement<'_, '_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id_eq(other)
+    }
+}
+impl Eq for HashableElement<'_, '_> {}
+
+impl<'input, 'arena> Iterator<'input, 'arena> {
+    /// Returns a breadth-first iterator starting at the given element
+    pub fn new(element: &Element<'input, 'arena>) -> Self {
+        let mut queue = VecDeque::new();
+        element.child_elements_iter().for_each(|e| {
+            queue.push_back(e);
+        });
+
+        Self { queue }
+    }
+}
+
+impl<'input, 'arena> std::iter::Iterator for Iterator<'input, 'arena> {
+    type Item = Element<'input, 'arena>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.queue.pop_front()?;
+        current.child_elements_iter().for_each(|e| {
+            self.queue.push_back(e);
+        });
+        Some(current)
     }
 }

@@ -10,21 +10,21 @@ use lightningcss::{
     visitor::Visit,
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::{
-        content_type::ContentType,
-        data::{
-            core::{Color, Paint},
-            inheritable::Inheritable,
-            Attr, AttrId,
-        },
-    },
-    element::{data::ElementId, Element},
+    element::Element,
     get_attribute, get_attribute_mut, has_attribute, is_element,
-    name::{Prefix, QualName},
     node::AllocationID,
     style::{ComputedStyles, Mode},
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core::{Color, Paint},
+        inheritable::Inheritable,
+        Attr, AttrId,
+    },
+    content_type::ContentType,
+    name::{Prefix, QualName},
 };
 use serde::{Deserialize, Serialize};
 
@@ -166,12 +166,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if *element.qual_name() != ElementId::Svg {
+        if !is_element!(element, Svg) {
             return Ok(());
         }
 
         for gradient in self.gradients_to_detach.borrow().values() {
-            if gradient.has_attribute(&AttrId::XLinkHref) {
+            if has_attribute!(gradient, XLinkHref) {
                 self.xlink_href_count.set(self.xlink_href_count.get() - 1);
             }
 
@@ -277,7 +277,7 @@ fn update_style_references<'input>(
 ) -> Result<(), JobsError<'input>> {
     for element in context.root.breadth_first() {
         let mut style = get_attribute_mut!(element, Style);
-        let Some(oxvg_ast::attribute::data::core::Style(style)) = style.as_deref_mut() else {
+        let Some(oxvg_collections::attribute::core::Style(style)) = style.as_deref_mut() else {
             continue;
         };
         style.visit(&mut VisitPaint { url, color })?;

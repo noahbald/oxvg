@@ -14,24 +14,31 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["visitor"]
+default = ["visitor", "serialize"]
 # Includes a parser that uses xml5ever
 markup5ever = ["dep:xml5ever", "dep:string_cache"]
 # Includes a parser that uses roxmltree
 roxmltree = ["dep:roxmltree"]
 # Includes serialization for elements
-serialize = []
+serialize = ["dep:oxvg_serialize", "oxvg_collections/serialize"]
 # Includes CSS selection for elements
-selectors = ["dep:selectors", "dep:precomputed-hash", "dep:servo_arc"]
+selectors = [
+  "serialize",
+  "dep:selectors",
+  "dep:precomputed-hash",
+  "dep:servo_arc",
+]
 # Includes a visitor trait for building visitors
 visitor = ["dep:bitflags"]
 
 [dependencies]
+oxvg_collections = { workspace = true }
 oxvg_path = { workspace = true }
+oxvg_serialize = { workspace = true, optional = true }
+
 bitflags = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 cssparser = { workspace = true }
-cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 derive_more = { workspace = true, features = ["debug"] }
 derive-where = { workspace = true }
 itertools = { workspace = true }

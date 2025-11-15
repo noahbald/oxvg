@@ -1,15 +1,11 @@
 //! Funcions for serializing XML trees
-#[cfg(feature = "serialize")]
 use std::io::Write;
 
-#[cfg(feature = "serialize")]
-pub use crate::error::XmlWriterError;
-#[cfg(feature = "serialize")]
-use crate::xmlwriter::XmlWriter;
-#[cfg(feature = "serialize")]
-pub use crate::xmlwriter::{Indent, Options};
+use oxvg_serialize::error::PrinterError;
 
-use crate::error::PrinterError;
+use crate::error::XmlWriterError;
+pub use crate::xmlwriter::Options;
+use crate::xmlwriter::XmlWriter;
 
 /// The destination to output serialized attribute and CSS values
 pub type Printer<'a, 'b, 'c, W> = lightningcss::printer::Printer<'a, 'b, 'c, W>;
@@ -17,12 +13,12 @@ pub type Printer<'a, 'b, 'c, W> = lightningcss::printer::Printer<'a, 'b, 'c, W>;
 pub type PrinterOptions<'a> = lightningcss::printer::PrinterOptions<'a>;
 
 /// Trait for values that can be serialized into string-like formats
-pub trait ToAtom {
+pub trait ToValue {
     /// Serialize `self` into SVG content, writing to `dest`
     ///
     /// # Errors
     /// If printer fails
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write;
 
@@ -30,19 +26,19 @@ pub trait ToAtom {
     ///
     /// # Errors
     /// If writing string fails
-    fn to_atom_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
+    fn to_value_string(&self, options: PrinterOptions) -> Result<String, PrinterError> {
         let mut s = String::new();
         let mut printer = Printer::new(&mut s, options);
-        self.write_atom(&mut printer)?;
+        self.write_value(&mut printer)?;
         Ok(s)
     }
 }
 
-impl<T> ToAtom for T
+impl<T> ToValue for T
 where
     T: lightningcss::traits::ToCss,
 {
-    fn write_atom<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
     {
@@ -50,7 +46,6 @@ where
     }
 }
 
-#[cfg(feature = "serialize")]
 /// An XML node serializer
 pub trait Node<'input, 'arena> {
     /// # Errors
@@ -69,7 +64,6 @@ pub trait Node<'input, 'arena> {
     fn serialize_with_options(&'arena self, options: Options) -> Result<String, XmlWriterError>;
 }
 
-#[cfg(feature = "serialize")]
 impl<'input, 'arena> Node<'input, 'arena> for crate::node::Node<'input, 'arena> {
     fn serialize_with_options(&'arena self, options: Options) -> Result<String, XmlWriterError> {
         let mut wr = Vec::new();
@@ -90,7 +84,6 @@ impl<'input, 'arena> Node<'input, 'arena> for crate::node::Node<'input, 'arena> 
     }
 }
 
-#[cfg(feature = "serialize")]
 fn serialize_node<'arena, W: Write>(
     node: crate::node::Ref<'_, 'arena>,
     xml: &mut XmlWriter<'arena, W>,

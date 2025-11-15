@@ -2,10 +2,13 @@
 
 use lightningcss::{values::color::CssColor, visit_types, visitor::Visit};
 use oxvg_ast::{
-    attribute::data::{core::Style, Attr},
-    element::{data::ElementId, Element},
+    element::Element,
     is_element,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{core::Style, Attr},
+    element::ElementId,
 };
 use serde::{Deserialize, Serialize};
 

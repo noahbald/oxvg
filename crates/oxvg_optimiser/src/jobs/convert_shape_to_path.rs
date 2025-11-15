@@ -2,10 +2,13 @@ use std::cell;
 
 use lightningcss::{selector::Component, visit_types, visitor::Visit};
 use oxvg_ast::{
-    attribute::data::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
-    element::{data::ElementId, Element},
+    element::Element,
     get_attribute, has_attribute, remove_attribute, set_attribute,
     visitor::{Context, Info, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
+    element::ElementId,
 };
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};

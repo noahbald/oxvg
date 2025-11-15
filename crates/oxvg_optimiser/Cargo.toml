@@ -30,8 +30,9 @@ oxvg_ast = { workspace = true, features = [
   "serialize",
   "visitor",
 ] }
-oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
 oxvg_collections = { workspace = true }
+oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
+oxvg_serialize = { workspace = true }
 
 anyhow = { workspace = true }
 bitflags = { workspace = true }

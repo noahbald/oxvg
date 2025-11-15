@@ -2,22 +2,20 @@
 use lightningcss::rules::CssRuleList;
 use std::cell::RefCell;
 
-use crate::{attribute::AttributeInfo, element::Element, name::Prefix};
+use crate::element::Element;
 
 #[cfg(feature = "selectors")]
-use crate::{
-    attribute::{
-        data::{Attr, AttrId},
-        AttributeGroup,
-    },
-    error::ComputedStylesError,
-    get_attribute_mut, node,
-};
+use crate::{error::ComputedStylesError, get_attribute_mut, node};
 #[cfg(feature = "selectors")]
 use lightningcss::{
     declaration::DeclarationBlock,
     properties::{Property, PropertyId},
     rules::{self},
+};
+#[cfg(feature = "selectors")]
+use oxvg_collections::{
+    attribute::{Attr, AttrId, AttributeGroup, AttributeInfo},
+    name::Prefix,
 };
 #[cfg(feature = "selectors")]
 use std::collections::HashMap;
@@ -28,10 +26,10 @@ use std::collections::HashMap;
 macro_rules! get_computed_style {
     ($computed_style:expr, $id:ident$(,)?) => {
         $computed_style
-            .get(&$crate::attribute::data::AttrId::$id)
+            .get(&oxvg_collections::attribute::AttrId::$id)
             .and_then(|(attr, mode)| match attr {
-                $crate::attribute::data::Attr::$id(inner) => Some((inner, mode)),
-                $crate::attribute::data::Attr::Unparsed { .. } => None,
+                oxvg_collections::attribute::Attr::$id(inner) => Some((inner, mode)),
+                oxvg_collections::attribute::Attr::Unparsed { .. } => None,
                 _ => unreachable!("{attr:?}"),
             })
     };
@@ -42,7 +40,7 @@ macro_rules! get_computed_style {
 /// Returns whether the computed presentation attribute exists for a computed style
 macro_rules! has_computed_style {
     ($computed_style:expr, $($id:ident)|+$(,)?) => {
-        false $(|| $computed_style.get(&$crate::attribute::data::AttrId::$id).is_some())+
+        false $(|| $computed_style.get(&oxvg_collections::attribute::AttrId::$id).is_some())+
     }
 }
 

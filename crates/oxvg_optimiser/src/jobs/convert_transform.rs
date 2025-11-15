@@ -2,14 +2,15 @@ use std::cell::RefMut;
 
 use lightningcss::properties::transform::Matrix;
 use oxvg_ast::{
-    attribute::data::{
-        inheritable,
-        transform::{Precision, SVGTransform, SVGTransformList},
-        AttrId,
-    },
     element::Element,
     get_attribute_mut,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::attribute::{
+    core::SVGTransformList,
+    inheritable,
+    transform::{Precision, SVGTransform},
+    AttrId,
 };
 use serde::{Deserialize, Serialize};
 

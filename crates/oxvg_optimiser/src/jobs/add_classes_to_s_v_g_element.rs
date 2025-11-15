@@ -1,14 +1,16 @@
 use std::collections::HashSet;
 
 use oxvg_ast::{
+    element::Element,
+    get_attribute_mut, is_element,
+    visitor::{Context, Visitor},
+};
+use oxvg_collections::{
     atom::Atom,
-    attribute::data::{
+    attribute::{
         core::NonWhitespace,
         list_of::{ListOf, Space},
     },
-    element::{data::ElementId, Element},
-    get_attribute_mut,
-    visitor::{Context, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
@@ -86,7 +88,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for AddClassesToSVGElement {
         element: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if !element.is_root() || *element.qual_name() != ElementId::Svg {
+        if !element.is_root() || !is_element!(element, Svg) {
             return Ok(());
         }
 

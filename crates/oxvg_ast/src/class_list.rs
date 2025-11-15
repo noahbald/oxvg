@@ -2,18 +2,16 @@
 
 use std::cell::{Cell, RefMut};
 
-use crate::{
+use oxvg_collections::{
     atom::Atom,
     attribute::{
-        data::{
-            core::{Class, NonWhitespace},
-            list_of::{ListOf, Space},
-            Attr, AttrId,
-        },
-        Attributes,
+        core::{Class, NonWhitespace},
+        list_of::{ListOf, Space},
+        Attr, AttrId,
     },
-    serialize::{PrinterOptions, ToAtom},
 };
+
+use crate::attribute::Attributes;
 
 /// A list observing and manipulating a set of whitespace separated tokens.
 ///
@@ -58,12 +56,14 @@ impl<'a, 'input: 'a> ClassList<'a, 'input> {
         self.attr().map_or_else(|| 0, |attr| attr.len())
     }
 
+    #[cfg(feature = "serialize")]
     /// The value of the list serialized as a string
     ///
     /// [MDN | value](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList/value)
     pub fn value(&self) -> String {
+        use oxvg_serialize::{PrinterOptions, ToValue as _};
         self.attr()
-            .and_then(|a| a.to_atom_string(PrinterOptions::default()).ok())
+            .and_then(|a| a.to_value_string(PrinterOptions::default()).ok())
             .unwrap_or_default()
     }
 

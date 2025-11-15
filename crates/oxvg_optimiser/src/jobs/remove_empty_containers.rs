@@ -1,9 +1,10 @@
 use oxvg_ast::{
-    element::{category::ElementCategory, Element},
+    element::Element,
     has_attribute, has_computed_style, is_element,
     style::ComputedStyles,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::element::ElementCategory;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

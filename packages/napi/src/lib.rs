@@ -3,8 +3,9 @@ use napi::{Error, Status};
 use oxvg_ast::{
   arena::Allocator,
   parse::roxmltree::parse,
-  serialize::{self, Node as _, Options},
+  serialize::Node as _,
   visitor::Info,
+  xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
@@ -62,7 +63,7 @@ pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Statu
 
   dom
     .serialize_with_options(Options {
-      indent: serialize::Indent::None,
+      indent: Indent::None,
       ..Default::default()
     })
     .map_err(generic_error)

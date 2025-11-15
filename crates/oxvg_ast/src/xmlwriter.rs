@@ -20,10 +20,10 @@ A simple, streaming, partially-validating XML writer that writes XML data to a
 ### Example
 
 ```rust
-use oxvg_ast::{
-    xmlwriter::*,
-    element::data::ElementId,
-    attribute::data::{
+use oxvg_ast::xmlwriter::*;
+use oxvg_collections::{
+    element::ElementId,
+    attribute::{
         Attr,
         uncategorised::ViewBox,
         presentation::LengthPercentage,
@@ -76,13 +76,13 @@ use std::io::{self, Write};
 use std::result;
 
 use lightningcss::rules::CssRuleList;
+use oxvg_collections::atom::Atom;
+use oxvg_collections::attribute::Attr;
+use oxvg_collections::element::ElementId;
+use oxvg_collections::is_prefix;
+use oxvg_serialize::{Printer, PrinterOptions, ToValue as _};
 
-use crate::atom::Atom;
-use crate::attribute::data::Attr;
-use crate::element::data::ElementId;
-use crate::error::XmlWriterError;
-use crate::serialize::{Printer, PrinterOptions, ToAtom as _};
-use crate::{is_element, is_prefix};
+use crate::{error::XmlWriterError, is_element};
 
 /// A result from serializing a document.
 pub type Result = result::Result<(), XmlWriterError>;
@@ -533,8 +533,10 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// ```
     /// use oxvg_ast::{
     ///     xmlwriter::*,
-    ///     element::data::ElementId,
-    ///     attribute::data::{Attr, presentation::LengthPercentage},
+    /// };
+    /// use oxvg_collections::{
+    ///     element::ElementId,
+    ///     attribute::{Attr, presentation::LengthPercentage},
     /// };
     /// use std::io;
     ///
@@ -555,7 +557,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
         match attr.prefix().value() {
             Some(prefix) => {
                 self.write_attribute_raw(format_args!("{prefix}:{}", attr.local_name()), |w| {
-                    attr.write_atom(&mut Printer::new(
+                    attr.write_value(&mut Printer::new(
                         w,
                         PrinterOptions {
                             minify,
@@ -566,7 +568,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
                 })
             }
             None => self.write_attribute_raw(format_args!("{}", attr.local_name()), |w| {
-                attr.write_atom(&mut Printer::new(
+                attr.write_value(&mut Printer::new(
                     w,
                     PrinterOptions {
                         minify,
@@ -592,8 +594,10 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// ```
     /// use oxvg_ast::{
     ///     xmlwriter::*,
-    ///     element::data::ElementId,
-    ///     attribute::content_type::ContentType,
+    /// };
+    /// use oxvg_collections::{
+    ///     element::ElementId,
+    ///     content_type::ContentType,
     /// };
     /// use std::io;
     ///
@@ -641,9 +645,9 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// ```
     /// use oxvg_ast::{
     ///     xmlwriter::*,
-    ///     element::data::ElementId,
     ///     error::XmlWriterError,
     /// };
+    /// use oxvg_collections::element::ElementId;
     /// use std::fmt::Write;
     ///
     /// fn main() -> Result {
@@ -705,7 +709,9 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// ```
     /// use oxvg_ast::{
     ///     xmlwriter::*,
-    ///     element::data::ElementId,
+    /// };
+    /// use oxvg_collections::{
+    ///     element::ElementId,
     ///     name::{QualName, Prefix},
     /// };
     ///
@@ -788,7 +794,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
         }
         self.before_write_text(false)?;
         style
-            .write_atom(&mut Printer::new(
+            .write_value(&mut Printer::new(
                 &mut self.fmt_writer,
                 PrinterOptions {
                     minify: self.opt.minify,
@@ -932,10 +938,8 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// # Example
     ///
     /// ```
-    /// use oxvg_ast::{
-    ///     xmlwriter::*,
-    ///     element::data::ElementId,
-    /// };
+    /// use oxvg_ast::xmlwriter::*;
+    /// use oxvg_collections::element::ElementId;
     /// use std::io;
     ///
     /// fn main() -> Result {

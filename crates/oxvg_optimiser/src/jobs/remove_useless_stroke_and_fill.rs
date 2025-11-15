@@ -2,13 +2,15 @@ use std::cell::Cell;
 
 use lightningcss::{properties::svg::SVGPaint, traits::Zero, values::alpha::AlphaValue};
 use oxvg_ast::{
-    attribute::data::{inheritable::Inheritable, AttrId},
-    element::{category::ElementCategory, Element},
-    get_computed_style, has_computed_style, is_attribute,
-    name::Prefix,
-    set_attribute,
+    element::Element,
+    get_computed_style, has_computed_style, is_attribute, set_attribute,
     style::{ComputedStyles, Mode},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{inheritable::Inheritable, AttrId},
+    element::ElementCategory,
+    is_prefix,
 };
 use serde::{Deserialize, Serialize};
 
@@ -191,9 +193,9 @@ impl State<'_> {
             log::debug!("stroke none: {is_stroke_none}");
             log::debug!("stroke opacity zero: {is_stroke_opacity_zero}");
             log::debug!("stroke width zero: {is_stroke_width_zero}");
-            element.attributes().retain(|attr| {
-                *attr.prefix() != Prefix::SVG || !attr.local_name().starts_with("stroke")
-            });
+            element
+                .attributes()
+                .retain(|attr| !is_prefix!(attr, SVG) || !attr.local_name().starts_with("stroke"));
 
             if let Some((parent_stroke, mode)) = computed_styles.get_inherited("stroke") {
                 if matches!(mode, Mode::Static)
@@ -237,9 +239,9 @@ impl State<'_> {
             log::debug!("removing useless fill");
             log::debug!("fill none: {is_fill_none}");
             log::debug!("fill opacity zero: {is_fill_opacity_zero}");
-            element.attributes().retain(|attr| {
-                *attr.prefix() != Prefix::SVG || !attr.local_name().starts_with("fill-")
-            });
+            element
+                .attributes()
+                .retain(|attr| !is_prefix!(attr, SVG) || !attr.local_name().starts_with("fill-"));
 
             if fill.is_none() || !is_fill_eq_none {
                 set_attribute!(element, Fill(Inheritable::Defined(SVGPaint::None)));

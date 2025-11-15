@@ -1,10 +1,10 @@
 use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
-    attribute::data::{presentation::LengthPercentage, uncategorised::ViewBox, AttrId},
     element::Element,
     get_attribute, has_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::{presentation::LengthPercentage, uncategorised::ViewBox, AttrId};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

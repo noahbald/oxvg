@@ -8,14 +8,17 @@ use lightningcss::{
     values::{alpha::AlphaValue, percentage::DimensionPercentage},
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::{
-        inheritable::Inheritable, presentation::LengthPercentage, uncategorised::Radius, Attr,
-    },
-    element::{category::ElementInfo, data::ElementId, Element, HashableElement},
+    element::{Element, HashableElement},
     get_attribute, get_computed_style, has_attribute, has_computed_style, is_attribute, is_element,
     style::{ComputedStyles, Mode},
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        inheritable::Inheritable, presentation::LengthPercentage, uncategorised::Radius, Attr,
+    },
+    element::{ElementId, ElementInfo},
 };
 use serde::{Deserialize, Serialize};
 

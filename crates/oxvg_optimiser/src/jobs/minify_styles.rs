@@ -10,15 +10,17 @@ use lightningcss::{
     visitor::{self, Visit as _, VisitTypes},
 };
 use oxvg_ast::{
+    element::Element,
+    get_attribute, get_attribute_mut, has_attribute, is_element,
+    visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
     atom::Atom,
-    attribute::data::{
+    attribute::{
         core::{Class, Id},
         AttrId,
     },
-    element::Element,
-    get_attribute, get_attribute_mut, has_attribute, is_element,
-    name::Prefix,
-    visitor::{Context, PrepareOutcome, Visitor},
+    is_prefix,
 };
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +127,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
             return Ok(());
         }
 
-        if *element.prefix() != Prefix::SVG {
+        if !is_prefix!(element, SVG) {
             return Ok(());
         }
         HashSet::insert(

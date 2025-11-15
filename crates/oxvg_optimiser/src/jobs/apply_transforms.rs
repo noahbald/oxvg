@@ -6,16 +6,18 @@ use lightningcss::properties::{
     transform::{Matrix, TransformList},
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::{
-        core::SVGTransformList, inheritable::Inheritable, presentation::LengthPercentage, Attr,
-        AttrId,
-    },
     element::Element,
     get_attribute, get_attribute_mut, get_computed_style, get_computed_style_css, has_attribute,
     is_attribute,
     style::{ComputedStyles, Mode},
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core::SVGTransformList, inheritable::Inheritable, presentation::LengthPercentage, Attr,
+        AttrId,
+    },
 };
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};

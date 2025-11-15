@@ -2,11 +2,11 @@ use std::{cell::RefCell, collections::HashSet};
 
 use lightningcss::{rules::CssRuleList, values::ident::Ident, visit_types, visitor::Visit};
 use oxvg_ast::{
-    attribute::{data::AttrId, AttributeInfo},
     element::Element,
     has_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::{AttrId, AttributeInfo};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

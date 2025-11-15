@@ -4,13 +4,13 @@ use std::{
 };
 
 use oxvg_ast::{
-    attribute::{
-        content_type::Reference,
-        data::{Attr, AttrId},
-    },
     element::Element,
     is_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{Attr, AttrId},
+    content_type::Reference,
 };
 use serde::{Deserialize, Serialize};
 

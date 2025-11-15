@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use lightningcss::properties::Property;
 use oxvg_ast::{
-    attribute::data::{Attr, AttrId},
     element::Element,
     get_attribute_mut,
     visitor::{Context, Visitor},
 };
+use oxvg_collections::attribute::{Attr, AttrId};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

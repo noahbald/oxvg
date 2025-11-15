@@ -14,17 +14,14 @@ use lightningcss::{
     visitor::{self, Visit, VisitTypes},
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::data::core::Style,
     element::{Element, HashableElement},
     get_attribute, is_attribute, is_element,
-    name::Prefix,
     node::Node,
-    remove_attribute,
-    serialize::ToAtom,
-    set_attribute,
+    remove_attribute, set_attribute,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
+use oxvg_collections::{atom::Atom, attribute::core::Style, name::Prefix};
+use oxvg_serialize::ToValue as _;
 use parcel_selectors::{
     attr::{AttrSelectorOperator, CaseSensitivity},
     parser::LocalName,
@@ -466,7 +463,7 @@ impl<'input, 'arena> CollectMatchingSelectors<'_, '_, 'input, 'arena> {
                                 operator.0.eval_str(
                                     &atom
                                         .value()
-                                        .to_atom_string(PrinterOptions::default())
+                                        .to_value_string(PrinterOptions::default())
                                         .unwrap(),
                                     value,
                                     *sensitivity,

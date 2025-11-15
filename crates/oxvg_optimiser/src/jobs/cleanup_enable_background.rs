@@ -9,17 +9,18 @@ use lightningcss::{
     visitor::{Visit, VisitTypes},
 };
 use oxvg_ast::{
-    atom::Atom,
-    attribute::{
-        content_type::ContentType,
-        data::{
-            inheritable::Inheritable,
-            presentation::{EnableBackground, LengthPercentage},
-        },
-    },
-    element::{data::ElementId, Element},
+    element::Element,
     get_attribute, get_attribute_mut, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        inheritable::Inheritable,
+        presentation::{EnableBackground, LengthPercentage},
+    },
+    content_type::ContentType,
+    element::ElementId,
 };
 use serde::{Deserialize, Serialize};
 

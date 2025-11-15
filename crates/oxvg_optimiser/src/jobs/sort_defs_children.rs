@@ -1,7 +1,8 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use oxvg_ast::{
-    element::{data::ElementId, Element},
+    element::Element,
+    is_element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if *element.qual_name() != ElementId::Defs {
+        if !is_element!(element) {
             return Ok(());
         }
 

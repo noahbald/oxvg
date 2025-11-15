@@ -1,8 +1,8 @@
 use oxvg_ast::{
-    attribute::AttributeGroup,
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::AttributeGroup;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]

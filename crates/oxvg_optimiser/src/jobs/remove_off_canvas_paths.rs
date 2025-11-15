@@ -2,11 +2,11 @@ use std::cell::RefCell;
 
 use lightningcss::values::percentage::DimensionPercentage;
 use oxvg_ast::{
-    attribute::data::{path, presentation::LengthPercentage, uncategorised::ViewBox},
     element::Element,
     get_attribute, get_attribute_mut, has_attribute, is_element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
 use oxvg_path::{command::Data, Path};
 use serde::{Deserialize, Serialize};
 

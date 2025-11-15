@@ -2,12 +2,15 @@
 use std::cell::RefCell;
 
 use lightningcss::rules::CssRuleList;
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    element::ElementId,
+};
 
 use crate::{
     arena::Allocator,
-    atom::Atom,
-    attribute::data::{Attr, AttrId},
-    element::{data::ElementId, Element},
+    element::Element,
     node::{NodeData, Ref},
 };
 
