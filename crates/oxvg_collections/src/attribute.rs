@@ -1591,10 +1591,11 @@ define_attrs! {
     //     name: "pitch",
     //     default: LengthPercentage::px(0.0),
     // },
-    Playbackorder(Playbackorder) {
-        name: "playbackorder",
-        default: Playbackorder::All,
-    },
+    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
+    // Playbackorder(Playbackorder) {
+    //     name: "playbackorder",
+    //     default: Playbackorder::All,
+    // },
     Points(Points) {
         name: "points",
     },
@@ -1822,10 +1823,11 @@ define_attrs! {
     TextLength(LengthOrNumber) {
         name: "textLength",
     },
-    Timelinebegin(Timelinebegin) {
-        name: "timelinebegin",
-        default: Timelinebegin::Loadend,
-    },
+    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
+    // Timelinebegin(Timelinebegin) {
+    //     name: "timelinebegin",
+    //     default: Timelinebegin::Loadend,
+    // },
     Title(Anything<'input>) {
         name: "title",
     },
@@ -2424,11 +2426,12 @@ define_attrs! {
         categories: AttributeGroup::Presentation,
         info: AttributeInfo::PresentationNonInheritableGroupAttrs,
     },
-    MaskType(MaskType) {
-        name: "mask-type",
-        categories: AttributeGroup::Presentation,
-        default: MaskType::Luminance,
-    },
+    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
+    // MaskType(MaskType) {
+    //     name: "mask-type",
+    //     categories: AttributeGroup::Presentation,
+    //     default: MaskType::Luminance,
+    // },
     Opacity(Inheritable<Opacity>) {
         name: "opacity",
         categories: AttributeGroup::Presentation,

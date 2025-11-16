@@ -10,6 +10,12 @@ use std::{
     collections::HashSet,
 };
 
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    element::ElementId,
+    name::{Prefix, QualName},
+};
 use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
@@ -19,10 +25,8 @@ use xml5ever::{
 
 use crate::{
     arena::Allocator,
-    atom::Atom,
-    attribute::data::{Attr, AttrId},
-    element::{data::ElementId, Element},
-    name::{Prefix, QualName},
+    element::Element,
+    is_attribute,
     node::{Node, NodeData, Ref},
 };
 

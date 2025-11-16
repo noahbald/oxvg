@@ -17,7 +17,7 @@ workspace = true
 default = ["parse", "serialize"]
 parse = ["dep:oxvg_parse", "dep:cssparser_lightningcss"]
 serialize = ["dep:oxvg_serialize"]
-markup5ever = ["dep:string_cache"]
+markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
 
 [dependencies]
 oxvg_parse = { workspace = true, optional = true }
@@ -31,3 +31,5 @@ lightningcss = { workspace = true }
 log = { workspace = true }
 smallvec = { workspace = true }
 string_cache = { workspace = true, optional = true }
+tendril = { workspace = true, optional = true }
+xml5ever = { workspace = true, optional = true }

@@ -1192,6 +1192,8 @@ dependencies = [
  "oxvg_serialize",
  "smallvec",
  "string_cache",
+ "tendril",
+ "xml5ever",
 ]
 
 [[package]]
