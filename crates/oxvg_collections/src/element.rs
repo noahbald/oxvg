@@ -1822,8 +1822,8 @@ define_elements! {
             AttrId::BaseProfile,
             AttrId::ContentScriptType,
             AttrId::ContentStyleType,
-            // AttrId::Playbackorder,
-            // AttrId::Timelinebegin,
+            AttrId::Playbackorder,
+            AttrId::Timelinebegin,
         ],
     },
     Switch {

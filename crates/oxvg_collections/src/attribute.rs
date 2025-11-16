@@ -46,10 +46,10 @@ use std::{cell::RefCell, collections::HashMap};
 use transfer_function::TransferFunctionType;
 use uncategorised::{
     BlendMode, ColorProfileName, CrossOrigin, LengthAdjust, LinkType, MarkerUnits, MediaQueryList,
-    MediaType, NumberPercentage, Orient, Origin, PreserveAspectRatio, Radius, RefX, RefY,
-    ReferrerPolicy, RenderingIntent, Rotate, SpreadMethod, Target, TextPathMethod, TextPathSide,
-    TextPathSpacing, TrueFalse, TrueFalseUndefined, TypeAnimateTransform, Units, ViewBox,
-    ZoomAndPan,
+    MediaType, NumberPercentage, Orient, Origin, Playbackorder, PreserveAspectRatio, Radius, RefX,
+    RefY, ReferrerPolicy, RenderingIntent, Rotate, SpreadMethod, Target, TextPathMethod,
+    TextPathSide, TextPathSpacing, Timelinebegin, TrueFalse, TrueFalseUndefined,
+    TypeAnimateTransform, Units, ViewBox, ZoomAndPan,
 };
 use xlink::{XLinkActuate, XLinkShow, XLinkType};
 use xml::XmlSpace;
@@ -1569,11 +1569,10 @@ define_attrs! {
         info: AttributeInfo::DeprecatedUnsafe,
         default: LengthPercentage::px(0.0),
     },
-    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    // Playbackorder(Playbackorder) {
-    //     name: "playbackorder",
-    //     default: Playbackorder::All,
-    // },
+    Playbackorder(Playbackorder) {
+        name: "playbackorder",
+        default: Playbackorder::All,
+    },
     Points(Points) {
         name: "points",
     },
@@ -1798,11 +1797,10 @@ define_attrs! {
     TextLength(LengthOrNumber) {
         name: "textLength",
     },
-    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    // Timelinebegin(Timelinebegin) {
-    //     name: "timelinebegin",
-    //     default: Timelinebegin::Loadend,
-    // },
+    Timelinebegin(Timelinebegin) {
+        name: "timelinebegin",
+        default: Timelinebegin::Loadend,
+    },
     Title(Anything<'input>) {
         name: "title",
     },

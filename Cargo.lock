@@ -2233,8 +2233,7 @@ dependencies = [
 [[package]]
 name = "web_atoms"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acd0c322f146d0f8aad130ce6c187953889359584497dac6561204c8e17bb43d"
+source = "git+https://github.com/servo/html5ever.git?rev=a2ca649#a2ca649e1646f742fc79ac4d23154598b48eacde"
 dependencies = [
  "phf 0.13.1",
  "phf_codegen 0.13.1",
