@@ -75,7 +75,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveGroupAttrsToElems {
         }) {
             return Ok(());
         }
-        if element.child_elements_iter().any(|e| {
+        if element.children_iter().any(|e| {
             let name = e.qual_name();
             !(is_element!(name, G | Text) || name.expected_attributes().contains(&AttrId::D))
                 || has_attribute!(e, Id)
@@ -90,7 +90,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveGroupAttrsToElems {
             set_attribute!(element, Transform(transform));
             return Ok(());
         };
-        element.child_elements_iter().for_each(|e| {
+        element.children_iter().for_each(|e| {
             match get_attribute_mut!(e, Transform).and_then(inheritable::map_ref_mut) {
                 Some(mut child_attr) => {
                     let value = mem::replace(&mut *child_attr, transform.clone());

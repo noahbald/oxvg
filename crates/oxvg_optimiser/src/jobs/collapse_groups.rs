@@ -84,8 +84,7 @@ impl Default for CollapseGroups {
 fn move_attributes_to_child(element: &Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
-    let children = element.children();
-    let mut children = children.iter();
+    let mut children = element.children_iter();
     let Some(first_child) = children.next() else {
         log::debug!("collapse_groups: not moving attrs: no children");
         return;
@@ -101,10 +100,10 @@ fn move_attributes_to_child(element: &Element) {
         return;
     }
 
-    if is_group_identifiable(element, first_child) {
+    if is_group_identifiable(element, &first_child) {
         log::debug!("collapse_groups: not moving attrs: identifiable");
         return;
-    } else if is_position_visually_unstable(element, first_child) {
+    } else if is_position_visually_unstable(element, &first_child) {
         log::debug!("collapse_groups: not moving attrs: visually unstable");
         return;
     } else if is_node_with_filter(element) {
@@ -117,7 +116,7 @@ fn move_attributes_to_child(element: &Element) {
     for mut attr in attrs.into_iter_mut() {
         let name = attr.name().clone();
         let child_attr = first_child_attrs.get_named_item_mut(&name);
-        if has_animated_attr(first_child, name.local_name()) {
+        if has_animated_attr(&first_child, name.local_name()) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }

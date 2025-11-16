@@ -102,7 +102,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         }
 
         let mut stops = element
-            .child_elements_iter()
+            .children_iter()
             .filter(|child| is_element!(child, Stop));
 
         let href = get_attribute!(element, XLinkHref).or_else(|| get_attribute!(element, Href));
@@ -131,7 +131,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         };
 
         let effective_stops: Vec<_> = effective_node
-            .child_elements_iter()
+            .children_iter()
             .filter(|child| is_element!(child, Stop))
             .collect();
 

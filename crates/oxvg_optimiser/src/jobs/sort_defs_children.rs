@@ -52,12 +52,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if !is_element!(element) {
+        if !is_element!(element, Defs) {
             return Ok(());
         }
 
         let mut frequencies = HashMap::new();
-        element.child_elements_iter().for_each(|e| {
+        element.children_iter().for_each(|e| {
             let name = e.qual_name();
             if let Some(frequency) = frequencies.get_mut(name) {
                 *frequency += 1;

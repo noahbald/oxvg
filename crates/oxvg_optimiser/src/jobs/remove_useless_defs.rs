@@ -83,7 +83,7 @@ fn collect_useful_nodes<'input, 'arena>(
     element: &Element<'input, 'arena>,
     useful_nodes: &mut Vec<Element<'input, 'arena>>,
 ) {
-    element.child_elements_iter().for_each(|child| {
+    element.children_iter().for_each(|child| {
         if is_element!(child, Style) || has_attribute!(child, Id | Class) {
             useful_nodes.push(child);
         } else {

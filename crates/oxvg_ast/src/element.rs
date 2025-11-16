@@ -6,7 +6,6 @@ use std::{
     ops::Deref,
 };
 
-use cfg_if::cfg_if;
 use itertools::Itertools as _;
 use oxvg_collections::{
     atom::Atom,
@@ -77,13 +76,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         if !matches!(node.node_type(), node::Type::Element | node::Type::Document) {
             return None;
         }
-        cfg_if! {
-            if #[cfg(feature = "selectors")] {
-                Some(Self (node))
-            } else {
-                Some(Self ( node ))
-            }
-        }
+        Some(Self(node))
     }
 
     /// For a namespaced prefix, finds the alias for the prefix by searching for
@@ -195,7 +188,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Only use this as a shortcut to constructors such as `create_element`; other methods may
     /// end up being invalid.
     ///
-    /// For other cases, try `element.document()?.as_document()`
+    /// For other cases, try [`Element::document`]
     pub fn as_document(&self) -> Document<'input, 'arena> {
         Document(self.clone())
     }
@@ -314,7 +307,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Returns whether the element has any attributes or not.
     ///
     /// [MDN | hasAttributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttributes)
-    pub fn has_attributes(&'arena self) -> bool {
+    pub fn has_attributes(&self) -> bool {
         !self.attributes().is_empty()
     }
 
@@ -433,7 +426,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | nextElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/nextElementSibling)
     pub fn next_element_sibling(&self) -> Option<Self> {
         let mut saw_self = false;
-        for sibling in Element::parent_element(self)?.children() {
+        for sibling in Element::parent_element(self)?.children_iter() {
             if saw_self {
                 return Some(sibling);
             } else if sibling.id_eq(self) {
@@ -448,7 +441,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | previousElementSibling](https://developer.mozilla.org/en-US/docs/Web/API/Element/previousElementSibling)
     pub fn previous_element_sibling(&self) -> Option<Self> {
         let mut previous = None;
-        for sibling in Element::parent_element(self)?.children() {
+        for sibling in Element::parent_element(self)?.children_iter() {
             if sibling.id_eq(self) {
                 return previous;
             }
@@ -487,7 +480,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Inserts a node in the children list of the [Element]'s parent, just before this [Element]
     ///
     /// [MDN | before](https://developer.mozilla.org/en-US/docs/Web/API/Element/before)
-    pub fn before(&'arena self, node: Ref<'input, 'arena>) -> Option<()> {
+    pub fn before(&self, node: Ref<'input, 'arena>) -> Option<()> {
         let parent = self.parent_node()?;
         node.remove();
         node.set_parent_node(&parent);
@@ -522,23 +515,19 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | childElementCount](https://developer.mozilla.org/en-US/docs/Web/API/Element/childElementCount)
     pub fn child_element_count(&self) -> usize {
-        self.children().len()
+        self.children_iter().count()
     }
 
     /// Returns a collection of the child elements of this element.
     ///
     /// [MDN | children](https://developer.mozilla.org/en-US/docs/Web/API/Element/children)
     pub fn children(&self) -> Vec<Self> {
-        self.child_nodes_iter()
-            .filter(|n| is_element!(n))
-            .filter_map(Self::new)
-            .collect()
+        self.children_iter().collect()
     }
 
     /// Returns an iterator that covers each of the child elements of this element.
-    #[deprecated(note = "use child_elements_iter to avoid allocation")]
     pub fn children_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
-        self.children().into_iter()
+        self.child_nodes_iter().filter_map(Self::new)
     }
 
     /// Returns a [`ClassList`] for manipulating the tokens of a class attribute.
@@ -573,13 +562,13 @@ impl<'input, 'arena> Element<'input, 'arena> {
 
     /// Traverses the element and it's parents until it finds the document node that contains the
     /// element, returning the document as an Element.
-    pub fn document(&self) -> Option<Self> {
+    pub fn document(&self) -> Option<Document<'input, 'arena>> {
         let Some(parent) = self.parent_node() else {
-            return Some(self.clone());
+            return Some(self.as_document());
         };
         match self.node_data {
             NodeData::Element { .. } => parent.document(),
-            NodeData::Document | NodeData::Root => Some(parent),
+            NodeData::Document | NodeData::Root => Some(parent.as_document()),
             _ => None,
         }
     }
@@ -593,12 +582,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | firstElementChild](https://developer.mozilla.org/en-US/docs/Web/API/Element/firstElementChild)
     pub fn first_element_child(&self) -> Option<Self> {
-        self.children().into_iter().next()
-    }
-
-    /// Returns an node list containing all the child elements of this element
-    pub fn child_elements_iter(&self) -> impl DoubleEndedIterator<Item = Self> {
-        self.child_nodes_iter().filter_map(Self::new)
+        self.children_iter().next()
     }
 
     /// Replaces the element in the DOM with each of it's child nodes, removing the element in the
@@ -647,7 +631,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | lastElementChild](https://developer.mozilla.org/en-US/docs/Web/API/Element/lastElementChild)
     pub fn last_element_child(&self) -> Option<Self> {
-        self.children().into_iter().next_back()
+        self.children_iter().next_back()
     }
 
     /// From a node, do a breadth-first search for the first element contained within it.
@@ -809,7 +793,7 @@ impl<'input, 'arena> Iterator<'input, 'arena> {
     /// Returns a breadth-first iterator starting at the given element
     pub fn new(element: &Element<'input, 'arena>) -> Self {
         let mut queue = VecDeque::new();
-        element.child_elements_iter().for_each(|e| {
+        element.children_iter().for_each(|e| {
             queue.push_back(e);
         });
 
@@ -822,7 +806,7 @@ impl<'input, 'arena> std::iter::Iterator for Iterator<'input, 'arena> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.queue.pop_front()?;
-        current.child_elements_iter().for_each(|e| {
+        current.children_iter().for_each(|e| {
             self.queue.push_back(e);
         });
         Some(current)

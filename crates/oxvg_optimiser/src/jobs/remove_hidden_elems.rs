@@ -328,7 +328,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             }
         }
         element
-            .child_elements_iter()
+            .children_iter()
             .all(|e| self.can_remove_non_rendering_node(&e))
     }
 

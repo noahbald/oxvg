@@ -64,13 +64,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
             return Ok(());
         }
 
-        if element.child_elements_iter().nth(1).is_none() {
+        if element.children_iter().nth(1).is_none() {
             log::debug!("not moving attrs, only 1 or 0 children");
             return Ok(());
         }
 
         let every_child_is_path = element
-            .child_elements_iter()
+            .children_iter()
             .all(|e| e.qual_name().expected_attributes().contains(&AttrId::D));
         let mut common_attributes = get_common_attributes(element);
 
@@ -86,7 +86,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
         }
 
         for name in common_attributes.keys() {
-            for child in element.child_elements_iter() {
+            for child in element.children_iter() {
                 child.remove_attribute(name);
             }
         }
@@ -121,7 +121,7 @@ fn get_common_attributes<'input>(
         })
         .map(|a| (a.name().clone(), a.clone()))
         .collect();
-    parent.child_elements_iter().for_each(|e| {
+    parent.children_iter().for_each(|e| {
         let attrs = e.attributes();
         common_attributes
             .retain(|name, value| attrs.get_named_item(name).is_some_and(|a| &*a == value));

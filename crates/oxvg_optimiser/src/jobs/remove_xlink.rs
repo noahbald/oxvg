@@ -182,7 +182,7 @@ impl<'input> State<'_, 'input> {
         context: &Context<'input, 'arena, '_>,
     ) {
         if element
-            .child_elements_iter()
+            .children_iter()
             .any(|child| is_element!(child, Title))
         {
             return;

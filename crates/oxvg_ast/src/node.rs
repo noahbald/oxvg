@@ -113,7 +113,7 @@ impl DoubleEndedIterator for ChildNodes<'_, '_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let current = self.end?;
 
-        let new_end_previous = self.end_previous.and_then(Node::next_sibling);
+        let new_end_previous = self.end_previous.and_then(Node::previous_sibling);
         self.end = std::mem::replace(&mut self.end_previous, new_end_previous);
 
         if self.front.is_some_and(|front| front == current) {
@@ -124,21 +124,6 @@ impl DoubleEndedIterator for ChildNodes<'_, '_> {
         }
 
         Some(current)
-    }
-}
-
-impl ExactSizeIterator for ChildNodes<'_, '_> {
-    fn len(&self) -> usize {
-        let mut current = self.front;
-        let mut len = 0;
-        while let Some(node) = current {
-            current = node.next_sibling();
-            len += 1;
-            if self.end.is_none_or(|end| end == node) {
-                break;
-            }
-        }
-        len
     }
 }
 
@@ -221,11 +206,14 @@ impl<'input, 'arena> Node<'input, 'arena> {
 
     /// Returns an node list containing all the children of this node
     pub fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Ref<'input, 'arena>> {
+        let front = self.first_child();
+        let end = self.last_child();
+        debug_assert!(front.is_none_or(|_| end.is_some()));
         ChildNodes {
-            front: self.first_child(),
-            front_next: self.first_child().and_then(Node::next_sibling),
-            end_previous: self.last_child().and_then(Node::previous_sibling),
-            end: self.last_child(),
+            front,
+            front_next: front.and_then(Node::next_sibling),
+            end_previous: end.and_then(Node::previous_sibling),
+            end,
         }
     }
 

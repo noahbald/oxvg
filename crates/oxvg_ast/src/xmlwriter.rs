@@ -79,7 +79,6 @@ use lightningcss::rules::CssRuleList;
 use oxvg_collections::atom::Atom;
 use oxvg_collections::attribute::Attr;
 use oxvg_collections::element::ElementId;
-use oxvg_collections::is_prefix;
 use oxvg_serialize::{Printer, PrinterOptions, ToValue as _};
 
 use crate::{error::XmlWriterError, is_element};
@@ -1047,13 +1046,10 @@ impl<'input, W: Write> XmlWriter<'input, W> {
 fn is_text_content_element(data: Option<&DepthData>) -> bool {
     data.is_some_and(|data| {
         data.element_name.as_ref().is_some_and(|name| {
-            is_element!(name, A | Text | TextPath | TSpan)
-                || (is_prefix!(name, SVG)
-                    && matches!(
-                        name.local_name().as_ref(),
-                        // TODO: Add to ElementId
-                        "altGlyph" | "altGlyphDef" | "altGlyphItem" | "glyph" | "glyphRef" | "tref"
-                    ))
+            is_element!(
+                name,
+                A | Text | TextPath | TSpan | AltGlyph | AltGlyphDef | Glyph | GlyphRef | TRef
+            )
         })
     })
 }

@@ -327,11 +327,11 @@ impl<'a, 'input> Attributes<'a, 'input> {
 
     /// Iterates through the attributes and only keeps those where the callback is
     /// evaluated to be `true`.
-    pub fn retain<F>(&self, mut f: F)
+    pub fn retain<F>(&self, f: F)
     where
         F: FnMut(&Attr<'input>) -> bool,
     {
-        self.0.borrow_mut().retain(|attr| f(attr));
+        self.0.borrow_mut().retain(f);
     }
 }
 

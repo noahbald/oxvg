@@ -63,7 +63,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
         _content: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
-        document.child_elements_iter().for_each(|e| {
+        document.children_iter().for_each(|e| {
             self.root_element(&e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);
@@ -101,7 +101,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
-        document.child_elements_iter().for_each(|e| {
+        document.children_iter().for_each(|e| {
             self.exit_root_element(&e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);

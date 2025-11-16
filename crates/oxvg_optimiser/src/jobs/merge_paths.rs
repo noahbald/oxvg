@@ -74,14 +74,14 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
         element: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let children = element.children();
-        if children.len() <= 1 {
+        let mut children = itertools::peek_nth(element.children_iter());
+        if children.peek_nth(1).is_none() {
             return Ok(());
         }
 
         let mut prev_path_data: Option<path::Path> = None;
 
-        for (prev_child, child) in children.iter().tuple_windows() {
+        for (prev_child, child) in children.tuple_windows() {
             log::debug!("trying to merge {child:?}");
             macro_rules! update_previous_path {
                 ($prev_child:ident) => {
@@ -107,7 +107,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 continue;
             }
             let computed_styles = ComputedStyles::default()
-                .with_all(child, &context.query_has_stylesheet_result)
+                .with_all(&child, &context.query_has_stylesheet_result)
                 .map_err(JobsError::ComputedStylesError)?;
             let Some(mut current_path_data) =
                 get_attribute_mut!(child, D).map(|d| RefMut::map(d, |path::Path(d)| d))
