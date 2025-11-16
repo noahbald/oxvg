@@ -35,6 +35,7 @@ extern crate bitflags;
 pub mod class_list;
 pub mod document;
 
+#[cfg(feature = "parse")]
 pub mod parse;
 
 pub mod arena;

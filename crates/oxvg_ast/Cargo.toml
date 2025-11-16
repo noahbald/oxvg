@@ -17,13 +17,15 @@ workspace = true
 default = ["visitor", "serialize"]
 # Includes a parser that uses xml5ever
 markup5ever = [
+  "parse",
   "oxvg_collections/markup5ever",
   "dep:string_cache",
   "dep:tendril",
   "dep:xml5ever",
 ]
+parse = ["oxvg_collections/parse"]
 # Includes a parser that uses roxmltree
-roxmltree = ["dep:roxmltree"]
+roxmltree = ["parse", "dep:roxmltree"]
 # Includes serialization for elements
 serialize = ["dep:oxvg_serialize", "oxvg_collections/serialize"]
 # Includes CSS selection for elements
