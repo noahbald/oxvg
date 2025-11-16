@@ -1069,12 +1069,16 @@ enum_attr!(
 #[derive(Debug, PartialEq, Clone)]
 pub struct PaintOrder(pub SmallVec<[Paint; 3]>);
 impl PaintOrder {
-    fn normal() -> Self {
+    /// Returns the normal paint rendering order
+    pub fn normal() -> Self {
         Self(smallvec![Paint::Fill, Paint::Stroke, Paint::Markers])
     }
-    fn is_normal(&self) -> bool {
+    /// Returns whether the paint or matches the normal rendering order
+    pub fn is_normal(&self) -> bool {
         let inner = &self.0;
-        inner[0] == Paint::Fill && inner[1] == Paint::Stroke && inner[2] == Paint::Markers
+        inner.first().is_none_or(|a| *a == Paint::Fill)
+            && inner.get(1).is_none_or(|b| *b == Paint::Stroke)
+            && inner.get(2).is_none_or(|c| *c == Paint::Markers)
     }
 }
 #[cfg(feature = "parse")]

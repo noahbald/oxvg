@@ -335,17 +335,14 @@ impl std::error::Error for ParseError {}
 #[test]
 #[allow(clippy::too_many_lines)]
 fn parse_roxmltree() {
-    use lightningcss::{
-        properties::svg::SVGPaint,
-        values::{
-            color::{CssColor, RGBA},
-            length::LengthValue,
-            percentage::{DimensionPercentage, Percentage},
-        },
+    use lightningcss::values::{
+        color::{CssColor, RGBA},
+        length::LengthValue,
+        percentage::{DimensionPercentage, Percentage},
     };
     use oxvg_collections::{
         atom::Atom,
-        attribute::{inheritable::Inheritable, presentation::LengthPercentage},
+        attribute::{core::Paint, inheritable::Inheritable, presentation::LengthPercentage},
     };
     let source = r#"<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg">
   <rect width="100%" height="100%" fill="black" />
@@ -402,14 +399,12 @@ fn parse_roxmltree() {
     );
     assert_eq!(
         &*attributes.item(2).unwrap(),
-        &Attr::Fill(Inheritable::Defined(SVGPaint::Color(CssColor::RGBA(
-            RGBA {
-                red: 0,
-                green: 0,
-                blue: 0,
-                alpha: 255
-            }
-        ))))
+        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 255
+        }))))
     );
 
     let circle = rect.next_element_sibling().unwrap();
@@ -436,13 +431,11 @@ fn parse_roxmltree() {
     );
     assert_eq!(
         &*attributes.item(3).unwrap(),
-        &Attr::Fill(Inheritable::Defined(SVGPaint::Color(CssColor::RGBA(
-            RGBA {
-                red: 0,
-                green: 0,
-                blue: 255,
-                alpha: 255
-            }
-        ))))
+        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+            red: 0,
+            green: 0,
+            blue: 255,
+            alpha: 255
+        }))))
     );
 }

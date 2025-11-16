@@ -12,12 +12,11 @@ use oxvg_ast::{
     style::{ComputedStyles, Mode},
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{
-    atom::Atom,
-    attribute::{
-        core::SVGTransformList, inheritable::Inheritable, presentation::LengthPercentage, Attr,
-        AttrId,
-    },
+use oxvg_collections::attribute::{
+    core::SVGTransformList,
+    inheritable::Inheritable,
+    presentation::{LengthPercentage, VectorEffect},
+    Attr, AttrId,
 };
 use oxvg_path::{command::Data, convert, Path};
 use serde::{Deserialize, Serialize};
@@ -202,11 +201,9 @@ impl ApplyTransforms {
             return true;
         }
 
-        if let Some(vector_effect) = element.get_attribute_local(&Atom::Static("vector-effect")) {
-            if let Attr::Unparsed { value, .. } = vector_effect.unaliased() {
-                if value.as_str() == "non-scaling-stroke" {
-                    return false;
-                }
+        if let Some(vector_effect) = get_attribute!(element, VectorEffect) {
+            if matches!(&*vector_effect, VectorEffect::NonScalingStroke) {
+                return false;
             }
         }
 

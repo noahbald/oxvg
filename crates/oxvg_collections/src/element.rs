@@ -1202,40 +1202,38 @@ define_elements! {
         ],
         info: ElementInfo::Legacy,
     },
-    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    // // https://docs.w3cub.com/svg/element/hatch.html
-    // Hatch {
-    //     name: "hatch",
-    //     categories: ElementCategory::Animation.union(ElementCategory::PaintServer),
-    //     permitted_categories: ElementCategory::Animation.union(ElementCategory::Descriptive),
-    //     permitted_elements: &[ElementId::Script, ElementId::Style, ElementId::HatchPath],
-    //     expected_attribute_groups: AttributeGroup::GlobalEvent
-    //         .union(AttributeGroup::Presentation),
-    //     expected_attributes: &[
-    //         AttrId::XHatch,
-    //         AttrId::YHatch,
-    //         AttrId::Pitch,
-    //         AttrId::RotateHatch,
-    //         AttrId::HatchUnits,
-    //         AttrId::HatchContentUnits,
-    //         AttrId::Transform,
-    //         AttrId::Href,
-    //     ],
-    // },
-    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    // // https://docs.w3cub.com/svg/element/hatchpath
-    // HatchPath {
-    //     name: "hatchpath",
-    //     categories: ElementCategory::Uncategorised,
-    //     permitted_categories: ElementCategory::Animation.union(ElementCategory::Descriptive),
-    //     permitted_elements: &[ElementId::Script, ElementId::Style],
-    //     expected_attribute_groups: AttributeGroup::GlobalEvent
-    //         .union(AttributeGroup::Presentation),
-    //     expected_attributes: &[
-    //         AttrId::D,
-    //         AttrId::Offset,
-    //     ],
-    // },
+    // https://docs.w3cub.com/svg/element/hatch.html
+    // https://www.w3.org/TR/2015/WD-SVG2-20150915/pservers.html#Hatches
+    Hatch {
+        name: "hatch",
+        categories: ElementCategory::Animation.union(ElementCategory::PaintServer),
+        permitted_categories: ElementCategory::Animation.union(ElementCategory::Descriptive),
+        permitted_elements: &[ElementId::Script, ElementId::Style, ElementId::HatchPath],
+        expected_attribute_groups: AttributeGroup::GlobalEvent
+            .union(AttributeGroup::Presentation),
+        expected_attributes: &[
+            AttrId::XHatch,
+            AttrId::YHatch,
+            AttrId::Pitch,
+            AttrId::RotateHatch,
+            AttrId::HatchUnits,
+            AttrId::HatchContentUnits,
+            AttrId::Href,
+        ],
+    },
+    // https://docs.w3cub.com/svg/element/hatchpath
+    HatchPath {
+        name: "hatchpath",
+        categories: ElementCategory::Uncategorised,
+        permitted_categories: ElementCategory::Animation.union(ElementCategory::Descriptive),
+        permitted_elements: &[ElementId::Script, ElementId::Style],
+        expected_attribute_groups: AttributeGroup::GlobalEvent
+            .union(AttributeGroup::Presentation),
+        expected_attributes: &[
+            AttrId::D,
+            AttrId::OffsetHatchPath,
+        ],
+    },
     HKern {
         name: "hkern",
         categories: ElementCategory::Uncategorised,
@@ -1649,8 +1647,7 @@ define_elements! {
             AttrId::RRadialGradient,
             AttrId::FX,
             AttrId::FY,
-            // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-            // AttrId::FR,
+            AttrId::FR,
             AttrId::GradientUnits,
             AttrId::GradientTransform,
             AttrId::SpreadMethod,
@@ -1725,27 +1722,24 @@ define_elements! {
             AttrId::To,
         ],
     },
-    // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    // SolidColor {
-    //     // NOTE: Not added to SVG 2 yet
-    //     // https://www.w3.org/TR/2012/WD-SVG2-20120828/pservers.html#SolidColorElement
-    //     name: "solidColor",
-    //     categories: ElementCategory::Uncategorised,
-    //     permitted_categories: ElementCategory::empty(),
-    //     permitted_elements: &[
-    //         ElementId::Animate,
-    //         ElementId::AnimateColor,
-    //         ElementId::Set,
-    //     ],
-    //     expected_attribute_groups: AttributeGroup::Presentation,
-    //     expected_attributes: &[
-    //         // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    //         // AttrId::SolidColor,
-    //         // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-    //         // AttrId::SolidOpacity,
-    //     ],
-    //     info: ElementInfo::NonRendering
-    // },
+    SolidColor {
+        // NOTE: Not added to SVG 2 yet
+        // https://www.w3.org/TR/2012/WD-SVG2-20120828/pservers.html#SolidColorElement
+        name: "solidColor",
+        categories: ElementCategory::Uncategorised,
+        permitted_categories: ElementCategory::empty(),
+        permitted_elements: &[
+            ElementId::Animate,
+            ElementId::AnimateColor,
+            ElementId::Set,
+        ],
+        expected_attribute_groups: AttributeGroup::Presentation,
+        expected_attributes: &[
+            AttrId::SolidColor,
+            AttrId::SolidOpacity,
+        ],
+        info: ElementInfo::NonRendering,
+    },
     Stop {
         name: "stop",
         categories: ElementCategory::empty(),
@@ -1975,8 +1969,7 @@ define_elements! {
             AttrId::StartOffset,
             AttrId::Method,
             AttrId::Spacing,
-            // TODO: Add when atoms included in xml5ever::LocalNameStaticSet
-            // AttrId::SideTextPath,
+            AttrId::Side,
         ],
     },
     Title {

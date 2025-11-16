@@ -7,7 +7,7 @@
 //! - Unused namespaces are skipped
 use std::{
     cell::{Cell, RefCell},
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
 };
 
 use oxvg_collections::{
@@ -20,7 +20,6 @@ use xml5ever::{
     driver::{parse_document, XmlParseOpts},
     interface::{NodeOrText, QuirksMode, TreeSink},
     tendril::TendrilSink,
-    tree_builder::NamespaceMap,
 };
 
 use crate::{
@@ -50,6 +49,27 @@ pub fn parse<'input, 'arena>(
     allocator: &mut Allocator<'input, 'arena>,
 ) -> Ref<'input, 'arena> {
     parse_document(Sink::new(allocator), XmlParseOpts::default()).one(source)
+}
+
+// https://docs.rs/xml5ever/0.36.1/src/xml5ever/tree_builder/mod.rs.html#54
+struct NamespaceMap {
+    scope: BTreeMap<Option<xml5ever::Prefix>, Option<xml5ever::Namespace>>,
+}
+impl NamespaceMap {
+    fn empty() -> Self {
+        NamespaceMap {
+            scope: BTreeMap::new(),
+        }
+    }
+    #[allow(clippy::ref_option)]
+    fn get(&self, prefix: &Option<xml5ever::Prefix>) -> Option<&Option<xml5ever::Namespace>> {
+        self.scope.get(prefix)
+    }
+    fn insert(&mut self, name: &xml5ever::QualName) {
+        let prefix = name.prefix.clone();
+        let namespace = Some(xml5ever::Namespace::from(&*name.ns));
+        self.scope.insert(prefix, namespace);
+    }
 }
 
 struct Sink<'a, 'input, 'arena> {
@@ -422,15 +442,15 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
 
 #[test]
 fn parse_markup5ever() {
-    use crate::attribute::data::{inheritable::Inheritable, presentation::LengthPercentage};
-    use lightningcss::{
-        properties::svg::SVGPaint,
-        values::{
-            color::{CssColor, RGBA},
-            length::LengthValue,
-            percentage::{DimensionPercentage, Percentage},
-        },
+    use lightningcss::values::{
+        color::{CssColor, RGBA},
+        length::LengthValue,
+        percentage::{DimensionPercentage, Percentage},
     };
+    use oxvg_collections::attribute::{
+        core::Paint, inheritable::Inheritable, presentation::LengthPercentage,
+    };
+
     let source = r#"<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg">
   <rect width="100%" height="100%" fill="black" />
   <circle cx="150" cy="100" r="90" fill="blue" />
@@ -475,22 +495,20 @@ fn parse_markup5ever() {
     assert_eq!(attributes.len(), 3);
     assert_eq!(
         &*attributes.item(0).unwrap(),
-        &Attr::Width(LengthPercentage::Percentage(Percentage(1.0)))
+        &Attr::WidthRect(LengthPercentage::Percentage(Percentage(1.0)))
     );
     assert_eq!(
         &*attributes.item(1).unwrap(),
-        &Attr::Height(LengthPercentage::Percentage(Percentage(1.0)))
+        &Attr::HeightRect(LengthPercentage::Percentage(Percentage(1.0)))
     );
     assert_eq!(
         &*attributes.item(2).unwrap(),
-        &Attr::Fill(Inheritable::Defined(SVGPaint::Color(CssColor::RGBA(
-            RGBA {
-                red: 0,
-                green: 0,
-                blue: 0,
-                alpha: 255
-            }
-        ))))
+        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 255
+        }))))
     );
 
     let circle = rect.next_element_sibling().unwrap();
@@ -499,31 +517,66 @@ fn parse_markup5ever() {
     assert_eq!(attributes.len(), 4);
     assert_eq!(
         &*attributes.item(0).unwrap(),
-        &Attr::CX(LengthPercentage(DimensionPercentage::Dimension(
+        &Attr::CXGeometry(LengthPercentage(DimensionPercentage::Dimension(
             LengthValue::Px(150.0)
         )))
     );
     assert_eq!(
         &*attributes.item(1).unwrap(),
-        &Attr::CY(LengthPercentage(DimensionPercentage::Dimension(
+        &Attr::CYGeometry(LengthPercentage(DimensionPercentage::Dimension(
             LengthValue::Px(100.0)
         )))
     );
     assert_eq!(
         &*attributes.item(2).unwrap(),
-        &Attr::RCircle(LengthPercentage(DimensionPercentage::Dimension(
+        &Attr::RGeometry(LengthPercentage(DimensionPercentage::Dimension(
             LengthValue::Px(90.0)
         )))
     );
     assert_eq!(
         &*attributes.item(3).unwrap(),
-        &Attr::Fill(Inheritable::Defined(SVGPaint::Color(CssColor::RGBA(
-            RGBA {
-                red: 0,
-                green: 0,
-                blue: 255,
-                alpha: 255
-            }
-        ))))
+        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+            red: 0,
+            green: 0,
+            blue: 255,
+            alpha: 255
+        }))))
+    );
+}
+
+#[test]
+fn parse_markup5ever_namespaces() {
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <a xlink:href=""/>
+</svg>"#;
+    let values = Allocator::new_values();
+    let mut arena = Allocator::new_arena();
+    let mut allocator = Allocator::new(&mut arena, &values);
+    let document = parse(source, &mut allocator).find_element().unwrap();
+
+    assert_eq!(document.qual_name(), &ElementId::Svg);
+    let attributes = document.attributes();
+    assert_eq!(attributes.len(), 2);
+    assert_eq!(
+        &*attributes.item(0).unwrap(),
+        &Attr::XMLNS("http://www.w3.org/2000/svg".into())
+    );
+    assert_eq!(
+        &*attributes.item(1).unwrap(),
+        &Attr::Unparsed {
+            attr_id: AttrId::Unknown(QualName {
+                prefix: Prefix::XMLNS,
+                local: Atom::Static("xlink")
+            }),
+            value: Atom::Static("http://www.w3.org/1999/xlink")
+        }
+    );
+    let a = document.first_element_child().unwrap();
+    assert_eq!(a.qual_name(), &ElementId::A);
+    let attributes = a.attributes();
+    assert_eq!(attributes.len(), 1);
+    assert_eq!(
+        &*attributes.item(0).unwrap(),
+        &Attr::XLinkHref(Atom::Static(""))
     );
 }
