@@ -10,6 +10,7 @@ use core::{
     Angle, Anything, Boolean, Class, Color, Id, Integer, Length, Number, NumberOptionalNumber,
     Opacity, Paint, SVGTransformList, Style, TokenList, Url,
 };
+use dashmap::DashMap;
 use filter_effect::{
     ChannelSelector, EdgeMode, In, OperatorFeComposite, OperatorFeMorphology,
     StitchTilesFeTurbulence, TypeFeColorMatrix, TypeFeTurbulence,
@@ -42,7 +43,7 @@ use presentation::{
     TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
 };
 use smallvec::SmallVec;
-use std::{cell::RefCell, collections::HashMap};
+use std::sync::LazyLock;
 use transfer_function::TransferFunctionType;
 use uncategorised::{
     BlendMode, ColorProfileName, CrossOrigin, LengthAdjust, LinkType, MarkerUnits, MediaQueryList,
@@ -2728,16 +2729,18 @@ impl std::fmt::Display for AttrId<'_> {
     }
 }
 
-thread_local! {
-    static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: RefCell<HashMap<AttributeGroup, &'static [&'static AttrId<'static>]>> = RefCell::default();
-}
+static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: LazyLock<
+    DashMap<AttributeGroup, &'static [&'static AttrId<'static>]>,
+> = LazyLock::new(DashMap::new);
 impl AttributeGroup {
     /// Returns the list of attributes associated with the attribute group
+    ///
+    /// # Panics
+    ///
+    /// If internal memoisation fails to memoise
     pub fn attributes(&self) -> &'static [&'static AttrId<'static>] {
-        if let Some(attributes) =
-            ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.with(|memo| memo.borrow().get(self).copied())
-        {
-            return attributes;
+        if let Some(attributes) = ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.get(self) {
+            return attributes.value();
         }
         let attributes = _attr_id::all
             .iter()
@@ -2745,12 +2748,11 @@ impl AttributeGroup {
             .copied()
             .collect();
         let attributes: &'static [_] = Vec::leak(attributes);
-        ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.with(move |memo| {
-            let mut memo = memo.borrow_mut();
-            let result = memo.insert(*self, attributes);
-            debug_assert!(result.is_none());
-        });
-        self.attributes()
+        ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.insert(*self, attributes);
+        ATTRIBUTE_GROUP_ATTRIBUTES_MEMO
+            .get(self)
+            .expect("Failed to assign attribute group memo")
+            .value()
     }
 
     /// Returns an `AttrId` that matches the attribute groups.

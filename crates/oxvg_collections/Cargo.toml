@@ -26,6 +26,7 @@ oxvg_serialize = { workspace = true, optional = true }
 
 bitflags = { workspace = true }
 cssparser_lightningcss = { workspace = true, optional = true }
+dashmap = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
