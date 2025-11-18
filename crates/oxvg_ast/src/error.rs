@@ -1,6 +1,6 @@
 //! Error types.
 
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 
 #[cfg(feature = "serialize")]
 use oxvg_serialize::error::PrinterError;
@@ -58,14 +58,21 @@ impl std::error::Error for XmlWriterError {}
 #[derive(Debug, Clone)]
 pub enum ComputedStylesError<'input> {
     /// A selector was found that may affect validity of computed styles
-    BadSelector(lightningcss::selector::SelectorList<'input>),
+    BadSelector {
+        /// The error message from using the selector
+        reason: String,
+        /// The selector that caused the error
+        selector: lightningcss::selector::SelectorList<'input>,
+    },
 }
 impl Display for ComputedStylesError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::BadSelector(selector) => {
-                f.write_str("Found an invalid selector while processing: ")?;
-                selector.fmt(f)
+            Self::BadSelector { reason, selector } => {
+                reason.fmt(f)?;
+                f.write_str(" for \"")?;
+                selector.fmt(f)?;
+                f.write_char('"')
             }
         }
     }

@@ -230,12 +230,20 @@ impl<'input> ComputedStyles<'input> {
         match style {
             rules::CssRule::Style(r) => {
                 for s in &r.selectors.0 {
-                    let this_selector = s
-                        .to_css_string(PrinterOptions::default())
-                        .map_err(|_| ComputedStylesError::BadSelector(r.selectors.clone()))?;
+                    let this_selector =
+                        s.to_css_string(PrinterOptions::default()).map_err(|e| {
+                            ComputedStylesError::BadSelector {
+                                reason: e.to_string(),
+                                selector: r.selectors.clone(),
+                            }
+                        })?;
                     selector.push(this_selector);
-                    let select = Selector::new(&selector.join(""))
-                        .map_err(|_| ComputedStylesError::BadSelector(r.selectors.clone()))?;
+                    let select = Selector::new(&selector.join("")).map_err(|e| {
+                        ComputedStylesError::BadSelector {
+                            reason: format!("{e:#?}"),
+                            selector: r.selectors.clone(),
+                        }
+                    })?;
                     if !select.matches_naive(&SelectElement::new(element.clone())) {
                         continue;
                     }
