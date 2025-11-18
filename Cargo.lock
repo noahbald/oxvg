@@ -1287,7 +1287,6 @@ version = "0.0.3"
 dependencies = [
  "bitflags",
  "insta",
- "lightningcss",
  "log",
  "napi",
  "napi-derive",

@@ -31,7 +31,7 @@ oxvg_ast = { workspace = true, features = [
   "visitor",
 ] }
 oxvg_collections = { workspace = true }
-oxvg_path = { workspace = true, features = ["oxvg", "serde"] }
+oxvg_path = { workspace = true, features = ["serde"] }
 oxvg_serialize = { workspace = true }
 
 anyhow = { workspace = true }
