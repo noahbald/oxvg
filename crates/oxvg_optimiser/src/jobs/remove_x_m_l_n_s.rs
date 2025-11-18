@@ -22,6 +22,8 @@ use crate::error::JobsError;
 ///
 /// This job may break document when used outside of HTML.
 ///
+/// This may cause issues if the XMLNS doesn't reference the SVG namespace.
+///
 /// # Errors
 ///
 /// Never.

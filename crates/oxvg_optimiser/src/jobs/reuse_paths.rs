@@ -8,7 +8,11 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     atom::Atom,
-    attribute::{core::Url, inheritable::Inheritable, path, Attr, AttrId},
+    attribute::{
+        core::{NonWhitespace, Url},
+        inheritable::Inheritable,
+        path, Attr, AttrId,
+    },
     element::ElementId,
     name::{Prefix, QualName, NS},
 };
@@ -144,7 +148,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             for attr in list[0].attributes() {
                 match attr.unaliased() {
                     Attr::Id(id) => {
-                        if !hrefs.contains(id)
+                        if !hrefs.contains(&id.0)
                             && !HasId::has_id(&context.query_has_stylesheet_result, id)?
                         {
                             is_id_protected = true;
@@ -159,13 +163,16 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             if is_id_protected {
                 remove_attribute!(list[0], Id);
             } else {
-                set_attribute!(reusable_path, Id(format!("reuse-{index}").into()));
+                set_attribute!(
+                    reusable_path,
+                    Id(NonWhitespace(format!("reuse-{index}").into()))
+                );
                 index += 1;
             }
 
             let new_id_attr =
                 get_attribute!(reusable_path, Id).expect("reusable path should be created with id");
-            let new_id: Atom<'input> = format!("#{new_id_attr}").into();
+            let new_id: Atom<'input> = format!("#{}", new_id_attr.0).into();
             drop(new_id_attr);
             for path in list {
                 remove_attribute!(path, D);
@@ -180,7 +187,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
                     }
                     if attributes.len() == 1 {
                         let attr = attributes.into_iter().next().expect("checked length");
-                        if let Attr::Id(id) = attr.unaliased() {
+                        if let Attr::Id(NonWhitespace(id)) = attr.unaliased() {
                             log::debug!("removing referenced path");
                             let old_url = format!("#{id}");
                             drop(attr);

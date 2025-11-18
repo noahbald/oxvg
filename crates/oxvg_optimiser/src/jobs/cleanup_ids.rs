@@ -9,7 +9,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{Attr, AttrId},
+    attribute::{core::NonWhitespace, Attr, AttrId},
     content_type::Reference,
 };
 use serde::{Deserialize, Serialize};
@@ -313,7 +313,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         // Find ids
         for element in root.breadth_first() {
             element.attributes().retain(|attr| {
-                let Attr::Id(id) = attr else {
+                let Attr::Id(NonWhitespace(id)) = attr else {
                     return true;
                 };
                 log::debug!("CleanupIds: prepare_id: found id: {id}");

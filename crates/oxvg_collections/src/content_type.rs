@@ -195,13 +195,11 @@ impl<'input> ContentType<'_, 'input> {
             | Self::IRI(value)
             | Self::Name(value)
             | Self::Url(value)
-            | Self::Id(value)
-            | Self::MediaType(value)
-            | Self::IDReference(value) => value.is_empty(),
+            | Self::MediaType(value) => value.is_empty(),
+            Self::Id(value) | Self::IDReference(value) | Self::Class(value) => value.is_empty(),
             Self::Style(style) => {
                 style.0.declarations.is_empty() && style.important_declarations.is_empty()
             }
-            Self::Class(value) => value.is_empty(),
             Self::SVGTransformList(transform_list) => transform_list.0.is_empty(),
             Self::ListOf(ListOf { list, .. }) => list.is_empty(),
             Self::ColorProfile(color_profile) => match &**color_profile {
@@ -340,7 +338,7 @@ impl<'input> ContentType<'_, 'input> {
         F: FnMut(Reference<'_, 'input>),
     {
         match self {
-            Self::IDReference(value) | Self::Id(value) => f(Reference::Atom(value)),
+            Self::IDReference(value) | Self::Id(value) => f(Reference::Atom(&mut (&mut *value).0)),
             Self::BeginEnd(begin_end) => match &mut **begin_end {
                 BeginEnd::SyncbaseValue { id, .. }
                 | BeginEnd::EventValue { id: Some(id), .. }

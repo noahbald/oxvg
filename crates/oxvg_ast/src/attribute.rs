@@ -17,12 +17,12 @@ use oxvg_collections::{
 /// use oxvg_ast::is_attribute;
 /// use oxvg_collections::{
 ///   atom::Atom,
-///   attribute::Attr,
+///   attribute::{Attr, core::NonWhitespace},
 /// };
 /// use lightningcss::properties::svg::SVGPaint;
 ///
 /// // Matching attribute ids
-/// let attr = Attr::Id(Atom::Static("my-attr"));
+/// let attr = Attr::Id(NonWhitespace(Atom::Static("my-attr")));
 /// assert!(is_attribute!(attr, Id | Class));
 /// ```
 ///

@@ -16,7 +16,8 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        inheritable::Inheritable, presentation::LengthPercentage, uncategorised::Radius, Attr,
+        core::NonWhitespace, inheritable::Inheritable, presentation::LengthPercentage,
+        uncategorised::Radius, Attr,
     },
     element::{ElementId, ElementInfo},
 };
@@ -163,7 +164,7 @@ impl<'input, 'arena> Data<'input, 'arena> {
     fn remove_element(&self, element: &Element<'input, 'arena>) {
         if let Some(parent) = Element::parent_element(element) {
             if is_element!(parent, Defs) {
-                if let Some(id) = get_attribute!(element, Id) {
+                if let Some(NonWhitespace(id)) = get_attribute!(element, Id).as_deref() {
                     self.removed_def_ids.borrow_mut().insert(id.clone());
                 }
                 if parent.child_element_count() == 1 {
@@ -365,14 +366,14 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             // Protect references that may use non-visible data
             let references_by_id = self.data.references_by_id.borrow();
             if let Some(id) = get_attribute!(element, Id) {
-                if references_by_id.contains_key(id.as_str()) {
+                if references_by_id.contains_key(id.0.as_str()) {
                     context.flags.visit_skip();
                     return false;
                 }
             }
             return !element.breadth_first().any(|child| {
                 if let Some(id) = get_attribute!(child, Id) {
-                    if references_by_id.contains_key(id.as_str()) {
+                    if references_by_id.contains_key(id.0.as_str()) {
                         return true;
                     }
                 }

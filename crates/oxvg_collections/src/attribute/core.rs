@@ -37,7 +37,7 @@ pub type Angle = lightningcss::values::angle::Angle;
 /// A sequence of any characters
 pub type Anything<'i> = Atom<'i>;
 /// An id string
-pub type Id<'i> = Anything<'i>;
+pub type Id<'i> = NonWhitespace<'i>;
 /// A class string
 pub type Class<'i> = NonWhitespace<'i>;
 
@@ -197,7 +197,7 @@ impl ToValue for Frequency {
 /// Functional notation for an IRI
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html#DataTypeFuncIRI)
-pub type FuncIRI<'i> = Atom<'i>;
+pub type FuncIRI<'i> = Anything<'i>;
 /// An integer
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html#DataTypeInteger)
@@ -205,10 +205,10 @@ pub type Integer = CSSInteger;
 /// An internationalized resource identifier
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html#DataTypeIRI)
-pub type IRI<'i> = Atom<'i>;
+pub type IRI<'i> = Anything<'i>;
 
 /// A non-whitespace, non-parenthesis, non-comma value
-pub type Name<'i> = Atom<'i>;
+pub type Name<'i> = Anything<'i>;
 /// A real number
 pub type Number = CSSNumber;
 
@@ -301,4 +301,4 @@ impl ToValue for TokenList<'_> {
 }
 
 /// A URL string
-pub type Url<'i> = Atom<'i>;
+pub type Url<'i> = Anything<'i>;

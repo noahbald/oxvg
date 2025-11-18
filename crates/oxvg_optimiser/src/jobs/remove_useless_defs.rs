@@ -58,10 +58,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessDefs {
         }
 
         let name = element.qual_name();
-        if !is_element!(element, Defs)
-            && (!name.info().contains(ElementInfo::NonRendering)
-                // FIXME: Create `AttrId` once atom is available in xml5ever
-                && !matches!(name.local_name().as_str(), "solidColor"))
+        if !is_element!(element, Defs | SolidColor)
+            && !name.info().contains(ElementInfo::NonRendering)
         {
             return Ok(());
         }

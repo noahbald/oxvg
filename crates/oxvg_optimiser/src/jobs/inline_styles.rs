@@ -20,7 +20,7 @@ use oxvg_ast::{
     remove_attribute, set_attribute,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{atom::Atom, attribute::core::Style, name::Prefix};
+use oxvg_collections::{atom::Atom, attribute::core::Style, is_prefix};
 use oxvg_serialize::ToValue as _;
 use parcel_selectors::{
     attr::{AttrSelectorOperator, CaseSensitivity},
@@ -456,7 +456,7 @@ impl<'input, 'arena> CollectMatchingSelectors<'_, '_, 'input, 'arena> {
             .filter(|m| {
                 simple_selector.iter().all(|token| match token {
                     Token::Class { ident } => m.has_class(ident),
-                    Token::ID { ident } => get_attribute!(m, Id).is_some_and(|id| &*id == ident),
+                    Token::ID { ident } => get_attribute!(m, Id).is_some_and(|id| id.0 == *ident),
                     Token::Attr { local_name, value } => match value {
                         Some((value, operator, sensitivity)) => {
                             m.get_attribute_local(local_name).is_some_and(|atom| {
@@ -557,10 +557,8 @@ impl<'input> visitor::Visitor<'input> for CollectMatchingSelectors<'_, '_, 'inpu
             for m in matches {
                 self.find_removable_tokens.inlines.push(RemovedToken {
                     element: m.clone(),
-                    // TODO: Arena instead of clone
                     tokens: matching_tokens.clone(),
                     specificity: selector.specificity(),
-                    // TODO: Arena instead of clone
                     declarations: declarations.clone(),
                 });
             }
@@ -687,7 +685,7 @@ impl<'input> visitor::Visitor<'input> for InlinePresentationAttributes<'_, '_, '
         }
         self.element
             .attributes()
-            .retain(|attr| *attr.prefix() != Prefix::SVG || &**attr.local_name() != name);
+            .retain(|attr| !is_prefix!(attr, SVG) || &**attr.local_name() != name);
         Ok(())
     }
 }

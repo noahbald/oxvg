@@ -1,6 +1,6 @@
 use oxvg_ast::{
     element::Element,
-    is_element,
+    is_attribute, is_element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
@@ -56,10 +56,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveNonInheritableGroupAttrs 
         }
 
         element.attributes().retain(|attr| {
-            let name = attr.name();
-            if name.local_name().as_str() == "vector-effect" {
+            if is_attribute!(attr, VectorEffect) {
                 return false;
             }
+            let name = attr.name();
             !name
                 .attribute_group()
                 .contains(AttributeGroup::Presentation)

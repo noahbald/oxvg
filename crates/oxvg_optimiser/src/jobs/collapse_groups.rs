@@ -191,8 +191,7 @@ fn is_group_identifiable<'input, 'arena>(
     node: &Element<'input, 'arena>,
     child: &Element<'input, 'arena>,
 ) -> bool {
-    child.has_attribute(&AttrId::Id)
-        && (!has_attribute!(node, Class) || !has_attribute!(child, Class))
+    has_attribute!(child, Id) && (!has_attribute!(node, Class) || !has_attribute!(child, Class))
 }
 
 fn is_position_visually_unstable<'input, 'arena>(

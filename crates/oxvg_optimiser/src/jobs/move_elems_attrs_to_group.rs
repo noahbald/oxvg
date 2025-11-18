@@ -78,9 +78,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
         // preserve for other jobs
         every_child_is_path
             // preserve for pass-through attributes
-            || has_attribute!(element, Filter)
-            || has_attribute!(element, ClipPath)
-            || has_attribute!(element, Mask)
+            || has_attribute!(element, Filter | ClipPath | Mask)
         {
             common_attributes.remove(&AttrId::Transform);
         }

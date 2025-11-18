@@ -64,7 +64,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
         document.children_iter().for_each(|e| {
-            self.root_element(&e, &mut unused_namespaces);
+            root_element(&e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);
         Ok(())
@@ -81,13 +81,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
         }
         let prefix = element.prefix();
         if !prefix.is_empty() {
-            unused_namespaces.remove(&prefix.ns().uri());
+            unused_namespaces.remove(prefix.ns().uri());
         }
 
-        for attr in element.attributes().into_iter() {
+        for attr in element.attributes() {
             let prefix = attr.prefix();
             if !prefix.is_empty() {
-                unused_namespaces.remove(&prefix.ns().uri());
+                unused_namespaces.remove(prefix.ns().uri());
             }
         }
 
@@ -102,62 +102,55 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
         document.children_iter().for_each(|e| {
-            self.exit_root_element(&e, &mut unused_namespaces);
+            exit_root_element(&e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);
         Ok(())
     }
 }
 
-impl<'input> State<'input> {
-    fn root_element(
-        &self,
-        element: &Element<'input, '_>,
-        unused_namespaces: &mut HashSet<Atom<'input>>,
-    ) {
-        if !is_element!(element) {
-            return;
-        }
-
-        for attr in element.attributes().into_iter() {
-            if let Attr::Unparsed {
-                attr_id:
-                    AttrId::Unknown(QualName {
-                        prefix: Prefix::XMLNS,
-                        ..
-                    }),
-                value,
-            } = &*attr
-            {
-                unused_namespaces.insert(value.clone());
-            }
-        }
+fn root_element<'input>(
+    element: &Element<'input, '_>,
+    unused_namespaces: &mut HashSet<Atom<'input>>,
+) {
+    if !is_element!(element, Svg) {
+        return;
     }
 
-    fn exit_root_element(
-        &self,
-        element: &Element<'input, '_>,
-        unused_namespaces: &mut HashSet<Atom<'input>>,
-    ) {
-        if !is_element!(element) {
-            return;
+    for attr in element.attributes() {
+        if let Attr::Unparsed {
+            attr_id:
+                AttrId::Unknown(QualName {
+                    prefix: Prefix::XMLNS,
+                    ..
+                }),
+            value,
+        } = &*attr
+        {
+            unused_namespaces.insert(value.clone());
         }
-
-        element.attributes().retain(|attr| {
-            let Attr::Unparsed {
-                attr_id:
-                    AttrId::Unknown(QualName {
-                        prefix: Prefix::XMLNS,
-                        ..
-                    }),
-                value,
-            } = attr
-            else {
-                return true;
-            };
-            !unused_namespaces.contains(value)
-        });
     }
+}
+
+fn exit_root_element(element: &Element, unused_namespaces: &mut HashSet<Atom>) {
+    if !is_element!(element, Svg) {
+        return;
+    }
+
+    element.attributes().retain(|attr| {
+        let Attr::Unparsed {
+            attr_id:
+                AttrId::Unknown(QualName {
+                    prefix: Prefix::XMLNS,
+                    ..
+                }),
+            value,
+        } = attr
+        else {
+            return true;
+        };
+        !unused_namespaces.contains(value)
+    });
 }
 
 impl Default for RemoveUnusedNS {

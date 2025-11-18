@@ -26,6 +26,11 @@ use tsify::Tsify;
 #[serde(rename_all = "camelCase")]
 /// Converts basic shapes to `<path>` elements
 ///
+/// # Differences to SVGO
+///
+/// OXVG will avoid converting shapes which may be referenced by local-name
+/// in stylesheets.
+///
 /// # Correctness
 ///
 /// Rounding errors may cause slight changes in visual appearance.

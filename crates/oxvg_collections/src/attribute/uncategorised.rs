@@ -14,7 +14,7 @@ use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 use crate::{atom::Atom, enum_attr};
 
 use super::{
-    core::{Angle, Number, Percentage},
+    core::{Angle, Anything, Number, Percentage},
     presentation::{LengthOrNumber, LengthPercentage},
     transform::SVGTransform,
 };
@@ -315,7 +315,7 @@ enum_attr!(
 /// A media/mime type
 ///
 /// [w3](https://svgwg.org/svg2-draft/interact.html#ScriptElementTypeAttribute)
-pub type MediaType<'i> = Atom<'i>;
+pub type MediaType<'i> = Anything<'i>;
 
 #[derive(Debug, Clone, PartialEq)]
 /// A media query

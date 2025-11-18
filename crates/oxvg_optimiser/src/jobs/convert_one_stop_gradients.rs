@@ -110,7 +110,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             if let Some(href) = href.as_deref() {
                 if href.starts_with('#') {
                     context.root.breadth_first().find(|element| {
-                        get_attribute!(element, Id).is_some_and(|id| id.as_str() == &href[1..])
+                        get_attribute!(element, Id).is_some_and(|id| id.0.as_str() == &href[1..])
                     })
                 } else {
                     Some(element.clone())

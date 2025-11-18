@@ -1,5 +1,7 @@
 //! ARIA attribute types as specified in [ARIA](https://www.w3.org/TR/wai-aria-1.1/)
-use crate::{atom::Atom, enum_attr};
+use crate::enum_attr;
+
+use super::core::NonWhitespace;
 
 enum_attr!(
     #[derive(Default)]
@@ -165,7 +167,7 @@ enum_attr!(
 /// A reference to the ID of another element in the same document
 ///
 /// [ARIA](https://www.w3.org/TR/wai-aria-1.1/#valuetype_idref)
-pub type IDReference<'i> = Atom<'i>;
+pub type IDReference<'i> = NonWhitespace<'i>;
 enum_attr!(
     /// Ontological roles
     ///

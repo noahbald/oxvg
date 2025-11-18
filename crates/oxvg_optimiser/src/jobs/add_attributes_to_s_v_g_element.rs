@@ -73,9 +73,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for AddAttributesToSVGElement {
         element: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let element_id = element.qual_name();
-
-        if !element.is_root() || !is_element!(element_id, Svg) {
+        if !element.is_root() || !is_element!(element, Svg) {
             return Ok(());
         }
 
