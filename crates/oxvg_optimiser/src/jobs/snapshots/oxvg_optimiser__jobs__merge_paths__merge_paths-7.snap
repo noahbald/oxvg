@@ -6,14 +6,14 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg width=\"1
     <!-- don't merge where paths lose their ends and markers are rendered incorrectly -->
     <defs>
         <style>
-            .a {marker-end: url(#arrowhead_end);}
+            .a{marker-end:url(#arrowhead_end)}
         </style>
         <marker id="arrowhead_end" markerWidth="10" markerHeight="10" refX="6" refY="3">
-            <path d="M 0,0 l 6,3 l -6,3" stroke="black"/>
+            <path d="M0 0l6 3-6 3" stroke="#000"/>
         </marker>
     </defs>
-    <path d="M 10,10 h50" stroke="black" marker-end="url(#arrowhead_end)"/>
-    <path d="M 10,50 h50" stroke="black" marker-end="url(#arrowhead_end)"/>
-    <path d="M 10,60 h60" stroke="black" class="a"/>
-    <path d="M 10,70 h60" stroke="black" class="a"/>
+    <path d="M10 10h50" stroke="#000" marker-end="url(#arrowhead_end)"/>
+    <path d="M10 50h50" stroke="#000" marker-end="url(#arrowhead_end)"/>
+    <path d="M10 60h60" stroke="#000" class="a"/>
+    <path d="M10 70h60" stroke="#000" class="a"/>
 </svg>

@@ -7,12 +7,16 @@ missing_docs = { level = "warn" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# Too noisy and not really an issue
-must_use_candidate = "allow"
-return_self_not_must_use = "allow"
+# Willing to accept lossy conversions
+cast_lossless = "allow"
+# Willing to accept lossy conversions
+cast_possible_truncation = "allow"
+# dbg should only be used for debugging
+dbg_macro = "warn"
 # Not a priority for svgo parity
 float_cmp = "allow"
-dbg_macro = "warn"
+# Too noisy and not really an issue
+must_use_candidate = "allow"
 
 [workspace.package]
 authors = ["Noah <noahwbaldwin@gmail.com>"]
@@ -27,6 +31,8 @@ oxvg_collections = { path = "crates/oxvg_collections", version = ">=0.0" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = ">=0.0" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser", version = ">=0.0" }
 oxvg_path = { path = "crates/oxvg_path", version = ">=0.0" }
+oxvg_parse = { path = "crates/oxvg_parse", version = ">=0.0" }
+oxvg_serialize = { path = "crates/oxvg_serialize", version = ">=0.0" }
 
 anyhow = "1.0"
 bitflags = { version = "2.7.0" }
@@ -35,6 +41,7 @@ clap = { version = "4.5", features = ["derive"] }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
 cssparser = "0.34.0"
+cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
@@ -54,9 +61,10 @@ napi = { version = "3.4", default-features = false, features = [
 ] }
 napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
+paste = "1.0"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
-rcdom = { package = "markup5ever_rcdom", version = "=0.5.0-unofficial" }
+rcdom = { package = "markup5ever_rcdom", version = "0.36.0" }
 regex = "1.11"
 roxmltree = "0.20"
 selectors = "0.26"
@@ -64,12 +72,13 @@ serde = "1.0"
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
-string_cache = "0.8"
+smallvec = "1.13.2"
+string_cache = "0.9"
 tendril = "0.4"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
 wasm-bindgen = "=0.2.100"
-xml5ever = "0.20"
+xml5ever = "0.36"
 
 # Developer dependencies
 ctor = "0.2"
@@ -77,6 +86,9 @@ criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = "0.11"
 insta = "1.42"
 pretty_assertions = "1.4"
+
+[patch.crates-io]
+web_atoms = { git = "https://github.com/servo/html5ever.git", package = "web_atoms", rev = "a2ca649" }
 
 [profile.dev.package."*"]
 opt-level = 3

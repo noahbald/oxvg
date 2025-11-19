@@ -48,7 +48,6 @@ use crate::parser::Parser;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-
 /// A path is a set of commands
 ///
 /// # Example
@@ -58,7 +57,7 @@ use crate::parser::Parser;
 /// ```
 /// use oxvg_path::Path;
 ///
-/// let path = Path::parse("M 10 0.01 L 0.5 -1").unwrap();
+/// let path = Path::parse_string("M 10 0.01 L 0.5 -1").unwrap();
 /// assert_eq!(&path.to_string(), "M10 .01.5-1");
 /// ```
 ///
@@ -71,7 +70,7 @@ impl Path {
     ///
     /// # Errors
     /// If the definition is invalid
-    pub fn parse(definition: &str) -> Result<Self, parser::Error> {
+    pub fn parse_string(definition: &str) -> Result<Self, parser::Error> {
         Parser::default().parse(definition)
     }
 
@@ -185,35 +184,37 @@ impl From<&Path> for String {
 #[cfg(feature = "default")]
 fn test_path_parse() {
     // Should parse single command
-    insta::assert_snapshot!(Path::parse("M 10,50").unwrap());
+    insta::assert_snapshot!(Path::parse_string("M 10,50").unwrap());
 
     // Should parse multiple commands
     insta::assert_snapshot!(
-        Path::parse("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap()
+        Path::parse_string("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap()
     );
 
     // Should parse arc
-    insta::assert_snapshot!(Path::parse("m-0,1a 25,25 -30 0,1 0,0").unwrap());
+    insta::assert_snapshot!(Path::parse_string("m-0,1a 25,25 -30 0,1 0,0").unwrap());
 
     // Should parse implicit
-    insta::assert_snapshot!(
-        Path::parse("M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005").unwrap()
-    );
+    insta::assert_snapshot!(Path::parse_string(
+        "M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005"
+    )
+    .unwrap());
 
     // Should parse minified
-    insta::assert_snapshot!(Path::parse("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap());
+    insta::assert_snapshot!(Path::parse_string("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap());
 
     // Should error when command isn't given
-    assert!(Path::parse("0,0").is_err());
+    assert!(Path::parse_string("0,0").is_err());
 
     // Should error when args are missing
-    assert!(Path::parse("m1").is_err());
+    assert!(Path::parse_string("m1").is_err());
 
     // Parse arc with decimals as separators
-    insta::assert_snapshot!(Path::parse("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
+    insta::assert_snapshot!(Path::parse_string("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
 
     // Parse implicit arc
-    insta::assert_snapshot!(
-        Path::parse("m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8").unwrap()
-    );
+    insta::assert_snapshot!(Path::parse_string(
+        "m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8"
+    )
+    .unwrap());
 }

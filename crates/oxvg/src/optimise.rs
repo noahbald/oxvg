@@ -8,14 +8,15 @@ use std::{
 use anyhow::anyhow;
 use ignore::{WalkBuilder, WalkState};
 use oxvg_ast::{
-    implementations::{
-        roxmltree::{parse, parse_file},
-        shared::{Arena, Element, Ref},
-    },
-    serialize::{Indent, Node as _, Options},
+    arena::Allocator,
+    node::Ref,
+    parse::roxmltree::parse,
+    serialize::Node as _,
     visitor::Info,
+    xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
+use roxmltree::ParsingOptions;
 
 use crate::{args::RunCommand, config::Config};
 
@@ -64,7 +65,7 @@ impl RunCommand for Optimise {
 }
 
 impl Optimise {
-    fn handle_out<W: Write>(dom: Ref<'_>, wr: W) -> anyhow::Result<W> {
+    fn handle_out<W: Write>(dom: Ref, wr: W) -> anyhow::Result<W> {
         Ok(dom.serialize_into(
             wr,
             Options {
@@ -74,17 +75,29 @@ impl Optimise {
         )?)
     }
 
-    fn handle_stdin<'arena>(&self, jobs: &Jobs, arena: Arena<'arena>) -> anyhow::Result<()> {
+    fn handle_stdin(&self, jobs: &Jobs) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
-        let dom = parse(&source, arena)?;
+        let xml = roxmltree::Document::parse_with_options(
+            &source,
+            ParsingOptions {
+                allow_dtd: true,
+                ..ParsingOptions::default()
+            },
+        )
+        .unwrap();
+        let values = Allocator::new_values();
+        let mut arena = Allocator::new_arena();
+        let mut allocator = Allocator::new(&mut arena, &values);
+        let dom = parse(&xml, &mut allocator)?;
 
-        let info: Info<'arena, Element<'arena>> = Info {
+        let info = Info {
             path: None,
             multipass_count: 0,
-            arena,
+            allocator,
         };
-        jobs.run(&dom, &info)?;
+        jobs.run(dom, &info)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
         if let Some(output) = &self.output.as_ref().and_then(|o| {
             eprintln!("Warning: Using empty `-o,--output` with stdin will print to stdout, you can instead omit `-o,--output`.");
@@ -106,23 +119,29 @@ impl Optimise {
         Ok(())
     }
 
-    fn handle_file<'arena>(
-        jobs: &Jobs,
-        path: &PathBuf,
-        output: Option<&PathBuf>,
-        arena: Arena<'arena>,
-    ) -> anyhow::Result<()> {
-        let file = std::fs::File::open(path)?;
-        let input_size = file.metadata()?.len() as f64 / 1000.0;
-        let dom = parse_file(path, arena)?;
-        drop(file);
+    fn handle_file(jobs: &Jobs, path: &PathBuf, output: Option<&PathBuf>) -> anyhow::Result<()> {
+        let file = std::fs::read_to_string(path)?;
+        let input_size = file.len() as f64 / 1000.0;
+        let xml = roxmltree::Document::parse_with_options(
+            &file,
+            ParsingOptions {
+                allow_dtd: true,
+                ..ParsingOptions::default()
+            },
+        )
+        .unwrap();
+        let values = Allocator::new_values();
+        let mut arena = Allocator::new_arena();
+        let mut allocator = Allocator::new(&mut arena, &values);
+        let dom = parse(&xml, &mut allocator).unwrap();
 
-        let info: Info<'arena, Element<'arena>> = Info {
+        let info: Info = Info {
             path: Some(path.clone()),
             multipass_count: 0,
-            arena,
+            allocator,
         };
-        jobs.run(&dom, &info)?;
+        jobs.run(dom, &info)
+            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
         if let Some(output_path) = output {
             if let Some(parent) = output_path.parent() {
@@ -165,7 +184,6 @@ impl Optimise {
             .build_parallel()
             .run(|| {
                 Box::new(move |path| {
-                    let arena = typed_arena::Arena::new();
                     let Ok(path) = path else {
                         return WalkState::Continue;
                     };
@@ -179,12 +197,12 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref(), &arena) {
+                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref()) {
                         eprintln!(
                             "{}: \x1b[31m{err}\x1b[0m",
                             path.to_str().unwrap_or_default()
                         );
-                    };
+                    }
                     WalkState::Continue
                 })
             });
@@ -198,8 +216,7 @@ impl Optimise {
                 .first()
                 .is_none_or(|path| path == &PathBuf::from_str(".").unwrap())
         {
-            let arena = typed_arena::Arena::new();
-            return self.handle_stdin(jobs, &arena);
+            return self.handle_stdin(jobs);
         }
         if self.paths.is_empty() {
             return Err(anyhow!(

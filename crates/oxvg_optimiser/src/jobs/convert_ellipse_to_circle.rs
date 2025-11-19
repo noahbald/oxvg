@@ -1,10 +1,15 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, Info, PrepareOutcome, Visitor},
+    get_attribute, is_element, remove_attribute, set_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
+};
+use oxvg_collections::{
+    attribute::{presentation::LengthPercentage, uncategorised::Radius},
+    element::ElementId,
 };
 use serde::{Deserialize, Serialize};
 
-use super::ContextFlags;
+use crate::error::JobsError;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
@@ -26,14 +31,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertEllipseToCircle(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertEllipseToCircle {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -45,31 +49,47 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertEllipseToCircle {
     #[allow(clippy::similar_names)]
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let name = element.local_name();
-        if name.as_ref() != "ellipse" {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !is_element!(element, Ellipse) {
             return Ok(());
         }
 
-        let rx_name = &"rx".into();
-        let ry_name = &"ry".into();
-        let rx = element
-            .get_attribute_local(rx_name)
-            .map_or(String::from("0"), |attr| attr.to_string());
-        let ry = element
-            .get_attribute_local(ry_name)
-            .map_or(String::from("0"), |attr| attr.to_string());
+        let rx = get_attribute!(element, RX);
+        let ry = get_attribute!(element, RY);
 
-        if rx != ry && rx != "auto" && ry != "auto" {
-            return Ok(());
+        // Can be converted to ellipse when
+        // - rx/ry are equal
+        // - at least one of rx/ry are auto
+        let radius = match rx.as_deref() {
+            None | Some(Radius::Auto) => match ry.as_deref() {
+                None | Some(Radius::Auto) => None,
+                Some(Radius::LengthPercentage(ry)) => Some(ry),
+            },
+            Some(Radius::LengthPercentage(rx)) => match ry.as_deref() {
+                None | Some(Radius::Auto) => Some(rx),
+                Some(Radius::LengthPercentage(ry)) => {
+                    if rx == ry {
+                        Some(rx)
+                    } else {
+                        return Ok(());
+                    }
+                }
+            },
         }
-        let radius = if rx == "auto" { ry } else { rx };
-        element.remove_attribute_local(rx_name);
-        element.remove_attribute_local(ry_name);
-        element.set_attribute_local("r".into(), radius.into());
-        element.set_local_name("circle".into(), &context.info.arena);
+        .cloned();
+        log::debug!("derived {radius:?} from {rx:?}, {ry:?}");
+
+        drop(rx);
+        drop(ry);
+        remove_attribute!(element, RX);
+        remove_attribute!(element, RY);
+        let element = element.set_local_name(ElementId::Circle, &context.info.allocator);
+        set_attribute!(
+            element,
+            RGeometry(radius.unwrap_or_else(|| LengthPercentage::px(0.0)))
+        );
         Ok(())
     }
 }

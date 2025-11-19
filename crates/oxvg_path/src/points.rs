@@ -348,7 +348,7 @@ impl Point {
 #[test]
 #[allow(clippy::too_many_lines)]
 fn from_positioned() {
-    let path = convert::relative(&Path::parse("m10 10 m 10 10").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 m 10 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -379,7 +379,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 l 10 10").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 l 10 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -401,7 +401,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 h 10").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 h 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -423,7 +423,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 v 10").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 v 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -445,7 +445,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 c20 0 15 -80 40 -80").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 c20 0 15 -80 40 -80").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -473,7 +473,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 s20 80 40 80").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 s20 80 40 80").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -500,7 +500,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 c20 0 15 -80 40 -80").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 c20 0 15 -80 40 -80").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -528,7 +528,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 c20 0 15 -80 40 -80 s20 80 40 80").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 c20 0 15 -80 40 -80 s20 80 40 80").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -560,7 +560,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 q25 25 40 50").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 q25 25 40 50").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -587,7 +587,7 @@ fn from_positioned() {
     );
 
     let path =
-        convert::relative(&Path::parse("m10 10 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0").unwrap());
+        convert::relative(&Path::parse_string("m10 10 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -623,7 +623,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 a 6 4 10 1 0 14 10").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 a 6 4 10 1 0 14 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:.12?}"),
@@ -655,7 +655,7 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse("m10 10 l10 10 h10 v10 c20 0 15 -80 40 -80 s20 80 40 80 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0 a 6 4 10 1 0 14 10 z").unwrap());
+    let path = convert::relative(&Path::parse_string("m10 10 l10 10 h10 v10 c20 0 15 -80 40 -80 s20 80 40 80 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0 a 6 4 10 1 0 14 10 z").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),

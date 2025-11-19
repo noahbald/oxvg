@@ -2,9 +2,9 @@
 source: crates/oxvg_optimiser/src/jobs/prefix_ids.rs
 expression: "test_config(r#\"{ \"prefixIds\": {\n            \"prefix\": \"prefixIds_10_svg_txt\"\n        } }\"#,\nSome(r#\"<g xmlns=\"http://www.w3.org/2000/svg\" transform=\"translate(130, 112)\">\n    <path class=\"st1\" d=\"M27,0h-37v64C-10,64,27,64.2,27,0z\" transform=\"scale(0.811377 1)\">\n    <animateTransform id=\"t_1s\" attributeName=\"transform\" type=\"scale\" from=\"1 1\" to=\"-1 1\" begin=\"0s; t_2s.end\" dur=\"0.5s\" repeatCount=\"0\"/>\n    <animateTransform id=\"t_2s\" attributeName=\"transform\" type=\"scale\" from=\"-1 1\" to=\"1 1\" begin=\"t_1s.end\" dur=\"0.5s\" repeatCount=\"0\"/>\n    </path>\n</g>\"#))?"
 ---
-<g xmlns="http://www.w3.org/2000/svg" transform="translate(130, 112)">
-    <path class="prefixIds_10_svg_txt__st1" d="M27,0h-37v64C-10,64,27,64.2,27,0z" transform="scale(0.811377 1)">
-        <animateTransform id="prefixIds_10_svg_txt__t_1s" attributeName="transform" type="scale" from="1 1" to="-1 1" begin="0s; prefixIds_10_svg_txt__t_2s.end" dur="0.5s" repeatCount="0"/>
-        <animateTransform id="prefixIds_10_svg_txt__t_2s" attributeName="transform" type="scale" from="-1 1" to="1 1" begin="prefixIds_10_svg_txt__t_1s.end" dur="0.5s" repeatCount="0"/>
+<g xmlns="http://www.w3.org/2000/svg" transform="translate(130 112)">
+    <path class="prefixIds_10_svg_txt__st1" d="M27 0h-37v64C-10 64 27 64.2 27 0Z" transform="scale(.811377 1)">
+        <animateTransform id="prefixIds_10_svg_txt__t_1s" attributeName="transform" type="scale" from="1 1" to="-1 1" begin="0;prefixIds_10_svg_txt__t_2s.end" dur=".5" repeatCount="0"/>
+        <animateTransform id="prefixIds_10_svg_txt__t_2s" attributeName="transform" type="scale" from="-1 1" to="1 1" begin="prefixIds_10_svg_txt__t_1s.end" dur=".5" repeatCount="0"/>
     </path>
 </g>

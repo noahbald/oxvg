@@ -1,25 +1,21 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::LazyLock};
 
-use itertools::Itertools;
 use lightningcss::{
-    printer::PrinterOptions,
-    selector::Component,
-    stylesheet::{ParserOptions, StyleSheet},
-    traits::ToCss,
-    visit_types,
+    rules::CssRuleList, selector::Component, values::ident::Ident, visit_types, visitor::Visit,
 };
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
     element::Element,
-    node::{self, Node},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    is_element,
+    visitor::{Context, Info, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{collections::REFERENCES_PROPS, regex::REFERENCES_URL};
-use regex::{Captures, Match};
+use oxvg_collections::content_type::Reference;
+use regex::Match;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "napi", napi)]
 #[derive(Default, Clone, Debug)]
@@ -32,18 +28,6 @@ pub enum PrefixGenerator {
     /// Use "prefix" as prefix
     #[default]
     Default,
-}
-
-#[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Debug)]
-/// Contextual information about the element that can be used to generate a prefix
-pub struct PrefixGeneratorInfo {
-    /// The file path of the processed document the element belongs to.
-    pub path: Option<String>,
-    /// The name of the element.
-    pub name: String,
-    /// The attributes of the element.
-    pub attributes: Vec<(String, String)>,
 }
 
 fn default_delim() -> String {
@@ -113,14 +97,13 @@ struct CssVisitor<'a, 'b> {
     class_names: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for PrefixIds {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if !self.prefix_ids && !self.prefix_class_names {
             PrepareOutcome::skip
@@ -131,92 +114,43 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for PrefixIds {
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
         let mut prefix_generator = GeneratePrefix::new(context.info, &self.prefix, &self.delim);
-        if element.prefix().is_none()
-            && element.local_name().as_ref() == "style"
+        if is_element!(element, Style)
             && self
-                .prefix_selectors(element, &mut prefix_generator, context.info)
+                .prefix_selectors(element, &mut prefix_generator)
                 .is_none()
         {
             return Ok(());
         }
 
         for mut attr in element.attributes().into_iter_mut() {
-            let value: &str = attr.value().as_ref();
-            if value.is_empty() {
-                continue;
-            }
-
-            let prefix = attr.prefix().as_ref().map(AsRef::as_ref);
-            let local_name = attr.local_name().as_ref();
-
-            if prefix.is_none() && local_name == "id" {
-                if self.prefix_ids {
-                    log::debug!("prefixing id");
-                    if let Some(new_id) = Self::prefix_id(value, &mut prefix_generator) {
-                        attr.set_value(new_id.into());
-                    }
-                }
-            } else if prefix.is_none() && local_name == "class" {
-                if self.prefix_class_names {
-                    log::debug!("prefixing class");
-                    let value = value
-                        .split_whitespace()
-                        .filter_map(|s| Self::prefix_id(s, &mut prefix_generator))
-                        .join(" ");
-                    attr.set_value(value.into());
-                }
-            } else if prefix.is_none_or(|p| p == "xlink") && local_name == "href" {
-                log::debug!("prefixing reference");
-                if let Some(new_ref) = Self::prefix_reference(value, &mut prefix_generator) {
-                    attr.set_value(new_ref.into());
-                }
-            } else if prefix.is_none() && matches!(local_name, "begin" | "end") {
-                log::debug!("prefixing animation");
-                #[allow(clippy::case_sensitive_file_extension_comparisons)]
-                let mut parts = value.split(';').map(str::trim).map(|s| {
-                    if s.ends_with(".end") || s.ends_with(".start") {
-                        let (id, postfix) =
-                            s.split_once('.').expect("should end with `.(end|start)`");
-                        if let Some(id) = Self::prefix_id(id, &mut prefix_generator) {
-                            format!("{id}.{postfix}")
-                        } else {
-                            s.to_string()
-                        }
-                    } else {
-                        s.to_string()
-                    }
+            let mut value = attr.value_mut();
+            if self.prefix_ids {
+                log::debug!("prefixing id");
+                value.visit_id(|id| {
+                    Self::prefix_id(id, &mut prefix_generator);
                 });
-                let new_animation_timing = parts.join("; ").into();
-                attr.set_value(new_animation_timing);
-            } else if prefix.is_none() && REFERENCES_PROPS.contains(local_name) {
-                log::debug!("prefixing url");
-                let new_value = REFERENCES_URL
-                    .replace_all(value, |caps: &Captures| {
-                        if let Some(prefix) =
-                            Self::prefix_reference(&caps[1], &mut prefix_generator)
-                        {
-                            let start = if caps[0].starts_with(':') { ":" } else { "" };
-                            format!("{start}url({prefix})")
-                        } else {
-                            caps[0].to_string()
-                        }
-                    })
-                    .as_ref()
-                    .into();
-                attr.set_value(new_value);
             }
+            if self.prefix_class_names {
+                log::debug!("prefixing class");
+                value.visit_class(|class| {
+                    Self::prefix_id(class, &mut prefix_generator);
+                });
+            }
+            value.visit_url(|url| {
+                Self::prefix_reference(url, &mut prefix_generator);
+            });
         }
 
         Ok(())
     }
 }
 
-impl<'i> lightningcss::visitor::Visitor<'i> for CssVisitor<'_, '_> {
-    type Error = String;
+impl<'input> lightningcss::visitor::Visitor<'input> for CssVisitor<'_, '_> {
+    type Error = JobsError<'input>;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
         if self.ids {
@@ -228,7 +162,7 @@ impl<'i> lightningcss::visitor::Visitor<'i> for CssVisitor<'_, '_> {
 
     fn visit_selector(
         &mut self,
-        selector: &mut lightningcss::selector::Selector<'i>,
+        selector: &mut lightningcss::selector::Selector<'input>,
     ) -> Result<(), Self::Error> {
         selector.iter_mut_raw_match_order().try_for_each(|c| {
             if matches!(c, Component::Class(_) if !self.class_names)
@@ -236,10 +170,8 @@ impl<'i> lightningcss::visitor::Visitor<'i> for CssVisitor<'_, '_> {
             {
                 return Ok(());
             }
-            if let Component::ID(ident) | Component::Class(ident) = c {
-                if let Some(new_ident) = PrefixIds::prefix_id(ident, self.generator) {
-                    *ident = new_ident.into();
-                }
+            if let Component::ID(Ident(ident)) | Component::Class(Ident(ident)) = c {
+                PrefixIds::prefix_id(Reference::Css(ident), self.generator);
             }
             Ok(())
         })
@@ -247,21 +179,18 @@ impl<'i> lightningcss::visitor::Visitor<'i> for CssVisitor<'_, '_> {
 
     fn visit_url(
         &mut self,
-        url: &mut lightningcss::values::url::Url<'i>,
+        url: &mut lightningcss::values::url::Url<'input>,
     ) -> Result<(), Self::Error> {
-        if let Some(new_url) = PrefixIds::prefix_reference(&url.url, self.generator) {
-            url.url = new_url.into();
-        }
+        PrefixIds::prefix_reference(Reference::Css(&mut url.url), self.generator);
         Ok(())
     }
 }
 
 impl PrefixIds {
-    fn prefix_selectors<'arena, E: Element<'arena>>(
+    fn prefix_selectors(
         &self,
-        element: &mut E,
+        element: &Element,
         prefix_generator: &mut GeneratePrefix,
-        info: &Info<'arena, E>,
     ) -> Option<()> {
         if element.is_empty() {
             return None;
@@ -269,59 +198,50 @@ impl PrefixIds {
 
         log::debug!("prefixing selectors for style element");
         element.child_nodes_iter().for_each(|child| {
-            if !matches!(
-                child.node_type(),
-                node::Type::Text | node::Type::CDataSection
-            ) {
-                return;
-            }
-
-            let Some(css) = child.text_content() else {
+            let Some(css) = child.style() else {
                 return;
             };
-            let Ok(mut css_ast) = StyleSheet::parse(&css, ParserOptions::default()) else {
-                return;
-            };
-            self.prefix_styles(&mut css_ast, prefix_generator);
-
-            let options = PrinterOptions {
-                minify: true,
-                ..PrinterOptions::default()
-            };
-            let Ok(css) = css_ast.rules.to_css_string(options) else {
-                return;
-            };
-            child.set_text_content(css.into(), &info.arena);
+            let mut css = css.borrow_mut();
+            self.prefix_styles(&mut css, prefix_generator);
         });
         Some(())
     }
 
-    fn prefix_styles(&self, css: &mut StyleSheet, prefix_generator: &mut GeneratePrefix) {
-        use lightningcss::visitor::Visitor;
-
+    fn prefix_styles(&self, css: &mut CssRuleList, prefix_generator: &mut GeneratePrefix) {
         let mut visitor = CssVisitor {
             generator: prefix_generator,
             ids: self.prefix_ids,
             class_names: self.prefix_class_names,
         };
-        let _ = visitor.visit_stylesheet(css);
+        css.visit(&mut visitor).ok();
     }
 
-    fn prefix_id(ident: &str, prefix_generator: &mut GeneratePrefix) -> Option<String> {
+    fn prefix_id(ident: Reference, prefix_generator: &mut GeneratePrefix) {
         let prefix = prefix_generator.generate();
         if ident.starts_with(&prefix) {
-            return None;
+            return;
         }
-        Some(format!("{prefix}{ident}"))
+        let new_ident = format!("{prefix}{}", &*ident);
+        match ident {
+            Reference::Atom(atom) => *atom = new_ident.into(),
+            Reference::Css(css) => *css = new_ident.into(),
+        }
     }
 
-    fn prefix_reference(url: &str, prefix_generator: &mut GeneratePrefix) -> Option<String> {
-        let reference = url.strip_prefix('#').unwrap_or(url);
+    fn prefix_reference(url: Reference, prefix_generator: &mut GeneratePrefix) {
+        if !url.starts_with('#') {
+            return;
+        }
+        let reference = url.strip_prefix('#').unwrap();
         let prefix = prefix_generator.generate();
         if reference.starts_with(&prefix) {
-            return None;
+            return;
         }
-        Some(format!("#{prefix}{reference}"))
+        let new_url = format!("#{prefix}{reference}");
+        match url {
+            Reference::Atom(atom) => *atom = new_url.into(),
+            Reference::Css(cow) => *cow = new_url.into(),
+        }
     }
 }
 
@@ -370,8 +290,8 @@ struct GeneratePrefix<'a> {
 }
 
 impl<'a> GeneratePrefix<'a> {
-    fn new<'arena, E: Element<'arena>>(
-        info: &'a Info<'arena, E>,
+    fn new<'input, 'arena>(
+        info: &'a Info<'input, 'arena>,
         prefix_generator: &'a PrefixGenerator,
         delim: &'a str,
     ) -> Self {
@@ -383,7 +303,7 @@ impl<'a> GeneratePrefix<'a> {
         }
     }
 
-    fn generate(&mut self) -> std::string::String {
+    fn generate(&mut self) -> String {
         match self.prefix_generator {
             PrefixGenerator::Prefix(s) => format!("{s}{}", self.delim),
             PrefixGenerator::None => String::new(),
@@ -410,10 +330,10 @@ fn get_basename(path: &std::path::Path) -> Option<Match> {
         .and_then(|m| m.get(0))
 }
 
-lazy_static! {
-    static ref ESCAPE_IDENTIFIER_NAME: regex::Regex = regex::Regex::new("[. ]").unwrap();
-    static ref BASENAME_CAPTURE: regex::Regex = regex::Regex::new(r"[/\\]?([^/\\]+)").unwrap();
-}
+static ESCAPE_IDENTIFIER_NAME: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new("[. ]").unwrap());
+static BASENAME_CAPTURE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"[/\\]?([^/\\]+)").unwrap());
 
 #[test]
 #[allow(clippy::too_many_lines)]
@@ -659,7 +579,7 @@ fn prefix_ids() -> anyhow::Result<()> {
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
   <style>
     <!-- uwu -->
-    #a {}
+    #a { color: red; }
   </style>
 </svg>"#
         )

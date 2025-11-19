@@ -2,9 +2,18 @@
 use std::{
     hash::{DefaultHasher, Hash as _, Hasher},
     marker::PhantomData,
+    ops::Deref,
 };
 
 use cssparser::ToCss;
+use lightningcss::printer::PrinterOptions;
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{Attr, AttrId},
+    element::ElementId,
+    name::{self, Prefix, QualName},
+};
+use oxvg_serialize::ToValue as _;
 use precomputed_hash::PrecomputedHash;
 use selectors::{
     context::SelectorCaches,
@@ -14,64 +23,82 @@ use selectors::{
 };
 
 use crate::{
-    atom::Atom,
-    attribute::{Attr as _, Attributes as _},
-    class_list::ClassList as _,
-    element::{self},
-    name::Name,
-    node::{self, Node as _},
+    element::{self, Element},
+    get_attribute, is_attribute, is_element, node,
 };
+
+type A<'input> = Atom<'input>;
+type P<'input> = Prefix<'input>;
+type LN<'input> = Atom<'input>;
+type NS<'input> = Atom<'input>;
 
 #[derive(Debug, Clone)]
 /// Specifies parser types
-pub struct SelectorImpl<A: Atom, P: Atom, LN: Atom, NS: Atom> {
-    atom: PhantomData<A>,
-    prefix: PhantomData<P>,
-    name: PhantomData<LN>,
-    namespace: PhantomData<NS>,
+pub struct SelectorImpl {
+    atom: PhantomData<A<'static>>,
+    prefix: PhantomData<P<'static>>,
+    name: PhantomData<LN<'static>>,
+    namespace: PhantomData<NS<'static>>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Default)]
 /// A value
-pub struct CssAtom<A: Atom>(pub A);
+pub struct CssAtom(pub A<'static>);
+impl<'a> From<&'a str> for CssAtom {
+    fn from(value: &'a str) -> Self {
+        Self(value.to_string().into())
+    }
+}
 
 #[derive(Eq, PartialEq, Clone, Default)]
 /// A local name or prefix
-pub struct CssName<N: Atom>(pub N);
+pub struct CssName(pub A<'static>);
+impl<'a> From<&'a str> for CssName {
+    fn from(value: &'a str) -> Self {
+        Self(value.to_string().into())
+    }
+}
+impl Deref for CssName {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_bytes()
+    }
+}
 
 #[derive(Eq, PartialEq, Clone, Default)]
 /// A namespace url
-pub struct CssNamespace<NS: Atom>(pub NS);
+pub struct CssNamespace(pub NS<'static>);
 
 #[derive(Eq, PartialEq, Clone)]
 /// The type for a pseudo-class.
-pub enum PseudoClass<A: Atom, P: Atom, LN: Atom, NS: Atom> {
+pub enum PseudoClass {
     /// :any-link
     AnyLink(
-        PhantomData<A>,
-        PhantomData<P>,
-        PhantomData<LN>,
-        PhantomData<NS>,
+        PhantomData<A<'static>>,
+        PhantomData<P<'static>>,
+        PhantomData<LN<'static>>,
+        PhantomData<NS<'static>>,
     ),
     /// :link
     Link(
-        PhantomData<A>,
-        PhantomData<P>,
-        PhantomData<LN>,
-        PhantomData<NS>,
+        PhantomData<A<'static>>,
+        PhantomData<P<'static>>,
+        PhantomData<LN<'static>>,
+        PhantomData<NS<'static>>,
     ),
 }
 
 #[derive(Eq, PartialEq, Clone)]
 /// The type for a pseudo-element.
-pub struct PseudoElement<A: Atom, P: Atom, LN: Atom, NS: Atom> {
-    atom: PhantomData<A>,
-    prefix: PhantomData<P>,
-    name: PhantomData<LN>,
-    namespace: PhantomData<NS>,
+pub struct PseudoElement {
+    atom: PhantomData<A<'static>>,
+    prefix: PhantomData<P<'static>>,
+    name: PhantomData<LN<'static>>,
+    namespace: PhantomData<NS<'static>>,
 }
 
-impl<A: Atom> ToCss for CssAtom<A> {
+impl ToCss for CssAtom {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
@@ -80,34 +107,22 @@ impl<A: Atom> ToCss for CssAtom<A> {
     }
 }
 
-impl<A: Atom> AsRef<str> for CssAtom<A> {
+impl AsRef<str> for CssAtom {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
 
-impl<N: Atom> ToCss for CssName<N> {
+impl ToCss for CssName {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
     {
-        cssparser::serialize_string(self.0.as_ref(), dest)
+        cssparser::serialize_string(&self.0, dest)
     }
 }
 
-impl<A: Atom> From<&str> for CssAtom<A> {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl<N: Atom> From<&str> for CssName<N> {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
-
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> ToCss for PseudoClass<A, P, LN, NS> {
+impl ToCss for PseudoClass {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
@@ -124,7 +139,7 @@ impl<A: Atom, P: Atom, LN: Atom, NS: Atom> ToCss for PseudoClass<A, P, LN, NS> {
     }
 }
 
-impl<N: Atom> PrecomputedHash for CssName<N> {
+impl PrecomputedHash for CssName {
     #[allow(clippy::cast_possible_truncation)] // fine for hash
     fn precomputed_hash(&self) -> u32 {
         let mut output = DefaultHasher::default();
@@ -133,7 +148,7 @@ impl<N: Atom> PrecomputedHash for CssName<N> {
     }
 }
 
-impl<N: Atom> PrecomputedHash for CssNamespace<N> {
+impl PrecomputedHash for CssNamespace {
     #[allow(clippy::cast_possible_truncation)] // fine for hash
     fn precomputed_hash(&self) -> u32 {
         let mut output = DefaultHasher::default();
@@ -142,10 +157,8 @@ impl<N: Atom> PrecomputedHash for CssNamespace<N> {
     }
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> selectors::parser::NonTSPseudoClass
-    for PseudoClass<A, P, LN, NS>
-{
-    type Impl = SelectorImpl<A, P, LN, NS>;
+impl selectors::parser::NonTSPseudoClass for PseudoClass {
+    type Impl = SelectorImpl;
 
     fn is_active_or_hover(&self) -> bool {
         false
@@ -163,7 +176,7 @@ impl<A: Atom, P: Atom, LN: Atom, NS: Atom> selectors::parser::NonTSPseudoClass
     }
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> ToCss for PseudoElement<A, P, LN, NS> {
+impl ToCss for PseudoElement {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
@@ -176,81 +189,62 @@ impl<A: Atom, P: Atom, LN: Atom, NS: Atom> ToCss for PseudoElement<A, P, LN, NS>
     }
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> selectors::parser::PseudoElement
-    for PseudoElement<A, P, LN, NS>
-{
-    type Impl = SelectorImpl<A, P, LN, NS>;
+impl selectors::parser::PseudoElement for PseudoElement {
+    type Impl = SelectorImpl;
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> selectors::SelectorImpl for SelectorImpl<A, P, LN, NS> {
-    type AttrValue = CssAtom<A>;
-    type Identifier = CssName<LN>;
-    type LocalName = CssName<LN>;
-    type NamespacePrefix = CssName<P>;
-    type NamespaceUrl = CssNamespace<NS>;
-    type BorrowedNamespaceUrl = CssNamespace<NS>;
-    type BorrowedLocalName = CssName<LN>;
+impl selectors::SelectorImpl for SelectorImpl {
+    type AttrValue = CssAtom;
+    type Identifier = CssName;
+    type LocalName = CssName;
+    type NamespacePrefix = CssName;
+    type NamespaceUrl = CssNamespace;
+    type BorrowedNamespaceUrl = CssNamespace;
+    type BorrowedLocalName = CssName;
 
-    type NonTSPseudoClass = PseudoClass<A, P, LN, NS>;
-    type PseudoElement = PseudoElement<A, P, LN, NS>;
+    type NonTSPseudoClass = PseudoClass;
+    type PseudoElement = PseudoElement;
 
     type ExtraMatchingData<'a> = ();
 }
 
 /// An iterator for the elements matching a given selector.
 #[allow(clippy::type_complexity)]
-pub struct Select<'arena, E: element::Element<'arena>> {
-    inner: element::Iterator<'arena, E>,
-    scope: Option<E>,
-    selector: Selector<
-        E::Atom,
-        <E::Name as Name>::Prefix,
-        <E::Name as Name>::LocalName,
-        <E::Name as Name>::Namespace,
-    >,
+pub struct Select<'input, 'arena> {
+    inner: element::Iterator<'input, 'arena>,
+    scope: Option<Element<'input, 'arena>>,
+    selector: Selector,
     selector_caches: SelectorCaches,
 }
 
 #[derive(Debug)]
 /// A parsed selector.
-pub struct Selector<A: Atom, P: Atom, LN: Atom, NS: Atom>(
-    selectors::parser::SelectorList<SelectorImpl<A, P, LN, NS>>,
-);
+pub struct Selector(selectors::parser::SelectorList<SelectorImpl>);
 
 /// A parser for selectors.
-pub struct Parser<A: Atom, P: Atom, LN: Atom, NS: Atom> {
-    marker: PhantomData<(A, P, LN, NS)>,
-}
+pub struct Parser;
 
-impl<'arena, E: element::Element<'arena>> Select<'arena, E> {
+impl<'input, 'arena> Select<'input, 'arena> {
     /// Creates an iterator over the elements matching the selector.
     ///
     /// # Errors
     /// If the selector fails to parse
     pub fn new<'a>(
-        element: &'a E,
+        element: &'a Element<'input, 'arena>,
         selector: &'a str,
     ) -> Result<
-        Select<'arena, E>,
+        Select<'input, 'arena>,
         cssparser::ParseError<'a, selectors::parser::SelectorParseErrorKind<'a>>,
     > {
-        Ok(Self::new_with_selector(
-            element,
-            Selector::new::<E>(selector)?,
-        ))
+        Ok(Self::new_with_selector(element, Selector::new(selector)?))
     }
 
     /// Creates an iterator over the elements matching the selector, using the given selector.
     #[allow(clippy::type_complexity)]
     pub fn new_with_selector(
-        element: &E,
-        selector: Selector<
-            E::Atom,
-            <E::Name as Name>::Prefix,
-            <E::Name as Name>::LocalName,
-            <E::Name as Name>::Namespace,
-        >,
-    ) -> Select<'arena, E> {
+        element: &Element<'input, 'arena>,
+        selector: Selector,
+    ) -> Select<'input, 'arena> {
         Select {
             inner: element.breadth_first(),
             scope: Some(element.clone()),
@@ -260,16 +254,15 @@ impl<'arena, E: element::Element<'arena>> Select<'arena, E> {
     }
 }
 
-impl<'arena, E: element::Element<'arena>> Iterator for Select<'arena, E> {
-    type Item = E;
+impl<'input, 'arena> Iterator for Select<'input, 'arena> {
+    type Item = Element<'input, 'arena>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.find(|element| {
-            element::Element::parent_element(element).is_some()
+            Element::parent_element(element).is_some()
                 && self.selector.matches_with_scope_and_cache(
                     &SelectElement {
                         element: element.clone(),
-                        marker: PhantomData,
                     },
                     self.scope.clone(),
                     &mut self.selector_caches,
@@ -278,35 +271,29 @@ impl<'arena, E: element::Element<'arena>> Iterator for Select<'arena, E> {
     }
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> Selector<A, P, LN, NS> {
+impl Selector {
     /// # Errors
     /// If the selector fails to parse
-    pub fn new<
-        'arena,
-        E: element::Element<'arena, Atom = A, Name: Name<Prefix = P, LocalName = LN, Namespace = NS>>,
-    >(
+    pub fn new(
         selector: &str,
-    ) -> Result<Selector<A, P, LN, NS>, cssparser::ParseError<'_, SelectorParseErrorKind<'_>>> {
+    ) -> Result<Selector, cssparser::ParseError<'_, SelectorParseErrorKind<'_>>> {
         let parser_input = &mut cssparser::ParserInput::new(selector);
         let parser = &mut cssparser::Parser::new(parser_input);
 
-        let list = SelectorList::parse(&new_parser::<E>(), parser, ParseRelative::No)?;
+        let list = SelectorList::parse(&Parser, parser, ParseRelative::No)?;
         Ok(Selector(list))
     }
 }
 
-impl<A: Atom, P: Atom, LN: Atom, NS: Atom> Selector<A, P, LN, NS> {
+impl<'input, 'arena> Selector {
     /// Returns whether the selector matches an element.
-    pub fn matches_with_scope_and_cache<
-        'arena,
-        E: element::Element<'arena, Atom = A, Name: Name<Prefix = P, LocalName = LN, Namespace = NS>>,
-    >(
+    pub fn matches_with_scope_and_cache(
         &self,
-        element: &SelectElement<'arena, E>,
-        scope: Option<E>,
+        element: &SelectElement<'input, 'arena>,
+        scope: Option<Element<'input, 'arena>>,
         selector_caches: &mut SelectorCaches,
     ) -> bool {
-        let context = &mut matching::MatchingContext::new(
+        let mut context = matching::MatchingContext::new(
             matching::MatchingMode::Normal,
             None,
             selector_caches,
@@ -315,64 +302,48 @@ impl<A: Atom, P: Atom, LN: Atom, NS: Atom> Selector<A, P, LN, NS> {
             matching::MatchingForInvalidation::No,
         );
         context.scope_element = scope.map(|e| selectors::Element::opaque(&SelectElement::new(e)));
-        matching::matches_selector_list(&self.0, element, context)
+        matching::matches_selector_list(&self.0, element, &mut context)
     }
 
     /// Returns whether the selector matches an element.
-    pub fn matches_naive<
-        'arena,
-        E: element::Element<'arena, Atom = A, Name: Name<Prefix = P, LocalName = LN, Namespace = NS>>,
-    >(
-        &self,
-        element: &SelectElement<'arena, E>,
-    ) -> bool {
+    pub fn matches_naive(&self, element: &SelectElement<'input, 'arena>) -> bool {
         self.matches_with_scope_and_cache(element, None, &mut SelectorCaches::default())
     }
 }
 
-impl<'i, A: Atom, P: Atom, LN: Atom, NS: Atom> selectors::parser::Parser<'i>
-    for Parser<A, P, LN, NS>
-{
-    type Impl = SelectorImpl<A, P, LN, NS>;
+impl<'i> selectors::parser::Parser<'i> for Parser {
+    type Impl = SelectorImpl;
     type Error = SelectorParseErrorKind<'i>;
 }
 
-#[allow(clippy::type_complexity)]
-fn new_parser<'arena, E: element::Element<'arena>>() -> Parser<
-    E::Atom,
-    <E::Name as Name>::Prefix,
-    <E::Name as Name>::LocalName,
-    <E::Name as Name>::Namespace,
-> {
-    Parser {
-        marker: PhantomData,
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// A wrapper for [`element::Element`] implementing [`selectors::Element`]
-pub struct SelectElement<'arena, E: element::Element<'arena>> {
-    element: E,
-    marker: PhantomData<&'arena ()>,
+pub struct SelectElement<'input, 'arena> {
+    element: Element<'input, 'arena>,
 }
 
-impl<'arena, E: element::Element<'arena>> SelectElement<'arena, E> {
+impl<'input, 'arena> SelectElement<'input, 'arena> {
     /// Creates a selectable element using the given element
-    pub fn new(element: E) -> Self {
-        Self {
-            element,
-            marker: PhantomData,
-        }
+    pub fn new(element: Element<'input, 'arena>) -> Self {
+        Self { element }
     }
 }
 
-impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'arena, E> {
-    type Impl = SelectorImpl<
-        <E as node::Node<'arena>>::Atom,
-        <<E as node::Node<'arena>>::Name as Name>::Prefix,
-        <<E as node::Node<'arena>>::Name as Name>::LocalName,
-        <<E as node::Node<'arena>>::Name as Name>::Namespace,
-    >;
+impl std::fmt::Debug for SelectElement<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if !is_element!(self.element) {
+            std::fmt::Debug::fmt(&self.element.node_type(), f)?;
+            return Ok(());
+        }
+        f.debug_struct("SelectElement")
+            .field("name", self.element.qual_name())
+            .field("attr length", &self.element.attributes().len())
+            .finish()
+    }
+}
+
+impl selectors::Element for SelectElement<'_, '_> {
+    type Impl = SelectorImpl;
 
     fn opaque(&self) -> selectors::OpaqueElement {
         selectors::OpaqueElement::new(self)
@@ -417,7 +388,7 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
         if self.element.node_type() == node::Type::Document {
             false
         } else {
-            self.element.local_name() == &local_name.0
+            *self.element.local_name() == local_name.0
         }
     }
 
@@ -425,7 +396,7 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
         &self,
         ns: &<Self::Impl as selectors::SelectorImpl>::BorrowedNamespaceUrl,
     ) -> bool {
-        self.element.qual_name().ns() == &ns.0
+        *self.element.prefix().ns().uri() == ns.0
     }
 
     fn is_same_type(&self, other: &Self) -> bool {
@@ -452,11 +423,14 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
             NamespaceConstraint::Specific(ns) if ns.0.is_empty() => {
                 self.element.get_attribute_local(&local_name.0)
             }
-            NamespaceConstraint::Specific(ns) => {
-                self.element.get_attribute_ns(&ns.0, &local_name.0)
-            }
+            NamespaceConstraint::Specific(ns) => self
+                .element
+                .get_attribute_ns(&name::NS::new(ns.0.clone()), &local_name.0),
         };
         let Some(value) = value else {
+            return false;
+        };
+        let Ok(value) = value.to_value_string(PrinterOptions::default()) else {
             return false;
         };
         operation.eval_str(&value)
@@ -495,8 +469,11 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
         if self.element.node_type() == node::Type::Document {
             return false;
         }
-        matches!(self.element.local_name().as_ref(), "a" | "area" | "link")
-            && self.element.has_attribute_local(&"href".into())
+        (match self.element.qual_name() {
+            ElementId::A => true,
+            ElementId::Unknown(QualName { local, .. }) => matches!(local.as_str(), "area" | "link"),
+            _ => false,
+        }) && self.element.has_attribute(&AttrId::Href)
     }
 
     fn is_html_slot_element(&self) -> bool {
@@ -511,7 +488,7 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
         if self.element.node_type() == node::Type::Document {
             return false;
         }
-        let Some(self_id) = self.element.get_attribute_local(&"id".into()) else {
+        let Some(self_id) = get_attribute!(self.element, Id) else {
             return false;
         };
         case_sensitivity.eq(id.0.as_bytes(), self_id.as_bytes())
@@ -526,13 +503,10 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
             return false;
         }
 
-        let Some(self_class) = self.element.get_attribute_local(&"class".into()) else {
+        let Some(attr) = get_attribute!(self.element, Class) else {
             return false;
         };
-        let name = name.0.as_bytes();
-        self_class
-            .split_whitespace()
-            .any(|c| case_sensitivity.eq(name, c.as_bytes()))
+        attr.iter().any(|c| case_sensitivity.eq(name, c.as_bytes()))
     }
 
     fn imported_part(
@@ -579,21 +553,23 @@ impl<'arena, E: element::Element<'arena>> selectors::Element for SelectElement<'
         self.element.prefix().hash(prefix_hash);
         f(prefix_hash.finish() as u32);
 
-        if let Some(id) = self.element.get_attribute_local(&"id".into()) {
-            let id_hash = &mut DefaultHasher::default();
-            id.hash(id_hash);
-            f(prefix_hash.finish() as u32);
+        if let Some(id) = self.element.get_attribute(&AttrId::Id) {
+            if let Attr::Id(id) = &*id {
+                let id_hash = &mut DefaultHasher::default();
+                id.hash(id_hash);
+                f(prefix_hash.finish() as u32);
+            }
         }
 
-        for class in self.element.class_list().iter() {
+        self.element.class_list().for_each(|class| {
             let class_hash = &mut DefaultHasher::default();
             class.hash(class_hash);
             f(class_hash.finish() as u32);
-        }
+        });
 
-        for attr in self.element.attributes().into_iter() {
+        for attr in self.element.attributes() {
             let name = attr.name();
-            if matches!(name.local_name().as_ref(), "class" | "id" | "style") {
+            if is_attribute!(name, Class | Id | Style) {
                 continue;
             }
 

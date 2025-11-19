@@ -3,5 +3,5 @@ source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
 expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\">\n    <path d=\"m 1 1 a 10000 10000 0 0 0 8 0\" stroke=\"black\"/>\n</svg>\"#))?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
-    <path d="M1 1h8" stroke="black"/>
+    <path d="M1 1h8" stroke="#000"/>
 </svg>

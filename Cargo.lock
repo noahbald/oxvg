@@ -383,7 +383,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf",
+ "phf 0.11.2",
  "smallvec",
 ]
 
@@ -396,7 +396,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf",
+ "phf 0.11.2",
  "smallvec",
 ]
 
@@ -648,6 +648,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastrand"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -761,16 +767,12 @@ dependencies = [
 
 [[package]]
 name = "html5ever"
-version = "0.29.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e15626aaf9c351bc696217cbe29cb9b5e86c43f8a46b5e2f5c6c5cf7cb904ce"
+checksum = "6452c4751a24e1b99c3260d505eaeee76a050573e61f30ac2c924ddc7236f01e"
 dependencies = [
  "log",
- "mac",
- "markup5ever",
- "proc-macro2",
- "quote",
- "syn 2.0.89",
+ "markup5ever 0.36.1",
 ]
 
 [[package]]
@@ -1002,21 +1004,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82c88c6129bd24319e62a0359cb6b958fa7e8be6e19bb1663bc396b90883aca5"
 dependencies = [
  "log",
- "phf",
- "phf_codegen",
- "string_cache",
- "string_cache_codegen",
+ "phf 0.11.2",
+ "phf_codegen 0.11.2",
+ "string_cache 0.8.7",
+ "string_cache_codegen 0.5.2",
  "tendril",
 ]
 
 [[package]]
-name = "markup5ever_rcdom"
-version = "0.5.0-unofficial"
+name = "markup5ever"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9cb12459c4cab18dcc580159590f404ad78c0a9c5435ace80288ed43abdce31"
+checksum = "6c3294c4d74d0742910f8c7b466f44dda9eb2d5742c1e430138df290a1e8451c"
+dependencies = [
+ "log",
+ "tendril",
+ "web_atoms",
+]
+
+[[package]]
+name = "markup5ever_rcdom"
+version = "0.36.0+unofficial"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e5fc8802e8797c0dfdd2ce5c21aa0aee21abbc7b3b18559100651b3352a7b63"
 dependencies = [
  "html5ever",
- "markup5ever",
+ "markup5ever 0.36.1",
  "tendril",
  "xml5ever",
 ]
@@ -1135,6 +1148,7 @@ dependencies = [
  "log",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde",
  "serde_json",
  "typed-arena",
@@ -1156,18 +1170,22 @@ version = "0.0.3"
 dependencies = [
  "bitflags",
  "cfg-if",
- "cssparser 0.33.0",
  "cssparser 0.34.0",
+ "derive-where",
  "derive_more 2.0.1",
  "itertools 0.14.0",
  "lightningcss",
  "log",
+ "oxvg_collections",
+ "oxvg_path",
+ "oxvg_serialize",
+ "paste",
  "precomputed-hash",
  "roxmltree",
  "selectors",
  "servo_arc",
  "smallvec",
- "string_cache",
+ "string_cache 0.9.0",
  "tendril",
  "typed-arena",
  "xml5ever",
@@ -1177,17 +1195,26 @@ dependencies = [
 name = "oxvg_collections"
 version = "0.0.3"
 dependencies = [
- "lazy_static",
- "oxvg_ast",
- "phf",
- "regex",
+ "bitflags",
+ "cssparser 0.33.0",
+ "dashmap",
+ "itertools 0.14.0",
+ "lightningcss",
+ "log",
+ "oxvg_parse",
+ "oxvg_path",
+ "oxvg_serialize",
+ "smallvec",
+ "string_cache 0.9.0",
+ "tendril",
+ "xml5ever",
 ]
 
 [[package]]
 name = "oxvg_lint"
 version = "0.0.3"
 dependencies = [
- "markup5ever",
+ "markup5ever 0.14.0",
  "markup5ever_rcdom",
  "serde",
  "xml5ever",
@@ -1202,6 +1229,7 @@ dependencies = [
  "napi-derive",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde_json",
  "typed-arena",
 ]
@@ -1211,8 +1239,10 @@ name = "oxvg_optimiser"
 version = "0.0.3"
 dependencies = [
  "anyhow",
+ "bitflags",
  "clap",
  "criterion",
+ "cssparser 0.34.0",
  "ctor 0.2.9",
  "dashmap",
  "derive-where",
@@ -1228,9 +1258,11 @@ dependencies = [
  "oxvg_ast",
  "oxvg_collections",
  "oxvg_path",
+ "oxvg_serialize",
  "parcel_selectors",
- "phf",
+ "phf 0.11.2",
  "regex",
+ "roxmltree",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -1242,16 +1274,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxvg_parse"
+version = "0.0.3"
+dependencies = [
+ "cssparser 0.33.0",
+ "lightningcss",
+]
+
+[[package]]
 name = "oxvg_path"
 version = "0.0.3"
 dependencies = [
  "bitflags",
  "insta",
- "lightningcss",
  "log",
  "napi",
  "napi-derive",
- "oxvg_ast",
  "pretty_assertions",
  "ryu",
  "schemars 0.8.21",
@@ -1262,6 +1300,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "oxvg_serialize"
+version = "0.0.3"
+dependencies = [
+ "cssparser 0.33.0",
+ "lightningcss",
+]
+
+[[package]]
 name = "oxvg_wasm"
 version = "0.0.1"
 dependencies = [
@@ -1269,6 +1315,7 @@ dependencies = [
  "getrandom",
  "oxvg_ast",
  "oxvg_optimiser",
+ "roxmltree",
  "serde-wasm-bindgen",
  "serde_json",
  "typed-arena",
@@ -1284,8 +1331,8 @@ dependencies = [
  "bitflags",
  "cssparser 0.33.0",
  "log",
- "phf",
- "phf_codegen",
+ "phf 0.11.2",
+ "phf_codegen 0.11.2",
  "precomputed-hash",
  "rustc-hash",
  "smallvec",
@@ -1337,6 +1384,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
+dependencies = [
+ "phf_shared 0.13.1",
+ "serde",
+]
+
+[[package]]
 name = "phf_codegen"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1344,6 +1401,16 @@ checksum = "e8d39688d359e6b34654d328e262234662d16cc0f60ec8dcbe5e718709342a5a"
 dependencies = [
  "phf_generator 0.11.2",
  "phf_shared 0.11.2",
+]
+
+[[package]]
+name = "phf_codegen"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49aa7f9d80421bca176ca8dbfebe668cc7a2684708594ec9f3c0db0805d5d6e1"
+dependencies = [
+ "phf_generator 0.13.1",
+ "phf_shared 0.13.1",
 ]
 
 [[package]]
@@ -1367,6 +1434,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf_generator"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "135ace3a761e564ec88c03a77317a7c6b80bb7f7135ef2544dbe054243b89737"
+dependencies = [
+ "fastrand",
+ "phf_shared 0.13.1",
+]
+
+[[package]]
 name = "phf_macros"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1385,7 +1462,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6796ad771acdc0123d2a88dc428b5e38ef24456743ddb1744ed628f9815c096"
 dependencies = [
- "siphasher",
+ "siphasher 0.3.11",
 ]
 
 [[package]]
@@ -1394,7 +1471,16 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
 dependencies = [
- "siphasher",
+ "siphasher 0.3.11",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
+dependencies = [
+ "siphasher 1.0.1",
 ]
 
 [[package]]
@@ -1681,8 +1767,8 @@ dependencies = [
  "fxhash",
  "log",
  "new_debug_unreachable",
- "phf",
- "phf_codegen",
+ "phf 0.11.2",
+ "phf_codegen 0.11.2",
  "precomputed-hash",
  "servo_arc",
  "smallvec",
@@ -1818,6 +1904,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 
 [[package]]
+name = "siphasher"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
+
+[[package]]
 name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1844,6 +1936,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "string_cache"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a18596f8c785a729f2819c0f6a7eae6ebeebdfffbfe4214ae6b087f690e31901"
+dependencies = [
+ "new_debug_unreachable",
+ "parking_lot",
+ "phf_shared 0.13.1",
+ "precomputed-hash",
+ "serde",
+]
+
+[[package]]
 name = "string_cache_codegen"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1851,6 +1956,18 @@ checksum = "6bb30289b722be4ff74a408c3cc27edeaad656e06cb1fe8fa9231fa59c728988"
 dependencies = [
  "phf_generator 0.10.0",
  "phf_shared 0.10.0",
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "string_cache_codegen"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "585635e46db231059f76c5849798146164652513eb9e8ab2685939dd90f29b69"
+dependencies = [
+ "phf_generator 0.13.1",
+ "phf_shared 0.13.1",
  "proc-macro2",
  "quote",
 ]
@@ -2114,6 +2231,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "web_atoms"
+version = "0.2.0"
+source = "git+https://github.com/servo/html5ever.git?rev=a2ca649#a2ca649e1646f742fc79ac4d23154598b48eacde"
+dependencies = [
+ "phf 0.13.1",
+ "phf_codegen 0.13.1",
+ "string_cache 0.9.0",
+ "string_cache_codegen 0.6.1",
+]
+
+[[package]]
 name = "winapi-util"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2265,13 +2393,12 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "xml5ever"
-version = "0.20.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2278b4bf33071ba8e30368a59436c65eec8e01c49d5c29b3dfeb0cdc45331383"
+checksum = "f57dd51b88a4b9f99f9b55b136abb86210629d61c48117ddb87f567e51e66be7"
 dependencies = [
  "log",
- "mac",
- "markup5ever",
+ "markup5ever 0.36.1",
 ]
 
 [[package]]

@@ -47,14 +47,19 @@ const svgFileTree = async (subPath = ".") => {
 
 /**
  * @param svg {import("@napi-rs/canvas").Image}
+ * @param method {"data" | "encode" | undefined}
  */
-const drawSVG = (svg) => {
+const drawSVG = async (svg, method = "data") => {
 	const scale = argWidth / svg.width;
 	const canvas = createCanvas(svg.width * scale, svg.height * scale);
 	const context = canvas.getContext("2d");
 
 	context.drawImage(svg, 0, 0, svg.width * scale, svg.height * scale);
-	return canvas.data();
+	if (method === "data") {
+		return canvas.data();
+	} else {
+		return await canvas.encode("png")
+	}
 };
 
 // Math.sqrt(Math.pow(255, 2) * 4)
@@ -122,20 +127,32 @@ const compare = (left, right) => {
  * @returns {Promise<"ignore" | "broken" | "ok">}
  */
 const check = async (item) => {
-	const [original, optimised] = await Promise.all([
+	const [originalImage, optimisedImage] = await Promise.all([
 		loadImage(item.original)
-			.then(drawSVG)
 			.catch((e) => console.error(item.original, "missing:", e)),
 		loadImage(item.optimised)
-			.then(drawSVG)
 			.catch((e) => console.error(item.optimised, "ignored:", e)),
 	]);
-	if (!original || !optimised) {
+	if (!originalImage || !optimisedImage) {
 		return "ignore";
 	}
+
+	const [original, optimised] = await Promise.all([
+			drawSVG(originalImage),
+			drawSVG(optimisedImage),
+	]);
 	const result = compare(original, optimised);
 	if (result) {
 		console.error(item.optimised, result);
+	}
+	if (result) {
+		const time = Date.now();
+		await Promise.all([
+			drawSVG(originalImage, "encode")
+				.then((original) => fs.writeFile(`./screenshots/${time}.${encodeURIComponent(item.original)}.original.png`, original)),
+			drawSVG(optimisedImage, "encode")
+				.then((optimised) => fs.writeFile(`./screenshots/${time}.${encodeURIComponent(item.optimised)}.optimised.png`, optimised)),
+		]);
 		return "broken";
 	} else {
 		return "ok";

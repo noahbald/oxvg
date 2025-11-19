@@ -2,6 +2,6 @@
 source: crates/oxvg_optimiser/src/jobs/apply_transforms.rs
 expression: "test_config(r#\"{ \"applyTransforms\": {}, \"convertPathData\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 400\" fill=\"#E7DACB\">\n  <path\n    d=\"\n      M 152 65\n      V 158\n      H 49\n      V 65\n      z\n      m -14 75\n      V 83\n      H 67\n      V 141\n      z\n    \"\n    transform=\"translate(-24, -41)\"\n  />\n</svg>\"##))?"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" fill="#E7DACB">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" fill="#e7dacb">
     <path d="M128 24v93H25V24Zm-14 75V42H43v58Z"/>
 </svg>

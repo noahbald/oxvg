@@ -5,15 +5,15 @@ expression: "test_config(r#\"{ \"mergePaths\": {} }\"#,\nSome(r#\"<svg xmlns=\"h
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5 300 300">
     <!-- don't merge paths with a filter url -->
     <style>
-        path.lg{filter:url(#blurMe);}
+        path.lg{filter:url(#blurMe)}
     </style>
     <filter id="blurMe" x=".1">
         <feGaussianBlur stdDeviation="5"/>
     </filter>
-    <path filter="url(#blurMe)" fill="red" d="M 0 0 H 100 V 80 H 0 z"/>
-    <path filter="url(#blurMe)" fill="red" d="M 200 0 H 300 V 80 H 200 z"/>
-    <path style="filter:url(#blurMe)" fill="red" d="M 0 100 h 100 v 80 H 0 z"/>
-    <path style="filter:url(#blurMe)" fill="red" d="M 200 100 H 300 v 80 H 200 z"/>
-    <path class="lg" fill="red" d="M 0 200 h 100 v 80 H 0 z"/>
-    <path class="lg" fill="red" d="M 200 200 H 300 v 80 H 200 z"/>
+    <path filter="url(#blurMe)" fill="red" d="M0 0H100V80H0Z"/>
+    <path filter="url(#blurMe)" fill="red" d="M200 0H300V80H200Z"/>
+    <path style="filter:url(#blurMe)" fill="red" d="M0 100h100v80H0Z"/>
+    <path style="filter:url(#blurMe)" fill="red" d="M200 100H300v80H200Z"/>
+    <path class="lg" fill="red" d="M0 200h100v80H0Z"/>
+    <path class="lg" fill="red" d="M200 200H300v80H200Z"/>
 </svg>

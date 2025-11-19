@@ -3,8 +3,8 @@ source: crates/oxvg_optimiser/src/jobs/remove_off_canvas_paths.rs
 expression: "test_config(r#\"{ \"removeOffCanvasPaths\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\n    <path d=\"M-100-100h50v50h-50z\" fill=\"red\" transform=\"translate(100 100)\"/>\n    <g transform=\"translate(150 150)\">\n        <path d=\"M-100-100h50v50h-50z\" fill=\"blue\"/>\n    </g>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <path d="M-100-100h50v50h-50z" fill="red" transform="translate(100 100)"/>
+    <path d="M-100-100h50v50h-50Z" fill="red" transform="translate(100 100)"/>
     <g transform="translate(150 150)">
-        <path d="M-100-100h50v50h-50z" fill="blue"/>
+        <path d="M-100-100h50v50h-50Z" fill="#00f"/>
     </g>
 </svg>

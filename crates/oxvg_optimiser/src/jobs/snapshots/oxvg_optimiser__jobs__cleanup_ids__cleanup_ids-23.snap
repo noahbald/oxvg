@@ -5,9 +5,9 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r#\"<svg xmlns=\"h
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <!-- Rename within animation references, eg "<id>.<property>" -->
     <circle cx="12" cy="12">
-        <animate id="b" fill="freeze" attributeName="r" begin="0;a.end" dur="1.2s" values="0;11"/>
+        <animate id="a" fill="freeze" attributeName="r" begin="0;b.end" dur="1.2" values="0;11"/>
     </circle>
     <circle cx="12" cy="12">
-        <animate id="a" fill="freeze" attributeName="r" begin="b.begin+0.2s" dur="1.2s" values="0;11"/>
+        <animate id="b" fill="freeze" attributeName="r" begin="a.begin+.2" dur="1.2" values="0;11"/>
     </circle>
 </svg>

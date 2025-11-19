@@ -31,9 +31,9 @@ impl Rules {
         let attrs = &*attrs.borrow();
         let attrs: Vec<String> = attrs
             .iter()
-            .map(|markup5ever::Attribute { name, .. }| match &name.prefix {
-                Some(prefix) => format!("{prefix}:{}", name.local),
-                None => name.local.to_string(),
+            .map(|attr| match &attr.name.prefix {
+                Some(prefix) => format!("{prefix}:{}", attr.name.local),
+                None => attr.name.local.to_string(),
             })
             .collect();
         let order: Vec<String> = match &self.order {

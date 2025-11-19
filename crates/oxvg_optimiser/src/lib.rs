@@ -33,12 +33,16 @@ dom.serialize_with_options(Options::default()).unwrap();
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate bitflags;
+
 #[cfg(feature = "napi")]
 #[macro_use]
 extern crate napi_derive;
 
 #[cfg(test)]
 mod configuration;
+pub mod error;
 mod jobs;
 mod utils;
 

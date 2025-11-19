@@ -6,5 +6,5 @@ expression: "test_config(r#\"{ \"convertStyleToAttrs\": {} }\"#,\nSome(r#\"<svg 
     <!-- move style to attributes -->
     <g fill="#000"/>
     <g font-family="Helvetica Neue"/>
-    <g color="#fff" fill="#000"/>
+    <g fill="#000" color="#fff"/>
 </svg>

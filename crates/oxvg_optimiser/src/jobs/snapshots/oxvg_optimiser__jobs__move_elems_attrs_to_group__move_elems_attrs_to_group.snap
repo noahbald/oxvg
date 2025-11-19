@@ -1,16 +1,16 @@
 ---
 source: crates/oxvg_optimiser/src/jobs/move_elems_attrs_to_group.rs
-expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- move common attributes -->\n    <g attr1=\"val1\">\n        <g fill=\"red\" color=\"#000\" stroke=\"blue\">\n            text\n        </g>\n        <g>\n          <rect fill=\"red\" color=\"#000\" />\n          <ellipsis fill=\"red\" color=\"#000\" />\n        </g>\n        <circle fill=\"red\" color=\"#000\" attr3=\"val3\"/>\n    </g>\n</svg>\"##),)?"
+expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- move common attributes -->\n    <g attr1=\"val1\">\n        <g fill=\"red\" color=\"#000\" stroke=\"blue\">\n            text\n        </g>\n        <g>\n          <rect fill=\"red\" color=\"#000\" />\n          <ellipse fill=\"red\" color=\"#000\" />\n        </g>\n        <circle fill=\"red\" color=\"#000\" attr3=\"val3\"/>\n    </g>\n</svg>\"##),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- move common attributes -->
     <g attr1="val1" color="#000" fill="red">
-        <g stroke="blue">
+        <g stroke="#00f">
             text
         </g>
         <g>
             <rect/>
-            <ellipsis/>
+            <ellipse/>
         </g>
         <circle attr3="val3"/>
     </g>

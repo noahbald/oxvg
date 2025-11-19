@@ -1,16 +1,19 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
 
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
     element::Element,
-    name::Name,
-    visitor::{Context, Info, PrepareOutcome, Visitor},
+    visitor::{Context, Visitor},
 };
-use oxvg_collections::collections::EDITOR_NAMESPACES;
+use oxvg_collections::{
+    attribute::{Attr, AttrId},
+    name::{Prefix, QualName},
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -36,96 +39,80 @@ pub struct RemoveEditorsNSData {
     pub additional_namespaces: Option<HashSet<String>>,
 }
 
-struct State<'o, 'arena, E: Element<'arena>> {
-    options: &'o RemoveEditorsNSData,
-    prefixes: HashSet<<E::Name as Name>::Prefix>,
-    marker: PhantomData<&'arena ()>,
-}
-
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveEditorsNSData {
-    type Error = String;
-
-    fn prepare(
-        &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut oxvg_ast::visitor::ContextFlags,
-    ) -> Result<PrepareOutcome, Self::Error> {
-        let mut state = State {
-            options: self,
-            prefixes: HashSet::new(),
-            marker: PhantomData,
-        };
-        document.child_elements_iter().for_each(|ref e| {
-            state.collect_svg_namespace(e);
-        });
-        state.start(&mut document.clone(), info, None)?;
-        Ok(PrepareOutcome::skip)
-    }
-}
-
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        self.remove_editor_attributes(element);
-        self.remove_editor_element(element);
+        let uri = element.prefix().ns().uri();
+        if is_editor_namespace(uri)
+            || self
+                .additional_namespaces
+                .as_ref()
+                .is_some_and(|set| set.contains(&**uri))
+        {
+            element.remove();
+            return Ok(());
+        }
+
+        element.attributes().retain(|attr| {
+            if let Attr::Unparsed {
+                attr_id:
+                    AttrId::Unknown(QualName {
+                        prefix: Prefix::XMLNS,
+                        local: _,
+                    }),
+                value,
+            } = attr
+            {
+                return !is_editor_namespace(value)
+                    && !self
+                        .additional_namespaces
+                        .as_ref()
+                        .is_some_and(|set| set.contains(&**value));
+            }
+
+            let uri = attr.prefix().ns().uri();
+            !is_editor_namespace(uri)
+                && !self
+                    .additional_namespaces
+                    .as_ref()
+                    .is_some_and(|set| set.contains(&**uri))
+        });
+
         Ok(())
     }
 }
 
-impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
-    fn collect_svg_namespace(&mut self, element: &E) {
-        if element.local_name().as_ref() != "svg" {
-            return;
-        }
-
-        element.attributes().retain(|a| {
-            if a.prefix().as_ref().is_none_or(|p| p.as_ref() != "xmlns") {
-                return true;
-            }
-            let value = a.value().as_ref();
-            if !EDITOR_NAMESPACES.contains(value)
-                && !self
-                    .options
-                    .additional_namespaces
-                    .as_ref()
-                    .is_some_and(|set| set.contains(value))
-            {
-                return true;
-            }
-
-            let name = a.local_name();
-            log::debug!("Adding {name} to prefixes");
-            self.prefixes.insert(name.as_ref().into());
-            false
-        });
-    }
-
-    fn remove_editor_attributes(&self, element: &E) {
-        element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
-                return true;
-            };
-
-            !self.prefixes.contains(prefix)
-        });
-    }
-
-    fn remove_editor_element(&self, element: &E) {
-        let Some(prefix) = element.prefix() else {
-            return;
-        };
-
-        if self.prefixes.contains(prefix) {
-            log::debug!("Removing element with prefix: {prefix}");
-            element.remove();
-        }
-    }
+fn is_editor_namespace(uri: &str) -> bool {
+    matches!(
+        uri,
+        "http://creativecommons.org/ns#"
+            | "http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd"
+            | "http://ns.adobe.com/AdobeIllustrator/10.0/"
+            | "http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/"
+            | "http://ns.adobe.com/Extensibility/1.0/"
+            | "http://ns.adobe.com/Flows/1.0/"
+            | "http://ns.adobe.com/GenericCustomNamespace/1.0/"
+            | "http://ns.adobe.com/Graphs/1.0/"
+            | "http://ns.adobe.com/ImageReplacement/1.0/"
+            | "http://ns.adobe.com/SaveForWeb/1.0/"
+            | "http://ns.adobe.com/Variables/1.0/"
+            | "http://ns.adobe.com/XPath/1.0/"
+            | "http://purl.org/dc/elements/1.1/"
+            | "http://schemas.microsoft.com/visio/2003/SVGExtensions/"
+            | "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+            | "http://taptrix.com/vectorillustrator/svg_extensions"
+            | "http://www.bohemiancoding.com/sketch/ns"
+            | "http://www.figma.com/figma/ns"
+            | "http://www.inkscape.org/namespaces/inkscape"
+            | "http://www.serif.com/"
+            | "http://www.vector.evaxdesign.sk"
+            | "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    )
 }
 
 #[test]

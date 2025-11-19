@@ -1,16 +1,20 @@
 use std::collections::BTreeMap;
 
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
     element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute_mut, has_attribute, is_attribute, is_element,
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::{INHERITABLE_ATTRS, PATH_ELEMS};
+use oxvg_collections::attribute::{
+    inheritable::{self, Inheritable},
+    Attr, AttrId, AttributeInfo,
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -29,18 +33,21 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MoveElemsAttrsToGroup(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        _info: &Info<'arena, E>,
-        context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        context_flags.query_has_stylesheet(document);
+        context.query_has_stylesheet(document);
         Ok(
-            if self.0 && !context_flags.contains(ContextFlags::has_stylesheet) {
+            if self.0
+                && !context
+                    .flags
+                    .contains(ContextFlags::query_has_stylesheet_result)
+            {
                 PrepareOutcome::none
             } else {
                 PrepareOutcome::skip
@@ -50,78 +57,72 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for MoveElemsAttrsToGroup {
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let name = element.qual_name();
-        if name.prefix().is_some() {
-            return Ok(());
-        }
-        if name.local_name().as_ref() != "g" {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !is_element!(element, G) {
             return Ok(());
         }
 
-        let children = element.children();
-        if children.len() <= 1 {
+        if element.children_iter().nth(1).is_none() {
             log::debug!("not moving attrs, only 1 or 0 children");
             return Ok(());
         }
 
-        let every_child_is_path = children.iter().all(|e| {
-            let child_name = e.qual_name();
-            child_name.prefix().is_none() && PATH_ELEMS.contains(child_name.local_name().as_ref())
-        });
-        let mut common_attributes = get_common_attributes(&children);
+        let every_child_is_path = element
+            .children_iter()
+            .all(|e| e.qual_name().expected_attributes().contains(&AttrId::D));
+        let mut common_attributes = get_common_attributes(element);
 
-        let transform_name = <E::Attr as Attr>::Name::new(None, "transform".into());
         if
         // preserve for other jobs
         every_child_is_path
             // preserve for pass-through attributes
-            || element.has_attribute_local(&"filter".into())
-            || element.has_attribute_local(&"clip-path".into())
-            || element.has_attribute_local(&"mask".into())
+            || has_attribute!(element, Filter | ClipPath | Mask)
         {
-            common_attributes.remove(&transform_name);
+            common_attributes.remove(&AttrId::Transform);
         }
 
         for name in common_attributes.keys() {
-            for child in &children {
+            for child in element.children_iter() {
                 child.remove_attribute(name);
             }
         }
-        for (name, value) in common_attributes {
-            if name != transform_name {
-                element.set_attribute(name, value);
+        for value in common_attributes.into_values() {
+            let Attr::Transform(Inheritable::Defined(value)) = value else {
+                element.set_attribute(value);
                 continue;
-            }
+            };
 
-            if let Some(mut attr) = element.get_attribute_node_mut(&transform_name) {
-                let value = format!("{} {value}", attr.value());
-                attr.set_value(value.into());
+            if let Some(mut attr) =
+                get_attribute_mut!(element, Transform).and_then(inheritable::map_ref_mut)
+            {
+                attr.0.extend(value.0);
             } else {
-                element.set_attribute(name, value);
+                element.set_attribute(Attr::Transform(Inheritable::Defined(value)));
             }
         }
         Ok(())
     }
 }
 
-fn get_common_attributes<'arena, E: Element<'arena>>(children: &[E]) -> BTreeMap<E::Name, E::Atom> {
-    let mut child_iter = children.iter().map(Element::attributes);
-    let mut common_attributes: BTreeMap<_, _> = child_iter
-        .next()
+fn get_common_attributes<'input>(
+    parent: &Element<'input, '_>,
+) -> BTreeMap<AttrId<'input>, Attr<'input>> {
+    let mut common_attributes: BTreeMap<_, _> = parent
+        .first_element_child()
         .expect("element should have >1 child")
+        .attributes()
         .into_iter()
-        .filter(|a| INHERITABLE_ATTRS.contains(&a.name().formatter().to_string()))
-        .map(|a| (a.name().clone(), a.value().clone()))
+        .filter(|a| {
+            is_attribute!(a, Transform) || a.name().info().contains(AttributeInfo::Inheritable)
+        })
+        .map(|a| (a.name().clone(), a.clone()))
         .collect();
-    child_iter.for_each(|attrs| {
-        common_attributes.retain(|name, value| {
-            attrs
-                .get_named_item(name)
-                .is_some_and(|a| a.value() == value)
-        });
+    parent.children_iter().for_each(|e| {
+        let attrs = e.attributes();
+        common_attributes
+            .retain(|name, value| attrs.get_named_item(name).is_some_and(|a| &*a == value));
     });
 
     common_attributes
@@ -149,7 +150,7 @@ fn move_elems_attrs_to_group() -> anyhow::Result<()> {
         </g>
         <g>
           <rect fill="red" color="#000" />
-          <ellipsis fill="red" color="#000" />
+          <ellipse fill="red" color="#000" />
         </g>
         <circle fill="red" color="#000" attr3="val3"/>
     </g>

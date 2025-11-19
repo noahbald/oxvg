@@ -1,15 +1,15 @@
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
     element::Element,
-    name::Name,
-    node::{self, Node},
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    is_element, node,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::collections::EVENT_ATTRS;
+use oxvg_collections::attribute::{Attr, AttributeGroup};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -32,14 +32,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveScripts(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -50,40 +49,39 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveScripts {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if element.prefix().is_none() && element.local_name().as_ref() == "script" {
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if is_element!(element, Script) {
             log::debug!("removing script");
             element.remove();
             return Ok(());
         }
 
-        element
-            .attributes()
-            .retain(|attr| !EVENT_ATTRS.contains(&attr.name().formatter().to_string()));
+        element.attributes().retain(|attr| {
+            !attr
+                .name()
+                .attribute_group()
+                .intersects(AttributeGroup::event())
+        });
 
         Ok(())
     }
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() && element.local_name().as_ref() != "a" {
+        if !is_element!(element, A) {
             return Ok(());
         }
 
         let is_href_js = element.attributes().into_iter().any(|attr| {
-            if attr.local_name().as_ref() != "href" {
+            let (Attr::Href(href) | Attr::XLinkHref(href)) = attr.unaliased() else {
                 return false;
-            }
-
-            if !attr.value().trim_start().starts_with("javascript:") {
-                return false;
-            }
-            true
+            };
+            href.trim_start().starts_with("javascript:")
         });
         if !is_href_js {
             return Ok(());

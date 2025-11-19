@@ -17,11 +17,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 oxvg_optimiser = { workspace = true, features = ["napi"] }
-oxvg_ast = { workspace = true }
+oxvg_ast = { workspace = true, features = ["roxmltree", "serialize"] }
 
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
 napi = { workspace = true }
 napi-derive = { workspace = true }
+roxmltree = { workspace = true }
 serde_json = { workspace = true }
 typed-arena = { workspace = true }
 

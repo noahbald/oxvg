@@ -1,31 +1,36 @@
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, HashSet},
-    marker::PhantomData,
-};
+use std::{cell::RefCell, collections::HashSet};
 
-use derive_where::derive_where;
-use lightningcss::{stylesheet::StyleSheet, visit_types};
+use lightningcss::{properties::svg::SVGPaint, rules::CssRuleList, visit_types};
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    document::Document,
     element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, get_attribute_mut, is_element, remove_attribute, set_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core::{NonWhitespace, Url},
+        inheritable::Inheritable,
+        path, Attr, AttrId,
+    },
+    element::ElementId,
+    name::{Prefix, QualName, NS},
+};
+use oxvg_path::Path;
 use parcel_selectors::parser::Component;
 use serde::{Deserialize, Serialize};
 
-#[derive_where(Default, Clone, Debug)]
-struct State<'arena, E: Element<'arena>> {
-    paths: RefCell<BTreeMap<String, Vec<E>>>,
-    defs: RefCell<Option<E>>,
-    hrefs: RefCell<HashSet<String>>,
-    marker: PhantomData<&'arena ()>,
+#[derive(Default, Debug)]
+struct State<'input, 'arena> {
+    paths: RefCell<Vec<(Key<'input>, Vec<Element<'input, 'arena>>)>>,
+    defs: RefCell<Option<Element<'input, 'arena>>>,
+    hrefs: RefCell<HashSet<Url<'input>>>,
 }
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -43,73 +48,61 @@ use tsify::Tsify;
 /// If a path has an invalid id.
 pub struct ReusePaths(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ReusePaths {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ReusePaths {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
-            State::default().start(&mut document.clone(), info, None)?;
+            State::default().start(&mut document.clone(), context.info, None)?;
         }
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() {
-            return Ok(());
-        }
-
-        if element.local_name().as_ref() == "path" {
-            self.add_path(element);
-        }
-
-        if self.defs.borrow().is_none()
-            && element.local_name().as_ref() == "defs"
-            && Element::parent_element(element)
-                .is_some_and(|e| e.prefix().is_none() && e.local_name().as_ref() == "svg")
-        {
-            self.defs.replace(Some(element.clone()));
-        }
-
-        if element.local_name().as_ref() == "use" {
-            let mut hrefs = self.hrefs.borrow_mut();
-            for attr in element.attributes().into_iter() {
-                if attr
-                    .prefix()
-                    .as_ref()
-                    .is_some_and(|p| p.as_ref() != "xlink")
+        match element.qual_name().unaliased() {
+            ElementId::Path => self.add_path(element),
+            ElementId::Defs => {
+                if self.defs.borrow().is_none()
+                    && element
+                        .parent_element()
+                        .is_some_and(|parent| is_element!(parent, Svg))
                 {
-                    continue;
-                }
-                if attr.local_name().as_ref() != "href" {
-                    continue;
-                }
-                let value = attr.value().as_ref();
-                if value.len() > 1 && value.starts_with('#') {
-                    hrefs.insert(value[1..].to_string());
+                    self.defs.replace(Some(element.clone()));
                 }
             }
+            ElementId::Use => {
+                let mut hrefs = self.hrefs.borrow_mut();
+                for attr in element.attributes() {
+                    let (Attr::Href(value) | Attr::XLinkHref(value)) = attr.unaliased() else {
+                        continue;
+                    };
+                    if value.len() > 1 && value.starts_with('#') {
+                        hrefs.insert(value.clone());
+                    }
+                }
+            }
+            _ => {}
         }
 
         Ok(())
@@ -118,13 +111,10 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
     #[allow(clippy::too_many_lines)]
     fn exit_element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some()
-            || !element.is_root()
-            || element.local_name().as_ref() != "svg"
-        {
+        if !element.is_root() && !is_element!(element, Svg) {
             return Ok(());
         }
         let mut paths = self.paths.borrow_mut();
@@ -138,66 +128,56 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
             defs.clone()
         } else {
             drop(defs);
-            let defs =
-                document.create_element(E::Name::new(None, "defs".into()), &context.info.arena);
-            element.insert(0, defs.clone().as_child());
+            let defs = document.create_element(ElementId::Defs, &context.info.allocator);
+            element.insert(0, &defs);
             self.defs.replace(Some(defs.clone()));
             defs
         };
 
         let mut index = 0;
         let hrefs = self.hrefs.borrow();
-        let path_name: <E::Name as Name>::LocalName = "path".into();
-        let id_name: <E::Name as Name>::LocalName = "id".into();
-        let d_name = "d".into();
-        let stroke_name = "stroke".into();
-        let fill_name = "fill".into();
-        for list in paths.values_mut() {
+        for (_, list) in paths.iter_mut() {
             if list.len() == 1 {
                 continue;
             }
 
-            let reusable_path =
-                document.create_element(E::Name::new(None, path_name.clone()), &context.info.arena);
-            defs.append(reusable_path.as_child());
+            let reusable_path = document.create_element(ElementId::Path, &context.info.allocator);
+            defs.append(reusable_path.0);
 
             let mut is_id_protected = false;
-            for attr in list[0].attributes().into_iter() {
-                if attr.prefix().is_some() {
-                    continue;
+            for attr in list[0].attributes() {
+                match attr.unaliased() {
+                    Attr::Id(id) => {
+                        if !hrefs.contains(&id.0)
+                            && !HasId::has_id(&context.query_has_stylesheet_result, id)?
+                        {
+                            is_id_protected = true;
+                        }
+                    }
+                    Attr::Fill(_) | Attr::Stroke(_) | Attr::D(_) => {}
+                    _ => continue,
                 }
-
-                let value: &str = attr.value().as_ref();
-                if attr.local_name().as_ref() == "id"
-                    && !hrefs.contains(value)
-                    && !HasId::has_id(&mut context.stylesheet, value)?
-                {
-                    is_id_protected = true;
-                }
-                if !matches!(attr.local_name().as_ref(), "fill" | "stroke" | "d" | "id") {
-                    continue;
-                }
-                reusable_path.set_attribute(attr.name().clone(), attr.value().clone());
+                reusable_path.set_attribute(attr.clone());
             }
 
             if is_id_protected {
-                list[0].remove_attribute_local(&id_name);
+                remove_attribute!(list[0], Id);
             } else {
-                reusable_path.set_attribute_local(id_name.clone(), format!("reuse-{index}").into());
+                set_attribute!(
+                    reusable_path,
+                    Id(NonWhitespace(format!("reuse-{index}").into()))
+                );
                 index += 1;
             }
 
-            let new_id = reusable_path
-                .get_attribute_local(&id_name)
-                .expect("reusable path should be created with id");
-            let new_id: E::Atom = format!("#{}", new_id.as_ref()).into();
-            let href_name: <E::Name as Name>::LocalName = "href".into();
-            let xlink_href_name = E::Name::new(Some("xlink".into()), "href".into());
-            let use_name: <E::Name as Name>::LocalName = "use".into();
+            let new_id_attr =
+                get_attribute!(reusable_path, Id).expect("reusable path should be created with id");
+            let new_id: Atom<'input> = format!("#{}", new_id_attr.0).into();
+            drop(new_id_attr);
             for path in list {
-                path.remove_attribute_local(&d_name);
-                path.remove_attribute_local(&stroke_name);
-                path.remove_attribute_local(&fill_name);
+                remove_attribute!(path, D);
+                remove_attribute!(path, Stroke);
+                remove_attribute!(path, Fill);
 
                 if path.is_empty() && defs.contains(path) {
                     let attributes = path.attributes();
@@ -207,78 +187,65 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'arena, E> {
                     }
                     if attributes.len() == 1 {
                         let attr = attributes.into_iter().next().expect("checked length");
-                        if attr.prefix().is_none() && attr.local_name().as_ref() == "id" {
+                        if let Attr::Id(NonWhitespace(id)) = attr.unaliased() {
                             log::debug!("removing referenced path");
+                            let old_url = format!("#{id}");
+                            drop(attr);
                             path.remove();
-                            let id = attr.value().as_ref();
-                            for child in element
-                                .select(&format!("[href='#{id}']"))
-                                .map_err(|e| format!("{e:?}"))?
-                            {
-                                child.set_attribute_local(href_name.clone(), new_id.clone());
-                            }
-                            for child in element
-                                .select(&format!("[xlink\\:href='#{id}']"))
-                                .map_err(|e| format!("{e:?}"))?
-                            {
-                                child.set_attribute(xlink_href_name.clone(), new_id.clone());
+                            for child in element.breadth_first() {
+                                let mut href = get_attribute_mut!(child, Href)
+                                    .or_else(|| get_attribute_mut!(child, XLinkHref));
+                                if let Some(url) = href.as_deref_mut() {
+                                    if url.as_str() == old_url {
+                                        *url = new_id.clone();
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                path.set_attribute(xlink_href_name.clone(), new_id.clone());
-                path.set_local_name(use_name.clone(), &context.info.arena);
+                set_attribute!(path, XLinkHref(new_id.clone()));
+                *path = path.set_local_name(ElementId::Use, &context.info.allocator);
             }
         }
 
         if !defs.is_empty() {
-            defs.set_attribute(
-                E::Name::new(Some("xmlns".into()), "xlink".into()),
-                "http://www.w3.org/1999/xlink".into(),
-            );
+            defs.set_attribute(Attr::Unparsed {
+                attr_id: AttrId::Unknown(QualName {
+                    prefix: Prefix::XMLNS,
+                    local: Prefix::XLink.value().unwrap(),
+                }),
+                value: NS::XLink.uri().clone(),
+            });
         }
 
         Ok(())
     }
 }
 
-impl<'arena, E: Element<'arena>> State<'arena, E> {
-    fn add_path(&self, element: &E) {
-        let Some(d) = element.get_attribute_local(&"d".into()) else {
+impl<'input, 'arena> State<'input, 'arena> {
+    fn add_path(&self, element: &Element<'input, 'arena>) {
+        let Some(path::Path(path)) = get_attribute!(element, D).as_deref().cloned() else {
             return;
         };
-        let d = d.as_ref();
-        let fill = element.get_attribute_local(&"fill".into());
-        let stroke = element.get_attribute_local(&"stroke".into());
-        let mut key = String::with_capacity(
-            d.len()
-                + fill.as_ref().map(|a| a.as_ref().len()).unwrap_or_default()
-                + stroke
-                    .as_ref()
-                    .map(|a| a.as_ref().len())
-                    .unwrap_or_default()
-                + 6,
-        );
-        key.push_str(d);
-        key.push_str(";s:");
-        if let Some(stroke) = stroke {
-            key.push_str(stroke.as_ref());
-        }
-        key.push_str(";f:");
-        if let Some(fill) = fill {
-            key.push_str(fill.as_ref());
-        }
-
+        let fill = get_attribute!(element, Fill).as_deref().cloned();
+        let stroke = get_attribute!(element, Stroke).as_deref().cloned();
+        let key = Key { path, stroke, fill };
         let mut paths = self.paths.borrow_mut();
-        let list = paths.get_mut(&key);
+        let list = paths.iter_mut().find(|(k, _)| k == &key);
         match list {
-            Some(list) => list.push(element.clone()),
-            None => {
-                paths.insert(key, vec![element.clone()]);
-            }
+            Some((_, list)) => list.push(element.clone()),
+            None => paths.push((key, vec![element.clone()])),
         }
     }
+}
+
+#[derive(PartialEq, Debug)]
+struct Key<'input> {
+    path: Path,
+    stroke: Option<Inheritable<SVGPaint<'input>>>,
+    fill: Option<Inheritable<SVGPaint<'input>>>,
 }
 
 struct HasId<'a> {
@@ -287,21 +254,24 @@ struct HasId<'a> {
 }
 
 impl<'a> HasId<'a> {
-    fn has_id(stylesheet: &mut Option<StyleSheet>, id: &'a str) -> Result<bool, String> {
-        use lightningcss::visitor::Visitor;
-
-        let Some(stylesheet) = stylesheet else {
-            return Ok(false);
-        };
-
+    fn has_id<'input>(
+        stylesheet: &[RefCell<CssRuleList<'input>>],
+        id: &'a str,
+    ) -> Result<bool, JobsError<'input>> {
+        use lightningcss::visitor::Visit as _;
         let mut has_id = Self { found: false, id };
-        has_id.visit_stylesheet(stylesheet)?;
-        Ok(has_id.found)
+        for css_rule_list in stylesheet {
+            css_rule_list.borrow_mut().visit(&mut has_id)?;
+            if has_id.found {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
 
-impl<'i> lightningcss::visitor::Visitor<'i> for HasId<'_> {
-    type Error = String;
+impl<'input> lightningcss::visitor::Visitor<'input> for HasId<'_> {
+    type Error = JobsError<'input>;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
         visit_types!(SELECTORS)
@@ -309,7 +279,7 @@ impl<'i> lightningcss::visitor::Visitor<'i> for HasId<'_> {
 
     fn visit_selector(
         &mut self,
-        selector: &mut lightningcss::selector::Selector<'i>,
+        selector: &mut lightningcss::selector::Selector<'input>,
     ) -> Result<(), Self::Error> {
         if self.found {
             return Ok(());

@@ -25,6 +25,6 @@
 	"license": "MIT",
 	"packageManager": "pnpm@10.5.2",
 	"dependencies": {
-		"@napi-rs/canvas": "^0.1.68"
+		"@napi-rs/canvas": "^0.1.82"
 	}
 }

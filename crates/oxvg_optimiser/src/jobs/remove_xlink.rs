@@ -1,19 +1,23 @@
-use std::{cell::RefCell, marker::PhantomData};
+use std::cell::RefCell;
 
 use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    document::Document,
     element::Element,
-    name::Name,
-    node::Node,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, has_attribute, is_attribute, is_element, remove_attribute, set_attribute,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::allowed_content::ELEMS;
-use phf::{phf_map, phf_set};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{uncategorised::Target, xlink::XLinkShow, Attr, AttrId},
+    element::{ElementId, ElementInfo},
+    is_prefix,
+    name::{QualName, NS},
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -38,109 +42,110 @@ pub struct RemoveXlink {
     pub include_legacy: bool,
 }
 
-struct State<'o, 'arena, E: Element<'arena>> {
+struct State<'o, 'input> {
     options: &'o RemoveXlink,
-    xlink_prefixes: RefCell<Vec<<E::Name as Name>::Prefix>>,
-    overridden_prefixes: RefCell<Vec<<E::Name as Name>::Prefix>>,
-    used_in_legacy_element: RefCell<Vec<<E::Name as Name>::Prefix>>,
-    marker: PhantomData<&'arena ()>,
+    xlink_prefix_stack: RefCell<Vec<Atom<'input>>>,
+    overridden_prefix_stack: RefCell<Vec<bool>>,
+    /// Tracks when `xlink:href` is used in legacy element
+    used_in_legacy_element_stack: RefCell<Vec<bool>>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveXlink {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveXlink {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        document: &E,
-        info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         State {
             options: self,
-            xlink_prefixes: RefCell::new(vec![]),
-            overridden_prefixes: RefCell::new(vec![]),
-            used_in_legacy_element: RefCell::new(vec![]),
-            marker: PhantomData,
+            xlink_prefix_stack: RefCell::new(vec![]),
+            overridden_prefix_stack: RefCell::new(vec![]),
+            used_in_legacy_element_stack: RefCell::new(vec![]),
         }
-        .start(&mut document.clone(), info, None)?;
+        .start(&mut document.clone(), context.info, None)?;
         Ok(PrepareOutcome::skip)
     }
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let mut xlink_prefixes = self.xlink_prefixes.borrow_mut();
-        let mut overridden_prefixes = self.overridden_prefixes.borrow_mut();
-        for attr in element.attributes().into_iter() {
-            if let Some(prefix) = attr.prefix() {
-                if prefix.as_ref() != "xmlns" {
-                    continue;
-                }
-
-                let prefix_name = attr.local_name().as_ref().into();
-                if attr.value().as_ref() == XLINK_NAMESPACE {
-                    xlink_prefixes.push(prefix_name);
-                } else if xlink_prefixes.contains(&prefix_name) {
-                    overridden_prefixes.push(prefix_name);
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        let mut xlink_prefix_stack = self.xlink_prefix_stack.borrow_mut();
+        let mut overridden_prefix_stack = self.overridden_prefix_stack.borrow_mut();
+        let mut used_in_legacy_element_stack = self.used_in_legacy_element_stack.borrow_mut();
+        for attr in element.attributes() {
+            let Attr::Unparsed {
+                attr_id: AttrId::Unknown(QualName { prefix, local }),
+                value,
+            } = &*attr
+            else {
+                continue;
+            };
+            if !is_prefix!(prefix, XMLNS) {
+                continue;
+            }
+            if value == NS::XLink.uri() {
+                xlink_prefix_stack.push(local.clone());
+                overridden_prefix_stack.push(false);
+                used_in_legacy_element_stack.push(false);
+            } else if xlink_prefix_stack.last() == Some(local) {
+                if let Some(last) = overridden_prefix_stack.last_mut() {
+                    *last = true;
                 }
             }
         }
-
-        if overridden_prefixes
-            .iter()
-            .any(|p| xlink_prefixes.contains(p))
-        {
-            return Ok(());
-        }
-        drop(xlink_prefixes);
-        drop(overridden_prefixes);
-
-        self.handle_show(element);
-        self.handle_title(element, context);
-        self.handle_href(element);
+        element.attributes().retain(|attr| {
+            !is_attribute!(attr, XLinkActuate | XLinkArcrole | XLinkRole | XLinkType)
+        });
+        Self::handle_show(element);
+        Self::handle_title(element, context);
+        Self::handle_href(
+            element,
+            &mut used_in_legacy_element_stack,
+            self.options.include_legacy,
+        );
 
         Ok(())
     }
 
     fn exit_element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
+            let Attr::Unparsed {
+                attr_id: AttrId::Unknown(QualName { prefix, .. }),
+                value,
+            } = attr
+            else {
                 return true;
             };
-
-            let mut xlink_prefixes = self.xlink_prefixes.borrow_mut();
-            let mut overridden_prefixes = self.overridden_prefixes.borrow_mut();
-            let used_in_legacy_element = self.used_in_legacy_element.borrow();
-            if !self.options.include_legacy
-                && xlink_prefixes.contains(prefix)
-                && !overridden_prefixes.contains(prefix)
-                && !used_in_legacy_element.contains(prefix)
-            {
+            if is_prefix!(prefix, XMLNS) && value == NS::XLink.uri() {
                 return false;
             }
 
-            let value = attr.value();
-            if prefix.as_ref() == "xmlns"
-                && !used_in_legacy_element.contains(&value.as_ref().into())
-            {
-                if value.as_ref() == XLINK_NAMESPACE {
-                    xlink_prefixes.retain(|p| p.as_ref() != value.as_ref());
-                    return false;
-                }
-
-                overridden_prefixes.retain(|p| p != prefix);
+            self.xlink_prefix_stack.borrow_mut().pop();
+            let overridden_prefixes = self
+                .overridden_prefix_stack
+                .borrow_mut()
+                .pop()
+                .unwrap_or(false);
+            let used_in_legacy_element = self
+                .used_in_legacy_element_stack
+                .borrow_mut()
+                .pop()
+                .unwrap_or(false);
+            if !self.options.include_legacy && !overridden_prefixes && !used_in_legacy_element {
+                return false;
             }
-
             true
         });
 
@@ -148,119 +153,74 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for State<'_, 'arena, E> {
     }
 }
 
-impl<'arena, E: Element<'arena>> State<'_, 'arena, E> {
-    fn handle_show(&self, element: &E) {
-        let xlink_prefixes = self.xlink_prefixes.borrow();
-        let element_name = element.qual_name().formatter().to_string();
-        let target_name = "target".into();
-        let mut show_handled = element.has_attribute_local(&target_name);
-        let mut new_target = None;
-        element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
-                return true;
-            };
-            if attr.local_name().as_ref() != "show" || !xlink_prefixes.contains(prefix) {
-                return true;
+impl<'input> State<'_, 'input> {
+    /// Replaces `xlink:show` with `target` when possible
+    fn handle_show(element: &Element<'input, '_>) {
+        if has_attribute!(element, Target) {
+            remove_attribute!(element, XLinkShow);
+            return;
+        }
+        let Some(show) = get_attribute!(element, XLinkShow) else {
+            return;
+        };
+        let target = match *show {
+            XLinkShow::New => Some(Target::_Blank),
+            XLinkShow::Replace => Some(Target::_Self),
+            _ => None,
+        };
+        drop(show);
+        if let Some(target) = target {
+            if target != Target::default() {
+                set_attribute!(element, Target(target));
+                remove_attribute!(element, XLinkShow);
             }
-            if show_handled {
-                return false;
-            }
-
-            let mapping = SHOW_TO_TARGET.get(attr.value());
-            let default_mapping = ELEMS
-                .get(&element_name)
-                .and_then(|m| m.defaults.as_ref())
-                .and_then(|m| m.get("target"));
-            if mapping.is_some() {
-                show_handled = true;
-                if mapping != default_mapping {
-                    new_target = mapping;
-                }
-            }
-
-            false
-        });
-        if let Some(new_target) = new_target {
-            element.set_attribute_local(target_name, (*new_target).into());
         }
     }
 
-    fn handle_title(&self, element: &E, context: &Context<'arena, '_, '_, E>) {
-        let xlink_prefixes = self.xlink_prefixes.borrow();
-        element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
-                return true;
-            };
-            if attr.local_name().as_ref() != "title" || !xlink_prefixes.contains(prefix) {
-                return true;
-            }
+    fn handle_title<'arena>(
+        element: &Element<'input, 'arena>,
+        context: &Context<'input, 'arena, '_>,
+    ) {
+        if element
+            .children_iter()
+            .any(|child| is_element!(child, Title))
+        {
+            return;
+        }
+        let Some(title) = remove_attribute!(element, XLinkTitle) else {
+            return;
+        };
 
-            let has_title = element.child_nodes_iter().all(|child| {
-                child
-                    .element()
-                    .is_some_and(|e| e.prefix().is_none() && e.local_name().as_ref() == "title")
-            });
-            if has_title {
-                return false;
-            }
-
-            let title = context
-                .root
-                .as_document()
-                .create_element(E::Name::new(None, "title".into()), &context.info.arena);
-            title.set_text_content(attr.value().clone(), &context.info.arena);
-            element.clone().insert(0, title.as_child());
-            false
-        });
+        let title_element = context
+            .root
+            .as_document()
+            .create_element(ElementId::Title, &context.info.allocator);
+        title_element.set_text_content(title, &context.info.allocator);
+        element.insert(0, title_element.0);
     }
 
-    fn handle_href(&self, element: &E) {
-        let mut used_in_legacy_element = self.used_in_legacy_element.borrow_mut();
-        let xlink_prefixes = self.xlink_prefixes.borrow();
-        let exclude_legacy = !self.options.include_legacy
-            && element.prefix().is_none()
-            && LEGACY_ELEMENTS.contains(element.local_name());
-        let mut has_href = false;
-        let mut new_href = None;
-        element.attributes().retain(|attr| {
-            let Some(prefix) = attr.prefix() else {
-                has_href = has_href || attr.value().as_ref() == "href";
-                return true;
-            };
-            if attr.local_name().as_ref() != "href" || !xlink_prefixes.contains(prefix) {
-                log::debug!("retaining {:?}, not a recorded prefix", attr);
-                return true;
-            }
-            if exclude_legacy {
-                used_in_legacy_element.push(prefix.clone());
-                return true;
-            }
-
-            new_href = Some(attr.value().clone());
-
-            false
-        });
-
-        if !has_href {
-            if let Some(new_href) = new_href {
-                element.set_attribute_local("href".into(), new_href);
-            }
+    fn handle_href(
+        element: &Element<'input, '_>,
+        used_in_legacy_element: &mut [bool],
+        include_legacy: bool,
+    ) {
+        let used_in_legacy_element = used_in_legacy_element.last_mut();
+        if has_attribute!(element, Href) {
+            return;
         }
+        if !include_legacy && element.qual_name().info().contains(ElementInfo::Legacy) {
+            if let Some(value) = used_in_legacy_element {
+                *value = true;
+            }
+            return;
+        }
+
+        let Some(href) = remove_attribute!(element, XLinkHref) else {
+            return;
+        };
+        set_attribute!(element, Href(href));
     }
 }
-
-static XLINK_NAMESPACE: &str = "http://www.w3.org/1999/xlink";
-static SHOW_TO_TARGET: phf::Map<&'static str, &'static str> = phf_map! {
-    "new" => "_blank",
-    "replace" => "_self",
-};
-static LEGACY_ELEMENTS: phf::Set<&'static str> = phf_set! {
-    "cursor",
-    "filter",
-    "font-face-uri",
-    "glyphRef",
-    "tref",
-};
 
 #[test]
 fn remove_xlink() -> anyhow::Result<()> {

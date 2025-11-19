@@ -4,5 +4,5 @@ expression: "test_config(r#\"{ \"cleanupNumericValues\": {} }\"#,\nSome(r#\"<svg
 ---
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
     <!-- Should round values, maintaining non-numerical values -->
-    <rect width="20" height="20" fill="rgba(255,255,255,.85)" rx="20"/>
+    <rect width="20" height="20" fill="#ffffffd9" rx="20"/>
 </svg>

@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<
     <!-- preserve non-empty containers -->
     <defs>
         <filter id="feTileFilter" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="115" y="40" width="250" height="250">
-            <feFlood x="115" y="40" width="54" height="19" flood-color="lime"/>
+            <feFlood x="115" y="40" width="54" height="19" flood-color="#0f0"/>
             <feOffset x="115" y="40" width="50" height="25" dx="6" dy="6" result="offset"/>
             <feTile/>
         </filter>

@@ -1,9 +1,11 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{
-    implementations::{roxmltree::parse, shared::Element},
-    serialize::{self, Node as _, Options},
+    arena::Allocator,
+    parse::roxmltree::parse,
+    serialize::Node as _,
     visitor::Info,
+    xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 
@@ -49,15 +51,18 @@ use wasm_bindgen::prelude::*;
 pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
     console_error_panic_hook::set_once();
 
-    let arena = typed_arena::Arena::new();
-    let dom = parse(svg, &arena).map_err(|e| e.to_string())?;
+    let xml = roxmltree::Document::parse(svg).map_err(|e| e.to_string())?;
+    let values = Allocator::new_values();
+    let mut arena = Allocator::new_arena();
+    let mut allocator = Allocator::new(&mut arena, &values);
+    let dom = parse(&xml, &mut allocator).map_err(|e| e.to_string())?;
     config
         .unwrap_or_default()
-        .run(&dom, &Info::<Element>::new(&arena))
+        .run(dom, &Info::new(allocator))
         .map_err(|err| err.to_string())?;
 
     dom.serialize_with_options(Options {
-        indent: serialize::Indent::None,
+        indent: Indent::None,
         ..Default::default()
     })
     .map_err(|err| err.to_string())

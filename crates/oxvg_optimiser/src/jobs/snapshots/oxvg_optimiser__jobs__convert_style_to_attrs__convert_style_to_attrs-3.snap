@@ -5,5 +5,5 @@ expression: "test_config(r#\"{ \"convertStyleToAttrs\": {} }\"#,\nSome(r#\"<svg 
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- handle inline comments and urls -->
     <g style="background:url(data:image/png;base64,iVBORw...)"/>
-    <g fill="url(&quot;data:image/png;base64,iVBORw...&quot;)"/>
+    <g fill="url(data:image/png;base64,iVBORw...)"/>
 </svg>

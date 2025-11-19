@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"convertShapeToPath\": {} }\"#,\nSome(r##\"<svg 
     <rect width="100%"/>
     <rect width="100%" height="100%"/>
     <rect x="25%" y="25%" width="50%" height="50%"/>
-    <rect x="25pt" y="25pt" width="50pt" height="50pt"/>
+    <path d="M33.333 33.333H100V100H33.333Z"/>
     <rect x="10" y="10" width="50" height="50" rx="4"/>
     <rect x="0" y="0" width="20" height="20" ry="5"/>
     <path d="M0 0H32V32H0Z"/>

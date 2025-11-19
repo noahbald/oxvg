@@ -4,6 +4,6 @@ expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r##\"<svg xml
 ---
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="128" height="128" version="1.0">
     <g>
-        <path d="m0 0 32.19 37a4.97 4.97 0 0 1 4.688 3.5 4.983 4.983 0 1 1-8.192-2.128l-.992-3.135-9.782 3.086" fill="#f00"/>
+        <path d="m0 0 32.19 37a4.97 4.97 0 0 1 4.688 3.5 4.983 4.983 0 1 1-8.192-2.128l-.992-3.135-9.782 3.086" fill="red"/>
     </g>
 </svg>

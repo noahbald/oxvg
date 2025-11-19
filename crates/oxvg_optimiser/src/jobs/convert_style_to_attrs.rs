@@ -1,21 +1,18 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
-use lightningcss::{
-    printer::PrinterOptions,
-    properties::Property,
-    stylesheet::{MinifyOptions, ParserOptions, StyleAttribute},
-};
+use lightningcss::properties::Property;
 use oxvg_ast::{
-    attribute::Attr as _,
     element::Element,
-    name::Name,
-    style::PresentationAttrId,
+    get_attribute_mut,
     visitor::{Context, Visitor},
 };
+use oxvg_collections::attribute::{Attr, AttrId};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::{error::JobsError, utils::minify_style};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -56,72 +53,57 @@ pub struct ConvertStyleToAttrs {
     pub keep_important: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertStyleToAttrs {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertStyleToAttrs {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let style_name = &"style".into();
-        let Some(mut style_attr) = element.get_attribute_node_local_mut(style_name) else {
+        let Some(mut styles_attr) = get_attribute_mut!(element, Style) else {
             return Ok(());
         };
+        let styles = &mut styles_attr.0;
 
-        let style_attr_value = style_attr.value().clone();
-        let Ok(mut styles) =
-            StyleAttribute::parse(style_attr_value.as_ref(), ParserOptions::default())
-        else {
-            return Ok(());
-        };
-        styles.minify(MinifyOptions::default());
+        minify_style::style(styles);
 
-        let mut new_attributes: BTreeMap<<E::Name as Name>::LocalName, E::Atom> = BTreeMap::new();
+        let mut attribute_insertions: HashMap<AttrId<'input>, usize> = HashMap::new();
+        let mut new_attributes: Vec<Attr<'input>> = Vec::new();
 
-        let mut detain_and_collect_presentation_attrs = |property: &Property| {
-            let property_id = property.property_id();
-            let name = property_id.name();
-            let presentation_attr_id = PresentationAttrId::from(name);
-            if matches!(presentation_attr_id, PresentationAttrId::Unknown(_)) {
-                true
-            } else if let Ok(value) = property.value_to_css_string(PrinterOptions::default()) {
-                new_attributes.insert(name.into(), value.into());
-                false
+        let mut detain_and_collect_presentation_attrs = |property: &Property<'input>| {
+            let attr = match property.clone().try_into().ok() {
+                None | Some(Attr::CSSUnknown { .. } | Attr::Unparsed { .. }) => return true,
+                Some(attr) => attr,
+            };
+            let name = attr.name();
+            if attribute_insertions.contains_key(name) {
+                let index = attribute_insertions[name];
+                new_attributes[index] = attr;
             } else {
-                true
+                attribute_insertions.insert(name.clone(), new_attributes.len());
+                new_attributes.push(attr);
             }
+            false
         };
 
         styles
             .declarations
-            .declarations
             .retain(&mut detain_and_collect_presentation_attrs);
         if !self.keep_important {
             styles
-                .declarations
                 .important_declarations
                 .retain(detain_and_collect_presentation_attrs);
         }
 
-        let Ok(result) = styles.to_css(PrinterOptions {
-            minify: true,
-            ..PrinterOptions::default()
-        }) else {
-            return Ok(());
-        };
-        if styles.declarations.declarations.is_empty()
-            && styles.declarations.important_declarations.is_empty()
-        {
-            drop(style_attr);
-            element.remove_attribute_local(style_name);
-        } else {
-            style_attr.set_value(result.code.into());
-            drop(style_attr);
+        let is_empty = styles.is_empty();
+        drop(styles_attr);
+        if is_empty {
+            element.remove_attribute(&AttrId::Style);
         }
 
-        for (local_name, value) in new_attributes {
-            element.set_attribute_local(local_name, value);
+        for value in new_attributes {
+            element.set_attribute(value);
         }
 
         Ok(())

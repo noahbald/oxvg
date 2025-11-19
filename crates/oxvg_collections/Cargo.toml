@@ -13,11 +13,24 @@ description = "Collections of data and utilities about SVG"
 workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["parse", "serialize"]
+parse = ["dep:oxvg_parse", "dep:cssparser_lightningcss"]
+serialize = ["dep:oxvg_serialize"]
+markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
 
 [dependencies]
-lazy_static = { workspace = true }
-phf = { workspace = true }
-regex = { workspace = true }
+oxvg_parse = { workspace = true, optional = true }
+oxvg_path = { workspace = true }
+oxvg_serialize = { workspace = true, optional = true }
 
-[dev-dependencies]
-oxvg_ast = { workspace = true }
+bitflags = { workspace = true }
+cssparser_lightningcss = { workspace = true, optional = true }
+dashmap = { workspace = true }
+itertools = { workspace = true }
+lightningcss = { workspace = true }
+log = { workspace = true }
+smallvec = { workspace = true }
+string_cache = { workspace = true, optional = true }
+tendril = { workspace = true, optional = true }
+xml5ever = { workspace = true, optional = true }

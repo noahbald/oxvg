@@ -4,17 +4,14 @@ of [svgcleaner](https://github.com/RazrFalcon/svgcleaner/blob/master/src/task/pr
 
 See [license](https://github.com/RazrFalcon/svgcleaner/blob/master/LICENSE.txt)
 */
-use oxvg_ast::{
-    attribute::{Attr, Attributes},
-    element::Element,
-    name::Name,
-    visitor::Visitor,
-};
-use oxvg_collections::collections::{ANIMATION_EVENT, DOCUMENT_EVENT, GRAPHICAL_EVENT};
+use oxvg_ast::{element::Element, get_attribute, is_element, visitor::Visitor};
+use oxvg_collections::attribute::AttributeGroup;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::{JobsError, PrecheckError};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -37,19 +34,16 @@ pub struct Precheck {
     pub preclean_checks: bool,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for Precheck {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut oxvg_ast::visitor::Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut oxvg_ast::visitor::Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.preclean_checks {
-            self.check_for_unsupported_elements(element)?;
-            self.check_for_script_attributes(element)?;
-            self.check_for_conditional_attributes(element)?;
-            self.check_for_external_xlink(element)?;
+            Self::check(element).map_err(JobsError::Precheck)?;
         }
 
         Ok(())
@@ -57,110 +51,70 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for Precheck {
 }
 
 impl Precheck {
-    fn emit<'arena, E: Element<'arena>>(
-        &self,
-        message: &str,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        if self.fail_fast {
-            Err(message.to_string())
+    fn check<'input>(element: &Element<'input, '_>) -> Result<(), PrecheckError<'input>> {
+        Self::check_for_unsupported_elements(element)?;
+        Self::check_for_script_attributes(element)?;
+        Self::check_for_conditional_attributes(element)?;
+        Self::check_for_external_xlink(element)
+    }
+
+    fn check_for_unsupported_elements<'input>(
+        element: &Element<'input, '_>,
+    ) -> Result<(), PrecheckError<'input>> {
+        if is_element!(element, Script) {
+            Err(PrecheckError::ScriptingNotSupported)
+        } else if is_element!(
+            element,
+            Animate | AnimateColor | AnimateMotion | AnimateTransform | Set,
+        ) {
+            Err(PrecheckError::AnimationNotSupported)
         } else {
-            log::error!("{message}");
             Ok(())
         }
     }
-}
 
-impl Precheck {
-    const SCRIPTING_NOT_SUPPORTED: &str = "scripting is not supported";
-    const ANIMATION_NOT_SUPPORTED: &str = "animation is not supported";
-    const CONDITIONAL_NOT_SUPPORTED: &str = "conditional processing attributes is not supported";
-
-    fn check_for_unsupported_elements<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        if element.prefix().is_some() {
-            return Ok(());
-        }
-
-        match element.local_name().as_ref() {
-            "script" => self.emit::<E>(Self::SCRIPTING_NOT_SUPPORTED),
-            "animate" | "animateColor" | "animateMotion" | "animateTransform" | "set" => {
-                self.emit::<E>(Self::ANIMATION_NOT_SUPPORTED)
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn check_for_script_attributes<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        for attr in element.attributes().into_iter() {
-            if attr.name().prefix().is_some() {
-                continue;
-            }
-
-            let local_name = attr.name().local_name();
-            if GRAPHICAL_EVENT.contains(local_name)
-                || DOCUMENT_EVENT.contains(local_name)
-                || ANIMATION_EVENT.contains(local_name)
-            {
-                self.emit::<E>(Self::SCRIPTING_NOT_SUPPORTED)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn check_for_conditional_attributes<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        for attr in element.attributes().into_iter() {
-            if attr.name().prefix().is_some() {
-                continue;
-            }
-            if attr.value().is_empty() {
-                continue;
-            }
-
-            match attr.name().local_name().as_ref() {
-                "requiredFeatures" | "systemLanguage" => {
-                    self.emit::<E>(Self::CONDITIONAL_NOT_SUPPORTED)?;
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
-    }
-
-    fn check_for_external_xlink<'arena, E: Element<'arena>>(
-        &self,
-        element: &E,
-    ) -> Result<(), <Self as Visitor<'arena, E>>::Error> {
-        if matches!(
-            element.local_name().as_ref(),
-            "a" | "image" | "font-face-uri" | "feImage"
-        ) {
-            return Ok(());
-        }
-
-        for attr in element.attributes().into_iter() {
+    fn check_for_script_attributes<'input>(
+        element: &Element<'input, '_>,
+    ) -> Result<(), PrecheckError<'input>> {
+        for attr in element.attributes() {
             if attr
                 .name()
-                .prefix()
-                .as_ref()
-                .is_none_or(|p| p.as_ref() != "xlink")
+                .attribute_group()
+                .intersects(AttributeGroup::event())
             {
-                continue;
+                return Err(PrecheckError::ScriptingNotSupported);
             }
-            if attr.name().local_name().as_ref() != "href" {
-                continue;
-            }
+        }
 
-            self.emit::<E>(&format!("the `xlink:href` attribute is referencing an external object '{}' which is not supported", attr.value()))?;
+        Ok(())
+    }
+
+    fn check_for_conditional_attributes<'input>(
+        element: &Element<'input, '_>,
+    ) -> Result<(), PrecheckError<'input>> {
+        for attr in element.attributes() {
+            if attr
+                .name()
+                .attribute_group()
+                .contains(AttributeGroup::ConditionalProcessing)
+                && !attr.value().is_empty()
+            {
+                return Err(PrecheckError::ConditionalProcessingNotSupported);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_for_external_xlink<'input>(
+        element: &Element<'input, '_>,
+    ) -> Result<(), PrecheckError<'input>> {
+        if is_element!(element, A | Image | FontFaceURI | FeImage) {
+            return Ok(());
+        }
+
+        if let Some(xlink_href) = get_attribute!(element, XLinkHref) {
+            return Err(PrecheckError::ReferencesExternalXLink(xlink_href.clone()));
         }
 
         Ok(())
@@ -180,7 +134,7 @@ fn precheck() {
     use crate::test_config;
 
     assert_eq!(
-            &test_config(
+            test_config(
                 r#"{ "precheck": { "failFast": true, "precleanChecks": true } }"#,
                 Some(
                 r##"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg">
@@ -191,11 +145,11 @@ fn precheck() {
     </svg>"##,
                 ),
             ).unwrap_err().to_string(),
-            Precheck::ANIMATION_NOT_SUPPORTED
+            PrecheckError::AnimationNotSupported.to_string()
         );
 
     assert_eq!(
-            &test_config(
+            test_config(
                 r#"{ "precheck": { "failFast": true, "precleanChecks": true } }"#,
                 Some(
                 r#"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg">
@@ -204,11 +158,11 @@ fn precheck() {
     </svg>"#,
                 ),
             ).unwrap_err().to_string(),
-            Precheck::SCRIPTING_NOT_SUPPORTED
+            PrecheckError::ScriptingNotSupported.to_string()
         );
 
     assert_eq!(
-            &test_config(
+            test_config(
                 r#"{ "precheck": { "failFast": true, "precleanChecks": true } }"#,
                 Some(
                 r#"<svg width="379px" height="134px" viewBox="0 0 379 134" version="1.1" xmlns="http://www.w3.org/2000/svg">
@@ -217,7 +171,7 @@ fn precheck() {
     </svg>"#,
                 ),
             ).unwrap_err().to_string(),
-            Precheck::CONDITIONAL_NOT_SUPPORTED
+            PrecheckError::ConditionalProcessingNotSupported.to_string()
         );
 
     let _ = test_config(

@@ -260,6 +260,10 @@ export interface CleanupEnableBackground {
 /**
  * Removes unused ids and minifies used ids.
  *
+ * # Differences to SVGO
+ *
+ * The generated ids may be different to those produced by SVGO
+ *
  * # Correctness
  *
  * By default documents with scripts or style elements are skipped, so the ids aren't selected
@@ -298,12 +302,10 @@ export interface CleanupIds {
  *
  * # Errors
  *
- * Never.
- *
- * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
+ * When a float-precision greater than the maximum is given.
  */
 export interface CleanupListOfValues {
-  /** Number of decimal places to round floating point numbers to. */
+  /** Number of decimal places to round floating point numbers to, to a maximum of 5. */
   floatPrecision: number
   /** Whether to trim leading zeros. */
   leadingZero: boolean
@@ -322,18 +324,16 @@ export interface CleanupListOfValues {
  *
  * # Errors
  *
- * Never.
- *
- * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
+ * When a float-precision greater than the maximum is given.
  */
 export interface CleanupNumericValues {
-  /** The number of decimal places to round to */
+  /** Number of decimal places to round floating point numbers to, to a maximum of 5. */
   floatPrecision: number
-  /** Whether to trim leading zeros */
+  /** Whether to trim leading zeros. */
   leadingZero: boolean
-  /** Whether to remove `"px"` from the units */
+  /** Whether to remove `px` from a number's unit. */
   defaultPx: boolean
-  /** Whether to convert absolute units to `"px"` */
+  /** Whether to convert absolute units like `cm` and `in` to `px`. */
   convertToPx: boolean
 }
 
@@ -355,11 +355,6 @@ export interface CleanupNumericValues {
 export interface CollapseGroups {
   field0: boolean
 }
-
-export type ConvertCase =
-  | { type: 'Upper' }
-  | { type: 'Lower' }
-  | { type: 'Napi' }
 
 /**
  * Converts color references to their shortest equivalent.
@@ -720,7 +715,7 @@ export interface MergeStyles {
 export type Method =
   | { type: 'Lightning' }
   | { type: 'CurrentColor' }
-  | { type: 'Value', names2Hex: boolean, rgb2Hex: boolean, convertCase?: ConvertCase, shortHex: boolean, shortName: boolean }
+  | { type: 'Napi' }
 
 /**
  * Minify `<style>` elements with lightningcss
@@ -802,16 +797,6 @@ export type PrefixGenerator =
   | { type: 'Prefix', field0: string }
   | { type: 'None' }
   | { type: 'Default' }
-
-/** Contextual information about the element that can be used to generate a prefix */
-export interface PrefixGeneratorInfo {
-  /** The file path of the processed document the element belongs to. */
-  path?: string
-  /** The name of the element. */
-  name: string
-  /** The attributes of the element. */
-  attributes: Array<[string, string]>
-}
 
 /**
  * Prefix element ids and classnames with the filename or provided string. This
@@ -1299,6 +1284,10 @@ export interface RemoveTitle {
  * attributes that are not expected on a given element. Removes attributes that are
  * the default for a given element. Removes elements that are not expected as a child
  * for a given element.
+ *
+ * # Differences to SVGO
+ *
+ * SVGO will avoid removing `<tspan>` from `<a>`, whereas we will remove it.
  *
  * # Correctness
  *

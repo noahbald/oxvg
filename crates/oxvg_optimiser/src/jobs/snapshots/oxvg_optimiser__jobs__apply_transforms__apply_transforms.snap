@@ -6,8 +6,8 @@ expression: "test_config(r#\"{ \"applyTransforms\": {}, \"convertPathData\": {} 
     <path d="M100 0v100l70-50Zm70 50 70-50v100Z"/>
     <path transform="" d="M0 0v100l70-50Zm70 50 70-50v100Z"/>
     <path fill="red" d="m118.742 187.108 79.162 124.74-96.593-25.883 8.716-49.428c17.43-98.857 89.875-79.446 81.16-30.017s63.728 68.84 72.444 19.411q13.073-74.143 87.877 75.31t193.185 51.764Z"/>
-    <path fill="red" stroke="red" transform="rotate(15) scale(.5) skewX(5) translate(200,100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
-    <path fill="red" stroke="red" transform="rotate(15) scale(.5) skewX(5) translate(200,100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0a150 150 0 1 0 150-150Z"/>
+    <path fill="red" stroke="red" transform="rotate(15)scale(.5)skewX(5)translate(200 100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
+    <path fill="red" stroke="red" transform="rotate(15)scale(.5)skewX(5)translate(200 100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0a150 150 0 1 0 150-150Z"/>
     <path fill="red" stroke="red" d="m106.066 183.712 70.71 122.474-96.592-25.882 12.941-48.296c25.882-96.593 98.326-77.181 85.385-28.885s59.504 67.708 72.445 19.412q19.411-72.445 83.652 74.178t193.185 51.764Z" stroke-width=".5"/>
     <path fill="red" stroke="red" d="M318.198 551.135 530.33 918.56l-289.778-77.646 38.823-144.889c77.646-289.778 294.98-231.543 256.156-86.654s178.51 203.123 217.334 58.234q58.234-217.334 250.955 222.534t579.555 155.292Z" stroke-width="1.5"/>
     <path fill="red" stroke="red" d="m70.004 121.25 46.669 80.833L52.922 185l8.54-31.876c17.083-63.75 64.896-50.94 56.355-19.064s39.272 44.687 47.813 12.812q12.812-47.813 55.21 48.957t127.503 34.165Z" stroke-width=".33"/>
@@ -23,8 +23,8 @@ expression: "test_config(r#\"{ \"applyTransforms\": {}, \"convertPathData\": {} 
     <g stroke="#000" stroke-width="5">
         <path transform="scale(10)" id="a" d="M0 0v100l70-50Zm70 50 70-50v100Z"/>
     </g>
-    <path fill="url(#gradient)" transform="rotate(15) scale(0.33) translate(200,100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
-    <path clip-path="url(#a)" transform="rotate(15) scale(0.33) translate(200,100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
+    <path fill="url(#gradient)" transform="rotate(15)scale(.33)translate(200 100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
+    <path clip-path="url(#a)" transform="rotate(15)scale(.33)translate(200 100)" d="m100 200 200 200H100V300c0-200 150-200 150-100s150 100 150 0q0-150 200 100t400 0Z"/>
     <path d="M10 0a10 10 0 1 0 20 0"/>
     <path d="M3.864 1.035a8 12 15 1 0 15.455 4.141"/>
     <path d="M3.536 3.536a10 10 0 1 0 14.142 14.142"/>

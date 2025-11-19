@@ -7,10 +7,10 @@ expression: "test_config(r#\"{ \"moveGroupAttrsToElems\": true }\"#,\nSome(r#\"<
     <g>
         <g>
             <g>
-                <path d="M0,0 L10,20" transform="rotate(30) scale(2)"/>
-                <path d="M0,10 L20,30" transform="rotate(30) scale(2)"/>
+                <path d="M0 0 10 20" transform="rotate(30)scale(2)"/>
+                <path d="M0 10 20 30" transform="rotate(30)scale(2)"/>
             </g>
         </g>
-        <path d="M0,10 L20,30" transform="rotate(30)"/>
+        <path d="M0 10 20 30" transform="rotate(30)"/>
     </g>
 </svg>

@@ -1,13 +1,23 @@
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 use oxvg_ast::{
     element::Element,
+    get_attribute_mut, is_element,
     visitor::{Context, Visitor},
+};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core::NonWhitespace,
+        list_of::{ListOf, Space},
+    },
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -70,55 +80,71 @@ pub struct AddClassesToSVGElement {
     pub class_name: Option<String>,
 }
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for AddClassesToSVGElement {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for AddClassesToSVGElement {
+    type Error = JobsError<'input>;
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        if !element.is_root() || element.local_name().as_ref() != "svg" {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !element.is_root() || !is_element!(element, Svg) {
             return Ok(());
         }
 
-        let class_localname = "class".into();
-        let attr = element.get_attribute_local(&class_localname);
-        let attr = attr.map(|a| a.to_string()).unwrap_or_default();
-        let class = attr.split_whitespace();
+        let Some(mut class) = get_attribute_mut!(element, Class) else {
+            return Ok(());
+        };
 
-        let class_names: BTreeSet<_> = match &self.class_names {
-            Some(names) => class
-                .chain(names.iter().flat_map(|s| s.split_whitespace()))
-                .collect(),
+        match &self.class_names {
+            Some(names) => {
+                let mut set = HashSet::new();
+                for item in class.list.drain(..) {
+                    set.insert(item);
+                }
+                set.extend(
+                    names
+                        .iter()
+                        .map(|name| &*context.info.allocator.alloc_str(name))
+                        .map(Into::into),
+                );
+                class.list = set.into_iter().collect();
+            }
             None => match &self.class_name {
-                Some(name) => class.chain(name.split_whitespace()).collect(),
+                Some(name) => {
+                    *class = ListOf {
+                        list: name
+                            .split_whitespace()
+                            .map(Atom::from)
+                            .map(Atom::into_owned)
+                            .map(NonWhitespace)
+                            .collect(),
+                        seperator: Space,
+                    }
+                }
                 None => return Ok(()),
             },
-        };
-        let class_names = class_names.into_iter().collect::<Vec<_>>().join(" ");
-
-        element.set_attribute_local(class_localname, class_names.into());
+        }
         Ok(())
     }
 }
 
 #[test]
 fn add_classes_to_svg() -> anyhow::Result<()> {
-    use crate::{test_config, test_config_default_svg_comment};
+    use crate::test_config;
 
-    insta::assert_snapshot!(test_config_default_svg_comment(
+    insta::assert_snapshot!(crate::test_config!(
         r#"{ "addClassesToSvg": {
             "classNames": ["mySvg", "size-big"]
         } }"#,
-        "Should add classes when passed as a classNames Array"
+        comment: "Should add classes when passed as a classNames Array"
     )?);
 
-    insta::assert_snapshot!(test_config_default_svg_comment(
+    insta::assert_snapshot!(crate::test_config!(
         r#"{ "addClassesToSvg": {
             "className": "mySvg"
         } }"#,
-        "Should add class when passed as a className String"
+        comment: "Should add class when passed as a className String"
     )?);
 
     insta::assert_snapshot!(test_config(

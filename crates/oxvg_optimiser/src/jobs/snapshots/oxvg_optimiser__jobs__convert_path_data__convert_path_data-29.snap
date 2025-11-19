@@ -7,7 +7,7 @@ expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmln
         <circle cx="2" cy="2" r="1"/>
     </marker>
     <marker id="b" stroke="green" viewBox="0 0 5 5">
-        <circle cx="2" cy="2" r="0.5"/>
+        <circle cx="2" cy="2" r=".5"/>
     </marker>
     <path marker-start="url(#a)" d="M5 5Z"/>
     <path marker-start="url(#b)" d="M5 5"/>

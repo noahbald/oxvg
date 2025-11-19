@@ -6,6 +6,6 @@ expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r#\"<svg xm
     <!-- Remove non-animated circle with zero radius -->
     <g/>
     <circle cx="16" cy="3" r="0">
-        <animate attributeName="r" values="0;3;0;0" dur="1s" repeatCount="indefinite" begin="0" keySplines="0.2 0.2 0.4 0.8;0.2 0.2 0.4 0.8;0.2 0.2 0.4 0.8" calcMode="spline"/>
+        <animate attributeName="r" values="0;3;0;0" dur="1" repeatCount="indefinite" begin="0" keySplines=".2 .2 .4 .8;.2 .2 .4 .8;.2 .2 .4 .8" calcMode="spline"/>
     </circle>
 </svg>

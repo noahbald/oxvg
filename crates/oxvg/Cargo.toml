@@ -32,6 +32,7 @@ clap = { workspace = true }
 etcetera = "0.10"
 ignore = "0.4"
 log = { workspace = true }
+roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 typed-arena = { workspace = true }

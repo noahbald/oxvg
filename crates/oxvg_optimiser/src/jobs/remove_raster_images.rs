@@ -1,12 +1,14 @@
 use oxvg_ast::{
     element::Element,
-    name::Name,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute, is_element,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -25,14 +27,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveRasterImages(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveRasterImages {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveRasterImages {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -43,18 +44,17 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveRasterImages {
 
     fn element(
         &self,
-        element: &mut E,
-        _context: &mut Context<'arena, '_, '_, E>,
+        element: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        if element.prefix().is_some() || element.local_name().as_ref() != "image" {
+        if !is_element!(element, Image) {
             return Ok(());
         }
-        let xlink_href_name = E::Name::new(Some("xlink".into()), "href".into());
-        let Some(xlink_href) = element.get_attribute(&xlink_href_name) else {
+        let Some(xlink_href) = get_attribute!(element, XLinkHref) else {
             return Ok(());
         };
 
-        if RASTER_IMAGE.is_match(xlink_href.as_ref()) {
+        if RASTER_IMAGE.is_match(&xlink_href) {
             element.remove();
         }
         Ok(())

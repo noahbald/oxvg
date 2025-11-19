@@ -1,12 +1,14 @@
 use oxvg_ast::{
     element::Element,
     node::Node,
-    visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
+    visitor::{Context, PrepareOutcome, Visitor},
 };
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -25,14 +27,13 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDoctype(pub bool);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDoctype {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDoctype {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        _document: &Element<'input, 'arena>,
+        _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
             PrepareOutcome::none
@@ -41,7 +42,7 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for RemoveDoctype {
         })
     }
 
-    fn doctype(&self, doctype: &mut <E as Node<'arena>>::Child) -> Result<(), Self::Error> {
+    fn doctype(&self, doctype: &Node<'input, 'arena>) -> Result<(), Self::Error> {
         doctype.remove();
         Ok(())
     }

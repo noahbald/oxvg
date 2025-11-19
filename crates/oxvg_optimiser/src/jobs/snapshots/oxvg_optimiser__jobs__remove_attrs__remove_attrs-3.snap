@@ -6,5 +6,5 @@ expression: "test_config(r#\"{ \"removeAttrs\": {\n            \"attrs\": [\"(fi
     <circle fill="currentColor" stroke-width="6" stroke-dashoffset="5" cx="60" cy="60" r="50"/>
     <circle stroke-width="6" stroke-dashoffset="5" stroke-opacity="0" cx="60" cy="60" r="50"/>
     <circle stroke="currentColor" stroke-width="6" stroke-dashoffset="5" stroke-opacity="0" cx="60" cy="60" r="50"/>
-    <path d="M100,200 300,400 H100 V300 C100,100 250,100 250,200 S400,300 400,200 Q400,50 600,300 T1000,300 z"/>
+    <path d="M100 200 300 400H100V300C100 100 250 100 250 200S400 300 400 200Q400 50 600 300T1000 300Z"/>
 </svg>

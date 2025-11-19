@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r##\"<svg x
     <!-- preserve defs with referenced path -->
     <g id="test-body-content">
         <defs>
-            <path id="reference" d="M240 1h239v358H240z"/>
+            <path id="reference" d="M240 1h239v358H240Z"/>
         </defs>
         <use xlink:href="#reference" id="use" fill="gray" onclick="test(evt)"/>
     </g>

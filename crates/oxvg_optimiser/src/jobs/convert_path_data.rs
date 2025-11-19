@@ -1,13 +1,17 @@
 use oxvg_ast::{
     element::Element,
-    visitor::{Context, ContextFlags, Info, PrepareOutcome, Visitor},
+    get_attribute_mut, has_attribute,
+    style::ComputedStyles,
+    visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_path::{convert, geometry::MakeArcs, Path};
+use oxvg_path::{convert, geometry::MakeArcs};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
+
+use crate::{error::JobsError, utils::style_info::gather_style_info};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -106,50 +110,45 @@ impl Default for ConvertPathData {
 #[derive(Clone, Default, Copy, Debug)]
 pub struct ConvertPrecision(pub convert::Precision);
 
-impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
-    type Error = String;
+impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
+    type Error = JobsError<'input>;
 
     fn prepare(
         &self,
-        _document: &E,
-        _info: &Info<'arena, E>,
-        _context_flags: &mut ContextFlags,
+        document: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(PrepareOutcome::use_style)
-    }
-
-    fn use_style(&self, element: &E) -> bool {
-        let d_name = "d".into();
-        element.has_attribute_local(&d_name)
+        context.query_has_stylesheet(document);
+        context.query_has_script(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn element(
         &self,
-        element: &mut E,
-        context: &mut Context<'arena, '_, '_, E>,
-    ) -> Result<(), String> {
-        let d_localname = "d".into();
-        let Some(d) = element.get_attribute_local(&d_localname) else {
+        element: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<(), Self::Error> {
+        if !has_attribute!(element, D) {
             return Ok(());
-        };
+        }
 
-        let style_info = convert::StyleInfo::gather(&context.computed_styles);
+        let computed_styles = ComputedStyles::default()
+            .with_all(element, &context.query_has_stylesheet_result)
+            .map_err(JobsError::ComputedStylesError)?;
+        let style_info = gather_style_info(element, &computed_styles);
         log::debug!("ConvertPathData::run: gained style info {style_info:?}");
 
-        let path = match Path::parse(d.as_ref()) {
-            Ok(path) => path,
-            Err(e) => {
-                log::error!("failed to parse path: {e}\n{}", d.as_ref());
-                return Ok(());
-            }
+        let Some(mut path) = get_attribute_mut!(element, D) else {
+            log::debug!("ConvertPathData::run: ignoring unparsed path-data");
+            return Ok(());
         };
-        drop(d);
+        let path = &mut path.0;
         if path.0.is_empty() {
             return Ok(());
         }
 
-        let path = convert::run(
-            &path,
+        *path = convert::run(
+            path,
             &convert::Options {
                 flags: self.into(),
                 make_arcs: self.make_arcs.clone(),
@@ -157,8 +156,6 @@ impl<'arena, E: Element<'arena>> Visitor<'arena, E> for ConvertPathData {
             },
             &style_info,
         );
-
-        element.set_attribute_local(d_localname, String::from(path).into());
         Ok(())
     }
 }
