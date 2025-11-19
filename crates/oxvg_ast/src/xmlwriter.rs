@@ -339,6 +339,7 @@ enum Escape {
     AttributeValue,
     Text,
     CData,
+    Style,
 }
 
 impl<W: Write> fmt::Write for FmtWriter<W> {
@@ -351,7 +352,7 @@ impl<W: Write> fmt::Write for FmtWriter<W> {
             Escape::Text => self.write_escaped(s, false),
             // We don't bother escaping double hyphen (--) in comment as it's
             // unlikely to ever happen, and even libxml2 does not do it.
-            Escape::Comment | Escape::CData => self.writer.write_all(s.as_bytes()),
+            Escape::Comment | Escape::CData | Escape::Style => self.writer.write_all(s.as_bytes()),
         };
         if error.is_err() {
             self.error_kind = Some(error.as_ref().unwrap_err().kind());
@@ -792,6 +793,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
             return Ok(());
         }
         self.before_write_text(false)?;
+        self.fmt_writer.escape = Some(Escape::Style);
         style
             .write_value(&mut Printer::new(
                 &mut self.fmt_writer,
