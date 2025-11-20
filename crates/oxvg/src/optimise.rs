@@ -66,13 +66,7 @@ impl RunCommand for Optimise {
 
 impl Optimise {
     fn handle_out<W: Write>(dom: Ref, wr: W) -> anyhow::Result<W> {
-        Ok(dom.serialize_into(
-            wr,
-            Options {
-                indent: Indent::None,
-                ..Options::default()
-            },
-        )?)
+        Ok(dom.serialize_into(wr, Options::default())?)
     }
 
     fn handle_stdin(&self, jobs: &Jobs) -> anyhow::Result<()> {

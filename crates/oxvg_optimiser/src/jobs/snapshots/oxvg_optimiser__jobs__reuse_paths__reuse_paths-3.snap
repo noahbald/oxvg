@@ -3,7 +3,5 @@ source: crates/oxvg_optimiser/src/jobs/reuse_paths.rs
 expression: "test_config(r#\"{ \"reusePaths\": true }\"#,\nSome(r#\"<svg viewBox=\"0 0 200 200\" xmlns=\"http://www.w3.org/2000/svg\">\n    <text>\n        text element\n    </text>\n</svg>\"#),)?"
 ---
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-    <text>
-        text element
-    </text>
+    <text>text element</text>
 </svg>

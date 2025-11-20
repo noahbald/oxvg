@@ -9,9 +9,7 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"
             <stop offset="5%" stop-color="#f60"/>
             <stop offset="95%" stop-color="#ff6"/>
         </linearGradient>
-        <text id="b">
-            referenced text
-        </text>
+        <text id="b">referenced text</text>
         <path id="c" d="..."/>
         <path id="d" d="..."/>
         <path id="e" d="..."/>
