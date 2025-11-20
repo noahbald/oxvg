@@ -78,7 +78,7 @@ impl<'input, 'arena> Node<'input, 'arena> for crate::node::Node<'input, 'arena> 
     ) -> Result<W, XmlWriterError> {
         let mut xml = XmlWriter::new(wr, options);
 
-        serialize_node(self, &mut xml)?;
+        serialize_node(self, &mut xml, true, true)?;
 
         xml.end_document()
     }
@@ -87,6 +87,8 @@ impl<'input, 'arena> Node<'input, 'arena> for crate::node::Node<'input, 'arena> 
 fn serialize_node<'arena, W: Write>(
     node: crate::node::Ref<'_, 'arena>,
     xml: &mut XmlWriter<'arena, W>,
+    is_first: bool,
+    is_last: bool,
 ) -> Result<(), XmlWriterError> {
     use crate::{is_element, node};
     match node.node_type() {
@@ -100,7 +102,7 @@ fn serialize_node<'arena, W: Write>(
         node::Type::Text | node::Type::CDataSection => {
             if let Some(text) = node.text_content() {
                 if !text.is_empty() {
-                    xml.write_text(&text)?;
+                    xml.write_text(&text, is_first, is_last)?;
                 }
             }
         }
@@ -118,7 +120,18 @@ fn serialize_node<'arena, W: Write>(
     }
 
     for child in node.child_nodes_iter() {
-        serialize_node(child, xml)?;
+        serialize_node(
+            child,
+            xml,
+            node.first_child().is_none_or(|n| n == child)
+                || child
+                    .previous_sibling()
+                    .is_some_and(|n| n.node_type() == node::Type::Text),
+            node.last_child().is_none_or(|n| n == child)
+                || child
+                    .next_sibling()
+                    .is_some_and(|n| n.node_type() == node::Type::Text),
+        )?;
     }
 
     if is_element!(node) {

@@ -7,9 +7,5 @@ expression: "test_config(r#\"{ \"removeHiddenElems\": {} }\"#,\nSome(r##\"<svg x
     <defs>
         <path id="path2" d="M200 200l50-300" style="opacity:0"/>
     </defs>
-    <text style="font-size:24px">
-        <textPath xlink:href="#path2">
-        this is path 2
-        </textPath>
-    </text>
+    <text style="font-size:24px"><textPath xlink:href="#path2">this is path 2</textPath></text>
 </svg>

@@ -320,7 +320,11 @@ macro_rules! test_config {
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        arena::Allocator, parse::roxmltree::parse, serialize::Node as _, serialize::Options,
+        arena::Allocator,
+        parse::roxmltree::parse,
+        serialize::Node as _,
+        serialize::Options,
+        xmlwriter::{Indent, Space},
     };
     use roxmltree;
 
@@ -343,7 +347,11 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyho
     let dom = parse(&xml, &mut allocator).unwrap();
     jobs.run(dom, &Info::new(allocator))
         .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
-    Ok(dom.serialize_with_options(Options::default())?)
+    Ok(dom.serialize_with_options(Options {
+        trim_whitespace: Space::Default,
+        minify: true,
+        ..Options::pretty()
+    })?)
 }
 
 #[test]

@@ -35,7 +35,7 @@ use std::io;
 fn main() -> Result {
     let opt = Options {
         use_single_quote: true,
-        ..Options::default()
+        ..Options::pretty()
     };
 
     let mut w = XmlWriter::new(Vec::<u8>::new(), opt);
@@ -77,6 +77,7 @@ use std::result;
 
 use lightningcss::rules::CssRuleList;
 use oxvg_collections::atom::Atom;
+use oxvg_collections::attribute::xml::XmlSpace;
 use oxvg_collections::attribute::Attr;
 use oxvg_collections::element::ElementId;
 use oxvg_serialize::{Printer, PrinterOptions, ToValue as _};
@@ -86,15 +87,24 @@ use crate::{error::XmlWriterError, is_element};
 /// A result from serializing a document.
 pub type Result = result::Result<(), XmlWriterError>;
 
-/// Whether to trim whitespace around text
+/// Post-processing of whitespace characters inside elements.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TrimWhitespace {
-    /// Leave text as is
+pub enum Space {
+    /// Never modify whitespace characters from the original
     Never,
-    /// Trim everywhere except when within a text-content element, e.g. `<text>`, `<tspan>`, etc.
-    ExceptTextContent,
-    /// Trim everywhere
-    Always,
+    /// Determine post-processing based on `xml:space` attributes
+    Auto,
+    /// Handle whitespace equivalent to `xml:space="default"`
+    ///
+    /// 1. Remove newline characters
+    /// 2. Convert tab characters to spaces
+    /// 3. Trim spaces
+    /// 4. Collapse continuous spaces
+    Default,
+    /// Handle whitespace equivalent to `xml:space="preserve"`
+    ///
+    /// 1. Convert newline and tab characters to spaces
+    Preserve,
 }
 
 /// An XML node indention.
@@ -132,6 +142,9 @@ pub struct Options {
 
     /// Set XML nodes indention.
     ///
+    /// Setting an indentation other than [`Indent::None`] will cause the writer
+    /// to ignore `xml:space` values.
+    ///
     /// # Examples
     ///
     /// `Indent::None`
@@ -149,14 +162,14 @@ pub struct Options {
     /// <svg><rect fill="red"/></svg>
     /// ```
     ///
-    /// Default: 4 spaces
+    /// Default: None
     pub indent: Indent,
 
     /// Set whether to trim whitespace around text.
     ///
     /// # Examples
     ///
-    /// `TrimWhitespace::Always`
+    /// `TrimWhitespace::Auto`
     ///
     /// Before:
     ///
@@ -173,9 +186,9 @@ pub struct Options {
     ///     <p>text</p>
     /// </svg>
     ///
-    /// Default: `ExceptTextContent`
+    /// Default: `Auto`
     /// ```
-    pub trim_whitespace: TrimWhitespace,
+    pub trim_whitespace: Space,
 
     /// Set XML attributes indention.
     ///
@@ -249,11 +262,23 @@ impl Default for Options {
     fn default() -> Self {
         Options {
             use_single_quote: false,
-            trim_whitespace: TrimWhitespace::ExceptTextContent,
-            indent: Indent::Spaces(4),
+            trim_whitespace: Space::Auto,
+            indent: Indent::None,
             attributes_indent: Indent::None,
             enable_self_closing: true,
             minify: true,
+        }
+    }
+}
+
+impl Options {
+    /// Returns a set of options that will add indentation for nested elements and
+    /// add readable whitespace in attribute values.
+    pub fn pretty() -> Self {
+        Options {
+            indent: Indent::Spaces(4),
+            minify: false,
+            ..Options::default()
         }
     }
 }
@@ -372,9 +397,13 @@ pub struct XmlWriter<'input, W: Write> {
     // fmt_writer.write_str()?; if you are only printing a string directly without formatting, but
     // still want escaping to be done.
     fmt_writer: FmtWriter<W>,
+    /// Which data type is being processed
     state: State,
+    /// Whether `xml:space="preserve"` as been preserved
     preserve_whitespaces: bool,
+    /// Tracks parent elements for writing closing tags
     depth_stack: Vec<DepthData<'input>>,
+    /// Options provided by the user
     opt: Options,
 }
 
@@ -547,13 +576,18 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     ///     w.write_attribute(&Attr::YGeometry(LengthPercentage::px(5.0)))?;
     ///     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
     ///         .expect("xmlwriter should always produce valid UTF-8"),
-    ///         "<svg x=\"5\" y=\"5\"/>\n",
+    ///         "<svg x=\"5\" y=\"5\"/>",
     ///     );
     ///     Ok(())
     /// }
     /// ```
     pub fn write_attribute(&mut self, attr: &Attr<'_>) -> Result {
         let minify = self.opt.minify;
+        if self.opt.trim_whitespace == Space::Auto {
+            if let Attr::XmlSpace(space) = attr.unaliased() {
+                self.preserve_whitespaces = matches!(space, XmlSpace::Preserve);
+            }
+        }
         match attr.prefix().value() {
             Some(prefix) => {
                 self.write_attribute_raw(format_args!("{prefix}:{}", attr.local_name()), |w| {
@@ -607,7 +641,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     ///     w.write_attribute_fmt(format_args!("fill"), format_args!("url(#gradient)"))?;
     ///     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
     ///         .expect("xmlwriter should always produce valid UTF-8"),
-    ///         "<rect fill=\"url(#gradient)\"/>\n"
+    ///         "<rect fill=\"url(#gradient)\"/>"
     ///     );
     ///     Ok(())
     /// }
@@ -656,7 +690,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     ///     w.write_attribute_raw(format_args!("d"), |writer| writer.write_str("M 10 20 L 30 40").map_err(XmlWriterError::FMT));
     ///     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
     ///         .expect("xmlwriter should always produce valid UTF-8"),
-    ///         "<path d=\"M 10 20 L 30 40\"/>\n"
+    ///         "<path d=\"M 10 20 L 30 40\"/>"
     ///     );
     ///     Ok(())
     /// }
@@ -697,65 +731,6 @@ impl<'input, W: Write> XmlWriter<'input, W> {
         self.write_quote()
     }
 
-    /// Sets the preserve whitespaces flag.
-    ///
-    /// - If set, text nodes will be written as is.
-    /// - If not set, text nodes will be indented.
-    ///
-    /// Can be set at any moment.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use oxvg_ast::{
-    ///     xmlwriter::*,
-    /// };
-    /// use oxvg_collections::{
-    ///     element::ElementId,
-    ///     name::{QualName, Prefix},
-    /// };
-    ///
-    /// fn main() -> Result {
-    ///     let mut w = XmlWriter::new(Vec::<u8>::new(), Options::default());
-    ///     let prefix = Prefix::Aliased {
-    ///         prefix: Box::new(Prefix::HTML),
-    ///         alias: None,
-    ///     };
-    ///     w.start_element(&ElementId::Unknown(QualName {
-    ///         prefix: prefix.clone(),
-    ///         local: "html".into(),
-    ///     }))?;
-    ///     w.start_element(&ElementId::Unknown(QualName {
-    ///         prefix: prefix.clone(),
-    ///         local: "p".into(),
-    ///     }))?;
-    ///     w.write_text("text")?;
-    ///     w.end_element()?;
-    ///     w.start_element(&ElementId::Unknown(QualName {
-    ///         prefix,
-    ///         local: "p".into(),
-    ///     }))?;
-    ///     w.set_preserve_whitespaces(true);
-    ///     w.write_text("text")?;
-    ///     w.end_element()?;
-    ///     w.set_preserve_whitespaces(false);
-    ///     assert_eq!(std::str::from_utf8(w.end_document()?.as_slice())
-    ///         .expect("xmlwriter should produce valid UTF-8"),
-    /// "<html>
-    ///     <p>
-    ///         text
-    ///     </p>
-    ///     <p>text</p>
-    /// </html>
-    /// "
-    ///     );
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn set_preserve_whitespaces(&mut self, preserve: bool) {
-        self.preserve_whitespaces = preserve;
-    }
-
     /// Writes a text node.
     ///
     /// See [`write_text_fmt()`] for details.
@@ -765,22 +740,81 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// # Errors
     ///
     /// - When called not after `start_element()`.
-    pub fn write_text(&mut self, text: &str) -> Result {
-        let text = match self.opt.trim_whitespace {
-            TrimWhitespace::Never => text,
-            TrimWhitespace::ExceptTextContent => {
-                if self.is_text_content_element() {
-                    text
+    pub fn write_text(&mut self, text: &str, is_first: bool, is_last: bool) -> Result {
+        let space = match self.opt.trim_whitespace {
+            Space::Auto => {
+                if self.preserve_whitespaces {
+                    Space::Preserve
                 } else {
-                    text.trim()
+                    Space::Default
                 }
             }
-            TrimWhitespace::Always => text.trim(),
+            Space::Never => return self.write_text_fmt(format_args!("{text}")),
+            space => space,
         };
-        if text.is_empty() {
-            return Ok(());
+
+        match space {
+            Space::Default => {
+                if text.trim_start().is_empty() {
+                    return Ok(());
+                }
+                self.before_write_text(false)?;
+                let mut parts = text.split_whitespace();
+                if let Some(first) = parts.next() {
+                    let mut chars = text.chars();
+                    if !is_first
+                        && self.opt.indent == Indent::None
+                        && chars.next().is_some_and(char::is_whitespace)
+                    {
+                        self.fmt_writer
+                            .write_char(' ')
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                    }
+
+                    self.fmt_writer
+                        .write_str(first)
+                        .map_err(|_| self.fmt_writer.take_err())?;
+                    for part in parts {
+                        self.fmt_writer
+                            .write_char(' ')
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                        self.fmt_writer
+                            .write_str(part)
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                    }
+
+                    if !is_last
+                        && self.opt.indent == Indent::None
+                        && text.chars().next_back().is_some_and(char::is_whitespace)
+                    {
+                        self.fmt_writer
+                            .write_char(' ')
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                    }
+                }
+            }
+            Space::Preserve => {
+                let mut old_indent = Indent::None;
+                std::mem::swap(&mut self.opt.indent, &mut old_indent);
+                self.before_write_text(false)?;
+                std::mem::swap(&mut self.opt.indent, &mut old_indent);
+
+                for char in text.chars() {
+                    if matches!(char, '\n' | '\t') {
+                        self.fmt_writer
+                            .write_char(' ')
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                    } else {
+                        self.fmt_writer
+                            .write_char(char)
+                            .map_err(|_| self.fmt_writer.take_err())?;
+                    }
+                }
+            }
+            _ => unreachable!("Space should have been resolved to another option"),
         }
-        self.write_text_fmt(format_args!("{text}"))
+        self.state = State::Document;
+        Ok(())
     }
 
     /// Writes a text node.
@@ -891,7 +925,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
                         .map_err(XmlWriterError::IO)?;
                 }
 
-                if !self.preserve_whitespaces && !is_text_content_element(Some(&depth)) {
+                if !self.preserve_whitespaces && !is_text_content_element(&depth) {
                     self.write_new_line()?;
                     self.write_node_indent()?;
                 }
@@ -944,7 +978,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// use std::io;
     ///
     /// fn main() -> Result {
-    ///     let mut w = XmlWriter::new(Vec::<u8>::new(), Options::default());
+    ///     let mut w = XmlWriter::new(Vec::<u8>::new(), Options::pretty());
     ///     w.start_element(&ElementId::Svg)?;
     ///     w.start_element(&ElementId::G)?;
     ///     w.start_element(&ElementId::Rect)?;
@@ -1041,17 +1075,15 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     }
 
     fn is_text_content_element(&self) -> bool {
-        is_text_content_element(self.depth_stack.last())
+        self.depth_stack.iter().rev().any(is_text_content_element)
     }
 }
 
-fn is_text_content_element(data: Option<&DepthData>) -> bool {
-    data.is_some_and(|data| {
-        data.element_name.as_ref().is_some_and(|name| {
-            is_element!(
-                name,
-                A | Text | TextPath | TSpan | AltGlyph | AltGlyphDef | Glyph | GlyphRef | TRef
-            )
-        })
+fn is_text_content_element(data: &DepthData) -> bool {
+    data.element_name.as_ref().is_some_and(|name| {
+        is_element!(
+            name,
+            A | Text | TextPath | TSpan | AltGlyph | AltGlyphDef | Glyph | GlyphRef | TRef
+        )
     })
 }

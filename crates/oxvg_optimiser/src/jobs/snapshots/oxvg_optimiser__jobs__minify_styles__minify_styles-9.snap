@@ -6,7 +6,5 @@ expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg viewBox
     <style type="text/css">
         .st6{stroke-opacity:0;fill-opacity:0;font-family:Helvetica LT Std,Helvetica,Arial;font-size:118px}
     </style>
-    <text class="st6" transform="translate(353.67 1514)">
-        tell stories in 250 characters
-    </text>
+    <text class="st6" transform="translate(353.67 1514)">tell stories in 250 characters</text>
 </svg>
