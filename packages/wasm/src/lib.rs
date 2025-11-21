@@ -1,11 +1,9 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{
-    arena::Allocator,
-    parse::roxmltree::parse,
+    parse::roxmltree::{parse_with_options, ParsingOptions},
     serialize::Node as _,
     visitor::Info,
-    xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 
@@ -51,21 +49,21 @@ use wasm_bindgen::prelude::*;
 pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
     console_error_panic_hook::set_once();
 
-    let xml = roxmltree::Document::parse(svg).map_err(|e| e.to_string())?;
-    let values = Allocator::new_values();
-    let mut arena = Allocator::new_arena();
-    let mut allocator = Allocator::new(&mut arena, &values);
-    let dom = parse(&xml, &mut allocator).map_err(|e| e.to_string())?;
-    config
-        .unwrap_or_default()
-        .run(dom, &Info::new(allocator))
-        .map_err(|err| err.to_string())?;
-
-    dom.serialize_with_options(Options {
-        indent: Indent::None,
-        ..Default::default()
-    })
-    .map_err(|err| err.to_string())
+    let config = config.unwrap_or_default();
+    parse_with_options(
+        svg,
+        ParsingOptions {
+            allow_dtd: true,
+            ..ParsingOptions::default()
+        },
+        |dom, allocator| {
+            config
+                .run(dom, &Info::new(allocator))
+                .map_err(|e| e.to_string())?;
+            dom.serialize().map_err(|e| e.to_string())
+        },
+    )
+    .map_err(|e| e.to_string())?
 }
 
 #[wasm_bindgen(js_name = convertSvgoConfig)]

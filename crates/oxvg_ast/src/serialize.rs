@@ -4,8 +4,8 @@ use std::io::Write;
 use oxvg_serialize::error::PrinterError;
 
 use crate::error::XmlWriterError;
-pub use crate::xmlwriter::Options;
 use crate::xmlwriter::XmlWriter;
+pub use crate::xmlwriter::{Indent, Options, Space};
 
 /// The destination to output serialized attribute and CSS values
 pub type Printer<'a, 'b, 'c, W> = lightningcss::printer::Printer<'a, 'b, 'c, W>;

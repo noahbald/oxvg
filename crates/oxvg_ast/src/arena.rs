@@ -33,6 +33,11 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
         Arena(typed_arena::Arena::new())
     }
 
+    /// Returns an arena that cannot be publicly accessed
+    pub fn new_arena_with_capacity(n: usize) -> Arena<'input, 'arena> {
+        Arena(typed_arena::Arena::with_capacity(n))
+    }
+
     /// Returns a value arena that cannot be publicly accessed
     pub fn new_values() -> Values {
         Values(typed_arena::Arena::new())

@@ -320,38 +320,31 @@ macro_rules! test_config {
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        arena::Allocator,
-        parse::roxmltree::parse,
-        serialize::Node as _,
-        serialize::Options,
-        xmlwriter::{Indent, Space},
+        parse::roxmltree::{parse_with_options, ParsingOptions},
+        serialize::{Node as _, Options, Space},
     };
-    use roxmltree;
 
     let jobs: Jobs = serde_json::from_str(config_json)?;
-    let xml = roxmltree::Document::parse_with_options(
+    parse_with_options(
         svg.unwrap_or(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     test
 </svg>"#,
         ),
-        roxmltree::ParsingOptions {
+        ParsingOptions {
             allow_dtd: true,
-            ..roxmltree::ParsingOptions::default()
+            ..ParsingOptions::default()
         },
-    )
-    .unwrap();
-    let values = Allocator::new_values();
-    let mut arena = Allocator::new_arena();
-    let mut allocator = Allocator::new(&mut arena, &values);
-    let dom = parse(&xml, &mut allocator).unwrap();
-    jobs.run(dom, &Info::new(allocator))
-        .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
-    Ok(dom.serialize_with_options(Options {
-        trim_whitespace: Space::Default,
-        minify: true,
-        ..Options::pretty()
-    })?)
+        |dom, allocator| {
+            jobs.run(dom, &Info::new(allocator))
+                .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
+            Ok(dom.serialize_with_options(Options {
+                trim_whitespace: Space::Default,
+                minify: true,
+                ..Options::pretty()
+            })?)
+        },
+    )?
 }
 
 #[test]

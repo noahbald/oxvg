@@ -8,25 +8,24 @@ optimiser's [`Jobs`].
 
 Parsing and optimising a document
 
-```ignore
+```
 use oxvg_ast::{
-    implementations::{roxmltree::parse, shared::Element},
-    serialize::{Node, Options},
+    parse::roxmltree::parse,
+    serialize::{Node as _},
     visitor::Info,
 };
 use oxvg_optimiser::Jobs;
 
-let mut jobs = Jobs::default();
-let arena = typed_arena::Arena::new();
-let dom = parse(
+let result: String = parse(
     r#"<svg xmlns="http://www.w3.org/2000/svg">
         test
     </svg>"#,
-    &arena,
-)
-.unwrap();
-jobs.run(&dom, &Info::<Element>::new(&arena)).unwrap();
-dom.serialize_with_options(Options::default()).unwrap();
+    |dom, allocator| {
+        let jobs = Jobs::default();
+        jobs.run(dom, &Info::new(allocator)).unwrap();
+        dom.serialize().unwrap()
+    }
+).unwrap();
 ```
 */
 
