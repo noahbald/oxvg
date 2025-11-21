@@ -8,7 +8,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     atom::Atom,
-    attribute::{inheritable::Inheritable, Attr, AttrId},
+    attribute::{inheritable::Inheritable, Attr},
     content_type::ContentType,
     element::ElementCategory,
 };

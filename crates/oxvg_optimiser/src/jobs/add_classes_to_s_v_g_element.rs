@@ -33,13 +33,13 @@ use crate::error::JobsError;
 ///
 /// Use with a list of classes
 ///
-/// ```ignore
-/// use oxvg_optimiser::{Jobs, AddClassesToSVG};
+/// ```
+/// use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
 ///
 /// let jobs = Jobs {
-///   add_classes_to_svg: Some(AddClassesToSVG {
+///   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
 ///     class_names: Some(vec![String::from("foo"), String::from("bar")]),
-///     ..AddClassesToSVG::default()
+///     ..AddClassesToSVGElement::default()
 ///   }),
 ///   ..Jobs::none()
 /// };
@@ -47,13 +47,13 @@ use crate::error::JobsError;
 ///
 /// Use with a class string
 ///
-/// ```ignore
-/// use oxvg_optimiser::{Jobs, AddClassesToSVG};
+/// ```
+/// use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
 ///
 /// let jobs = Jobs {
-///   add_classes_to_svg: Some(AddClassesToSVG {
+///   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
 ///     class_name: Some(String::from("foo bar")),
-///     ..AddClassesToSVG::default()
+///     ..AddClassesToSVGElement::default()
 ///   }),
 ///   ..Jobs::none()
 /// };

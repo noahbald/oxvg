@@ -43,7 +43,7 @@ use crate::{error::JobsError, utils::regex_memo};
 ///
 /// Match `fill` attribute in `<path>` elements
 ///
-/// ```ignore
+/// ```
 /// use oxvg_optimiser::{Jobs, RemoveAttrs};
 ///
 /// let mut remove_attrs = RemoveAttrs::default();
