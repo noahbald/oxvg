@@ -23,6 +23,8 @@ use crate::{
     node::{Node, NodeData, Ref},
 };
 
+pub use roxmltree::ParsingOptions;
+
 #[derive(Debug)]
 /// The errors which may occur while parsing a document with roxmltree.
 pub enum ParseError {
@@ -70,17 +72,64 @@ impl<'input> NamespaceMap<'input> {
 /// # Errors
 ///
 /// If the depth of the tree is too deep
-pub fn parse<'a, 'input: 'a, 'arena>(
-    xml: &'a roxmltree::Document<'input>,
-    allocator: &mut Allocator<'a, 'arena>,
-) -> Result<Ref<'a, 'arena>, ParseError> {
+pub fn parse_tree<
+    T,
+    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+>(
+    source: &roxmltree::Document,
+    mut f: F,
+) -> Result<T, ParseError> {
+    let values = Allocator::new_values();
+    let capacity = source.descendants().len();
+    let mut arena = Allocator::new_arena_with_capacity(capacity);
+    let mut allocator = Allocator::new(&mut arena, &values);
+
     let mut namespace_map = NamespaceMap::new();
     namespace_map.insert(Some("xml"), Some("http://www.w3.org/XML/1998/namespace"));
 
     let document = allocator.alloc(NodeData::Document);
+    let document = parse_xml_node_children(
+        document,
+        &mut allocator,
+        source.root(),
+        0,
+        &mut namespace_map,
+    )?;
 
-    let result = parse_xml_node_children(document, allocator, xml.root(), 0, &mut namespace_map);
-    result
+    Ok(f(document, allocator))
+}
+
+/// parse an xml document using roxmltree and parsing options
+///
+/// # Errors
+///
+/// If the depth of the tree is too deep
+pub fn parse_with_options<
+    T,
+    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+>(
+    source: &str,
+    options: ParsingOptions,
+    f: F,
+) -> Result<T, ParseError> {
+    let xml =
+        roxmltree::Document::parse_with_options(source, options).map_err(ParseError::ROXML)?;
+    parse_tree(&xml, f)
+}
+
+/// parse an xml document using roxmltree
+///
+/// # Errors
+///
+/// If the depth of the tree is too deep
+pub fn parse<
+    T,
+    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+>(
+    source: &str,
+    f: F,
+) -> Result<T, ParseError> {
+    parse_with_options(source, ParsingOptions::default(), f)
 }
 
 fn create_root<'input, 'arena>(
@@ -344,98 +393,97 @@ fn parse_roxmltree() {
         atom::Atom,
         attribute::{core::Paint, inheritable::Inheritable, presentation::LengthPercentage},
     };
+
     let source = r#"<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg">
   <rect width="100%" height="100%" fill="black" />
   <circle cx="150" cy="100" r="90" fill="blue" />
   <style>rect { fill: blue; }</style>
 </svg>"#;
-    let xml = roxmltree::Document::parse(source).unwrap();
-    let values = Allocator::new_values();
-    let mut arena = Allocator::new_arena();
-    let mut allocator = Allocator::new(&mut arena, &values);
-    let document = parse(&xml, &mut allocator).unwrap().find_element().unwrap();
+    parse(source, |document, _| {
+        let document = document.find_element().unwrap();
+        assert_eq!(document.qual_name(), &ElementId::Svg);
+        let attributes = document.attributes();
+        assert_eq!(attributes.len(), 5);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::XMLNS("http://www.w3.org/2000/svg".into())
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::Version(Atom::Static("1.1"))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::BaseProfile("full".into())
+        );
+        assert_eq!(
+            &*attributes.item(3).unwrap(),
+            &Attr::WidthSvg(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(300.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(4).unwrap(),
+            &Attr::HeightSvg(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(200.0)
+            )))
+        );
 
-    assert_eq!(document.qual_name(), &ElementId::Svg);
-    let attributes = document.attributes();
-    assert_eq!(attributes.len(), 5);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::XMLNS("http://www.w3.org/2000/svg".into())
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::Version(Atom::Static("1.1"))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::BaseProfile("full".into())
-    );
-    assert_eq!(
-        &*attributes.item(3).unwrap(),
-        &Attr::WidthSvg(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(300.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(4).unwrap(),
-        &Attr::HeightSvg(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(200.0)
-        )))
-    );
+        let rect = document.first_element_child().unwrap();
+        assert_eq!(rect.qual_name(), &ElementId::Rect);
+        let attributes = rect.attributes();
+        assert_eq!(attributes.len(), 3);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::WidthRect(LengthPercentage(DimensionPercentage::Percentage(
+                Percentage(1.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::HeightRect(LengthPercentage::Percentage(Percentage(1.0)))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+                red: 0,
+                green: 0,
+                blue: 0,
+                alpha: 255
+            }))))
+        );
 
-    let rect = document.first_element_child().unwrap();
-    assert_eq!(rect.qual_name(), &ElementId::Rect);
-    let attributes = rect.attributes();
-    assert_eq!(attributes.len(), 3);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::WidthRect(LengthPercentage(DimensionPercentage::Percentage(
-            Percentage(1.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::HeightRect(LengthPercentage::Percentage(Percentage(1.0)))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
-            red: 0,
-            green: 0,
-            blue: 0,
-            alpha: 255
-        }))))
-    );
-
-    let circle = rect.next_element_sibling().unwrap();
-    assert_eq!(circle.qual_name(), &ElementId::Circle);
-    let attributes = circle.attributes();
-    assert_eq!(attributes.len(), 4);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::CXGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(150.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::CYGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(100.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::RGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(90.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(3).unwrap(),
-        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
-            red: 0,
-            green: 0,
-            blue: 255,
-            alpha: 255
-        }))))
-    );
+        let circle = rect.next_element_sibling().unwrap();
+        assert_eq!(circle.qual_name(), &ElementId::Circle);
+        let attributes = circle.attributes();
+        assert_eq!(attributes.len(), 4);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::CXGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(150.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::CYGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(100.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::RGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(90.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(3).unwrap(),
+            &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+                red: 0,
+                green: 0,
+                blue: 255,
+                alpha: 255
+            }))))
+        );
+    })
+    .unwrap();
 }

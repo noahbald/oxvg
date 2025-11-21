@@ -1,11 +1,9 @@
 //! NAPI bindings for OXVG
 use napi::{Error, Status};
 use oxvg_ast::{
-  arena::Allocator,
   parse::roxmltree::parse,
-  serialize::Node as _,
+  serialize::{Node as _, Options},
   visitor::Info,
-  xmlwriter::{Indent, Options},
 };
 use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
@@ -50,23 +48,16 @@ extern crate napi_derive;
 /// );
 /// ```
 pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Status>> {
-  let xml = roxmltree::Document::parse(&svg).map_err(generic_error)?;
-  let values = Allocator::new_values();
-  let mut arena = Allocator::new_arena();
-  let mut allocator = Allocator::new(&mut arena, &values);
-  let dom =
-    parse(&xml, &mut allocator).map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?;
-  config
-    .unwrap_or_default()
-    .run(dom, &Info::new(allocator))
-    .map_err(generic_error)?;
-
-  dom
-    .serialize_with_options(Options {
-      indent: Indent::None,
-      ..Default::default()
-    })
-    .map_err(generic_error)
+  let config = config.unwrap_or_default();
+  parse(&svg, |dom, allocator| {
+    config
+      .run(dom, &Info::new(allocator))
+      .map_err(generic_error)?;
+    dom
+      .serialize_with_options(Options::default())
+      .map_err(generic_error)
+  })
+  .map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?
 }
 
 #[napi]

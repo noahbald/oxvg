@@ -2,9 +2,11 @@
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use oxvg_ast::{arena::Allocator, parse::roxmltree::parse, visitor::Info};
+use oxvg_ast::{
+    parse::roxmltree::{parse_with_options, ParsingOptions},
+    visitor::Info,
+};
 use oxvg_optimiser::Jobs;
-use roxmltree::ParsingOptions;
 
 /// # Panics
 /// Hopefully never, maybe if svg can't be parsed
@@ -29,23 +31,20 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 b.iter_custom(|iters| {
                     let mut result = Duration::default();
                     for _ in 0..iters {
-                        let xml = roxmltree::Document::parse_with_options(
+                        let _ = parse_with_options(
                             svg,
                             ParsingOptions {
                                 allow_dtd: true,
                                 ..ParsingOptions::default()
                             },
-                        )
-                        .unwrap();
-                        let values = Allocator::new_values();
-                        let mut arena = Allocator::new_arena();
-                        let mut allocator = Allocator::new(&mut arena, &values);
-                        let dom = parse(&xml, &mut allocator).unwrap();
-                        let jobs = Jobs::default();
-                        let info = &Info::new(allocator);
-                        let start = Instant::now();
-                        let _ = black_box(jobs.run(&dom, info));
-                        result += start.elapsed();
+                            |dom, allocator| {
+                                let jobs = Jobs::default();
+                                let info = &Info::new(allocator);
+                                let start = Instant::now();
+                                let _ = black_box(jobs.run(&dom, info));
+                                result += start.elapsed();
+                            },
+                        );
                     }
                     result
                 });

@@ -34,21 +34,39 @@ use crate::{
 /// # Errors
 ///
 /// If the file cannot be read or parsed
-pub fn parse_file<'input, 'arena>(
+pub fn parse_file<
+    T,
+    F: for<'input, 'arena> Fn(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+>(
     source: &std::path::Path,
-    allocator: &mut Allocator<'input, 'arena>,
-) -> Result<Ref<'input, 'arena>, std::io::Error> {
-    parse_document(Sink::new(allocator), XmlParseOpts::default())
-        .from_utf8()
-        .from_file(source)
+    f: F,
+) -> Result<T, std::io::Error> {
+    let values = Allocator::new_values();
+    let mut arena = Allocator::new_arena();
+    let mut allocator = Allocator::new(&mut arena, &values);
+
+    Ok(f(
+        parse_document(Sink::new(&mut allocator), XmlParseOpts::default())
+            .from_utf8()
+            .from_file(source)?,
+        allocator,
+    ))
 }
 
 /// parse an xml document using xml5ever as the parser.
-pub fn parse<'input, 'arena>(
+pub fn parse<T, F: for<'input, 'arena> Fn(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T>(
     source: &str,
-    allocator: &mut Allocator<'input, 'arena>,
-) -> Ref<'input, 'arena> {
-    parse_document(Sink::new(allocator), XmlParseOpts::default()).one(source)
+    f: F,
+) -> T {
+    let values = Allocator::new_values();
+    let capacity = source.chars().filter(|c| *c == '<').count();
+    let mut arena = Allocator::new_arena_with_capacity(capacity);
+    let mut allocator = Allocator::new(&mut arena, &values);
+
+    f(
+        parse_document(Sink::new(&mut allocator), XmlParseOpts::default()).one(source),
+        allocator,
+    )
 }
 
 // https://docs.rs/xml5ever/0.36.1/src/xml5ever/tree_builder/mod.rs.html#54
@@ -158,7 +176,7 @@ impl<'a, 'input, 'arena> Sink<'a, 'input, 'arena> {
         let root: Element = Element::new(child)
             .unwrap()
             .document()
-            .and_then(|n| n.find_element())
+            .and_then(|n| n.0.find_element())
             .unwrap_or_else(|| Element::new(child).unwrap());
         if let Some(attr_to_insert) = self.find_new_xmlns(name.prefix(), name.local_name()) {
             if attr_to_insert.prefix().is_empty() {
@@ -456,92 +474,91 @@ fn parse_markup5ever() {
   <circle cx="150" cy="100" r="90" fill="blue" />
   <style>rect { fill: blue; }</style>
 </svg>"#;
-    let values = Allocator::new_values();
-    let mut arena = Allocator::new_arena();
-    let mut allocator = Allocator::new(&mut arena, &values);
-    let document = parse(source, &mut allocator).find_element().unwrap();
+    parse(source, |document, _| {
+        let document = document.find_element().unwrap();
 
-    assert_eq!(document.qual_name(), &ElementId::Svg);
-    let attributes = document.attributes();
-    assert_eq!(attributes.len(), 5);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::XMLNS("http://www.w3.org/2000/svg".into())
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::Version(Atom::Static("1.1"))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::BaseProfile("full".into())
-    );
-    assert_eq!(
-        &*attributes.item(3).unwrap(),
-        &Attr::WidthSvg(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(300.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(4).unwrap(),
-        &Attr::HeightSvg(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(200.0)
-        )))
-    );
+        assert_eq!(document.qual_name(), &ElementId::Svg);
+        let attributes = document.attributes();
+        assert_eq!(attributes.len(), 5);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::XMLNS("http://www.w3.org/2000/svg".into())
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::Version(Atom::Static("1.1"))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::BaseProfile("full".into())
+        );
+        assert_eq!(
+            &*attributes.item(3).unwrap(),
+            &Attr::WidthSvg(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(300.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(4).unwrap(),
+            &Attr::HeightSvg(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(200.0)
+            )))
+        );
 
-    let rect = document.first_element_child().unwrap();
-    assert_eq!(rect.qual_name(), &ElementId::Rect);
-    let attributes = rect.attributes();
-    assert_eq!(attributes.len(), 3);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::WidthRect(LengthPercentage::Percentage(Percentage(1.0)))
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::HeightRect(LengthPercentage::Percentage(Percentage(1.0)))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
-            red: 0,
-            green: 0,
-            blue: 0,
-            alpha: 255
-        }))))
-    );
+        let rect = document.first_element_child().unwrap();
+        assert_eq!(rect.qual_name(), &ElementId::Rect);
+        let attributes = rect.attributes();
+        assert_eq!(attributes.len(), 3);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::WidthRect(LengthPercentage::Percentage(Percentage(1.0)))
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::HeightRect(LengthPercentage::Percentage(Percentage(1.0)))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+                red: 0,
+                green: 0,
+                blue: 0,
+                alpha: 255
+            }))))
+        );
 
-    let circle = rect.next_element_sibling().unwrap();
-    assert_eq!(circle.qual_name(), &ElementId::Circle);
-    let attributes = circle.attributes();
-    assert_eq!(attributes.len(), 4);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::CXGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(150.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::CYGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(100.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(2).unwrap(),
-        &Attr::RGeometry(LengthPercentage(DimensionPercentage::Dimension(
-            LengthValue::Px(90.0)
-        )))
-    );
-    assert_eq!(
-        &*attributes.item(3).unwrap(),
-        &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
-            red: 0,
-            green: 0,
-            blue: 255,
-            alpha: 255
-        }))))
-    );
+        let circle = rect.next_element_sibling().unwrap();
+        assert_eq!(circle.qual_name(), &ElementId::Circle);
+        let attributes = circle.attributes();
+        assert_eq!(attributes.len(), 4);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::CXGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(150.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::CYGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(100.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(2).unwrap(),
+            &Attr::RGeometry(LengthPercentage(DimensionPercentage::Dimension(
+                LengthValue::Px(90.0)
+            )))
+        );
+        assert_eq!(
+            &*attributes.item(3).unwrap(),
+            &Attr::Fill(Inheritable::Defined(Paint::Color(CssColor::RGBA(RGBA {
+                red: 0,
+                green: 0,
+                blue: 255,
+                alpha: 255
+            }))))
+        );
+    })
 }
 
 #[test]
@@ -549,34 +566,33 @@ fn parse_markup5ever_namespaces() {
     let source = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <a xlink:href=""/>
 </svg>"#;
-    let values = Allocator::new_values();
-    let mut arena = Allocator::new_arena();
-    let mut allocator = Allocator::new(&mut arena, &values);
-    let document = parse(source, &mut allocator).find_element().unwrap();
+    parse(source, |document, _| {
+        let document = document.find_element().unwrap();
 
-    assert_eq!(document.qual_name(), &ElementId::Svg);
-    let attributes = document.attributes();
-    assert_eq!(attributes.len(), 2);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::XMLNS("http://www.w3.org/2000/svg".into())
-    );
-    assert_eq!(
-        &*attributes.item(1).unwrap(),
-        &Attr::Unparsed {
-            attr_id: AttrId::Unknown(QualName {
-                prefix: Prefix::XMLNS,
-                local: Atom::Static("xlink")
-            }),
-            value: Atom::Static("http://www.w3.org/1999/xlink")
-        }
-    );
-    let a = document.first_element_child().unwrap();
-    assert_eq!(a.qual_name(), &ElementId::A);
-    let attributes = a.attributes();
-    assert_eq!(attributes.len(), 1);
-    assert_eq!(
-        &*attributes.item(0).unwrap(),
-        &Attr::XLinkHref(Atom::Static(""))
-    );
+        assert_eq!(document.qual_name(), &ElementId::Svg);
+        let attributes = document.attributes();
+        assert_eq!(attributes.len(), 2);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::XMLNS("http://www.w3.org/2000/svg".into())
+        );
+        assert_eq!(
+            &*attributes.item(1).unwrap(),
+            &Attr::Unparsed {
+                attr_id: AttrId::Unknown(QualName {
+                    prefix: Prefix::XMLNS,
+                    local: Atom::Static("xlink")
+                }),
+                value: Atom::Static("http://www.w3.org/1999/xlink")
+            }
+        );
+        let a = document.first_element_child().unwrap();
+        assert_eq!(a.qual_name(), &ElementId::A);
+        let attributes = a.attributes();
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(
+            &*attributes.item(0).unwrap(),
+            &Attr::XLinkHref(Atom::Static(""))
+        );
+    })
 }

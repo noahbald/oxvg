@@ -8,12 +8,8 @@ use std::{
 use anyhow::anyhow;
 use ignore::{WalkBuilder, WalkState};
 use oxvg_ast::{
-    arena::Allocator,
-    node::Ref,
-    parse::roxmltree::parse,
-    serialize::Node as _,
-    visitor::Info,
-    xmlwriter::{Indent, Options},
+    node::Ref, parse::roxmltree::parse_with_options, serialize::Node as _, visitor::Info,
+    xmlwriter::Options,
 };
 use oxvg_optimiser::{Extends, Jobs};
 use roxmltree::ParsingOptions;
@@ -72,90 +68,80 @@ impl Optimise {
     fn handle_stdin(&self, jobs: &Jobs) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
-        let xml = roxmltree::Document::parse_with_options(
+        parse_with_options(
             &source,
             ParsingOptions {
                 allow_dtd: true,
                 ..ParsingOptions::default()
             },
-        )
-        .unwrap();
-        let values = Allocator::new_values();
-        let mut arena = Allocator::new_arena();
-        let mut allocator = Allocator::new(&mut arena, &values);
-        let dom = parse(&xml, &mut allocator)?;
-
-        let info = Info {
-            path: None,
-            multipass_count: 0,
-            allocator,
-        };
-        jobs.run(dom, &info)
-            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-
-        if let Some(output) = &self.output.as_ref().and_then(|o| {
-            eprintln!("Warning: Using empty `-o,--output` with stdin will print to stdout, you can instead omit `-o,--output`.");
-            o.first()
-        }) {
-            let file = std::fs::File::open(output)?;
-            if file.metadata()?.is_file() {
-                eprintln!(
-                    "Cannot use dir as output for stdin input. Printing result to stdout instead"
-                );
-                Self::handle_out(dom, std::io::stdout())?;
-            } else {
-                Self::handle_out(dom, file)?;
-            }
-        } else {
-            Self::handle_out(dom, std::io::stdout())?;
-        }
-
-        Ok(())
+            |dom, allocator| {
+                let info = Info {
+                    path: None,
+                    multipass_count: 0,
+                    allocator,
+                };
+                jobs.run(dom, &info)
+                    .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                if let Some(output) = self.output.as_ref().and_then(|o| {
+                    eprintln!("Warning: Using empty `-o,--output` with stdin will print to stdout, you can instead omit `-o,--output`.");
+                    o.first()
+                }) {
+                    let file = std::fs::File::open(output)?;
+                    if file.metadata()?.is_file() {
+                        eprintln!(
+                            "Cannot use dir as output for stdin input. Printing result to stdout instead"
+                        );
+                        Self::handle_out(dom, std::io::stdout())?;
+                    } else {
+                        Self::handle_out(dom, file)?;
+                    }
+                } else {
+                    Self::handle_out(dom, std::io::stdout())?;
+                }
+                Ok(())
+            },
+        )?
     }
 
     fn handle_file(jobs: &Jobs, path: &PathBuf, output: Option<&PathBuf>) -> anyhow::Result<()> {
         let file = std::fs::read_to_string(path)?;
         let input_size = file.len() as f64 / 1000.0;
-        let xml = roxmltree::Document::parse_with_options(
+        parse_with_options(
             &file,
             ParsingOptions {
                 allow_dtd: true,
                 ..ParsingOptions::default()
             },
-        )
-        .unwrap();
-        let values = Allocator::new_values();
-        let mut arena = Allocator::new_arena();
-        let mut allocator = Allocator::new(&mut arena, &values);
-        let dom = parse(&xml, &mut allocator).unwrap();
+            |dom, allocator| {
+                let info: Info = Info {
+                    path: Some(path.clone()),
+                    multipass_count: 0,
+                    allocator,
+                };
+                jobs.run(dom, &info)
+                    .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
-        let info: Info = Info {
-            path: Some(path.clone()),
-            multipass_count: 0,
-            allocator,
-        };
-        jobs.run(dom, &info)
-            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                if let Some(output_path) = output {
+                    if let Some(parent) = output_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    let file = std::fs::File::create(output_path)?;
+                    Self::handle_out(dom, file)?;
 
-        if let Some(output_path) = output {
-            if let Some(parent) = output_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let file = std::fs::File::create(output_path)?;
-            Self::handle_out(dom, file)?;
-
-            let output_size = output_path.metadata()?.len() as f64 / 1000.0;
-            let change = 100.0 * (input_size - output_size) / input_size;
-            let increased = if change < 0.0 { "\x1b[31m" } else { "" };
-            println!(
+                    let output_size = output_path.metadata()?.len() as f64 / 1000.0;
+                    let change = 100.0 * (input_size - output_size) / input_size;
+                    let increased = if change < 0.0 { "\x1b[31m" } else { "" };
+                    println!(
                 "\n\n\x1b[32m{path:?} ({input_size:.1}KB) -> {output_path:?} ({output_size:.1}KB) {increased}({change:.2}%)\x1b[0m"
             );
-            Ok(())
-        } else {
-            // Print to stderr, so that stdout is clean for writing
-            eprintln!("\n\n\x1b[32m{}\x1b[0m", path.to_string_lossy());
-            Self::handle_out(dom, std::io::stdout()).map(|_| ())
-        }
+                    Ok(())
+                } else {
+                    // Print to stderr, so that stdout is clean for writing
+                    eprintln!("\n\n\x1b[32m{}\x1b[0m", path.to_string_lossy());
+                    Self::handle_out(dom, std::io::stdout()).map(|_| ())
+                }
+            },
+        )?
     }
 
     fn handle_path(&self, path: &PathBuf, jobs: &Jobs) {
