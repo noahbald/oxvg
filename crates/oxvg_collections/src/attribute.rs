@@ -43,7 +43,6 @@ use presentation::{
     TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
 };
 use smallvec::SmallVec;
-use std::sync::LazyLock;
 use transfer_function::TransferFunctionType;
 use uncategorised::{
     BlendMode, ColorProfileName, CrossOrigin, LengthAdjust, LinkType, MarkerUnits, MediaQueryList,
@@ -2729,9 +2728,15 @@ impl std::fmt::Display for AttrId<'_> {
     }
 }
 
-static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: LazyLock<
+#[cfg(not(feature = "markup5ever"))]
+static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: std::sync::LazyLock<
     DashMap<AttributeGroup, &'static [&'static AttrId<'static>]>,
-> = LazyLock::new(DashMap::new);
+> = std::sync::LazyLock::new(DashMap::new);
+#[cfg(feature = "markup5ever")]
+thread_local! {
+    static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: DashMap<AttributeGroup, &'static [&'static AttrId<'static>]> = DashMap::new();
+}
+
 impl AttributeGroup {
     /// Returns the list of attributes associated with the attribute group
     ///
@@ -2739,8 +2744,15 @@ impl AttributeGroup {
     ///
     /// If internal memoisation fails to memoise
     pub fn attributes(&self) -> &'static [&'static AttrId<'static>] {
+        #[cfg(not(feature = "markup5ever"))]
         if let Some(attributes) = ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.get(self) {
             return attributes.value();
+        }
+        #[cfg(feature = "markup5ever")]
+        if let Some(attributes) =
+            ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.with(|memo| memo.get(self).map(|a| *a.value()))
+        {
+            return attributes;
         }
         let attributes = _attr_id::all
             .iter()
@@ -2748,11 +2760,14 @@ impl AttributeGroup {
             .copied()
             .collect();
         let attributes: &'static [_] = Vec::leak(attributes);
+        #[cfg(not(feature = "markup5ever"))]
         ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.insert(*self, attributes);
-        ATTRIBUTE_GROUP_ATTRIBUTES_MEMO
-            .get(self)
-            .expect("Failed to assign attribute group memo")
-            .value()
+        #[cfg(feature = "markup5ever")]
+        ATTRIBUTE_GROUP_ATTRIBUTES_MEMO.with(|memo| {
+            let result = memo.insert(*self, attributes);
+            debug_assert!(result.is_none());
+        });
+        self.attributes()
     }
 
     /// Returns an `AttrId` that matches the attribute groups.
