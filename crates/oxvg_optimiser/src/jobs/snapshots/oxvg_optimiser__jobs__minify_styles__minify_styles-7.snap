@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\
     <style>
         .used{p:1}.unused{p:2}
     </style>
-    <g class="used" onclick="">
+    <g class="used" onclick="/* on* attributes prevents removing unused styles */">
         test
     </g>
 </svg>
