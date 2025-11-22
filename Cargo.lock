@@ -1287,6 +1287,7 @@ version = "0.0.3"
 dependencies = [
  "bitflags",
  "insta",
+ "itertools 0.14.0",
  "log",
  "napi",
  "napi-derive",

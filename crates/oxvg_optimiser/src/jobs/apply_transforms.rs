@@ -170,7 +170,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
         };
         let path = &mut d.0;
         apply_matrix_to_path_data(path, &matrix);
-        *path = convert::cleanup_unpositioned(path);
+        convert::cleanup_unpositioned(path);
         log::debug!("new d <- {path}");
         drop(d);
         element.remove_attribute(&AttrId::Transform);

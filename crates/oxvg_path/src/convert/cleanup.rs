@@ -5,10 +5,11 @@ use crate::{
 };
 
 /// Cleans redundancy from unpositioned paths.
-pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
-    let path = Path(
-        path.0
-            .iter()
+pub fn cleanup_unpositioned(path: &mut crate::Path) {
+    let positioned_path = Path(
+        std::mem::take(path)
+            .0
+            .into_iter()
             .map(|p| Position {
                 command: p.clone(),
                 start: Point([0.0; 2]),
@@ -17,14 +18,17 @@ pub fn cleanup_unpositioned(path: &crate::Path) -> crate::Path {
             })
             .collect(),
     );
-    cleanup(&path).take()
+    *path = cleanup(positioned_path).take()
 }
 
 /// Cleans redundancy from paths.
-pub fn cleanup(path: &Path) -> Path {
+pub fn cleanup(path: Path) -> Path {
+    #[cfg(debug_assertions)]
+    let path_dbg = path.to_string();
+
     let mut result = remove_repeated_moves(path);
     switch_leading_move(&mut result);
-    let mut result = ensure_implicity(&mut result);
+    let mut result = ensure_implicity(result);
     if result.0.len() == 1 {
         if let command::Data::MoveBy(a) = result.0[0].command {
             result.0[0].command = command::Data::MoveTo(a);
@@ -32,7 +36,6 @@ pub fn cleanup(path: &Path) -> Path {
     }
     #[cfg(debug_assertions)]
     {
-        let path_dbg = path.clone().take().to_string();
         let result_dbg = result.clone().take().to_string();
         if path_dbg != result_dbg {
             log::debug!("convert::mixed: updated path: {result_dbg}");
@@ -41,8 +44,8 @@ pub fn cleanup(path: &Path) -> Path {
     result
 }
 
-fn remove_repeated_moves(path: &Path) -> Path {
-    let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
+fn remove_repeated_moves(path: Path) -> Path {
+    let mut new_path: Vec<_> = path.0.into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {
         let Some((prev_option, item_option, _)) =
             Path::split_mut_with_prev_option(&mut new_path, index)
@@ -135,9 +138,9 @@ fn switch_leading_move(path: &mut Path) {
     }
 }
 
-fn ensure_implicity(path: &mut Path) -> Path {
+fn ensure_implicity(path: Path) -> Path {
     // TODO: Fix emplicity corrections elsewhere
-    let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
+    let mut new_path: Vec<_> = path.0.into_iter().map(Some).collect();
     (0..new_path.len()).for_each(|index| {
         let Some((prev, item_option, _)) = Path::split_mut(&mut new_path, index) else {
             return;

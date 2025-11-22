@@ -241,38 +241,39 @@ impl Data {
         matches!(self, Self::ClosePath) || !self.is_to()
     }
 
-    pub(crate) fn make_longhand(&self, data: &[f64]) -> Self {
+    pub(crate) fn make_longhand(&mut self, data: &[f64]) {
         match self {
             Self::SmoothBezierBy(a) => {
-                let longhand = Self::make_args_longhand(a, data);
-                let longhand = longhand.as_slice();
-                Self::CubicBezierBy(
-                    longhand
-                        .try_into()
-                        .expect("extendind `s` args doesn't fit into `c`"),
-                )
+                *self = Self::CubicBezierBy(Self::make_s_args_longhand(*a, data));
             }
             Self::SmoothQuadraticBezierBy(a) => {
-                let longhand = Self::make_args_longhand(a, data);
-                let longhand = longhand.as_slice();
-                Self::QuadraticBezierBy(
-                    longhand
-                        .try_into()
-                        .expect("extending `t` args doesn't fit into `q`"),
-                )
+                *self = Self::QuadraticBezierBy(Self::make_t_args_longhand(*a, data));
             }
             Self::Implicit(c) => c.make_longhand(data),
-            _ => self.clone(),
+            _ => {}
         }
     }
-
-    pub(crate) fn make_args_longhand(source: &[f64], data: &[f64]) -> Vec<f64> {
+    pub(crate) fn make_s_args_longhand(source: [f64; 4], data: &[f64]) -> [f64; 6] {
         let len = data.len();
         assert!(len >= 4);
-        let mut result = Vec::with_capacity(source.len() + 2);
-        result.extend_from_slice(&[data[len - 2] - data[len - 4], data[len - 1] - data[len - 3]]);
-        result.extend_from_slice(source);
-        result
+        [
+            data[len - 2] - data[len - 4],
+            data[len - 1] - data[len - 3],
+            source[0],
+            source[1],
+            source[2],
+            source[3],
+        ]
+    }
+    pub(crate) fn make_t_args_longhand(source: [f64; 2], data: &[f64]) -> [f64; 4] {
+        let len = data.len();
+        assert!(len >= 4);
+        [
+            data[len - 2] - data[len - 4],
+            data[len - 1] - data[len - 3],
+            source[0],
+            source[1],
+        ]
     }
 
     /// Whether, when formatting itself, a space is needed between itself and the previous
@@ -426,10 +427,11 @@ impl ID {
     pub fn as_explicit(&self) -> &Self {
         if let Self::Implicit(inner) = self {
             return inner.as_explicit();
-        };
+        }
         self
     }
 
+    #[must_use]
     /// Returns the expected command to follow this one if it's implicit
     pub fn next_implicit(&self) -> Self {
         match self {

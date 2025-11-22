@@ -147,7 +147,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
             return Ok(());
         }
 
-        *path = convert::run(
+        convert::run(
             path,
             &convert::Options {
                 flags: self.into(),
