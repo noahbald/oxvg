@@ -8,9 +8,13 @@ use crate::{
 ///
 /// # Panics
 /// If internal assertions fail
-pub fn mixed(path: &Path, options: &convert::Options) -> Path {
-    let mut new_path: Vec<_> = path.0.clone().into_iter().map(Some).collect();
-    (0..new_path.len()).for_each(|index| {
+pub fn mixed(path: Path, options: &convert::Options) -> Path {
+    #[cfg(debug_assertions)]
+    let path_dbg = path.to_string();
+
+    let len = path.0.len();
+    let mut new_path: Vec<_> = path.0.into_iter().map(Some).collect();
+    (0..len).for_each(|index| {
         let Some((prev, item_option, _)) = Path::split_mut(&mut new_path, index)
         else {
             return;
@@ -61,8 +65,7 @@ pub fn mixed(path: &Path, options: &convert::Options) -> Path {
     let result = Path(new_path.into_iter().flatten().collect());
     #[cfg(debug_assertions)]
     {
-        let path_dbg = path.clone().take().to_string();
-        let result_dbg = result.clone().take().to_string();
+        let result_dbg = result.to_string();
         if path_dbg != result_dbg {
             log::debug!("convert::mixed: updated path: {result_dbg}");
         }

@@ -2,8 +2,8 @@
 use std::ops::{Deref, DerefMut};
 
 use super::{
-    core::{Angle, Length, Name, Number, Percentage, IRI},
-    list_of::{Comma, ListOf},
+    core::{Angle, Anything, Length, Number, Percentage},
+    list_of::{ListOf, SpaceOrComma},
 };
 use lightningcss::values::length::LengthValue;
 pub use lightningcss::{
@@ -23,10 +23,7 @@ pub use lightningcss::{
     values::{length::LengthOrNumber, shape::FillRule},
 };
 #[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 use smallvec::{smallvec, SmallVec};
@@ -94,9 +91,7 @@ pub enum BaselineShift {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for BaselineShift {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -132,6 +127,37 @@ impl ToValue for BaselineShift {
         }
     }
 }
+#[test]
+fn baseline_shift() {
+    assert_eq!(
+        BaselineShift::parse_string("baseline"),
+        Ok(BaselineShift::Baseline)
+    );
+    assert_eq!(BaselineShift::parse_string("sub"), Ok(BaselineShift::Sub));
+    assert_eq!(
+        BaselineShift::parse_string("super"),
+        Ok(BaselineShift::Super)
+    );
+    assert_eq!(BaselineShift::parse_string("top"), Ok(BaselineShift::Top));
+    assert_eq!(
+        BaselineShift::parse_string("center"),
+        Ok(BaselineShift::Center)
+    );
+    assert_eq!(
+        BaselineShift::parse_string("bottom"),
+        Ok(BaselineShift::Bottom)
+    );
+    assert_eq!(
+        BaselineShift::parse_string("10%"),
+        Ok(BaselineShift::Percentage(Percentage(0.1)))
+    );
+    assert_eq!(
+        BaselineShift::parse_string("10em"),
+        Ok(BaselineShift::Length(LengthValue::Em(10.0)))
+    );
+
+    assert!(BaselineShift::parse_string("invalid").is_err());
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// Clips the paint area of an element
@@ -147,25 +173,30 @@ pub enum Clip {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Clip {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
             .or_else(|_| {
-                input.expect_function_matching("rect")?;
-                input.parse_nested_block(|input| {
-                    input.skip_whitespace();
-                    let top = Number::parse(input)?;
-                    input.skip_whitespace();
-                    let right = Number::parse(input)?;
-                    input.skip_whitespace();
-                    let bottom = Number::parse(input)?;
-                    input.skip_whitespace();
-                    let left = Number::parse(input)?;
-                    input.skip_whitespace();
-                    Ok(Self::Shape([top, right, bottom, left]))
-                })
+                input.expect_str("rect(")?;
+                input.skip_whitespace();
+                input.skip_char(',');
+                input.skip_whitespace();
+                let top = Number::parse(input)?;
+                input.skip_whitespace();
+                input.skip_char(',');
+                input.skip_whitespace();
+                let right = Number::parse(input)?;
+                input.skip_whitespace();
+                input.skip_char(',');
+                input.skip_whitespace();
+                let bottom = Number::parse(input)?;
+                input.skip_whitespace();
+                input.skip_char(',');
+                input.skip_whitespace();
+                let left = Number::parse(input)?;
+                input.skip_whitespace();
+                input.expect_char(')')?;
+                Ok(Self::Shape([top, right, bottom, left]))
             })
     }
 }
@@ -180,16 +211,32 @@ impl ToValue for Clip {
             Self::Shape([top, right, bottom, left]) => {
                 dest.write_str("rect(")?;
                 top.write_value(dest)?;
-                dest.write_char(' ')?;
+                dest.write_char(',')?;
                 right.write_value(dest)?;
-                dest.write_char(' ')?;
+                dest.write_char(',')?;
                 bottom.write_value(dest)?;
-                dest.write_char(' ')?;
+                dest.write_char(',')?;
                 left.write_value(dest)?;
                 dest.write_char(')')
             }
         }
     }
+}
+#[test]
+fn clip() {
+    assert_eq!(
+        Clip::parse_string("rect(1, 2, 3, 4)"),
+        Ok(Clip::Shape([1.0, 2.0, 3.0, 4.0]))
+    );
+    assert_eq!(Clip::parse_string("auto"), Ok(Clip::Auto));
+
+    assert_eq!(
+        Clip::parse_string("circle(1, 2)"),
+        Err(Error::ExpectedString {
+            expected: "rect(",
+            received: "circl"
+        })
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -201,16 +248,13 @@ pub enum ColorProfile<'i> {
     Auto,
     /// The colour profile is assumed to be sRGB
     SRGB,
-    /// A name within the user-agent's colour profile description database
-    Name(Name<'i>),
-    /// A reference to the colour profile
-    IRI(IRI<'i>),
+    /// A name within the user-agent's colour profile description database,
+    /// or a reference to the colour profile
+    NameOrIRI(Anything<'i>),
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ColorProfile<'input> {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -222,8 +266,7 @@ impl<'input> Parse<'input> for ColorProfile<'input> {
                     _ => return Err(()),
                 })
             })
-            .or_else(|()| input.try_parse(Name::parse).map(Self::Name))
-            .or_else(|_| IRI::parse(input).map(Self::IRI))
+            .or_else(|()| Anything::parse(input).map(Self::NameOrIRI))
     }
 }
 #[cfg(feature = "serialize")]
@@ -235,10 +278,19 @@ impl ToValue for ColorProfile<'_> {
         match self {
             Self::Auto => dest.write_str("auto"),
             Self::SRGB => dest.write_str("sRGB"),
-            Self::Name(name) => name.write_value(dest),
-            Self::IRI(iri) => iri.write_value(dest),
+            Self::NameOrIRI(name) => name.write_value(dest),
         }
     }
+}
+#[test]
+fn color_profile() {
+    assert_eq!(ColorProfile::parse_string("auto"), Ok(ColorProfile::Auto));
+    assert_eq!(ColorProfile::parse_string("srgb"), Ok(ColorProfile::SRGB));
+    assert_eq!(ColorProfile::parse_string("sRGB"), Ok(ColorProfile::SRGB));
+    assert_eq!(
+        ColorProfile::parse_string("name"),
+        Ok(ColorProfile::NameOrIRI("name".into()))
+    );
 }
 
 enum_attr!(
@@ -284,7 +336,7 @@ pub enum EnableBackground {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for EnableBackground {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input
@@ -330,17 +382,49 @@ impl ToValue for EnableBackground {
         }
     }
 }
+#[test]
+fn enable_background() {
+    assert_eq!(
+        EnableBackground::parse_string("accumulate"),
+        Ok(EnableBackground::Accumulate)
+    );
+    assert_eq!(
+        EnableBackground::parse_string("new"),
+        Ok(EnableBackground::New(None))
+    );
+    assert_eq!(
+        EnableBackground::parse_string("new 1 2 3 4"),
+        Ok(EnableBackground::New(Some((1.0, 2.0, 3.0, 4.0))))
+    );
+
+    assert_eq!(
+        EnableBackground::parse_string("accumulate new"),
+        Err(Error::ExpectedDone)
+    );
+    assert_eq!(
+        EnableBackground::parse_string("new accumulate"),
+        Err(Error::ExpectedDone)
+    );
+    assert_eq!(
+        EnableBackground::parse_string("new 1 2 3"),
+        Err(Error::InvalidNumber)
+    );
+    assert_eq!(
+        EnableBackground::parse_string("new 1 2 3 4 5"),
+        Err(Error::ExpectedDone)
+    );
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// Indicates which font family is to be used to render the text
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/text.html#FontFamilyProperty)
 pub struct FontFamily<'input>(
-    pub ListOf<lightningcss::properties::font::FontFamily<'input>, Comma>,
+    pub ListOf<lightningcss::properties::font::FontFamily<'input>, SpaceOrComma>,
 );
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontFamily<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         Ok(Self(ListOf::parse(input)?))
     }
 }
@@ -366,7 +450,7 @@ pub enum FontSizeAdjust {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontSizeAdjust {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("none").map(|()| Self::None))
             .or_else(|_| Number::parse(input).map(Self::Number))
@@ -383,6 +467,22 @@ impl ToValue for FontSizeAdjust {
             Self::None => dest.write_str("none"),
         }
     }
+}
+#[test]
+fn font_size_adjust() {
+    assert_eq!(
+        FontSizeAdjust::parse_string("10"),
+        Ok(FontSizeAdjust::Number(10.0))
+    );
+    assert_eq!(
+        FontSizeAdjust::parse_string("none"),
+        Ok(FontSizeAdjust::None)
+    );
+
+    assert_eq!(
+        FontSizeAdjust::parse_string("invalid"),
+        Err(Error::InvalidNumber)
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -412,7 +512,7 @@ pub enum FontVariant {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariant {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 let str: &str = input.expect_ident().map_err(|_| ())?;
@@ -430,6 +530,7 @@ impl<'input> Parse<'input> for FontVariant {
                 let mut font_variant_position: Option<FontVariantPosition> = None;
                 let mut font_variant_emoji: Option<FontVariantEmoji> = None;
                 loop {
+                    input.skip_whitespace();
                     if font_variant_ligatures.is_none() {
                         if let Ok(value) = input.try_parse(FontVariantLigatures::parse) {
                             font_variant_ligatures = Some(value);
@@ -540,6 +641,37 @@ impl ToValue for FontVariant {
         }
     }
 }
+#[test]
+fn font_variant() {
+    assert_eq!(FontVariant::parse_string("normal"), Ok(FontVariant::Normal));
+    assert_eq!(FontVariant::parse_string("none"), Ok(FontVariant::None));
+    assert_eq!(
+        FontVariant::parse_string("no-common-ligatures proportional-nums"),
+        Ok(FontVariant::Some {
+            font_variant_ligatures: FontVariantLigatures {
+                common_lig_values: Some(CommonLigValues::NoCommonLigatures),
+                discretionary_lig_values: None,
+                historical_lig_values: None,
+                contextual_alt_values: None
+            },
+            font_variant_caps: None,
+            font_variant_numeric: FontVariantNumeric {
+                numeric_figure_values: None,
+                numeric_spacing_values: Some(NumericSpacingValues::ProportionalNums),
+                numeric_fraction_values: None,
+                ordinal: false,
+                slashed_zero: false
+            },
+            font_variant_east_asian: FontVariantEastAsian {
+                east_asian_variant_values: None,
+                east_asian_width_values: None,
+                ruby: false
+            },
+            font_variant_position: None,
+            font_variant_emoji: None
+        })
+    );
+}
 
 /// Enables/disables various open-type ligature features.
 ///
@@ -553,7 +685,7 @@ pub struct FontVariantLigatures {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantLigatures {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut result = FontVariantLigatures {
             common_lig_values: None,
             discretionary_lig_values: None,
@@ -611,6 +743,7 @@ impl ToValue for FontVariantLigatures {
         Ok(())
     }
 }
+
 enum_attr!(
     /// Enables/disables `liga` and `clig`
     CommonLigValues {
@@ -686,7 +819,7 @@ pub struct FontVariantNumeric {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantNumeric {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut result = Self {
             numeric_figure_values: None,
             numeric_spacing_values: None,
@@ -772,7 +905,7 @@ pub enum GlyphOrientationVertical {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for GlyphOrientationVertical {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
             .or_else(|_| Angle::parse(input).map(Self::Angle))
@@ -790,6 +923,17 @@ impl ToValue for GlyphOrientationVertical {
         }
     }
 }
+#[test]
+fn glyph_orientation_vertical() {
+    assert_eq!(
+        GlyphOrientationVertical::parse_string("auto"),
+        Ok(GlyphOrientationVertical::Auto)
+    );
+    assert_eq!(
+        GlyphOrientationVertical::parse_string("90deg"),
+        Ok(GlyphOrientationVertical::Angle(Angle::Deg(90.0)))
+    );
+}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 /// Indicates that the user agent should adjust inter-glyph spacing
@@ -804,7 +948,7 @@ pub enum Kerning {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Kerning {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
             .or_else(|_| Length::parse(input).map(Self::Length))
@@ -821,6 +965,14 @@ impl ToValue for Kerning {
             Self::Length(length) => length.write_value(dest),
         }
     }
+}
+#[test]
+fn kerning() {
+    assert_eq!(Kerning::parse_string("auto"), Ok(Kerning::Auto));
+    assert_eq!(
+        Kerning::parse_string("10em"),
+        Ok(Kerning::Length(Length::Length(LengthValue::Em(10.0))))
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -853,7 +1005,7 @@ impl LengthPercentage {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for LengthPercentage {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         lightningcss::values::length::LengthPercentage::parse(input).map(Self)
     }
 }
@@ -885,16 +1037,37 @@ impl DerefMut for LengthPercentage {
         &mut self.0
     }
 }
+#[test]
+fn length_percentage() {
+    assert_eq!(
+        LengthPercentage::parse_string("10"),
+        Ok(LengthPercentage(
+            lightningcss::values::length::LengthPercentage::px(10.0)
+        ))
+    );
+    assert_eq!(
+        LengthPercentage::parse_string("10em"),
+        Ok(LengthPercentage(
+            lightningcss::values::length::LengthPercentage::Dimension(LengthValue::Em(10.0))
+        ))
+    );
+    assert_eq!(
+        LengthPercentage::parse_string("10%"),
+        Ok(LengthPercentage(
+            lightningcss::values::length::LengthPercentage::Percentage(Percentage(0.1))
+        ))
+    );
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// A reference to an image or `<mask>` element to hide portions of an element.
 ///
 /// [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/masking.html#MaskProperty)
 /// [SVG 2](https://drafts.fxtf.org/css-masking-1/#propdef-mask)
-pub struct Mask<'input>(pub ListOf<lightningcss::properties::masking::Mask<'input>, Comma>);
+pub struct Mask<'input>(pub ListOf<lightningcss::properties::masking::Mask<'input>, SpaceOrComma>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Mask<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         ListOf::parse(input).map(Self)
     }
 }
@@ -950,7 +1123,7 @@ pub struct FontVariantEastAsian {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontVariantEastAsian {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut result = Self {
             east_asian_variant_values: None,
             east_asian_width_values: None,
@@ -1083,9 +1256,7 @@ impl PaintOrder {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for PaintOrder {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let normal = Self::normal();
         if input
             .try_parse(|input| input.expect_ident_matching("normal"))
@@ -1096,19 +1267,25 @@ impl<'input> Parse<'input> for PaintOrder {
         let mut paint_order = SmallVec::with_capacity(3);
         for _ in 0..3 {
             if let Ok(paint) = input.try_parse(Paint::parse) {
+                input.skip_whitespace();
                 paint_order.push(paint);
             } else {
                 break;
             }
         }
         if paint_order.is_empty() {
-            let location = input.current_source_location();
-            return Err(location.new_custom_error(ParseErrorKind::InvalidPaintOrder));
+            return Err(Error::ExpectedIdent {
+                expected: "a set of paint-order values",
+                received: "nothing",
+            });
         }
         for paint in normal.0 {
             if !paint_order.contains(&paint) {
                 paint_order.push(paint);
             }
+        }
+        if paint_order.len() > 3 {
+            return Err(Error::InvalidRange);
         }
         debug_assert_eq!(paint_order.len(), 3);
         Ok(Self(paint_order))
@@ -1130,6 +1307,53 @@ impl ToValue for PaintOrder {
         dest.write_char(' ')?;
         self.0[2].write_value(dest)
     }
+}
+#[test]
+fn paint_order() {
+    assert_eq!(PaintOrder::parse_string("normal"), Ok(PaintOrder::normal()));
+    assert_eq!(
+        PaintOrder::parse_string("fill stroke markers"),
+        Ok(PaintOrder::normal())
+    );
+    assert_eq!(
+        PaintOrder::parse_string("stroke"),
+        Ok(PaintOrder(smallvec![
+            Paint::Stroke,
+            Paint::Fill,
+            Paint::Markers
+        ]))
+    );
+    assert_eq!(
+        PaintOrder::parse_string("markers stroke fill"),
+        Ok(PaintOrder(smallvec![
+            Paint::Markers,
+            Paint::Stroke,
+            Paint::Fill,
+        ]))
+    );
+
+    assert_eq!(
+        PaintOrder::parse_string(""),
+        Err(Error::ExpectedIdent {
+            expected: "a set of paint-order values",
+            received: "nothing"
+        })
+    );
+    assert_eq!(
+        PaintOrder::parse_string("stroke stroke fill"),
+        Err(Error::InvalidRange)
+    );
+    assert_eq!(
+        PaintOrder::parse_string("stroke fill markers stroke"),
+        Err(Error::ExpectedDone)
+    );
+    assert_eq!(
+        PaintOrder::parse_string("howdy pardner"),
+        Err(Error::ExpectedIdent {
+            expected: "a set of paint-order values",
+            received: "nothing"
+        })
+    );
 }
 
 /// A css position value

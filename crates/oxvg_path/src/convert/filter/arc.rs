@@ -60,15 +60,17 @@ impl Convert {
             s_data: None,
         };
 
+        let angle = circle.arc_angle(s_data);
+        let radius = circle.radius;
         Some(Convert {
-            circle: circle.clone(),
+            circle,
             radius,
             sweep,
-            angle: circle.arc_angle(s_data),
+            angle,
             suffix: String::new(),
             relative_circle: Circle {
                 center: relative_center,
-                radius: circle.radius,
+                radius,
             },
             relative_subpoint: Point::default(),
             arc_curves: vec![item.clone()],
@@ -181,19 +183,14 @@ impl Convert {
             })
         {
             let next_data = match next.command {
-                command::Data::SmoothBezierBy(_) => {
-                    let mut longhand = next.command.make_longhand(prev.command.args());
-                    let args = longhand.clone();
-                    let args = args.args();
-                    for i in 2..args.len() {
-                        longhand.set_arg(i, 0.0);
-                    }
+                command::Data::SmoothBezierBy(args) => {
+                    let args = command::Data::make_s_args_longhand(args, prev.command.args());
                     // NOTE: Command type doesn't matter here, it's used to measure an arbitrary 2
                     // arg command
                     let mut suffix = Path(vec![command::Data::MoveTo([args[0], args[1]])]);
                     options.round_path(&mut suffix, error);
                     self.suffix = String::from(suffix);
-                    [args[0], args[1], args[2], args[3], args[4], args[5]]
+                    args
                 }
                 command::Data::CubicBezierBy(a) => a,
                 _ => {
@@ -222,7 +219,7 @@ impl Convert {
             if *angle - 2.0 * PI > 1e-3 {
                 // more than 360deg
                 break;
-            };
+            }
             if *angle > PI {
                 arc.command.set_arg(3, 1.0);
             }
@@ -279,7 +276,7 @@ impl Convert {
         error: f64,
     ) {
         if let command::Data::SmoothBezierBy(_) = item.command {
-            item.command = item.command.make_longhand(prev.command.args());
+            item.command.make_longhand(prev.command.args());
         }
         let Convert {
             output,

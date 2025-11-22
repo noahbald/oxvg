@@ -2,7 +2,7 @@
 use std::ops::Deref;
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::ParseError, Parse, Parser};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -44,7 +44,7 @@ impl<T: ToValue> SeperatorBound for T {}
 pub trait Seperator: Clone + SeperatorBound {
     #[cfg(feature = "parse")]
     /// Returns whether whitespace is intrinsic to this seperator
-    fn maybe_skip_whitespace(_input: &mut Parser<'_, '_>) {}
+    fn maybe_skip_whitespace(_input: &mut Parser<'_>) {}
     /// Constructs this seperator
     fn new() -> Self;
     /// Returns an enumerable instance of seperators
@@ -54,7 +54,13 @@ pub trait Seperator: Clone + SeperatorBound {
     ///
     /// # Errors
     /// If the parser fails
-    fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>>;
+    fn parse<'input>(input: &mut Parser<'input>) -> Result<(), Error<'input>> {
+        input
+            .expect_matches("delim", |char| Ok(Self::matches(char)))
+            .map(|_| ())
+    }
+    /// Returns whether the character matches the seperator
+    fn matches<'input>(char: char) -> bool;
 }
 impl Seperator for Space {
     fn id(&self) -> Seperators {
@@ -63,11 +69,8 @@ impl Seperator for Space {
     fn new() -> Self {
         Self
     }
-    #[cfg(feature = "parse")]
-    fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
-        input.expect_whitespace()?;
-        input.skip_whitespace();
-        Ok(())
+    fn matches<'input>(char: char) -> bool {
+        char.is_whitespace()
     }
 }
 #[cfg(feature = "serialize")]
@@ -81,7 +84,7 @@ impl ToValue for Space {
 }
 impl Seperator for Comma {
     #[cfg(feature = "parse")]
-    fn maybe_skip_whitespace(input: &mut Parser<'_, '_>) {
+    fn maybe_skip_whitespace(input: &mut Parser<'_>) {
         input.skip_whitespace();
     }
     fn new() -> Self {
@@ -90,10 +93,8 @@ impl Seperator for Comma {
     fn id(&self) -> Seperators {
         Seperators::Comma
     }
-    #[cfg(feature = "parse")]
-    fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
-        input.expect_comma()?;
-        Ok(())
+    fn matches<'input>(char: char) -> bool {
+        char == ','
     }
 }
 #[cfg(feature = "serialize")]
@@ -113,16 +114,19 @@ impl Seperator for SpaceOrComma {
         Self
     }
     #[cfg(feature = "parse")]
-    fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
+    fn parse<'input>(input: &mut Parser<'input>) -> Result<(), Error<'input>> {
         if input.try_parse(Parser::expect_whitespace).is_ok() {
             input.skip_whitespace();
-            input.try_parse(Parser::expect_comma).ok();
+            input.skip_char(',');
             input.skip_whitespace();
             return Ok(());
         }
         Comma::parse(input)?;
         input.skip_whitespace();
         Ok(())
+    }
+    fn matches<'input>(char: char) -> bool {
+        char.is_whitespace() || char == ','
     }
 }
 #[cfg(feature = "serialize")]
@@ -136,7 +140,7 @@ impl ToValue for SpaceOrComma {
 }
 impl Seperator for Semicolon {
     #[cfg(feature = "parse")]
-    fn maybe_skip_whitespace(input: &mut Parser<'_, '_>) {
+    fn maybe_skip_whitespace(input: &mut Parser<'_>) {
         input.skip_whitespace();
     }
     fn new() -> Self {
@@ -145,10 +149,8 @@ impl Seperator for Semicolon {
     fn id(&self) -> Seperators {
         Seperators::Semicolon
     }
-    #[cfg(feature = "parse")]
-    fn parse<'input>(input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
-        input.expect_semicolon()?;
-        Ok(())
+    fn matches<'input>(char: char) -> bool {
+        char == ';'
     }
 }
 #[cfg(feature = "serialize")]
@@ -162,7 +164,7 @@ impl ToValue for Semicolon {
 }
 impl Seperator for Seperators {
     #[cfg(feature = "parse")]
-    fn maybe_skip_whitespace(_input: &mut Parser<'_, '_>) {
+    fn maybe_skip_whitespace(_input: &mut Parser<'_>) {
         unreachable!()
     }
     fn new() -> Self {
@@ -172,7 +174,10 @@ impl Seperator for Seperators {
         self.clone()
     }
     #[cfg(feature = "parse")]
-    fn parse<'input>(_input: &mut Parser<'input, '_>) -> Result<(), ParseError<'input>> {
+    fn parse<'input>(_input: &mut Parser<'input>) -> Result<(), Error<'input>> {
+        unreachable!()
+    }
+    fn matches<'input>(_char: char) -> bool {
         unreachable!()
     }
 }
@@ -221,17 +226,27 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> Deref for ListOf<T, S> {
 impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse<'input>
     for ListOf<T, S>
 {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        let mut list = Vec::with_capacity(1);
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        let mut start = Parser::new(input.take_matches(|char| !S::matches(char)));
+        let mut list = match T::parse(&mut start) {
+            Ok(first) if start.is_empty() => vec![first],
+            Ok(_) => return Err(Error::ExpectedDone),
+            Err(_) if start.is_empty() => {
+                return Ok(Self {
+                    list: vec![],
+                    seperator: S::new(),
+                })
+            }
+            Err(e) => return Err(e),
+        };
         loop {
-            S::maybe_skip_whitespace(input);
-            let Ok(item) = input.try_parse(T::parse) else {
-                break;
-            };
-            list.push(item);
             if S::parse(input).is_err() {
                 break;
             }
+            S::maybe_skip_whitespace(input);
+            list.push(T::parse_string(
+                input.take_matches(|char| !S::matches(char)),
+            )?);
         }
         Ok(Self {
             list,
@@ -311,4 +326,128 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> ListOf<T, S> {
             seperator: f(self.seperator),
         }
     }
+}
+
+#[test]
+fn list_of() {
+    assert_eq!(
+        ListOf::<i64, Space>::parse_string(""),
+        Ok(ListOf {
+            list: vec![],
+            seperator: Space
+        })
+    );
+
+    assert_eq!(
+        ListOf::<i64, Comma>::parse_string(","),
+        Err(Error::ExpectedDone)
+    );
+    assert_eq!(
+        ListOf::<i64, Comma>::parse_string("1,"),
+        Err(Error::InvalidNumber)
+    );
+}
+
+#[test]
+fn list_of_space() {
+    assert_eq!(
+        ListOf::<i64, Space>::parse_string("1 2 3"),
+        Ok(ListOf {
+            list: vec![1, 2, 3],
+            seperator: Space
+        })
+    );
+
+    assert_eq!(
+        ListOf::<i64, Space>::parse_string("invalid"),
+        Err(Error::InvalidNumber)
+    );
+    assert_eq!(
+        ListOf::<i64, Space>::parse_string("1, 2, 3"),
+        Err(Error::ExpectedDone)
+    );
+}
+
+#[test]
+fn list_of_space_or_comma() {
+    use crate::attribute::core::{Length, Percentage};
+    assert_eq!(
+        ListOf::<i64, SpaceOrComma>::parse_string("1, 2, 3"),
+        Ok(ListOf {
+            list: vec![1, 2, 3],
+            seperator: SpaceOrComma
+        })
+    );
+    assert_eq!(
+        ListOf::<i64, SpaceOrComma>::parse_string("1,2,3"),
+        Ok(ListOf {
+            list: vec![1, 2, 3],
+            seperator: SpaceOrComma
+        })
+    );
+    assert_eq!(
+        ListOf::<Length, SpaceOrComma>::parse_string("23.2350 20.2268px 0.22356em 80.0005%"),
+        Ok(ListOf {
+            list: vec![
+                Length::Length(lightningcss::values::length::LengthValue::Px(23.235)),
+                Length::Length(lightningcss::values::length::LengthValue::Px(20.2268)),
+                Length::Length(lightningcss::values::length::LengthValue::Em(0.22356)),
+                Length::Percentage(Percentage(0.800_005))
+            ],
+            seperator: SpaceOrComma
+        })
+    );
+
+    assert_eq!(
+        ListOf::<i64, SpaceOrComma>::parse_string("1; 2; 3"),
+        Err(Error::ExpectedDone)
+    );
+}
+
+#[test]
+fn list_of_semicolon() {
+    use crate::attribute::{
+        animation::BeginEnd,
+        animation_timing::{ClockValue, Metric},
+        core::NumberOptionalNumber,
+    };
+    assert_eq!(
+        ListOf::<NumberOptionalNumber, Semicolon>::parse_string("1, 2; 3"),
+        Ok(ListOf {
+            list: vec![
+                NumberOptionalNumber(1.0, Some(2.0)),
+                NumberOptionalNumber(3.0, None)
+            ],
+            seperator: Semicolon
+        })
+    );
+    assert_eq!(
+        ListOf::<i64, Semicolon>::parse_string("1;2;3"),
+        Ok(ListOf {
+            list: vec![1, 2, 3],
+            seperator: Semicolon
+        })
+    );
+    assert_eq!(
+        ListOf::<BeginEnd, Semicolon>::parse_string("0;thing2.end"),
+        Ok(ListOf {
+            list: vec![
+                BeginEnd::OffsetValue(ClockValue::TimecountValue {
+                    timecount: 0.0,
+                    metric: Metric::Second
+                }),
+                BeginEnd::SyncbaseValue {
+                    id: "thing2".into(),
+                    begin: false,
+                    offset: None
+                }
+            ],
+            seperator: Semicolon
+        })
+    );
+
+    assert_eq!(
+        ListOf::<i64, Semicolon>::parse_string("1,2,3"),
+        Err(Error::ExpectedDone)
+    );
 }

@@ -2,12 +2,7 @@
 use lightningcss::media_query::MediaList;
 
 #[cfg(feature = "parse")]
-use cssparser_lightningcss::Token;
-#[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -92,17 +87,19 @@ pub struct PreserveAspectRatio {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for PreserveAspectRatio {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let align = PreserveAspectRatioAlign::parse(input)?;
         input.skip_whitespace();
-        Ok(Self {
+        let mut result = Self {
             align,
             meet_or_slice: input
-                .try_parse(|input| PreserveAspectRatioMeetOrSlice::parse(input))
+                .try_parse(PreserveAspectRatioMeetOrSlice::parse)
                 .unwrap_or_default(),
-        })
+        };
+        if result.align == PreserveAspectRatioAlign::None {
+            result.meet_or_slice = PreserveAspectRatioMeetOrSlice::Meet;
+        }
+        Ok(result)
     }
 }
 #[cfg(feature = "serialize")]
@@ -118,6 +115,100 @@ impl ToValue for PreserveAspectRatio {
         }
         Ok(())
     }
+}
+#[test]
+fn preserve_aspect_ratio() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(
+        PreserveAspectRatio::parse_string("none"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::None,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("none slice"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::None,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMinYMin"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMinYMin,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMidYMin meet"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMidYMin,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMidYMin slice"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMidYMin,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Slice
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMaxYMin"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMaxYMin,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMinYMid meet"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMinYMid,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMidYMid slice"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMidYMid,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Slice
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMaxYMid"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMaxYMid,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMinYMax meet"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMinYMax,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMidYMax slice"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMidYMax,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Slice
+        })
+    );
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMaxYMax"),
+        Ok(PreserveAspectRatio {
+            align: PreserveAspectRatioAlign::XMaxYMax,
+            meet_or_slice: PreserveAspectRatioMeetOrSlice::Meet
+        })
+    );
+
+    assert!(PreserveAspectRatio::parse_string("meet").is_err());
+    assert_eq!(
+        PreserveAspectRatio::parse_string("xMinYMin unknown"),
+        Err(Error::ExpectedDone)
+    );
 }
 
 enum_attr!(
@@ -323,11 +414,13 @@ pub type MediaType<'i> = Anything<'i>;
 /// [w3](https://svgwg.org/svg2-draft/styling.html#StyleElementMediaAttribute)
 pub struct MediaQueryList<'i>(pub MediaList<'i>);
 #[cfg(feature = "parse")]
-impl<'input> Parse<'input> for MediaQueryList<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        MediaList::parse(input)
-            .map(Self)
-            .map_err(ParseErrorKind::from_css)
+impl<'input> oxvg_parse::Parse<'input> for MediaQueryList<'input> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        MediaList::parse(&mut cssparser_lightningcss::Parser::new(
+            &mut cssparser_lightningcss::ParserInput::new(input.take_slice()),
+        ))
+        .map(Self)
+        .map_err(Error::Lightningcss)
     }
 }
 #[cfg(feature = "serialize")]
@@ -338,6 +431,11 @@ impl ToValue for MediaQueryList<'_> {
     {
         self.0.write_value(dest)
     }
+}
+#[test]
+fn media_query_list() {
+    use oxvg_parse::Parse as _;
+    MediaQueryList::parse_string("screen and (width >= 900px)").unwrap();
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -350,9 +448,7 @@ pub enum NumberPercentage {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NumberPercentage {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| Percentage::parse(input).map(Self::Percentage))
             .or_else(|_| Number::parse(input).map(Self::Number))
@@ -369,6 +465,23 @@ impl ToValue for NumberPercentage {
             Self::Percentage(percentage) => percentage.write_value(dest),
         }
     }
+}
+#[test]
+fn number_percentage() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(
+        NumberPercentage::parse_string("10"),
+        Ok(NumberPercentage::Number(10.0))
+    );
+    assert_eq!(
+        NumberPercentage::parse_string("10%"),
+        Ok(NumberPercentage::Percentage(Percentage(0.1)))
+    );
+
+    assert_eq!(
+        NumberPercentage::parse_string("10px"),
+        Err(Error::ExpectedDone)
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -387,9 +500,7 @@ pub enum Orient {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Orient {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input.expect_ident().map_err(|_| ()).and_then(|ident| {
@@ -419,6 +530,22 @@ impl ToValue for Orient {
         }
     }
 }
+#[test]
+fn orient() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(Orient::parse_string("auto"), Ok(Orient::Auto));
+    assert_eq!(
+        Orient::parse_string("auto-start-reverse"),
+        Ok(Orient::AutoStartReverse)
+    );
+    assert_eq!(
+        Orient::parse_string("90deg"),
+        Ok(Orient::Angle(Angle::Deg(90.0)))
+    );
+    assert_eq!(Orient::parse_string("90"), Ok(Orient::Number(90.0)));
+
+    assert_eq!(Orient::parse_string("90px"), Err(Error::ExpectedDone));
+}
 
 enum_attr!(
     /// This property has no effect
@@ -442,16 +569,9 @@ pub enum Radius {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Radius {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
-            .try_parse(
-                |input| -> Result<Self, cssparser_lightningcss::BasicParseError> {
-                    input.expect_ident_matching("auto")?;
-                    Ok(Self::Auto)
-                },
-            )
+            .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
             .or_else(|_| LengthPercentage::parse(input).map(Self::LengthPercentage))
     }
 }
@@ -467,6 +587,19 @@ impl ToValue for Radius {
         }
     }
 }
+#[test]
+fn radius() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(Radius::parse_string("auto"), Ok(Radius::Auto));
+    assert_eq!(
+        Radius::parse_string("20px"),
+        Ok(Radius::LengthPercentage(LengthPercentage(
+            lightningcss::values::percentage::DimensionPercentage::Dimension(
+                lightningcss::values::length::LengthValue::Px(20.0)
+            )
+        )))
+    );
+}
 
 /// The name which is used as the first parameter for icc-color specifications
 ///
@@ -481,12 +614,17 @@ pub enum ColorProfileName<'input> {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ColorProfileName<'input> {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         Ok(input
-            .try_parse(|input| input.expect_ident_matching("sRGB").map(|()| Self::Srbg))
-            .unwrap_or_else(|_| Self::Name(input.slice_from(input.position()).into())))
+            .try_parse(|input| {
+                let ident = input.expect_ident().map_err(|_| ())?.to_lowercase();
+                if ident == "srgb" {
+                    Ok(Self::Srbg)
+                } else {
+                    Err(())
+                }
+            })
+            .unwrap_or_else(|()| Self::Name(input.take_slice().into())))
     }
 }
 #[cfg(feature = "serialize")]
@@ -500,6 +638,22 @@ impl ToValue for ColorProfileName<'_> {
             Self::Name(name) => name.write_value(dest),
         }
     }
+}
+#[test]
+fn color_profile_name() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(
+        ColorProfileName::parse_string("sRGB"),
+        Ok(ColorProfileName::Srbg)
+    );
+    assert_eq!(
+        ColorProfileName::parse_string("srgb"),
+        Ok(ColorProfileName::Srbg)
+    );
+    assert_eq!(
+        ColorProfileName::parse_string("name"),
+        Ok(ColorProfileName::Name("name".into()))
+    );
 }
 
 enum_attr!(
@@ -538,22 +692,27 @@ pub enum RefX {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RefX {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
-                let ident: &str = input.expect_ident().map_err(|_| ())?;
+                let ident: &str = input.expect_ident()?;
                 Ok(match ident {
                     "left" => Self::Left,
                     "center" => Self::Center,
                     "right" => Self::Right,
-                    _ => return Err(()),
+                    received => {
+                        return Err(Error::ExpectedIdent {
+                            expected: "one of `left` `center` `right` or length",
+                            received,
+                        })
+                    }
                 })
             })
-            .or_else(|()| {
+            .or_else(|e| {
                 input.skip_whitespace();
-                LengthOrNumber::parse(input).map(Self::LengthOrNumber)
+                LengthOrNumber::parse(input)
+                    .map(Self::LengthOrNumber)
+                    .map_err(|_| e)
             })
     }
 }
@@ -570,6 +729,33 @@ impl ToValue for RefX {
             Self::Right => dest.write_str("right"),
         }
     }
+}
+#[test]
+fn ref_x() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(RefX::parse_string("left"), Ok(RefX::Left));
+    assert_eq!(RefX::parse_string("center"), Ok(RefX::Center));
+    assert_eq!(RefX::parse_string("right"), Ok(RefX::Right));
+    assert_eq!(
+        RefX::parse_string("10"),
+        Ok(RefX::LengthOrNumber(LengthOrNumber::Number(10.0)))
+    );
+    assert_eq!(
+        RefX::parse_string("10px"),
+        Ok(RefX::LengthOrNumber(LengthOrNumber::Length(
+            lightningcss::values::length::Length::Value(
+                lightningcss::values::length::LengthValue::Px(10.0)
+            )
+        )))
+    );
+
+    assert_eq!(
+        RefX::parse_string("top"),
+        Err(Error::ExpectedIdent {
+            expected: "one of `left` `center` `right` or length",
+            received: "top"
+        })
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -588,22 +774,27 @@ pub enum RefY {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RefY {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
-                let ident: &str = input.expect_ident().map_err(|_| ())?;
+                let ident: &str = input.expect_ident()?;
                 Ok(match ident {
                     "top" => Self::Top,
                     "center" => Self::Center,
                     "bottom" => Self::Bottom,
-                    _ => return Err(()),
+                    received => {
+                        return Err(Error::ExpectedIdent {
+                            expected: "one of `top` `center` `bottom` or length",
+                            received,
+                        })
+                    }
                 })
             })
-            .or_else(|()| {
+            .or_else(|e| {
                 input.skip_whitespace();
-                LengthOrNumber::parse(input).map(Self::LengthOrNumber)
+                LengthOrNumber::parse(input)
+                    .map(Self::LengthOrNumber)
+                    .map_err(|_| e)
             })
     }
 }
@@ -620,6 +811,33 @@ impl ToValue for RefY {
             Self::Bottom => dest.write_str("bottom"),
         }
     }
+}
+#[test]
+fn ref_y() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(RefY::parse_string("top"), Ok(RefY::Top));
+    assert_eq!(RefY::parse_string("center"), Ok(RefY::Center));
+    assert_eq!(RefY::parse_string("bottom"), Ok(RefY::Bottom));
+    assert_eq!(
+        RefY::parse_string("10"),
+        Ok(RefY::LengthOrNumber(LengthOrNumber::Number(10.0)))
+    );
+    assert_eq!(
+        RefY::parse_string("10px"),
+        Ok(RefY::LengthOrNumber(LengthOrNumber::Length(
+            lightningcss::values::length::Length::Value(
+                lightningcss::values::length::LengthValue::Px(10.0)
+            )
+        )))
+    );
+
+    assert_eq!(
+        RefY::parse_string("left"),
+        Err(Error::ExpectedIdent {
+            expected: "one of `top` `center` `bottom` or length",
+            received: "left"
+        })
+    );
 }
 
 enum_attr!(
@@ -681,9 +899,7 @@ pub enum Rotate {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Rotate {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -711,6 +927,16 @@ impl ToValue for Rotate {
             Self::Number(number) => number.write_value(dest),
         }
     }
+}
+#[test]
+fn rotate() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(Rotate::parse_string("auto"), Ok(Rotate::Auto));
+    assert_eq!(
+        Rotate::parse_string("auto-reverse"),
+        Ok(Rotate::AutoReverse)
+    );
+    assert_eq!(Rotate::parse_string("10"), Ok(Rotate::Number(10.0)));
 }
 
 enum_attr!(
@@ -746,9 +972,7 @@ pub enum Target<'input> {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Target<'input> {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         Ok(input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -760,7 +984,7 @@ impl<'input> Parse<'input> for Target<'input> {
                     _ => return Err(()),
                 })
             })
-            .unwrap_or_else(|()| Self::XMLName(input.slice_from(input.position()).into())))
+            .unwrap_or_else(|()| Self::XMLName(input.take_slice().into())))
     }
 }
 #[cfg(feature = "serialize")]
@@ -777,6 +1001,23 @@ impl ToValue for Target<'_> {
             Self::XMLName(name) => name.write_value(dest),
         }
     }
+}
+#[test]
+fn target() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(Target::parse_string("_self"), Ok(Target::_Self));
+    assert_eq!(Target::parse_string("_parent"), Ok(Target::_Parent));
+    assert_eq!(Target::parse_string("_top"), Ok(Target::_Top));
+    assert_eq!(Target::parse_string("_blank"), Ok(Target::_Blank));
+
+    assert_eq!(
+        Target::parse_string("_Self"),
+        Ok(Target::XMLName("_Self".into()))
+    );
+    assert_eq!(
+        Target::parse_string("name"),
+        Ok(Target::XMLName("name".into()))
+    );
 }
 
 enum_attr!(
@@ -828,14 +1069,17 @@ pub type Transform = SVGTransform;
 pub struct TrueFalse(pub bool);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for TrueFalse {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        let location = input.current_source_location();
-        let ident = input.expect_ident()?;
-        let str: &str = ident;
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        let str = input.expect_ident()?;
         Ok(Self(match str {
             "true" => true,
             "false" => false,
-            _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone()))),
+            received => {
+                return Err(Error::ExpectedIdent {
+                    expected: "one of `true` `false`",
+                    received,
+                })
+            }
         }))
     }
 }
@@ -852,6 +1096,20 @@ impl ToValue for TrueFalse {
         }
     }
 }
+#[test]
+fn true_false() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(TrueFalse::parse_string("true"), Ok(TrueFalse(true)));
+    assert_eq!(TrueFalse::parse_string("false"), Ok(TrueFalse(false)));
+
+    assert_eq!(
+        TrueFalse::parse_string("other"),
+        Err(Error::ExpectedIdent {
+            expected: "one of `true` `false`",
+            received: "other"
+        })
+    );
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// Value representing true, false, or not applicable.
@@ -860,14 +1118,25 @@ impl ToValue for TrueFalse {
 pub struct TrueFalseUndefined(pub Option<TrueFalse>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for TrueFalseUndefined {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input
                     .expect_ident_matching("undefined")
                     .map(|()| Self(None))
             })
-            .or_else(|_| TrueFalse::parse(input).map(Some).map(Self))
+            .or_else(|_| {
+                TrueFalse::parse(input)
+                    .map(Some)
+                    .map(Self)
+                    .map_err(|e| match e {
+                        Error::ExpectedIdent { received, .. } => Error::ExpectedIdent {
+                            expected: "one of `true` `false` `undefined`",
+                            received,
+                        },
+                        e => e,
+                    })
+            })
     }
 }
 #[cfg(feature = "serialize")]
@@ -881,6 +1150,31 @@ impl ToValue for TrueFalseUndefined {
             None => dest.write_str("undefined"),
         }
     }
+}
+#[test]
+fn true_false_undefined() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(
+        TrueFalseUndefined::parse_string("true"),
+        Ok(TrueFalseUndefined(Some(TrueFalse(true))))
+    );
+    assert_eq!(
+        TrueFalseUndefined::parse_string("false"),
+        Ok(TrueFalseUndefined(Some(TrueFalse(false))))
+    );
+    assert_eq!(
+        TrueFalseUndefined::parse_string("undefined"),
+        Ok(TrueFalseUndefined(None))
+    );
+
+    assert_eq!(TrueFalseUndefined::parse_string(""), Err(Error::EndOfInput));
+    assert_eq!(
+        TrueFalseUndefined::parse_string("other"),
+        Err(Error::ExpectedIdent {
+            expected: "one of `true` `false` `undefined`",
+            received: "other"
+        })
+    );
 }
 
 enum_attr!(
@@ -917,29 +1211,21 @@ pub struct ViewBox {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ViewBox {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input.skip_whitespace();
-        let min_x = input.expect_number()?;
+        let min_x = f32::parse(input)?;
         input.skip_whitespace();
-        input
-            .try_parse(cssparser_lightningcss::Parser::expect_comma)
-            .ok();
+        input.skip_char(',');
         input.skip_whitespace();
-        let min_y = input.expect_number()?;
+        let min_y = f32::parse(input)?;
         input.skip_whitespace();
-        input
-            .try_parse(cssparser_lightningcss::Parser::expect_comma)
-            .ok();
+        input.skip_char(',');
         input.skip_whitespace();
-        let width = input.expect_number()?;
+        let width = f32::parse(input)?;
         input.skip_whitespace();
-        input
-            .try_parse(cssparser_lightningcss::Parser::expect_comma)
-            .ok();
+        input.skip_char(',');
         input.skip_whitespace();
-        let height = input.expect_number()?;
+        let height = f32::parse(input)?;
         input.skip_whitespace();
         Ok(Self {
             min_x,
@@ -963,6 +1249,22 @@ impl ToValue for ViewBox {
         dest.write_char(' ')?;
         self.height.write_value(dest)
     }
+}
+#[test]
+fn view_box() {
+    use oxvg_parse::Parse as _;
+    assert_eq!(
+        ViewBox::parse_string("1 2 3 4"),
+        Ok(ViewBox {
+            min_x: 1.0,
+            min_y: 2.0,
+            width: 3.0,
+            height: 4.0
+        })
+    );
+
+    assert_eq!(ViewBox::parse_string("1 2 3"), Err(Error::InvalidNumber));
+    assert_eq!(ViewBox::parse_string("1 2 3 4 5"), Err(Error::ExpectedDone));
 }
 
 enum_attr!(

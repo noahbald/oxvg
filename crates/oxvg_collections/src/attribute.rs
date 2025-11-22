@@ -109,16 +109,15 @@ macro_rules! enum_attr {
         #[cfg(feature = "parse")]
         impl<'input> $crate::attribute::Parse<'input> for $attr {
             fn parse<'t>(
-                input: &mut oxvg_parse::Parser<'input, 't>,
-            ) -> Result<Self, oxvg_parse::error::ParseError<'input>> {
-                let location = input.current_source_location();
-                let ident = input.expect_ident()?;
-                let str: &str = &*ident;
+                input: &mut oxvg_parse::Parser<'input>,
+            ) -> Result<Self, oxvg_parse::error::Error<'input>> {
+                let str = input.expect_ident()?;
                 match str {
                     $($value => Ok($attr::$name),)+
-                    _ => Err(location.new_unexpected_token_error(
-                        cssparser_lightningcss::Token::Ident(ident.clone())
-                    ))
+                    received => Err(oxvg_parse::error::Error::ExpectedIdent {
+                        expected: concat!("one of", $(" `", $value, "`"),+),
+                        received,
+                    })
                 }
             }
         }
@@ -2640,7 +2639,7 @@ try_from_into_property! {
     Font(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontFamily(value) => Inheritable::Defined(FontFamily(ListOf {
         list: value,
-        seperator: Comma,
+        seperator: SpaceOrComma,
     })) => value.option().ok_or(())?.0.list,
     FontSize(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontStretch(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
@@ -2654,7 +2653,7 @@ try_from_into_property! {
     Marker(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Mask(value, vp) => Inheritable::Defined(Mask(ListOf {
         list: value.to_vec(),
-        seperator: Comma,
+        seperator: SpaceOrComma,
     })) => value.option().ok_or(())?.0.list.into(),
     Opacity(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Overflow(value) => Inheritable::Defined(value) => value.option().ok_or(())?,

@@ -19,9 +19,8 @@ type SplitPositionedPathWithPrevOption<'a> = (
 
 impl Path {
     /// Converts self into a [Path](Path), emptying self in the process
-    pub fn take(&mut self) -> crate::Path {
-        let entries = std::mem::take(&mut self.0);
-        crate::Path(entries.into_iter().map(|p| p.command).collect())
+    pub fn take(self) -> crate::Path {
+        crate::Path(self.0.into_iter().map(|p| p.command).collect())
     }
 
     /// Split by `[...prev_paths, prev, item, ...next_paths]`
@@ -71,15 +70,8 @@ impl Path {
     }
 }
 
-#[cfg(feature = "format")]
-impl std::fmt::Display for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        crate::Path(self.0.iter().map(|p| p.command.clone()).collect()).fmt(f)
-    }
-}
-
 impl From<Path> for crate::Path {
     fn from(value: Path) -> Self {
-        Self(value.0.iter().map(|p| p.command.clone()).collect())
+        value.take()
     }
 }

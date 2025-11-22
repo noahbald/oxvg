@@ -1287,9 +1287,11 @@ version = "0.0.3"
 dependencies = [
  "bitflags",
  "insta",
+ "itertools 0.14.0",
  "log",
  "napi",
  "napi-derive",
+ "oxvg_parse",
  "pretty_assertions",
  "ryu",
  "schemars 0.8.21",

@@ -1,15 +1,17 @@
 use crate::{command, geometry::Point, positioned, Path};
 
 /// Convert absolute path data coordinates to relative
-pub fn relative(path: &Path) -> positioned::Path {
-    let new_path = path;
+pub fn relative(path: Path) -> positioned::Path {
+    #[cfg(debug_assertions)]
+    let original_dbg = path.to_string();
+
+    let path = path;
     let start = &mut Point([0.0; 2]);
     let cursor = &mut Point([0.0; 2]);
 
     let result = positioned::Path(
-        new_path
-            .0
-            .iter()
+        path.0
+            .into_iter()
             .enumerate()
             .map(|(i, item)| convert_command_to_relative(item, start, cursor, i == 0))
             .collect(),
@@ -17,11 +19,8 @@ pub fn relative(path: &Path) -> positioned::Path {
     #[cfg(debug_assertions)]
     {
         let result_dbg = result.clone().take().to_string();
-        if path.to_string() != result_dbg {
-            log::debug!(
-                "convert::relative: {} changed to {result_dbg}",
-                path.to_string()
-            );
+        if original_dbg != result_dbg {
+            log::debug!("convert::relative: {original_dbg} changed to {result_dbg}",);
         }
     }
     result
@@ -29,12 +28,11 @@ pub fn relative(path: &Path) -> positioned::Path {
 
 #[allow(clippy::too_many_lines)]
 fn convert_command_to_relative(
-    command: &command::Data,
+    mut command: command::Data,
     start: &mut Point,
     cursor: &mut Point,
     is_first: bool,
 ) -> command::Position {
-    let mut command = command.clone();
     let base = *cursor;
     match command {
         command::Data::MoveBy(a) => {
@@ -154,7 +152,7 @@ fn convert_command_to_relative(
             cursor.0[1] = start.0[1];
         }
         command::Data::Implicit(command) => {
-            return convert_command_to_relative(&command, start, cursor, is_first);
+            return convert_command_to_relative(*command, start, cursor, is_first);
         }
     };
     command::Position {
@@ -168,9 +166,10 @@ fn convert_command_to_relative(
 #[test]
 fn test_convert_relative() {
     use crate::Path;
+    use oxvg_parse::Parse as _;
 
     let mut path = Path::parse_string("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap();
-    path = Path::from(relative(&path));
+    path = Path::from(relative(path));
     assert_eq!(
         String::from(path),
         String::from("M10 50c10-20 30 0 50 20c-50-50-30-30-10-10")

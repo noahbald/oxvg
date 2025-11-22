@@ -1,73 +1,120 @@
 //! Error types that may occur while parsing an SVG value
 
-/// A parser error
-#[derive(Debug)]
-pub enum ParseErrorKind<'i> {
-    /// Lightningcss failed to parse
-    CSSParserError(lightningcss::error::ParserError<'i>),
-    /// A fundamental parsing step failed
-    Basic(cssparser_lightningcss::BasicParseError<'i>),
-    /// A clock value didn't fit the expected range
-    InvalidClockValue,
-    /// A unexpected set of paint steps were given
-    InvalidPaintOrder,
-    /// A begin-end syncbase value is missing an id
-    MissingSyncbaseId,
+#[derive(Debug, Clone, PartialEq)]
+/// An error that can occur while parsing path data
+pub enum PathError {
+    /// A command ended before it's expected length of arguments was reached
+    CommandEndedTooEarly(usize),
+    /// A command was not given when expected
+    NoCommand,
+    /// Multiple commas were found between arguments
+    DuplicateComma,
+    /// A non move command was provided first
+    InvalidFirstCommand,
+    /// A sign (`+`/`-`) was given with one of the first two arc arguments
+    InvalidArcSign,
+    /// An arc command was invalid
+    InvalidArc,
+    /// A command argument was invalid
+    InvalidNumber(std::num::ParseFloatError),
 }
 
 /// Parse errors that can be encoutered by parsing
-pub type ParseError<'input> = cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>;
+#[derive(Debug, Clone, PartialEq)]
+pub enum Error<'input> {
+    /// The end of an input was reched before parsing finished
+    EndOfInput,
+    /// An invalid number was parsed.
+    InvalidNumber,
+    /// A valid value within an invalid range was parsed.
+    InvalidRange,
+    /// Parsing is done but there is trailing input.
+    ExpectedDone,
+    /// A specific string was unmatched
+    ExpectedString {
+        /// The expected string
+        expected: &'static str,
+        /// The received string
+        received: &'input str,
+    },
+    /// A matchable pattern was unmatched
+    ExpectedMatch {
+        /// A description of the expected pattern
+        expected: &'static str,
+        /// The received string
+        received: &'input str,
+    },
+    /// A specific character was unmatched
+    ExpectedChar {
+        /// The expected character
+        expected: char,
+        /// The received character
+        received: char,
+    },
+    /// A specific identifier was unmatched
+    ExpectedIdent {
+        /// The expected identifier(s)
+        expected: &'static str,
+        /// The received string
+        received: &'input str,
+    },
+    #[cfg(feature = "lightningcss")]
+    /// An invalid lightningcss value was parsed
+    Lightningcss(
+        cssparser_lightningcss::ParseError<'input, lightningcss::error::ParserError<'input>>,
+    ),
+    /// An invalid path definition was parsed
+    Path(PathError),
+}
 
-impl<'input> ParseErrorKind<'input> {
-    /// Maps a lightnincss error to `Self`
-    pub fn from_css(
-        error: cssparser_lightningcss::ParseError<'input, lightningcss::error::ParserError<'input>>,
-    ) -> cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>> {
-        match error.kind {
-            cssparser_lightningcss::ParseErrorKind::Basic(e) => {
-                cssparser_lightningcss::ParseError {
-                    kind: cssparser_lightningcss::ParseErrorKind::Basic(e),
-                    location: error.location,
-                }
+impl std::fmt::Display for Error<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt = match self {
+            Self::EndOfInput => "Unexpected end of input while parsing",
+            Self::InvalidNumber => "Invalid number",
+            Self::InvalidRange => "Value out of range",
+            Self::ExpectedDone => "Unexpected trailing content after parsing",
+            Self::ExpectedString { expected, received } => {
+                return f.write_fmt(format_args!(
+                    r#"Expected "{expected}" but received "{received}" instead"#
+                ))
             }
-            cssparser_lightningcss::ParseErrorKind::Custom(e) => {
-                cssparser_lightningcss::ParseError {
-                    kind: cssparser_lightningcss::ParseErrorKind::Custom(
-                        ParseErrorKind::CSSParserError(e),
-                    ),
-                    location: error.location,
-                }
+            Self::ExpectedMatch { expected, received } => {
+                return f.write_fmt(format_args!(
+                    "Expected value matching {expected} but received {received} instead"
+                ))
             }
-        }
-    }
-
-    /// Maps a basic error to `Self`
-    pub fn from_basic(
-        error: cssparser_lightningcss::BasicParseError<'input>,
-    ) -> cssparser_lightningcss::ParseError<'input, Self> {
-        cssparser_lightningcss::ParseError {
-            kind: cssparser_lightningcss::ParseErrorKind::Basic(error.kind),
-            location: error.location,
-        }
-    }
-
-    /// Maps a parser error to `Self`
-    pub fn from_parser(
-        error: cssparser_lightningcss::ParseError<'input, cssparser_lightningcss::BasicParseError>,
-    ) -> cssparser_lightningcss::ParseError<'input, Self> {
-        match error.kind {
-            cssparser_lightningcss::ParseErrorKind::Basic(e) => {
-                cssparser_lightningcss::ParseError {
-                    kind: cssparser_lightningcss::ParseErrorKind::Basic(e),
-                    location: error.location,
-                }
+            Self::ExpectedChar { expected, received } => {
+                return f.write_fmt(format_args!(
+                    "Expected '{expected}' but received '{received}' intead"
+                ))
             }
-            cssparser_lightningcss::ParseErrorKind::Custom(e) => {
-                cssparser_lightningcss::ParseError {
-                    kind: cssparser_lightningcss::ParseErrorKind::Custom(ParseErrorKind::Basic(e)),
-                    location: error.location,
-                }
+            Self::ExpectedIdent { expected, received } => {
+                return f.write_fmt(format_args!(
+                    "Expected {expected} but received `{received}` instead"
+                ))
             }
-        }
+            Self::Lightningcss(e) => return e.fmt(f),
+            Self::Path(e) => return e.fmt(f),
+        };
+        f.write_str(fmt)
     }
 }
+impl std::error::Error for Error<'_> {}
+
+impl std::fmt::Display for PathError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt = match self {
+            Self::CommandEndedTooEarly(_) => "A path command ended too early",
+            Self::NoCommand => "Expected a path command",
+            Self::DuplicateComma => "Found unexpected comma in path command",
+            Self::InvalidFirstCommand => "Expected path to start with `m` or `M`",
+            Self::InvalidArcSign => "Unexpected sign given on one of first two `a` or `A` commands",
+            Self::InvalidArc => "Badly formatted `a` or `A` command",
+            Self::InvalidNumber(e) => &format!("Failed to parse number in path: {e}"),
+        };
+        f.write_str(fmt)?;
+        Ok(())
+    }
+}
+impl std::error::Error for PathError {}

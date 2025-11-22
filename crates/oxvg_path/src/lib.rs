@@ -42,10 +42,7 @@ pub mod positioned;
 
 use points::{Point, Points};
 
-#[cfg(feature = "parse")]
-use crate::parser::Parser;
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// A path is a set of commands
@@ -55,7 +52,7 @@ use crate::parser::Parser;
 /// Out of the box, parsing and serializing a path will produce optimal formatting
 ///
 /// ```
-/// use oxvg_path::Path;
+/// use oxvg_path::{Path, parser::Parse as _};
 ///
 /// let path = Path::parse_string("M 10 0.01 L 0.5 -1").unwrap();
 /// assert_eq!(&path.to_string(), "M10 .01.5-1");
@@ -65,23 +62,14 @@ use crate::parser::Parser;
 pub struct Path(pub Vec<command::Data>);
 
 impl Path {
-    #[cfg(feature = "parse")]
-    /// Parses a path definition from a string
-    ///
-    /// # Errors
-    /// If the definition is invalid
-    pub fn parse_string(definition: &str) -> Result<Self, parser::Error> {
-        Parser::default().parse(definition)
-    }
-
     /// Checks if two paths have an intersection by checking convex hulls collision using
     /// Gilbert-Johnson-Keerthi distance algorithm.
     ///
     /// # Panics
     /// If internal assertions fail
     pub fn intersects(&self, other: &Self) -> bool {
-        let points_1 = Points::from_positioned(&convert::relative(self));
-        let points_2 = Points::from_positioned(&convert::relative(other));
+        let points_1 = Points::from_positioned(&convert::relative(self.clone()));
+        let points_2 = Points::from_positioned(&convert::relative(other.clone()));
 
         // First check whether their bounding box intersects
         if points_1.max_x <= points_2.min_x
@@ -102,8 +90,8 @@ impl Path {
         }
 
         // i.e. https://en.wikipedia.org/wiki/Gilbert%E2%80%93Johnson%E2%80%93Keerthi_distance_algorithm
-        let mut hull_nest_1 = points_1.list.iter().map(Point::convex_hull);
-        let hull_nest_2: Vec<_> = points_2.list.iter().map(Point::convex_hull).collect();
+        let mut hull_nest_1 = points_1.list.into_iter().map(Point::convex_hull);
+        let hull_nest_2: Vec<_> = points_2.list.into_iter().map(Point::convex_hull).collect();
 
         hull_nest_1.any(|hull_1| {
             if hull_1.list.len() < 3 {
@@ -139,30 +127,42 @@ impl Path {
 }
 
 #[cfg(feature = "format")]
+pub(crate) fn format<'a>(
+    mut iter: impl ExactSizeIterator<Item = &'a command::Data>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    use itertools::Itertools;
+    use std::fmt::Display;
+    use std::fmt::Write;
+
+    if iter.len() == 1 {
+        iter.next().unwrap().fmt(f)?;
+        return Ok(());
+    }
+    iter.tuple_windows()
+        .enumerate()
+        .try_for_each(|(i, (prev, current))| -> std::fmt::Result {
+            if i == 0 {
+                prev.fmt(f)?;
+            }
+            let str = current.to_string();
+            if current.is_space_needed(prev) && !str.starts_with('-') {
+                f.write_char(' ')?;
+            }
+            f.write_str(&str)?;
+            Ok(())
+        })
+}
+#[cfg(feature = "format")]
 impl std::fmt::Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
-
-        if self.0.len() == 1 {
-            self.0.first().unwrap().fmt(f)?;
-            return Ok(());
-        }
-        self.0
-            .windows(2)
-            .enumerate()
-            .try_for_each(|(i, window)| -> std::fmt::Result {
-                let prev = &window[0];
-                let current = &window[1];
-                if i == 0 {
-                    prev.fmt(f)?;
-                }
-                let str = current.to_string();
-                if current.is_space_needed(prev) && !str.starts_with('-') {
-                    f.write_char(' ')?;
-                }
-                f.write_str(&str)?;
-                Ok(())
-            })
+        format(self.0.iter(), f)
+    }
+}
+#[cfg(feature = "format")]
+impl std::fmt::Display for positioned::Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        format(self.0.iter().map(|p| &p.command), f)
     }
 }
 
@@ -183,6 +183,7 @@ impl From<&Path> for String {
 #[test]
 #[cfg(feature = "default")]
 fn test_path_parse() {
+    use oxvg_parse::Parse as _;
     // Should parse single command
     insta::assert_snapshot!(Path::parse_string("M 10,50").unwrap());
 

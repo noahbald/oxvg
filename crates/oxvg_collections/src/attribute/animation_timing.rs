@@ -2,12 +2,7 @@
 use lightningcss::values::number::CSSNumber;
 
 #[cfg(feature = "parse")]
-use cssparser_lightningcss::Token;
-#[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -54,101 +49,47 @@ impl ClockValue {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ClockValue {
-    fn parse<'t>(
-        input: &mut Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         // NOTE: Technically clock-value isn't allowed sign (+/-), but we allow it here for easier parsing
         // where clock-value *is* used *and* allows signs
-        let token = input.next()?.clone();
-        match token {
-            Token::Dimension {
-                value,
-                unit,
-                has_sign,
-                int_value,
-            } => Ok(Self::TimecountValue {
-                timecount: value,
-                metric: match &*unit {
-                    "h" => Metric::Hour,
-                    "min" => Metric::Min,
-                    "s" => Metric::Second,
-                    "ms" => Metric::MilliSecond,
-                    _ => Err(input.new_basic_error(
-                        cssparser_lightningcss::BasicParseErrorKind::UnexpectedToken(
-                            Token::Dimension {
-                                has_sign,
-                                value,
-                                int_value,
-                                unit,
-                            },
-                        ),
-                    ))?,
-                },
-            }),
-            Token::Number {
-                has_sign,
-                value,
-                int_value,
-            } => {
-                // Handle full-clock, partial-clock, or unitless timecount
-                if input.try_parse(Parser::expect_colon).is_err() {
-                    return Ok(Self::TimecountValue {
-                        timecount: value,
-                        metric: Metric::Second,
-                    });
-                }
-                let minutes_or_seconds = input.expect_number()?;
-                if input.try_parse(Parser::expect_colon).is_err() {
-                    return Ok(Self::PartialClockValue {
-                        minutes: int_value.ok_or_else(|| {
-                            input.new_basic_error(
-                                cssparser_lightningcss::BasicParseErrorKind::UnexpectedToken(
-                                    Token::Number {
-                                        has_sign,
-                                        value,
-                                        int_value,
-                                    },
-                                ),
-                            )
-                        })?,
-                        seconds: minutes_or_seconds,
-                    });
-                }
-                if minutes_or_seconds.trunc() != minutes_or_seconds {
-                    Err(input.new_basic_error(
-                        cssparser_lightningcss::BasicParseErrorKind::UnexpectedToken(
-                            Token::Number {
-                                has_sign,
-                                value,
-                                int_value,
-                            },
-                        ),
-                    ))?;
-                }
-                let minutes = minutes_or_seconds as Integer;
-                let seconds = input.expect_number()?;
-                return Ok(Self::FullClockValue {
-                    hours: int_value.ok_or_else(|| {
-                        input.new_basic_error(
-                            cssparser_lightningcss::BasicParseErrorKind::UnexpectedToken(
-                                Token::Number {
-                                    has_sign,
-                                    value,
-                                    int_value,
-                                },
-                            ),
-                        )
-                    })?,
-                    minutes,
-                    seconds,
-                });
-            }
-            value => Err(input.new_basic_error(
-                cssparser_lightningcss::BasicParseErrorKind::UnexpectedToken(value),
-            ))?,
-        }
+        let timecount = f32::parse(input)?;
+        Ok(input
+            .try_parse(|input| {
+                Ok(Self::TimecountValue {
+                    timecount,
+                    metric: Metric::parse_string(input.expect_ident()?)?,
+                })
+            })
+            .or_else(|_: Error<'input>| {
+                input.try_parse(|input| {
+                    let timecount = timecount as Integer;
+                    input.expect_char(':')?;
+                    let minutes_or_seconds = f32::parse(input)?;
+                    if input.try_parse(|input| input.expect_char(':')).is_err() {
+                        return Ok(Self::PartialClockValue {
+                            minutes: timecount,
+                            seconds: minutes_or_seconds,
+                        });
+                    }
+                    if minutes_or_seconds.trunc() != minutes_or_seconds {
+                        return Err(Error::InvalidNumber);
+                    }
+                    let minutes = minutes_or_seconds as Integer;
+                    let seconds = f32::parse(input)?;
+                    Ok(Self::FullClockValue {
+                        hours: timecount,
+                        minutes,
+                        seconds,
+                    })
+                })
+            })
+            .unwrap_or(Self::TimecountValue {
+                timecount,
+                metric: Metric::Second,
+            }))
     }
 }
+
 #[cfg(feature = "serialize")]
 impl ToValue for ClockValue {
     fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
@@ -215,18 +156,19 @@ pub enum Metric {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Metric {
-    fn parse<'t>(
-        input: &mut cssparser_lightningcss::Parser<'input, 't>,
-    ) -> Result<Self, cssparser_lightningcss::ParseError<'input, ParseErrorKind<'input>>> {
-        let location = input.current_source_location();
-        let ident = input.expect_ident()?;
-        Ok(match std::ops::Deref::deref(ident) {
-            "h" => Self::Hour,
-            "min" => Self::Min,
-            "s" => Self::Second,
-            "ms" => Self::MilliSecond,
-            _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone()))),
-        })
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        Ok(input
+            .try_parse(|input| {
+                let ident = input.expect_ident().map_err(|_| ())?;
+                Ok(match ident {
+                    "h" => Self::Hour,
+                    "min" => Self::Min,
+                    "s" => Self::Second,
+                    "ms" => Self::MilliSecond,
+                    _ => return Err(()),
+                })
+            })
+            .unwrap_or(Self::Second))
     }
 }
 #[cfg(feature = "serialize")]
@@ -259,7 +201,7 @@ pub enum Dur {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Dur {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
@@ -312,7 +254,7 @@ pub enum MinMax {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for MinMax {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("media").map(|()| Self::Media))
             .or_else(|_| Ok(Self::ClockValue(ClockValue::parse(input)?)))
@@ -344,7 +286,7 @@ pub enum RepeatCount {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RepeatCount {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let result = input
             .try_parse(|input| {
                 input
@@ -354,9 +296,7 @@ impl<'input> Parse<'input> for RepeatCount {
             .or_else(|_| Number::parse(input).map(Self::Number))?;
         if let Self::Number(number) = result {
             if number <= 0.0 {
-                return Err(input.new_custom_error(ParseErrorKind::CSSParserError(
-                    lightningcss::error::ParserError::InvalidValue,
-                )));
+                return Err(Error::InvalidRange);
             }
         }
         Ok(result)
@@ -388,7 +328,7 @@ pub enum RepeatDur {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for RepeatDur {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input
@@ -493,4 +433,6 @@ fn clock_value() {
             .unwrap(),
         String::from("12.467")
     );
+
+    assert_eq!(ClockValue::parse_string("0;"), Err(Error::ExpectedDone));
 }

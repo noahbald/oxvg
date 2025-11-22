@@ -112,15 +112,16 @@ pub struct Options {
 /// ```
 /// use oxvg_path::Path;
 /// use oxvg_path::convert::{Options, StyleInfo, run};
+/// use oxvg_path::parser::Parse as _;
 ///
-/// let path = Path::parse_string("M 10,50 L 10,50").unwrap();
+/// let mut path = Path::parse_string("M 10,50 L 10,50").unwrap();
 /// let options = Options::default();
 /// let style_info = StyleInfo::conservative();
 ///
-/// let path = run(&path, &options, &style_info);
+/// run(&mut path, &options, &style_info);
 /// assert_eq!(&path.to_string(), "M10 50h0");
 /// ```
-pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
+pub fn run(path: &mut Path, options: &Options, style_info: &StyleInfo) {
     let includes_vertices = path
         .0
         .iter()
@@ -128,13 +129,13 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
     // The general optimisation process: original -> naively relative -> filter redundant ->
     // optimal mixed
     log::debug!("convert::run: converting path: {path}");
-    let mut positioned_path = relative(path);
+    let mut positioned_path = relative(std::mem::take(path));
     let mut state = filter::State::new(&positioned_path, options, style_info);
-    positioned_path = filter(&positioned_path, options, &mut state, style_info);
+    positioned_path = filter(positioned_path, options, &mut state, style_info);
     if options.flags.utilize_absolute() {
-        positioned_path = mixed(&positioned_path, options);
+        positioned_path = mixed(positioned_path, options);
     }
-    positioned_path = cleanup(&positioned_path);
+    positioned_path = cleanup(positioned_path);
     for command in &mut positioned_path.0 {
         if command.command.is_by() {
             options.round_data(command.command.args_mut(), options.error());
@@ -147,7 +148,7 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
         }
     }
 
-    let mut path = positioned_path.take();
+    *path = positioned_path.take();
     let has_marker = style_info.contains(StyleInfo::has_marker);
     let is_markers_only_path = has_marker
         && includes_vertices
@@ -159,7 +160,6 @@ pub fn run(path: &Path, options: &Options, style_info: &StyleInfo) -> Path {
         path.0.push(command::Data::ClosePath);
     }
     log::debug!("convert::run: done: {path}");
-    path
 }
 
 impl StyleInfo {
@@ -334,9 +334,10 @@ impl Precision {
 #[test]
 fn test_convert() {
     use crate::Path;
+    use oxvg_parse::Parse as _;
 
     let mut path = Path::parse_string("m 1208.23,1821.01 c 74.07,14.24 196.57,17.09 293.43,-14.24 122.5,-42.74 22.79,-199.42 48.43,-207.97 25.64,-8.55 59.83,108.25 287.73,96.86 230.75,-11.39 256.39,-113.95 287.73,-96.86 31.34,17.09 -31.34,284.88 313.37,222.21 0,0 -361.8,96.86 -344.71,-165.23 0,0 -207.96,159.53 -498.54,17.09 2.85,0 76.92,245 -387.44,148.14").unwrap();
-    path = run(&path, &Options::default(), &StyleInfo::default());
+    run(&mut path, &Options::default(), &StyleInfo::default());
     assert_eq!(
         String::from(path),
         String::from("M1208.23 1821.01c74.07 14.24 196.57 17.09 293.43-14.24 122.5-42.74 22.79-199.42 48.43-207.97s59.83 108.25 287.73 96.86c230.75-11.39 256.39-113.95 287.73-96.86s-31.34 284.88 313.37 222.21c0 0-361.8 96.86-344.71-165.23 0 0-207.96 159.53-498.54 17.09 2.85 0 76.92 245-387.44 148.14")

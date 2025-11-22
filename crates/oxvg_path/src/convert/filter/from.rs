@@ -60,7 +60,7 @@ fn make_specific_longhand(next: &mut Option<Position>, id: &command::ID, data: &
     if &next.command.id() != id {
         return;
     };
-    next.command = next.command.make_longhand(data);
+    next.command.make_longhand(data);
 }
 
 pub fn c_to_q(

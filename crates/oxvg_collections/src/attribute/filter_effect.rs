@@ -1,6 +1,6 @@
 //! Filter effect attributes as specified in [filter-effects](https://drafts.fxtf.org/filter-effects/)
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::ParseError, Parse, Parser};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -166,8 +166,8 @@ pub enum In<'input> {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for In<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        input
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        let result = input
             .try_parse(|input| {
                 let ident: &str = input.expect_ident().map_err(|_| ())?;
                 Ok(match ident {
@@ -180,7 +180,9 @@ impl<'input> Parse<'input> for In<'input> {
                     _ => return Err(()),
                 })
             })
-            .or_else(|()| Atom::parse(input).map(Self::Reference))
+            .or_else(|()| input.expect_ident().map(Into::into).map(Self::Reference))?;
+        input.expect_done()?;
+        Ok(result)
     }
 }
 #[cfg(feature = "serialize")]
@@ -199,4 +201,20 @@ impl ToValue for In<'_> {
             Self::Reference(atom) => dest.write_str(atom),
         }
     }
+}
+#[test]
+fn r#in() {
+    assert_eq!(In::parse_string("SourceGraphic"), Ok(In::SourceGraphic));
+    assert_eq!(In::parse_string("SourceAlpha"), Ok(In::SourceAlpha));
+    assert_eq!(In::parse_string("BackgroundImage"), Ok(In::BackgroundImage));
+    assert_eq!(In::parse_string("BackgroundAlpha"), Ok(In::BackgroundAlpha));
+    assert_eq!(In::parse_string("FillPaint"), Ok(In::FillPaint));
+    assert_eq!(In::parse_string("StrokePaint"), Ok(In::StrokePaint));
+    assert_eq!(
+        In::parse_string(" filter-primitive-reference"),
+        Ok(In::Reference("filter-primitive-reference".into()))
+    );
+
+    assert_eq!(In::parse_string("trailing "), Err(Error::ExpectedDone));
+    assert_eq!(In::parse_string("foo bar"), Err(Error::ExpectedDone));
 }
