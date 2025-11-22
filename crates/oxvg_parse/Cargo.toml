@@ -12,6 +12,11 @@ description = "Parsing primitives for SVG"
 [lints]
 workspace = true
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+lightningcss = ["dep:cssparser_lightningcss", "dep:lightningcss"]
+
 [dependencies]
-cssparser_lightningcss = { workspace = true }
-lightningcss = { workspace = true }
+cssparser_lightningcss = { workspace = true, optional = true }
+lightningcss = { workspace = true, optional = true }
