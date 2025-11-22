@@ -1,6 +1,8 @@
 //! Path data attributes as specified in [paths](https://svgwg.org/svg2-draft/paths.html#DProperty)
 use std::ops::Deref;
 
+#[cfg(feature = "parse")]
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -10,14 +12,14 @@ use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/paths.html#PathData)
 /// [w3 | SVG 2](https://svgwg.org/svg2-draft/paths.html#DProperty)
 pub struct Path(pub oxvg_path::Path);
-impl Path {
+impl<'input> Parse<'input> for Path {
     // TODO: implement ToCss compatible method
     /// Parse a value from a string
     ///
     /// # Errors
     /// If parsing fails
-    pub fn parse_string(definition: &str) -> Result<Self, oxvg_path::parser::Error> {
-        oxvg_path::Path::parse_string(definition).map(Self)
+    fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        oxvg_path::Path::parse(input).map(Self)
     }
 }
 #[cfg(feature = "serialize")]
@@ -48,17 +50,14 @@ impl ToValue for Path {
 /// [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/shapes.html#PointsBNF)
 /// [SVG 2](https://svgwg.org/svg2-draft/shapes.html#PolylineElementPointsAttribute)
 pub struct Points(pub oxvg_path::Path);
-impl Points {
-    // TODO: implement ToCss compatible method
-    /// Parse a value from a string
-    ///
-    /// # Errors
-    /// If parsing fails
-    pub fn parse_string(definition: &str) -> Result<Self, oxvg_path::parser::Error> {
-        oxvg_path::Path::parse_string(&format!("M{definition}")).map(Self)
+#[cfg(feature = "parse")]
+impl<'input> Parse<'input> for Points {
+    fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        let mut result = oxvg_path::Path(vec![]);
+        result.parse_extend(input, true)?;
+        Ok(Self(result))
     }
 }
-
 impl Deref for Path {
     type Target = oxvg_path::Path;
 

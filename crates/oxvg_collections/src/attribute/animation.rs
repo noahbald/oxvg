@@ -1,9 +1,6 @@
 //! Animation attribute types as specified in [animations](https://svgwg.org/specs/animations/)
 #[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -75,7 +72,7 @@ pub enum BeginEnd<'i> {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for BeginEnd<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input
@@ -85,65 +82,61 @@ impl<'input> Parse<'input> for BeginEnd<'input> {
             .or_else(|_| input.try_parse(ClockValue::parse).map(Self::OffsetValue))
             .or_else(|_| {
                 input.try_parse(|input| {
-                    input
-                        .expect_function_matching("accessKey")
-                        .map_err(ParseErrorKind::from_basic)?;
-                    let character = input.parse_nested_block(|input| {
-                        let ident = input.expect_ident().map_err(ParseErrorKind::from_basic)?;
-                        Ok(Atom::Cow(ident.into()))
-                    })?;
+                    input.expect_ident_matching("accessKey")?;
+                    input.expect_char('(')?;
+                    let character = input.take_matches(|char| char != ')').into();
+                    input.expect_char(')')?;
                     let offset = input.try_parse(ClockValue::parse).ok();
-                    let result: Result<Self, ParseError<'input>> =
-                        Ok(Self::AccessKeyValue { character, offset });
-                    result
+                    Ok(Self::AccessKeyValue { character, offset })
                 })
             })
-            .or_else(|_| {
+            .or_else(|_: Error<'input>| {
                 input.try_parse(|input| {
-                    input.expect_function_matching("wallclock")?;
-                    let wallclock_value = input
-                        .parse_nested_block(|input| Ok(input.slice_from(input.position())))?
-                        .into();
-                    let result: Result<Self, ParseError<'input>> =
-                        Ok(Self::WallclockSyncValue(wallclock_value));
-                    result
+                    input.expect_ident_matching("wallclock")?;
+                    input.expect_char('(')?;
+                    let wallclock_value = input.take_matches(|char| char != ')').into();
+                    input.expect_char(')')?;
+                    Ok(Self::WallclockSyncValue(wallclock_value))
                 })
             })
-            .or_else(|_| {
-                let start = input.current_source_location();
-                let id = input
-                    .try_parse(|input| {
-                        let id_value = input.expect_ident()?.into();
-                        input.expect_delim('.')?;
-                        let result: Result<_, cssparser_lightningcss::BasicParseError<'input>> =
-                            Ok(Atom::Cow(id_value));
-                        result
+            .or_else(|_: Error<'input>| {
+                let id = input.expect_ident()?;
+                let id = match id.rfind(['-', '+']) {
+                    Some(n) => {
+                        input.rewind(id.len() - n);
+                        &id[..n]
+                    }
+                    None => id,
+                };
+                let (id, event) = match id.rsplit_once('.') {
+                    Some((id, event)) => (Some(id), event),
+                    None => (None, id),
+                };
+                if event == "repeat" {
+                    input.expect_char('(')?;
+                    let repeat = i32::parse(input)?;
+                    input.expect_char(')')?;
+                    let offset = ClockValue::parse(input).ok();
+                    return Ok(Self::RepeatValue {
+                        id: id.map(Into::into),
+                        repeat,
+                        offset,
+                    });
+                }
+                input.skip_whitespace();
+                let offset = input.try_parse(ClockValue::parse).ok();
+                if let (Some(id), "begin" | "end") = (id, event) {
+                    Ok(Self::SyncbaseValue {
+                        id: id.into(),
+                        begin: event == "begin",
+                        offset,
                     })
-                    .ok();
-                if input
-                    .try_parse(|input| input.expect_function_matching("repeat"))
-                    .is_ok()
-                {
-                    let repeat = input.parse_nested_block(Integer::parse)?;
-                    let offset = input.try_parse(ClockValue::parse).ok();
-                    Ok(Self::RepeatValue { id, repeat, offset })
-                } else if let Ok(begin) = input.try_parse(|input| {
-                    let ident: &str = input.expect_ident().map_err(|_| ())?;
-                    Ok(match ident {
-                        "begin" => true,
-                        "end" => false,
-                        _ => return Err(()),
-                    })
-                }) {
-                    let Some(id) = id else {
-                        return Err(start.new_custom_error(ParseErrorKind::MissingSyncbaseId));
-                    };
-                    let offset = input.try_parse(ClockValue::parse).ok();
-                    Ok(Self::SyncbaseValue { id, begin, offset })
                 } else {
-                    let event = Atom::Cow(input.expect_ident()?.into());
-                    let offset = input.try_parse(ClockValue::parse).ok();
-                    Ok(Self::EventValue { id, event, offset })
+                    Ok(Self::EventValue {
+                        id: id.map(Into::into),
+                        event: event.into(),
+                        offset,
+                    })
                 }
             })
     }
@@ -223,6 +216,99 @@ impl ToValue for BeginEnd<'_> {
         }
     }
 }
+#[test]
+fn begin_end() {
+    use crate::attribute::animation_timing::Metric;
+    let clock_value = ClockValue::TimecountValue {
+        timecount: -15.0,
+        metric: Metric::Second,
+    };
+
+    assert_eq!(
+        BeginEnd::parse_string("0"),
+        Ok(BeginEnd::OffsetValue(ClockValue::TimecountValue {
+            timecount: 0.0,
+            metric: Metric::Second
+        }))
+    );
+    assert_eq!(
+        BeginEnd::parse_string("-15s"),
+        Ok(BeginEnd::OffsetValue(clock_value.clone()))
+    );
+    assert_eq!(
+        BeginEnd::parse_string("id.begin -15s"),
+        Ok(BeginEnd::SyncbaseValue {
+            id: "id".into(),
+            begin: true,
+            offset: Some(clock_value.clone())
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("id.end"),
+        Ok(BeginEnd::SyncbaseValue {
+            id: "id".into(),
+            begin: false,
+            offset: None
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("id2.end"),
+        Ok(BeginEnd::SyncbaseValue {
+            id: "id2".into(),
+            begin: false,
+            offset: None
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("onclick-15s"),
+        Ok(BeginEnd::EventValue {
+            id: None,
+            event: "onclick".into(),
+            offset: Some(clock_value.clone())
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("id.onclick"),
+        Ok(BeginEnd::EventValue {
+            id: Some("id".into()),
+            event: "onclick".into(),
+            offset: None
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("repeat(1) -15s"),
+        Ok(BeginEnd::RepeatValue {
+            id: None,
+            repeat: 1,
+            offset: Some(clock_value.clone())
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("id.repeat(0)"),
+        Ok(BeginEnd::RepeatValue {
+            id: Some("id".into()),
+            repeat: 0,
+            offset: None
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("accessKey(s)-15s"),
+        Ok(BeginEnd::AccessKeyValue {
+            character: "s".into(),
+            offset: Some(clock_value.clone())
+        })
+    );
+    assert_eq!(
+        BeginEnd::parse_string("wallclock(01/01/1960)"),
+        Ok(BeginEnd::WallclockSyncValue("01/01/1960".into()))
+    );
+    assert_eq!(
+        BeginEnd::parse_string("indefinite"),
+        Ok(BeginEnd::Indefinite)
+    );
+
+    assert_eq!(BeginEnd::parse_string("0;"), Err(Error::ExpectedDone));
+}
 
 enum_attr!(
     /// Specifies the interpolation mode for the animation.
@@ -245,19 +331,19 @@ enum_attr!(
 pub struct ControlPoint(pub [Number; 4]);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for ControlPoint {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input.skip_whitespace();
         let x1 = Number::parse(input)?;
         input.skip_whitespace();
-        input.try_parse(Parser::expect_comma).ok();
+        input.skip_char(',');
         input.skip_whitespace();
         let y1 = Number::parse(input)?;
         input.skip_whitespace();
-        input.try_parse(Parser::expect_comma).ok();
+        input.skip_char(',');
         input.skip_whitespace();
         let x2 = Number::parse(input)?;
         input.skip_whitespace();
-        input.try_parse(Parser::expect_comma).ok();
+        input.skip_char(',');
         input.skip_whitespace();
         let y2 = Number::parse(input)?;
         Ok(Self([x1, y1, x2, y2]))

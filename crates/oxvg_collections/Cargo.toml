@@ -20,7 +20,7 @@ serialize = ["dep:oxvg_serialize"]
 markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
 
 [dependencies]
-oxvg_parse = { workspace = true, optional = true }
+oxvg_parse = { workspace = true, features = ["lightningcss"], optional = true }
 oxvg_path = { workspace = true }
 oxvg_serialize = { workspace = true, optional = true }
 

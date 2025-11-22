@@ -175,6 +175,16 @@ macro_rules! define_prefix {
                 }
             }
         }
+
+        impl PartialEq for NS<'_> {
+            fn eq(&self, other: &Self) -> bool {
+                match (self, other) {
+                    $((Self::$prefix, Self::$prefix) => true,)+
+                    (Self::Unknown(uri), Self::Unknown(other_uri)) => uri == other_uri,
+                    _ => false,
+                }
+            }
+        }
     };
 }
 
@@ -199,11 +209,6 @@ impl Display for QualName<'_> {
 impl PartialOrd for NS<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.uri().partial_cmp(other.uri())
-    }
-}
-impl PartialEq for NS<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.uri().eq(other.uri())
     }
 }
 

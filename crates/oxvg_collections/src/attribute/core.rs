@@ -19,12 +19,7 @@ pub use lightningcss::{
 };
 
 #[cfg(feature = "parse")]
-use cssparser_lightningcss::Token;
-#[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -46,20 +41,16 @@ pub type Class<'i> = NonWhitespace<'i>;
 pub struct NonWhitespace<'i>(pub Anything<'i>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NonWhitespace<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        let start = input.position();
-        while input
-            .try_parse(|input| match input.next_including_whitespace() {
-                Err(_) | Ok(Token::WhiteSpace(_)) => Err(()),
-                _ => Ok(()),
-            })
-            .is_ok()
-        {}
-        let slice = input.slice_from(start);
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        input.skip_whitespace();
+        let slice = input.take_matches(|char| !char.is_whitespace());
         if slice.is_empty() {
-            Err(input.new_basic_error(cssparser_lightningcss::BasicParseErrorKind::EndOfInput))?
+            Err(Error::ExpectedMatch {
+                expected: "non-whitespace character",
+                received: "nothing",
+            })?
         } else {
-            Ok(Self(Anything::Cow(slice.into())))
+            Ok(Self(slice.into()))
         }
     }
 }
@@ -84,6 +75,32 @@ impl<'a> From<&'a str> for NonWhitespace<'a> {
         Self(value.into())
     }
 }
+#[test]
+fn non_whitespace() {
+    assert_eq!(
+        NonWhitespace::parse_string(" foo "),
+        Ok(NonWhitespace("foo".into()))
+    );
+
+    assert_eq!(
+        NonWhitespace::parse_string(" foo bar "),
+        Err(Error::ExpectedDone)
+    );
+    assert_eq!(
+        NonWhitespace::parse_string(""),
+        Err(Error::ExpectedMatch {
+            expected: "non-whitespace character",
+            received: "nothing"
+        })
+    );
+    assert_eq!(
+        NonWhitespace::parse_string(" \n\t"),
+        Err(Error::ExpectedMatch {
+            expected: "non-whitespace character",
+            received: "nothing"
+        })
+    );
+}
 
 #[derive(Debug, Clone, PartialEq)]
 /// A boolean attribute is true when it's empty or matches the attribute's canonical name
@@ -92,7 +109,8 @@ impl<'a> From<&'a str> for NonWhitespace<'a> {
 pub struct Boolean<'input>(Option<Atom<'input>>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Boolean<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        input.skip_whitespace();
         Ok(Self(
             input
                 .try_parse(|input| -> Result<Atom<'input>, ()> {
@@ -114,6 +132,14 @@ impl ToValue for Boolean<'_> {
         Ok(())
     }
 }
+#[test]
+fn boolean() {
+    assert_eq!(Boolean::parse_string(""), Ok(Boolean(None)));
+    assert_eq!(
+        Boolean::parse_string(" autofocus "),
+        Ok(Boolean(Some("autofocus".into())))
+    );
+}
 
 /// A CSS colour
 pub type Color = CssColor;
@@ -130,7 +156,8 @@ pub enum Length {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Length {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        input.skip_whitespace();
         input
             .try_parse(Percentage::parse)
             .map(Self::Percentage)
@@ -152,6 +179,27 @@ impl ToValue for Length {
         }
     }
 }
+#[test]
+fn length() {
+    assert_eq!(
+        Length::parse_string("20.2350"),
+        Ok(Length::Length(LengthValue::Px(20.235)))
+    );
+    assert_eq!(
+        Length::parse_string("20.2268px"),
+        Ok(Length::Length(LengthValue::Px(20.2268)))
+    );
+    assert_eq!(
+        Length::parse_string("0.22356em"),
+        Ok(Length::Length(LengthValue::Em(0.22356)))
+    );
+    assert_eq!(
+        Length::parse_string("80.0005%"),
+        Ok(Length::Percentage(Percentage(0.800_005)))
+    );
+
+    assert_eq!(Length::parse_string("20 20"), Err(Error::ExpectedDone));
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// A frequency in hertz
@@ -163,15 +211,18 @@ pub enum Frequency {
 }
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Frequency {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let number = Number::parse(input)?;
-        let location = input.current_source_location();
-        let ident = input.expect_ident()?;
-        let str: &str = ident;
+        let str = input.expect_ident()?;
         Ok(match str {
             "Hz" => Self::Hz(number),
             "KHz" => Self::KHz(number),
-            _ => return Err(location.new_unexpected_token_error(Token::Ident(ident.clone()))),
+            received => {
+                return Err(Error::ExpectedIdent {
+                    expected: "one of `Hz` `KHz`",
+                    received,
+                })
+            }
         })
     }
 }
@@ -192,6 +243,26 @@ impl ToValue for Frequency {
             }
         }
     }
+}
+#[test]
+fn frequency() {
+    assert_eq!(Frequency::parse_string(" 10.5Hz "), Ok(Frequency::Hz(10.5)));
+    assert_eq!(Frequency::parse_string(" -1KHz "), Ok(Frequency::KHz(-1.0)));
+
+    assert_eq!(
+        Frequency::parse_string("1 Khz"),
+        Err(Error::ExpectedIdent {
+            expected: "valid ident starting character",
+            received: " "
+        })
+    );
+    assert_eq!(
+        Frequency::parse_string("1Khz"),
+        Err(Error::ExpectedIdent {
+            expected: "one of `Hz` `KHz`",
+            received: "Khz"
+        })
+    );
 }
 
 /// Functional notation for an IRI
@@ -217,16 +288,28 @@ pub type Number = CSSNumber;
 pub struct NumberOptionalNumber(pub Number, pub Option<Number>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NumberOptionalNumber {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let a = Number::parse(input)?;
+        let cursor_before_space = input.cursor();
         input.skip_whitespace();
-        let has_comma = input.try_parse(Parser::expect_comma).is_ok();
+        let has_comma = input.try_parse(|input| input.expect_char(',')).is_ok();
         input.skip_whitespace();
         let b = if has_comma {
             // Comma makes second number compulsory
             Some(Number::parse(input)?)
         } else {
-            input.try_parse(Number::parse).ok()
+            let cursor_after_space = input.cursor();
+            if let Ok(b) = input.try_parse(Number::parse) {
+                if cursor_before_space == cursor_after_space {
+                    return Err(Error::ExpectedMatch {
+                        expected: "space or comma between numbers",
+                        received: "nothing",
+                    });
+                }
+                Some(b)
+            } else {
+                None
+            }
         };
         Ok(Self(a, b))
     }
@@ -245,6 +328,48 @@ impl ToValue for NumberOptionalNumber {
         Ok(())
     }
 }
+#[test]
+fn number_optional_number() {
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10"),
+        Ok(NumberOptionalNumber(10.0, None))
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10 -1"),
+        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10,-1"),
+        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10 , -1"),
+        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10, -1"),
+        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+    );
+
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10.1.1"),
+        Err(Error::ExpectedMatch {
+            expected: "space or comma between numbers",
+            received: "nothing"
+        })
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10.1-1"),
+        Err(Error::ExpectedMatch {
+            expected: "space or comma between numbers",
+            received: "nothing"
+        })
+    );
+    assert_eq!(
+        NumberOptionalNumber::parse_string("10.1 -1 -1"),
+        Err(Error::ExpectedDone)
+    );
+}
 
 /// An alpha value
 pub type Opacity = AlphaValue;
@@ -256,10 +381,10 @@ pub type Paint<'i> = SVGPaint<'i>;
 pub struct Style<'i>(pub DeclarationBlock<'i>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Style<'input> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
-        DeclarationBlock::parse(input, &ParserOptions::default())
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        DeclarationBlock::parse_string(input.take_slice(), ParserOptions::default())
             .map(Self)
-            .map_err(ParseErrorKind::from_css)
+            .map_err(Error::Lightningcss)
     }
 }
 #[cfg(feature = "serialize")]
@@ -277,6 +402,20 @@ impl<'input> Deref for Style<'input> {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+#[test]
+fn style() {
+    assert_eq!(
+        Style::parse_string("display: none;"),
+        Ok(Style(DeclarationBlock {
+            important_declarations: vec![],
+            declarations: vec![lightningcss::properties::Property::Display(
+                lightningcss::properties::display::Display::Keyword(
+                    lightningcss::properties::display::DisplayKeyword::None
+                )
+            )]
+        }))
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -2,6 +2,7 @@
 use std::ops::Deref;
 
 use lightningcss::values::string::CowArcStr;
+use oxvg_parse::error::Error;
 #[cfg(feature = "markup5ever")]
 use tendril::SliceExt;
 
@@ -121,12 +122,12 @@ impl<'input> From<CowArcStr<'input>> for Atom<'input> {
 
 #[cfg(feature = "parse")]
 impl<'input> oxvg_parse::Parse<'input> for Atom<'input> {
-    fn parse<'t>(
-        input: &mut oxvg_parse::Parser<'input, 't>,
-    ) -> Result<Self, oxvg_parse::error::ParseError<'input>> {
-        let start = input.position();
-        while input.next().is_ok() {}
-        Ok(Self::Cow(input.slice_from(start).into()))
+    fn parse(input: &mut oxvg_parse::Parser<'input>) -> Result<Self, Error<'input>> {
+        Ok(input.take_slice().into())
+    }
+
+    fn parse_string(input: &'input str) -> Result<Self, Error<'input>> {
+        Ok(input.into())
     }
 }
 

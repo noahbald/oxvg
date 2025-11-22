@@ -2,7 +2,7 @@
 use std::fmt::{Debug, Write};
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::ParseError, Parse, Parser};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
@@ -71,7 +71,7 @@ impl<T: Debug + PartialEq> Inheritable<T> {
 }
 #[cfg(feature = "parse")]
 impl<'input, T: Parse<'input> + Debug + PartialEq> Parse<'input> for Inheritable<T> {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 input
@@ -115,4 +115,25 @@ pub fn map_ref_mut<T: Debug + PartialEq>(
     inheritable: std::cell::RefMut<Inheritable<T>>,
 ) -> Option<std::cell::RefMut<T>> {
     std::cell::RefMut::filter_map(inheritable, Inheritable::option_mut).ok()
+}
+
+#[test]
+fn inheritable() {
+    assert_eq!(
+        Inheritable::<f64>::parse_string("10"),
+        Ok(Inheritable::Defined(10.0))
+    );
+    assert_eq!(
+        Inheritable::<f64>::parse_string("inherit"),
+        Ok(Inheritable::Inherited)
+    );
+    assert_eq!(
+        Inheritable::<f64>::parse_string(" inherit "),
+        Ok(Inheritable::Inherited)
+    );
+
+    assert_eq!(
+        Inheritable::<f64>::parse_string("junk"),
+        Err(Error::InvalidNumber)
+    );
 }

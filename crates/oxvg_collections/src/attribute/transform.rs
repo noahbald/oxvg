@@ -9,12 +9,7 @@ use lightningcss::{
 };
 
 #[cfg(feature = "parse")]
-use cssparser_lightningcss::Token;
-#[cfg(feature = "parse")]
-use oxvg_parse::{
-    error::{ParseError, ParseErrorKind},
-    Parse, Parser,
-};
+use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, PrinterOptions, ToValue};
 
@@ -266,83 +261,94 @@ impl SVGTransform {
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for SVGTransform {
     #[allow(clippy::many_single_char_names)]
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| {
                 // SVG transforms allow whitespace between the function name and arguments, unlike CSS functions.
-                // So this may tokenize either as a function, or as an ident followed by a parenthesis block.
-                let function = input
-                    .try_parse(|input| input.expect_function().cloned())
-                    .or_else(|_| {
-                        let name = input.expect_ident_cloned()?;
-                        input.skip_whitespace();
-                        input.expect_parenthesis_block()?;
-                        Ok(name)
-                    })
-                    .map_err(ParseErrorKind::from_parser)?;
+                let function = input.expect_ident()?;
+                input.skip_whitespace();
+                input.expect_char('(')?;
 
-                let function_case_sensitive: &str = &function;
-                input.parse_nested_block(|input| {
-                    let location = input.current_source_location();
-                    match function_case_sensitive {
-                        "matrix" => {
-                            let a = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            let b = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            let c = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            let d = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            let e = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            let f = f32::parse(input)?;
-                            Ok(SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))
-                        }
-                        "translate" => {
-                            let x = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            if let Ok(y) = input.try_parse(f32::parse) {
-                                Ok(SVGTransform::Translate(x, y))
-                            } else {
-                                Ok(SVGTransform::Translate(x, 0.0))
-                            }
-                        }
-                        "scale" => {
-                            let x = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            if let Ok(y) = input.try_parse(f32::parse) {
-                                Ok(SVGTransform::Scale(x, y))
-                            } else {
-                                Ok(SVGTransform::Scale(x, x))
-                            }
-                        }
-                        "rotate" => {
-                            let angle = f32::parse(input)?;
-                            skip_comma_and_whitespace(input);
-                            if let Ok(x) = input.try_parse(f32::parse) {
-                                skip_comma_and_whitespace(input);
-                                let y = f32::parse(input)?;
-                                Ok(SVGTransform::Rotate(angle, x, y))
-                            } else {
-                                Ok(SVGTransform::Rotate(angle, 0.0, 0.0))
-                            }
-                        }
-                        "skewX" => {
-                            let angle = f32::parse(input)?;
-                            Ok(SVGTransform::SkewX(angle))
-                        }
-                        "skewY" => {
-                            let angle = f32::parse(input)?;
-                            Ok(SVGTransform::SkewY(angle))
-                        }
-                        _ => {
-                            Err(location.new_unexpected_token_error(Token::Ident(function.clone())))
+                match function {
+                    "matrix" => {
+                        let a = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        let b = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        let c = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        let d = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        let e = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        let f = f32::parse(input)?;
+                        input.skip_whitespace();
+                        input.expect_char(')')?;
+                        Ok(SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))
+                    }
+                    "translate" => {
+                        let x = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        if let Ok(y) = input.try_parse(f32::parse) {
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Translate(x, y))
+                        } else {
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Translate(x, 0.0))
                         }
                     }
-                })
+                    "scale" => {
+                        let x = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        if let Ok(y) = input.try_parse(f32::parse) {
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Scale(x, y))
+                        } else {
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Scale(x, x))
+                        }
+                    }
+                    "rotate" => {
+                        let angle = f32::parse(input)?;
+                        skip_comma_and_whitespace(input);
+                        if let Ok(x) = input.try_parse(f32::parse) {
+                            skip_comma_and_whitespace(input);
+                            let y = f32::parse(input)?;
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Rotate(angle, x, y))
+                        } else {
+                            input.skip_whitespace();
+                            input.expect_char(')')?;
+                            Ok(SVGTransform::Rotate(angle, 0.0, 0.0))
+                        }
+                    }
+                    "skewX" => {
+                        let angle = f32::parse(input)?;
+                        input.skip_whitespace();
+                        input.expect_char(')')?;
+                        Ok(SVGTransform::SkewX(angle))
+                    }
+                    "skewY" => {
+                        let angle = f32::parse(input)?;
+                        input.skip_whitespace();
+                        input.expect_char(')')?;
+                        Ok(SVGTransform::SkewY(angle))
+                    }
+                    received => Err(Error::ExpectedIdent {
+                        expected: "valid transform function",
+                        received,
+                    }),
+                }
             })
-            .or_else(|_| Ok(SVGTransform::CssTransform(Transform::parse(input)?)))
+            .or_else(|err| {
+                let css_transform = Transform::parse(input).map_err(|_| err)?;
+                Ok(SVGTransform::CssTransform(css_transform))
+            })
     }
 }
 #[cfg(feature = "serialize")]
@@ -490,9 +496,9 @@ impl TryFrom<&Transform> for SVGTransform {
     }
 }
 #[cfg(feature = "parse")]
-fn skip_comma_and_whitespace(input: &mut Parser<'_, '_>) {
+fn skip_comma_and_whitespace(input: &mut Parser<'_>) {
     input.skip_whitespace();
-    let _ = input.try_parse(Parser::expect_comma);
+    input.skip_char(',');
     input.skip_whitespace();
 }
 
@@ -590,18 +596,17 @@ impl TryFrom<&TransformList> for SVGTransformList {
 
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for SVGTransformList {
-    fn parse<'t>(input: &mut Parser<'input, 't>) -> Result<Self, ParseError<'input>> {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut result = Vec::new();
-        loop {
-            input.skip_whitespace();
-            input.try_parse(Parser::expect_comma).ok();
-            input.skip_whitespace();
+        for _ in 0..2048 {
+            skip_comma_and_whitespace(input);
             if let Ok(item) = input.try_parse(SVGTransform::parse) {
                 result.push(item);
             } else {
                 return Ok(Self(result));
             }
         }
+        panic!("maximum iterations on transform list")
     }
 }
 #[cfg(feature = "serialize")]
@@ -650,4 +655,114 @@ impl Precision {
         let pow = 10.0_f32.powi(precision);
         f32::round(data * pow) / pow
     }
+}
+
+#[test]
+fn matrix() {
+    assert_eq!(
+        SVGTransformList::parse_string("matrix(3 1 -1 3 30 40)"),
+        Ok(SVGTransformList(vec![SVGTransform::Matrix(Matrix {
+            a: 3.0,
+            b: 1.0,
+            c: -1.0,
+            d: 3.0,
+            e: 30.0,
+            f: 40.0
+        })]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("matrix(3.1-1.1.3 20 30 40)"),
+        Ok(SVGTransformList(vec![SVGTransform::Matrix(Matrix {
+            a: 3.1,
+            b: -1.1,
+            c: 0.3,
+            d: 20.0,
+            e: 30.0,
+            f: 40.0
+        })]))
+    );
+}
+
+#[test]
+fn translate() {
+    assert_eq!(
+        SVGTransformList::parse_string("translate(0)"),
+        Ok(SVGTransformList(vec![SVGTransform::Translate(0.0, 0.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("translate(0, 50)"),
+        Ok(SVGTransformList(vec![SVGTransform::Translate(0.0, 50.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("translate(0 50)"),
+        Ok(SVGTransformList(vec![SVGTransform::Translate(0.0, 50.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("translate(0.1.1)"),
+        Ok(SVGTransformList(vec![SVGTransform::Translate(0.1, 0.1)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("translate(1-1)"),
+        Ok(SVGTransformList(vec![SVGTransform::Translate(1.0, -1.0)]))
+    );
+}
+
+#[test]
+fn scale() {
+    assert_eq!(
+        SVGTransformList::parse_string("scale(4)"),
+        Ok(SVGTransformList(vec![SVGTransform::Scale(4.0, 4.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("scale(4, 4)"),
+        Ok(SVGTransformList(vec![SVGTransform::Scale(4.0, 4.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("scale(4 8)"),
+        Ok(SVGTransformList(vec![SVGTransform::Scale(4.0, 8.0)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("scale(0.1.1)"),
+        Ok(SVGTransformList(vec![SVGTransform::Scale(0.1, 0.1)]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("scale(0.1.1)"),
+        Ok(SVGTransformList(vec![SVGTransform::Scale(0.1, 0.1)]))
+    );
+}
+
+#[test]
+fn rotate() {
+    assert_eq!(
+        SVGTransformList::parse_string("rotate(100)"),
+        Ok(SVGTransformList(vec![SVGTransform::Rotate(
+            100.0, 0.0, 0.0
+        )]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("rotate(100, 10, 10)"),
+        Ok(SVGTransformList(vec![SVGTransform::Rotate(
+            100.0, 10.0, 10.0
+        )]))
+    );
+    assert_eq!(
+        SVGTransformList::parse_string("rotate(0.1.1-1)"),
+        Ok(SVGTransformList(vec![SVGTransform::Rotate(0.1, 0.1, -1.0)]))
+    );
+}
+
+#[test]
+fn skew_x() {
+    assert_eq!(
+        SVGTransformList::parse_string("skewX(30)"),
+        Ok(SVGTransformList(vec![SVGTransform::SkewX(30.0)]))
+    );
+}
+
+#[test]
+fn skew_y() {
+    assert_eq!(
+        SVGTransformList::parse_string("skewY(30)"),
+        Ok(SVGTransformList(vec![SVGTransform::SkewY(30.0)]))
+    );
 }

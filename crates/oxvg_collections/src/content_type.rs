@@ -203,7 +203,7 @@ impl<'input> ContentType<'_, 'input> {
             Self::SVGTransformList(transform_list) => transform_list.0.is_empty(),
             Self::ListOf(ListOf { list, .. }) => list.is_empty(),
             Self::ColorProfile(color_profile) => match &**color_profile {
-                ColorProfile::Name(value) | ColorProfile::IRI(value) => value.is_empty(),
+                ColorProfile::NameOrIRI(value) => value.is_empty(),
                 _ => false,
             },
             Self::ColorProfileName(color_profile_name) => match &**color_profile_name {
@@ -260,7 +260,7 @@ impl<'input> ContentType<'_, 'input> {
         use lightningcss::values::url::Url;
         use std::marker::PhantomData;
         match self {
-            Self::ColorProfile(ContentTypeRef::RefMut(ColorProfile::IRI(url))) => {
+            Self::ColorProfile(ContentTypeRef::RefMut(ColorProfile::NameOrIRI(url))) => {
                 f(Reference::Atom(url));
             }
             Self::FuncIRI(ContentTypeRef::RefMut(url)) | Self::Url(ContentTypeRef::RefMut(url)) => {
