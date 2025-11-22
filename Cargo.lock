@@ -1290,6 +1290,7 @@ dependencies = [
  "log",
  "napi",
  "napi-derive",
+ "oxvg_parse",
  "pretty_assertions",
  "ryu",
  "schemars 0.8.21",

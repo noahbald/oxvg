@@ -348,6 +348,7 @@ impl Point {
 #[test]
 #[allow(clippy::too_many_lines)]
 fn from_positioned() {
+    use oxvg_parse::Parse as _;
     let path = convert::relative(&Path::parse_string("m10 10 m 10 10").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
@@ -528,7 +529,8 @@ fn from_positioned() {
         )
     );
 
-    let path = convert::relative(&Path::parse_string("m10 10 c20 0 15 -80 40 -80 s20 80 40 80").unwrap());
+    let path =
+        convert::relative(&Path::parse_string("m10 10 c20 0 15 -80 40 -80 s20 80 40 80").unwrap());
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),
@@ -586,8 +588,9 @@ fn from_positioned() {
         )
     );
 
-    let path =
-        convert::relative(&Path::parse_string("m10 10 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0").unwrap());
+    let path = convert::relative(
+        &Path::parse_string("m10 10 q25 25 40 50 t30 0 30 0 30 0 30 0 30 0").unwrap(),
+    );
     let points = Points::from_positioned(&path);
     pretty_assertions::assert_eq!(
         format!("{points:#?}"),

@@ -1,230 +1,186 @@
 //! Types used for parsing a string of path data.
 use crate::{command, Path};
 
-#[derive(Default)]
-pub(crate) struct Parser {
-    path_data: Vec<command::Data>,
-    can_have_comma: bool,
-    had_comma: bool,
-    current_command: command::ID,
-    args: [f64; 7],
-    args_len: usize,
-    args_capacity: usize,
-    current_number: String,
-    had_decminal: bool,
-    cursor: usize,
-}
+pub use oxvg_parse::{error::PathError, Parse};
 
-#[derive(Debug)]
 /// An error that can occur while parsing path data
-pub enum Error {
-    /// A command ended before it's expected length of arguments was reached
-    CommandEndedTooEarly(usize),
-    /// A command was not given when expected
-    NoCommand,
-    /// Multiple commas were found between arguments
-    DuplicateComma,
-    /// A non move command was provided first
-    InvalidFirstCommand,
-    /// A sign (`+`/`-`) was given with one of the first two arc arguments
-    InvalidArcSign,
-    /// An arc command was invalid
-    InvalidArc,
-    /// A command argument was invalid
-    InvalidNumber(std::num::ParseFloatError),
+pub type Error = PathError;
+
+impl<'input> Parse<'input> for Path {
+    fn parse(
+        input: &mut oxvg_parse::Parser<'input>,
+    ) -> Result<Self, oxvg_parse::error::Error<'input>> {
+        let mut result = Path(vec![]);
+        result.parse_extend(input, false)?;
+        Ok(result)
+    }
+}
+impl<'input> Path {
+    /// Extends an existing path by reading through a parser input
+    ///
+    /// # Errors
+    ///
+    /// If parsing fails
+    pub fn parse_extend(
+        &mut self,
+        input: &mut oxvg_parse::Parser<'input>,
+        allow_implicit_start: bool,
+    ) -> Result<(), oxvg_parse::error::Error<'input>> {
+        let list = &mut self.0;
+
+        while !input.is_empty() {
+            input.skip_whitespace();
+            if !list.is_empty() {
+                input.skip_char(',');
+                input.skip_whitespace();
+            }
+            let mut command_id = input.try_parse(command::ID::parse).or_else(|_| {
+                if let Some(last) = list.last() {
+                    Ok(command::ID::Implicit(Box::new(last.id().next_implicit())))
+                } else if allow_implicit_start {
+                    Ok(command::ID::MoveTo)
+                } else {
+                    Err(oxvg_parse::error::Error::Path(PathError::NoCommand))
+                }
+            })?;
+            if let Some(last) = list.last() {
+                if !command_id.is_implicit() && last.id().next_implicit() == command_id {
+                    command_id = command::ID::Implicit(Box::new(command_id));
+                }
+            } else if !matches!(command_id, command::ID::MoveBy | command::ID::MoveTo) {
+                return Err(oxvg_parse::error::Error::ExpectedIdent {
+                    expected: "implicit or `m` or `M`",
+                    received: "other",
+                });
+            }
+
+            let command = command::Data::parse(input, command_id)?;
+            list.push(command);
+        }
+        Ok(())
+    }
 }
 
-impl Parser {
-    /// Returns whether the numbers of args parsed matches what's expected for the command
-    fn is_flush_ready(&self) -> bool {
-        self.current_command.is_implicit()
-            && (self.args_len == 0 || self.args_len == self.args_capacity)
-            || !self.current_command.is_implicit() && self.args_len == self.args_capacity
+impl command::ID {
+    fn parse<'input>(
+        input: &mut oxvg_parse::Parser<'input>,
+    ) -> Result<Self, oxvg_parse::error::Error<'input>> {
+        match input.read()? {
+            'M' => Ok(Self::MoveTo),
+            'm' => Ok(Self::MoveBy),
+            'L' => Ok(Self::LineTo),
+            'l' => Ok(Self::LineBy),
+            'H' => Ok(Self::HorizontalLineTo),
+            'h' => Ok(Self::HorizontalLineBy),
+            'V' => Ok(Self::VerticalLineTo),
+            'v' => Ok(Self::VerticalLineBy),
+            'C' => Ok(Self::CubicBezierTo),
+            'c' => Ok(Self::CubicBezierBy),
+            'S' => Ok(Self::SmoothBezierTo),
+            's' => Ok(Self::SmoothBezierBy),
+            'Q' => Ok(Self::QuadraticBezierTo),
+            'q' => Ok(Self::QuadraticBezierBy),
+            'T' => Ok(Self::SmoothQuadraticBezierTo),
+            't' => Ok(Self::SmoothQuadraticBezierBy),
+            'A' => Ok(Self::ArcTo),
+            'a' => Ok(Self::ArcBy),
+            'Z' | 'z' => Ok(Self::ClosePath),
+            _ => Err(oxvg_parse::error::Error::Path(PathError::NoCommand)),
+        }
     }
+}
 
-    /// Resets `args`, `args_len`, `args_capacity`, and `can_has_comma` for the new command
-    /// The old command is collated and pushed to `path_data`
-    fn flush_args(&mut self, command: &command::ID) -> Result<(), Error> {
-        if !self.is_flush_ready() {
-            Err(Error::CommandEndedTooEarly(self.cursor))?;
+fn parse_number<'input>(
+    input: &mut oxvg_parse::Parser<'input>,
+) -> Result<f64, oxvg_parse::error::Error<'input>> {
+    let f = f64::parse(input)?;
+    input.skip_whitespace();
+    input.skip_char(',');
+    input.skip_whitespace();
+    Ok(f)
+}
+fn parse_flag<'input>(
+    input: &mut oxvg_parse::Parser<'input>,
+) -> Result<f64, oxvg_parse::error::Error<'input>> {
+    let f = input.read()?;
+    input.skip_whitespace();
+    input.skip_char(',');
+    input.skip_whitespace();
+    match f {
+        '0' => Ok(0.0),
+        '1' => Ok(1.0),
+        _ => Err(oxvg_parse::error::Error::Path(PathError::InvalidArcSign)),
+    }
+}
+impl command::Data {
+    #[allow(clippy::many_single_char_names)]
+    fn parse<'input>(
+        input: &mut oxvg_parse::Parser<'input>,
+        command_id: command::ID,
+    ) -> Result<Self, oxvg_parse::error::Error<'input>> {
+        match command_id {
+            command::ID::ClosePath => return Ok(Self::ClosePath),
+            command::ID::Implicit(id) => {
+                debug_assert!(!id.is_implicit());
+                let result = Self::parse(input, *id)?;
+                debug_assert!(!result.is_implicit());
+                return Ok(Self::Implicit(Box::new(result)));
+            }
+            command::ID::None => return Err(oxvg_parse::error::Error::Path(PathError::NoCommand)),
+            _ => {}
         }
-        self.args_capacity = command.args();
-        if self.current_command.is_implicit() && self.args_len == 0 {
-            self.current_command = command.clone();
-            return Ok(());
+        let is_arc = matches!(command_id, command::ID::ArcTo | command::ID::ArcBy);
+        let a = parse_number(input)?;
+        match command_id {
+            command::ID::HorizontalLineTo => return Ok(Self::HorizontalLineTo([a])),
+            command::ID::HorizontalLineBy => return Ok(Self::HorizontalLineBy([a])),
+            command::ID::VerticalLineTo => return Ok(Self::VerticalLineTo([a])),
+            command::ID::VerticalLineBy => return Ok(Self::VerticalLineBy([a])),
+            _ => {}
         }
-        let is_implicit = match self.path_data.last() {
-            Some(command::Data::Implicit(c)) => c.id().next_implicit() == self.current_command,
-            Some(c) => c.id().next_implicit() == self.current_command,
-            _ => false,
-        };
-        let flushed_args: [f64; 7] = std::mem::replace(&mut self.args, [0.0; 7]);
-        self.args_len = 0;
-        self.can_have_comma = false;
-
-        let from_command = if is_implicit {
-            &command::ID::Implicit(Box::new(self.current_command.clone()))
+        let b = parse_number(input)?;
+        match command_id {
+            command::ID::LineTo => return Ok(Self::LineTo([a, b])),
+            command::ID::LineBy => return Ok(Self::LineBy([a, b])),
+            command::ID::MoveTo => return Ok(Self::MoveTo([a, b])),
+            command::ID::MoveBy => return Ok(Self::MoveBy([a, b])),
+            command::ID::SmoothQuadraticBezierTo => {
+                return Ok(Self::SmoothQuadraticBezierTo([a, b]))
+            }
+            command::ID::SmoothQuadraticBezierBy => {
+                return Ok(Self::SmoothQuadraticBezierBy([a, b]))
+            }
+            _ => {}
+        }
+        let c = parse_number(input)?;
+        let d = if is_arc {
+            parse_flag(input)?
         } else {
-            &self.current_command
+            parse_number(input)?
         };
-        self.path_data
-            .push(command::Data::from((from_command, flushed_args)));
-        if !command.is_none() && self.args_capacity == 0 {
-            self.path_data
-                .push(command::Data::from((command, flushed_args)));
+        match command_id {
+            command::ID::SmoothBezierTo => return Ok(Self::SmoothBezierTo([a, b, c, d])),
+            command::ID::SmoothBezierBy => return Ok(Self::SmoothBezierBy([a, b, c, d])),
+            command::ID::QuadraticBezierTo => return Ok(Self::QuadraticBezierTo([a, b, c, d])),
+            command::ID::QuadraticBezierBy => return Ok(Self::QuadraticBezierBy([a, b, c, d])),
+            _ => {}
         }
-        self.current_command = command.clone();
-        Ok(())
-    }
-
-    fn done(&mut self) -> Path {
-        Path(std::mem::take(&mut self.path_data))
-    }
-
-    fn next_command(&mut self, command: &command::ID) -> Result<(), Error> {
-        if self.had_comma {
-            Err(Error::DuplicateComma)?;
+        let e = if is_arc {
+            parse_flag(input)?
+        } else {
+            parse_number(input)?
+        };
+        let f = parse_number(input)?;
+        match command_id {
+            command::ID::CubicBezierTo => return Ok(Self::CubicBezierTo([a, b, c, d, e, f])),
+            command::ID::CubicBezierBy => return Ok(Self::CubicBezierBy([a, b, c, d, e, f])),
+            _ => {}
         }
-        if self.current_command.is_none() {
-            // MoveTo should be leading command
-            if !matches!(command, command::ID::MoveBy | command::ID::MoveTo) {
-                Err(Error::InvalidFirstCommand)?;
-            }
-            self.current_command = command.clone();
-            self.args_capacity = self.current_command.args();
-            return Ok(());
-        } else if !self.is_flush_ready() {
-            // stop if previous arguments are not flushed
-            Err(Error::CommandEndedTooEarly(self.cursor))?;
+        let g = parse_number(input)?;
+        match command_id {
+            command::ID::ArcTo => Ok(Self::ArcTo([a, b, c, d, e, f, g])),
+            command::ID::ArcBy => Ok(Self::ArcBy([a, b, c, d, e, f, g])),
+            _ => unreachable!(),
         }
-        self.flush_args(command)?;
-        Ok(())
-    }
-
-    fn process_number(&mut self) -> Result<(), Error> {
-        let number = std::mem::take(&mut self.current_number)
-            .parse::<f64>()
-            .map_err(Error::InvalidNumber)?;
-        self.args[self.args_len] = number;
-        self.args_len += 1;
-        self.can_have_comma = true;
-        self.had_comma = false;
-        self.had_decminal = false;
-        Ok(())
-    }
-
-    pub fn parse(&mut self, definition: &str) -> Result<Path, Error> {
-        self.cursor = 0;
-        for char in definition.chars() {
-            if char.is_whitespace() && self.current_number.is_empty() {
-                continue;
-            }
-
-            // Allow comma only between arguments
-            if char == ',' && self.current_number.is_empty() {
-                if self.had_comma {
-                    Err(Error::DuplicateComma)?;
-                }
-                self.had_comma = true;
-                continue;
-            }
-            self.had_comma = false;
-            if let Ok(command_id) = command::ID::try_from(char) {
-                if !self.current_number.is_empty() {
-                    self.process_number()?;
-                }
-                self.next_command(&command_id)?;
-                continue;
-            }
-
-            // avoid parsing arguments if no command is detected
-            if self.current_command.is_none() {
-                Err(Error::NoCommand)?;
-            }
-            if (!char.is_numeric() && !matches!(char, '+' | '-' | '.' | 'e' | 'E'))
-                // '.' is start of new number
-                || (self.had_decminal && char == '.' && !self.current_number.ends_with('e') && !self.current_number.ends_with('-'))
-                // '-' is start of new number
-                || (!self.current_number.is_empty()
-                    && !self.current_number.ends_with('e')
-                    && char == '-')
-            {
-                self.process_number()?;
-                self.had_comma = char == ',';
-                if char == '.' {
-                    self.current_number.push(char);
-                    self.had_decminal = true;
-                } else if char == '-' {
-                    self.current_number.push(char);
-                }
-                if self.args_len != self.args_capacity {
-                    continue;
-                }
-                // flush arguments when capacity is reached
-                self.flush_args(&command::ID::Implicit(match self.current_command {
-                    command::ID::MoveTo => Box::new(command::ID::LineTo),
-                    command::ID::MoveBy => Box::new(command::ID::LineBy),
-                    _ => Box::new(self.current_command.clone()),
-                }))?;
-                continue;
-            }
-            // read next argument
-            if matches!(
-                self.current_command.as_explicit(),
-                command::ID::ArcTo | command::ID::ArcBy
-            ) {
-                let number = match char {
-                    // don't allow sign on first two args
-                    '+' | '-' if self.args_len <= 1 => {
-                        return Err(Error::InvalidArcSign)?;
-                    }
-                    '0' if (3..=4).contains(&self.args_len) => 0.0,
-                    '1' if (3..=4).contains(&self.args_len) => 1.0,
-                    '+' | '-' | '.' | 'e' => {
-                        self.had_decminal = self.had_decminal || char == '.';
-                        self.current_number.push(char);
-                        continue;
-                    }
-                    char if char.is_numeric() => {
-                        self.current_number.push(char);
-                        continue;
-                    }
-                    _ => {
-                        return Err(Error::InvalidArc)?;
-                    }
-                };
-                self.args[self.args_len] = number;
-                self.args_len += 1;
-            } else {
-                self.had_decminal = self.had_decminal || char == '.';
-                self.current_number.push(char);
-            }
-            self.cursor += 1;
-        }
-        if !self.current_number.is_empty() {
-            self.process_number()?;
-        }
-        if !self.current_command.is_none() {
-            self.flush_args(&command::ID::None)?;
-        }
-        Ok(self.done())
     }
 }
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fmt = match self {
-            Self::CommandEndedTooEarly(_) => "A path command ended too early",
-            Self::NoCommand => "Expected a path command",
-            Self::DuplicateComma => "Found unexpected comma in path command",
-            Self::InvalidFirstCommand => "Expected path to start with `m` or `M`",
-            Self::InvalidArcSign => "Unexpected sign given on one of first two `a` or `A` commands",
-            Self::InvalidArc => "Badly formatted `a` or `A` command",
-            Self::InvalidNumber(e) => &format!("Failed to parse number in path: {e}"),
-        };
-        f.write_str(fmt)?;
-        Ok(())
-    }
-}
-
-impl std::error::Error for Error {}

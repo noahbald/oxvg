@@ -42,9 +42,6 @@ pub mod positioned;
 
 use points::{Point, Points};
 
-#[cfg(feature = "parse")]
-use crate::parser::Parser;
-
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
@@ -55,7 +52,7 @@ use crate::parser::Parser;
 /// Out of the box, parsing and serializing a path will produce optimal formatting
 ///
 /// ```
-/// use oxvg_path::Path;
+/// use oxvg_path::{Path, parser::Parse as _};
 ///
 /// let path = Path::parse_string("M 10 0.01 L 0.5 -1").unwrap();
 /// assert_eq!(&path.to_string(), "M10 .01.5-1");
@@ -65,15 +62,6 @@ use crate::parser::Parser;
 pub struct Path(pub Vec<command::Data>);
 
 impl Path {
-    #[cfg(feature = "parse")]
-    /// Parses a path definition from a string
-    ///
-    /// # Errors
-    /// If the definition is invalid
-    pub fn parse_string(definition: &str) -> Result<Self, parser::Error> {
-        Parser::default().parse(definition)
-    }
-
     /// Checks if two paths have an intersection by checking convex hulls collision using
     /// Gilbert-Johnson-Keerthi distance algorithm.
     ///
@@ -183,6 +171,7 @@ impl From<&Path> for String {
 #[test]
 #[cfg(feature = "default")]
 fn test_path_parse() {
+    use oxvg_parse::Parse as _;
     // Should parse single command
     insta::assert_snapshot!(Path::parse_string("M 10,50").unwrap());
 

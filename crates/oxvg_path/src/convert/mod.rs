@@ -112,6 +112,7 @@ pub struct Options {
 /// ```
 /// use oxvg_path::Path;
 /// use oxvg_path::convert::{Options, StyleInfo, run};
+/// use oxvg_path::parser::Parse as _;
 ///
 /// let path = Path::parse_string("M 10,50 L 10,50").unwrap();
 /// let options = Options::default();
@@ -334,6 +335,7 @@ impl Precision {
 #[test]
 fn test_convert() {
     use crate::Path;
+    use oxvg_parse::Parse as _;
 
     let mut path = Path::parse_string("m 1208.23,1821.01 c 74.07,14.24 196.57,17.09 293.43,-14.24 122.5,-42.74 22.79,-199.42 48.43,-207.97 25.64,-8.55 59.83,108.25 287.73,96.86 230.75,-11.39 256.39,-113.95 287.73,-96.86 31.34,17.09 -31.34,284.88 313.37,222.21 0,0 -361.8,96.86 -344.71,-165.23 0,0 -207.96,159.53 -498.54,17.09 2.85,0 76.92,245 -387.44,148.14").unwrap();
     path = run(&path, &Options::default(), &StyleInfo::default());
