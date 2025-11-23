@@ -208,7 +208,7 @@ impl<'input> ContentType<'_, 'input> {
             },
             Self::ColorProfileName(color_profile_name) => match &**color_profile_name {
                 ColorProfileName::Name(value) => value.is_empty(),
-                ColorProfileName::Srbg => false,
+                ColorProfileName::Srgb => false,
             },
             Self::FilterList(filter_list) => match &**filter_list {
                 FilterList::Filters(list) => list.is_empty(),

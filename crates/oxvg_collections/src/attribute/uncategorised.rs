@@ -608,7 +608,7 @@ fn radius() {
 pub enum ColorProfileName<'input> {
     #[default]
     /// Case-insensitive name of the pre-defined standard colour profile.
-    Srbg,
+    Srgb,
     /// The name of an icc-color specification.
     Name(Atom<'input>),
 }
@@ -619,7 +619,7 @@ impl<'input> Parse<'input> for ColorProfileName<'input> {
             .try_parse(|input| {
                 let ident = input.expect_ident().map_err(|_| ())?.to_lowercase();
                 if ident == "srgb" {
-                    Ok(Self::Srbg)
+                    Ok(Self::Srgb)
                 } else {
                     Err(())
                 }
@@ -634,7 +634,7 @@ impl ToValue for ColorProfileName<'_> {
         W: std::fmt::Write,
     {
         match self {
-            Self::Srbg => dest.write_str("sRGB"),
+            Self::Srgb => dest.write_str("sRGB"),
             Self::Name(name) => name.write_value(dest),
         }
     }
@@ -644,11 +644,11 @@ fn color_profile_name() {
     use oxvg_parse::Parse as _;
     assert_eq!(
         ColorProfileName::parse_string("sRGB"),
-        Ok(ColorProfileName::Srbg)
+        Ok(ColorProfileName::Srgb)
     );
     assert_eq!(
         ColorProfileName::parse_string("srgb"),
-        Ok(ColorProfileName::Srbg)
+        Ok(ColorProfileName::Srgb)
     );
     assert_eq!(
         ColorProfileName::parse_string("name"),
