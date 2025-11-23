@@ -45,7 +45,7 @@ pub struct Element<'input, 'arena>(pub Ref<'input, 'arena>);
 
 /// A hashable wrapper of [`Element`] that hashes based on it's allocation id.
 ///
-/// Note that hash collisions are likely when using elements from seperate arenas.
+/// Note that hash collisions are likely when using elements from separate arenas.
 #[derive(Clone, Debug)]
 pub struct HashableElement<'input, 'arena>(Element<'input, 'arena>);
 impl<'input, 'arena> HashableElement<'input, 'arena> {

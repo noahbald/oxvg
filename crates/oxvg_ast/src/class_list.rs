@@ -78,7 +78,7 @@ impl<'a, 'input: 'a> ClassList<'a, 'input> {
         let Some(mut attr) = self.attr() else {
             self.attrs.set_named_item(Attr::Class(ListOf {
                 list: vec![NonWhitespace(token)],
-                seperator: Space,
+                separator: Space,
             }));
             return;
         };

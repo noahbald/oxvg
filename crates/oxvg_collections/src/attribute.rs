@@ -31,7 +31,7 @@ use lightningcss::{
     },
     vendor_prefix::VendorPrefix,
 };
-use list_of::{Comma, ListOf, Semicolon, Seperators, Space, SpaceOrComma};
+use list_of::{Comma, ListOf, Semicolon, Separators, Space, SpaceOrComma};
 use path::{Path, Points};
 use presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
@@ -147,7 +147,7 @@ macro_rules! wrap_content_type {
         ContentType::$outer(
             $value
                 .map(|x| { Box::new(ContentType::$inner(ContentTypeRef::Ref(x))) })
-                $(.map_sep(|_| Seperators::$and))?
+                $(.map_sep(|_| Separators::$and))?
         )
     };
 }
@@ -159,7 +159,7 @@ macro_rules! wrap_content_type_mut {
         ContentType::$outer(
             $value
                 .map_mut(|x| { Box::new(ContentType::$inner(ContentTypeRef::RefMut(x))) })
-                $(.map_sep(|_| Seperators::$and))?
+                $(.map_sep(|_| Separators::$and))?
         )
     };
 }
@@ -347,7 +347,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => ContentTypeId::$outer$((
                         Box::new(ContentTypeId::$inner)
-                        $(, Seperators::$and)?
+                        $(, Separators::$and)?
                     ))?,)+
                     Self::Aliased { attr_id, .. } => attr_id.r#type(),
                     Self::Unknown(_) => ContentTypeId::Anything,
@@ -603,7 +603,7 @@ define_attrs! {
         categories: AttributeGroup::Aria,
         default: ListOf {
             list: vec![AriaDropEffect::None],
-            seperator: Space,
+            separator: Space,
         },
     },
     AriaErrorMessage(IDReference<'input>) {
@@ -1540,7 +1540,7 @@ define_attrs! {
         info: AttributeInfo::DeprecatedUnsafe,
         default: ListOf {
             list: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            seperator: Space,
+            separator: Space,
         },
     },
     Path(Path) {
@@ -1780,7 +1780,7 @@ define_attrs! {
         categories: AttributeGroup::TransferFunction,
         default: ListOf {
             list: vec![],
-            seperator: SpaceOrComma,
+            separator: SpaceOrComma,
         },
     },
     Target(Target<'input>) {
@@ -2004,7 +2004,7 @@ define_attrs! {
         name: "x",
         default: ListOf {
             list: vec![LengthPercentage::px(0.0)],
-            seperator: SpaceOrComma,
+            separator: SpaceOrComma,
         },
     },
     XTRef(ListOf<LengthPercentage, SpaceOrComma>) {
@@ -2142,7 +2142,7 @@ define_attrs! {
         name: "y",
         default: ListOf {
             list: vec![LengthPercentage::px(0.0)],
-            seperator: SpaceOrComma,
+            separator: SpaceOrComma,
         },
     },
     YTRef(ListOf<LengthPercentage, SpaceOrComma>) {
@@ -2639,7 +2639,7 @@ try_from_into_property! {
     Font(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontFamily(value) => Inheritable::Defined(FontFamily(ListOf {
         list: value,
-        seperator: SpaceOrComma,
+        separator: SpaceOrComma,
     })) => value.option().ok_or(())?.0.list,
     FontSize(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontStretch(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
@@ -2653,7 +2653,7 @@ try_from_into_property! {
     Marker(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Mask(value, vp) => Inheritable::Defined(Mask(ListOf {
         list: value.to_vec(),
-        seperator: SpaceOrComma,
+        separator: SpaceOrComma,
     })) => value.option().ok_or(())?.0.list.into(),
     Opacity(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Overflow(value) => Inheritable::Defined(value) => value.option().ok_or(())?,

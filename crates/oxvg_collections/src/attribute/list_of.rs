@@ -21,7 +21,7 @@ pub struct Semicolon;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A type of well-known delimiter
-pub enum Seperators {
+pub enum Separators {
     /// A `' '` delimiter
     Space,
     /// A `','` delimiter
@@ -32,25 +32,25 @@ pub enum Seperators {
     Semicolon,
 }
 #[cfg(not(feature = "serialize"))]
-trait SeperatorBound {}
+trait SeparatorBound {}
 #[cfg(feature = "serialize")]
-trait SeperatorBound: ToValue {}
+trait SeparatorBound: ToValue {}
 #[cfg(not(feature = "serialize"))]
-impl<T> SeperatorBound for T {}
+impl<T> SeparatorBound for T {}
 #[cfg(feature = "serialize")]
-impl<T: ToValue> SeperatorBound for T {}
-/// A trait for seperators of [`ListOf`]
+impl<T: ToValue> SeparatorBound for T {}
+/// A trait for separators of [`ListOf`]
 #[allow(private_bounds)]
-pub trait Seperator: Clone + SeperatorBound {
+pub trait Separator: Clone + SeparatorBound {
     #[cfg(feature = "parse")]
-    /// Returns whether whitespace is intrinsic to this seperator
+    /// Returns whether whitespace is intrinsic to this separator
     fn maybe_skip_whitespace(_input: &mut Parser<'_>) {}
-    /// Constructs this seperator
+    /// Constructs this separator
     fn new() -> Self;
-    /// Returns an enumerable instance of seperators
-    fn id(&self) -> Seperators;
+    /// Returns an enumerable instance of separators
+    fn id(&self) -> Separators;
     #[cfg(feature = "parse")]
-    /// Parses the seperator
+    /// Parses the separator
     ///
     /// # Errors
     /// If the parser fails
@@ -59,12 +59,12 @@ pub trait Seperator: Clone + SeperatorBound {
             .expect_matches("delim", |char| Ok(Self::matches(char)))
             .map(|_| ())
     }
-    /// Returns whether the character matches the seperator
+    /// Returns whether the character matches the separator
     fn matches<'input>(char: char) -> bool;
 }
-impl Seperator for Space {
-    fn id(&self) -> Seperators {
-        Seperators::Space
+impl Separator for Space {
+    fn id(&self) -> Separators {
+        Separators::Space
     }
     fn new() -> Self {
         Self
@@ -82,7 +82,7 @@ impl ToValue for Space {
         dest.write_char(' ')
     }
 }
-impl Seperator for Comma {
+impl Separator for Comma {
     #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(input: &mut Parser<'_>) {
         input.skip_whitespace();
@@ -90,8 +90,8 @@ impl Seperator for Comma {
     fn new() -> Self {
         Self
     }
-    fn id(&self) -> Seperators {
-        Seperators::Comma
+    fn id(&self) -> Separators {
+        Separators::Comma
     }
     fn matches<'input>(char: char) -> bool {
         char == ','
@@ -106,9 +106,9 @@ impl ToValue for Comma {
         dest.write_char(',')
     }
 }
-impl Seperator for SpaceOrComma {
-    fn id(&self) -> Seperators {
-        Seperators::SpaceOrComma
+impl Separator for SpaceOrComma {
+    fn id(&self) -> Separators {
+        Separators::SpaceOrComma
     }
     fn new() -> Self {
         Self
@@ -138,7 +138,7 @@ impl ToValue for SpaceOrComma {
         dest.write_char(' ')
     }
 }
-impl Seperator for Semicolon {
+impl Separator for Semicolon {
     #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(input: &mut Parser<'_>) {
         input.skip_whitespace();
@@ -146,8 +146,8 @@ impl Seperator for Semicolon {
     fn new() -> Self {
         Self
     }
-    fn id(&self) -> Seperators {
-        Seperators::Semicolon
+    fn id(&self) -> Separators {
+        Separators::Semicolon
     }
     fn matches<'input>(char: char) -> bool {
         char == ';'
@@ -162,7 +162,7 @@ impl ToValue for Semicolon {
         dest.write_char(';')
     }
 }
-impl Seperator for Seperators {
+impl Separator for Separators {
     #[cfg(feature = "parse")]
     fn maybe_skip_whitespace(_input: &mut Parser<'_>) {
         unreachable!()
@@ -170,7 +170,7 @@ impl Seperator for Seperators {
     fn new() -> Self {
         unreachable!()
     }
-    fn id(&self) -> Seperators {
+    fn id(&self) -> Separators {
         self.clone()
     }
     #[cfg(feature = "parse")]
@@ -182,7 +182,7 @@ impl Seperator for Seperators {
     }
 }
 #[cfg(feature = "serialize")]
-impl ToValue for Seperators {
+impl ToValue for Separators {
     fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
@@ -198,23 +198,23 @@ impl ToValue for Seperators {
 
 /// A list of values which are read or written with a specific delimiter
 #[derive(Debug, PartialEq)]
-pub struct ListOf<T: std::fmt::Debug + PartialEq, S: Seperator> {
-    /// A list of values seperated by a seperator
+pub struct ListOf<T: std::fmt::Debug + PartialEq, S: Separator> {
+    /// A list of values separated by a separator
     pub list: Vec<T>,
     /// A delimiter that can be used between each item of the list
-    pub seperator: S,
+    pub separator: S,
 }
 
-impl<T: Clone + std::fmt::Debug + PartialEq, S: Seperator> Clone for ListOf<T, S> {
+impl<T: Clone + std::fmt::Debug + PartialEq, S: Separator> Clone for ListOf<T, S> {
     fn clone(&self) -> Self {
         Self {
             list: self.list.clone(),
-            seperator: self.seperator.clone(),
+            separator: self.separator.clone(),
         }
     }
 }
 
-impl<T: std::fmt::Debug + PartialEq, S: Seperator> Deref for ListOf<T, S> {
+impl<T: std::fmt::Debug + PartialEq, S: Separator> Deref for ListOf<T, S> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -223,7 +223,7 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> Deref for ListOf<T, S> {
 }
 
 #[cfg(feature = "parse")]
-impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse<'input>
+impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse<'input>
     for ListOf<T, S>
 {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
@@ -234,7 +234,7 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse
             Err(_) if start.is_empty() => {
                 return Ok(Self {
                     list: vec![],
-                    seperator: S::new(),
+                    separator: S::new(),
                 })
             }
             Err(e) => return Err(e),
@@ -250,12 +250,12 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Seperator> Parse
         }
         Ok(Self {
             list,
-            seperator: S::new(),
+            separator: S::new(),
         })
     }
 }
 #[cfg(feature = "serialize")]
-impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ListOf<Box<T>, S> {
+impl<T: ToValue + std::fmt::Debug + PartialEq, S: Separator> ListOf<Box<T>, S> {
     /// Serialize self into CSS or an attribute value
     ///
     /// # Errors
@@ -269,14 +269,14 @@ impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ListOf<Box<T>, S> {
             t.write_value(dest)?;
         }
         for t in iter {
-            self.seperator.write_value(dest)?;
+            self.separator.write_value(dest)?;
             t.write_value(dest)?;
         }
         Ok(())
     }
 }
 #[cfg(feature = "serialize")]
-impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ToValue for ListOf<T, S> {
+impl<T: ToValue + std::fmt::Debug + PartialEq, S: Separator> ToValue for ListOf<T, S> {
     fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
@@ -286,14 +286,14 @@ impl<T: ToValue + std::fmt::Debug + PartialEq, S: Seperator> ToValue for ListOf<
             t.write_value(dest)?;
         }
         for t in iter {
-            self.seperator.write_value(dest)?;
+            self.separator.write_value(dest)?;
             t.write_value(dest)?;
         }
         Ok(())
     }
 }
 
-impl<T: std::fmt::Debug + PartialEq, S: Seperator> ListOf<T, S> {
+impl<T: std::fmt::Debug + PartialEq, S: Separator> ListOf<T, S> {
     /// Returns self with a new list of items, as applied by the given function over each item
     pub fn map<'a, U: std::fmt::Debug + PartialEq, F>(&'a self, f: F) -> ListOf<U, S>
     where
@@ -301,7 +301,7 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> ListOf<T, S> {
     {
         ListOf {
             list: self.list.iter().map(f).collect(),
-            seperator: self.seperator.clone(),
+            separator: self.separator.clone(),
         }
     }
 
@@ -312,18 +312,18 @@ impl<T: std::fmt::Debug + PartialEq, S: Seperator> ListOf<T, S> {
     {
         ListOf {
             list: self.list.iter_mut().map(f).collect(),
-            seperator: self.seperator.clone(),
+            separator: self.separator.clone(),
         }
     }
 
-    /// Returns self with a new seperator, as applied by the given function
-    pub fn map_sep<U: Seperator, F>(self, f: F) -> ListOf<T, U>
+    /// Returns self with a new separator, as applied by the given function
+    pub fn map_sep<U: Separator, F>(self, f: F) -> ListOf<T, U>
     where
         F: FnOnce(S) -> U,
     {
         ListOf {
             list: self.list,
-            seperator: f(self.seperator),
+            separator: f(self.separator),
         }
     }
 }
@@ -334,7 +334,7 @@ fn list_of() {
         ListOf::<i64, Space>::parse_string(""),
         Ok(ListOf {
             list: vec![],
-            seperator: Space
+            separator: Space
         })
     );
 
@@ -354,7 +354,7 @@ fn list_of_space() {
         ListOf::<i64, Space>::parse_string("1 2 3"),
         Ok(ListOf {
             list: vec![1, 2, 3],
-            seperator: Space
+            separator: Space
         })
     );
 
@@ -375,14 +375,14 @@ fn list_of_space_or_comma() {
         ListOf::<i64, SpaceOrComma>::parse_string("1, 2, 3"),
         Ok(ListOf {
             list: vec![1, 2, 3],
-            seperator: SpaceOrComma
+            separator: SpaceOrComma
         })
     );
     assert_eq!(
         ListOf::<i64, SpaceOrComma>::parse_string("1,2,3"),
         Ok(ListOf {
             list: vec![1, 2, 3],
-            seperator: SpaceOrComma
+            separator: SpaceOrComma
         })
     );
     assert_eq!(
@@ -394,7 +394,7 @@ fn list_of_space_or_comma() {
                 Length::Length(lightningcss::values::length::LengthValue::Em(0.22356)),
                 Length::Percentage(Percentage(0.800_005))
             ],
-            seperator: SpaceOrComma
+            separator: SpaceOrComma
         })
     );
 
@@ -418,14 +418,14 @@ fn list_of_semicolon() {
                 NumberOptionalNumber(1.0, Some(2.0)),
                 NumberOptionalNumber(3.0, None)
             ],
-            seperator: Semicolon
+            separator: Semicolon
         })
     );
     assert_eq!(
         ListOf::<i64, Semicolon>::parse_string("1;2;3"),
         Ok(ListOf {
             list: vec![1, 2, 3],
-            seperator: Semicolon
+            separator: Semicolon
         })
     );
     assert_eq!(
@@ -442,7 +442,7 @@ fn list_of_semicolon() {
                     offset: None
                 }
             ],
-            seperator: Semicolon
+            separator: Semicolon
         })
     );
 

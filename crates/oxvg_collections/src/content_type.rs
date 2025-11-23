@@ -19,7 +19,7 @@ use super::attribute::filter_effect::{
 };
 use super::attribute::fonts::{ArabicForm, Orientation};
 use super::attribute::inheritable::Inheritable;
-use super::attribute::list_of::{ListOf, Seperators};
+use super::attribute::list_of::{ListOf, Separators};
 use super::attribute::path::{Path, Points};
 use super::attribute::presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
@@ -151,8 +151,8 @@ macro_rules! define_content_types {
                 #[doc=concat!("a `", stringify!($name), "` value")]
                 $name(ContentTypeRef<'a, $ty>)$(<$i>)?,
             )+
-            /// A set of a content-type seperated by some deliminator
-            ListOf(ListOf<Box<ContentType<'a, 'input>>, Seperators>),
+            /// A set of a content-type separated by some deliminator
+            ListOf(ListOf<Box<ContentType<'a, 'input>>, Separators>),
             /// A content type that can be inherited with the `"inherited"` keyword
             Inheritable(Inheritable<Box<ContentType<'a, 'input>>>),
         }
@@ -163,8 +163,8 @@ macro_rules! define_content_types {
                 #[doc=concat!("a `", stringify!($name), "` value")]
                 $name,
             )+
-            /// A set of a content-type seperated by some deliminator
-            ListOf(Box<ContentTypeId>, Seperators),
+            /// A set of a content-type separated by some deliminator
+            ListOf(Box<ContentTypeId>, Separators),
             /// A content type that can be inherited with the `"inherited"` keyword
             Inheritable(Box<ContentTypeId>),
         }

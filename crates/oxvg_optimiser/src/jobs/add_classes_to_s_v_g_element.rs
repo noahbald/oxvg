@@ -119,7 +119,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for AddClassesToSVGElement {
                             .map(Atom::into_owned)
                             .map(NonWhitespace)
                             .collect(),
-                        seperator: Space,
+                        separator: Space,
                     }
                 }
                 None => return Ok(()),
