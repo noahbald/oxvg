@@ -8,8 +8,11 @@ use std::{
 use anyhow::anyhow;
 use ignore::{WalkBuilder, WalkState};
 use oxvg_ast::{
-    node::Ref, parse::roxmltree::parse_with_options, serialize::Node as _, visitor::Info,
-    xmlwriter::Options,
+    node::Ref,
+    parse::roxmltree::parse_with_options,
+    serialize::Node as _,
+    visitor::Info,
+    xmlwriter::{Indent, Options, Space},
 };
 use oxvg_optimiser::{Extends, Jobs};
 use roxmltree::ParsingOptions;
@@ -17,6 +20,7 @@ use roxmltree::ParsingOptions;
 use crate::{args::RunCommand, config::Config};
 
 #[derive(clap::Args, Debug)]
+/// Runs optimisation tasks against the given SVG documents.
 pub struct Optimise {
     /// The target paths to optimise
     #[clap(value_parser)]
@@ -42,10 +46,18 @@ pub struct Optimise {
     /// When running without a config, sets the default preset to run with
     #[clap(long, short)]
     pub extends: Option<Extends>,
+    /// Controls whether the output is indented with tabs or spaces.
+    ///
+    /// Accepts `none`, `tabs`, or a number
+    #[clap(long, short, default_value = "none")]
+    pub pretty: Indent,
+    /// Controls how the output handles whitespace.
+    #[clap(long, short, default_value = "auto")]
+    pub space: Space,
 }
 
 impl RunCommand for Optimise {
-    fn run(&self, config: Config) -> anyhow::Result<()> {
+    fn run(self, config: Config) -> anyhow::Result<()> {
         let config = self.handle_config(config)?;
         let Some(config) = config else {
             return Ok(());
@@ -61,8 +73,8 @@ impl RunCommand for Optimise {
 }
 
 impl Optimise {
-    fn handle_out<W: Write>(dom: Ref, wr: W) -> anyhow::Result<W> {
-        Ok(dom.serialize_into(wr, Options::default())?)
+    fn handle_out<W: Write>(dom: Ref, wr: W, format_options: Options) -> anyhow::Result<W> {
+        Ok(dom.serialize_into(wr, format_options)?)
     }
 
     fn handle_stdin(&self, jobs: &Jobs) -> anyhow::Result<()> {
@@ -82,6 +94,11 @@ impl Optimise {
                 };
                 jobs.run(dom, &info)
                     .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+                let format_options = Options {
+                    indent: self.pretty,
+                    trim_whitespace: self.space,
+                    ..Options::default()
+                };
                 if let Some(output) = self.output.as_ref().and_then(|o| {
                     eprintln!("Warning: Using empty `-o,--output` with stdin will print to stdout, you can instead omit `-o,--output`.");
                     o.first()
@@ -91,19 +108,24 @@ impl Optimise {
                         eprintln!(
                             "Cannot use dir as output for stdin input. Printing result to stdout instead"
                         );
-                        Self::handle_out(dom, std::io::stdout())?;
+                        Self::handle_out(dom, std::io::stdout(), format_options)?;
                     } else {
-                        Self::handle_out(dom, file)?;
+                        Self::handle_out(dom, file, format_options)?;
                     }
                 } else {
-                    Self::handle_out(dom, std::io::stdout())?;
+                    Self::handle_out(dom, std::io::stdout(), format_options)?;
                 }
                 Ok(())
             },
         )?
     }
 
-    fn handle_file(jobs: &Jobs, path: &PathBuf, output: Option<&PathBuf>) -> anyhow::Result<()> {
+    fn handle_file(
+        jobs: &Jobs,
+        path: &PathBuf,
+        output: Option<&PathBuf>,
+        format_options: Options,
+    ) -> anyhow::Result<()> {
         let file = std::fs::read_to_string(path)?;
         let input_size = file.len() as f64 / 1000.0;
         parse_with_options(
@@ -126,7 +148,7 @@ impl Optimise {
                         std::fs::create_dir_all(parent)?;
                     }
                     let file = std::fs::File::create(output_path)?;
-                    Self::handle_out(dom, file)?;
+                    Self::handle_out(dom, file, format_options)?;
 
                     let output_size = output_path.metadata()?.len() as f64 / 1000.0;
                     let change = 100.0 * (input_size - output_size) / input_size;
@@ -138,13 +160,18 @@ impl Optimise {
                 } else {
                     // Print to stderr, so that stdout is clean for writing
                     eprintln!("\n\n\x1b[32m{}\x1b[0m", path.to_string_lossy());
-                    Self::handle_out(dom, std::io::stdout()).map(|_| ())
+                    Self::handle_out(dom, std::io::stdout(), format_options).map(|_| ())
                 }
             },
         )?
     }
 
     fn handle_path(&self, path: &PathBuf, jobs: &Jobs) {
+        let format_options = Options {
+            indent: self.pretty,
+            trim_whitespace: self.space,
+            ..Options::default()
+        };
         let output_path = |input: &PathBuf| {
             let Some(output) = self.output.as_ref() else {
                 return Ok(None);
@@ -177,7 +204,9 @@ impl Optimise {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    if let Err(err) = Self::handle_file(jobs, &path, output_path.as_ref()) {
+                    if let Err(err) =
+                        Self::handle_file(jobs, &path, output_path.as_ref(), format_options)
+                    {
                         eprintln!(
                             "{}: \x1b[31m{err}\x1b[0m",
                             path.to_str().unwrap_or_default()
@@ -188,7 +217,16 @@ impl Optimise {
             });
     }
 
-    fn handle_paths(&self, jobs: &Jobs) -> anyhow::Result<()> {
+    /// Visits the input files and runs the optimisation jobs against them
+    ///
+    /// # Errors
+    ///
+    /// If no paths are resolved
+    ///
+    /// # Panics
+    ///
+    /// Never
+    pub fn handle_paths(&self, jobs: &Jobs) -> anyhow::Result<()> {
         if !std::io::stdin().is_terminal()
             && self.paths.len() <= 1
             && self

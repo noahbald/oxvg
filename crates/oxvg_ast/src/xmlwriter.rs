@@ -89,6 +89,7 @@ pub type Result = result::Result<(), XmlWriterError>;
 
 /// Post-processing of whitespace characters inside elements.
 #[derive(Clone, Copy, PartialEq, Debug)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Space {
     /// Never modify whitespace characters from the original
     Never,
@@ -116,6 +117,47 @@ pub enum Indent {
     Spaces(u8),
     /// Indent with tabs.
     Tabs,
+}
+#[cfg(feature = "clap")]
+impl clap::builder::ValueParserFactory for Indent {
+    type Parser = IndentParser;
+
+    fn value_parser() -> Self::Parser {
+        IndentParser
+    }
+}
+#[cfg(feature = "clap")]
+#[derive(Clone, Copy)]
+#[doc(hidden)]
+pub struct IndentParser;
+#[cfg(feature = "clap")]
+impl clap::builder::TypedValueParser for IndentParser {
+    type Value = Indent;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> result::Result<Self::Value, clap::Error> {
+        let spaces = clap::value_parser!(u8);
+        if let Ok(spaces) = spaces.parse_ref(cmd, arg, value) {
+            return Ok(Indent::Spaces(spaces));
+        }
+        let error_raw = "Valid pretty index values are `none`, `tabs`, or a number";
+        match value.to_str() {
+            Some("none") => Ok(Indent::None),
+            Some("tabs") => Ok(Indent::Tabs),
+            Some(_) => Err(clap::Error::raw(
+                clap::error::ErrorKind::InvalidValue,
+                error_raw,
+            )),
+            None => Err(clap::Error::raw(
+                clap::error::ErrorKind::MissingRequiredArgument,
+                error_raw,
+            )),
+        }
+    }
 }
 
 /// An XML writing options.

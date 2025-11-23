@@ -12,6 +12,7 @@ fn main() -> anyhow::Result<()> {
 
     match args.command {
         Command::Optimise(args) => args.run(config)?,
+        Command::Format(args) => args.run(config)?,
     }
     Ok(())
 }
