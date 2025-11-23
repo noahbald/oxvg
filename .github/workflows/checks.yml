@@ -36,6 +36,8 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
         if: $${{ always() }} # run even if clippy failed
         run: cargo doc --workspace --no-deps --locked
+      - name: Run tests
+        run: cargo test --verbose --locked
 
   toml:
     name: Toml formatting
