@@ -53,8 +53,12 @@ macro_rules! jobs {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_ref() {
                     log::debug!(concat!("💼 starting ", stringify!($name)));
-                    if !job.start(element, info, None)?.contains(PrepareOutcome::skip) {
-                        count += 1;
+                    match job.start(element, info, None) {
+                        Err(e) if e.is_important() => return Err(e),
+                        Err(e) => log::error!("{} failed {e}", stringify!($name)),
+                        Ok(r) => if !r.contains(PrepareOutcome::skip) {
+                            count += 1;
+                        }
                     }
                 })+
                 Ok(count)

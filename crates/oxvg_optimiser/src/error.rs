@@ -60,3 +60,20 @@ impl Display for JobsError<'_> {
     }
 }
 impl std::error::Error for JobsError<'_> {}
+
+impl JobsError<'_> {
+    /// Returns whether the error is important enough to fail-fast or whether the rest of the jobs
+    /// can continue despite the error.
+    pub fn is_important(&self) -> bool {
+        match self {
+            // Computed style error should throw before any ill-effect has been made on the document
+            Self::ComputedStylesError(_) => false,
+            // Precheck is intended to fail-fast
+            | JobsError::Precheck(_)
+            // User errors should be fail-fast to inform the user to fix
+            | JobsError::CleanupValuesPrecision(_)
+            | JobsError::InvalidUserSelector(_)
+            | JobsError::InvalidUserRegex(_) => true
+        }
+    }
+}
