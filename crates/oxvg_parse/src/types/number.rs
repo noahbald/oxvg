@@ -5,7 +5,7 @@ impl<'input> Parse<'input> for f64 {
     fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input.skip_whitespace();
 
-        let cursor = input.cursor;
+        let cursor = input.cursor();
         input.skip_matches(|char| matches!(char, '-' | '+'));
         input.skip_matches(|char| char.is_ascii_digit());
         input.skip_char('.');
@@ -16,12 +16,12 @@ impl<'input> Parse<'input> for f64 {
             if let Ok('x' | 'm') = input.current() {
                 input.rewind(1);
             } else {
-                let exponent_cursor = input.cursor;
+                let exponent_cursor = input.cursor();
                 input.skip_matches(|char| matches!(char, '-' | '+'));
                 input.skip_matches(|char| char.is_ascii_digit());
                 input.skip_char('.');
                 input.skip_matches(|char| char.is_ascii_digit());
-                if exponent_cursor == input.cursor {
+                if exponent_cursor == input.cursor() {
                     return Err(Error::InvalidNumber);
                 }
             }
@@ -49,7 +49,7 @@ impl<'input> Parse<'input> for i64 {
     fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input.skip_whitespace();
 
-        let cursor = input.cursor;
+        let cursor = input.cursor();
         input.skip_matches(|char| matches!(char, '-' | '+'));
         input.skip_matches(|char| char.is_ascii_digit());
 

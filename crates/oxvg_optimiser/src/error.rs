@@ -43,8 +43,6 @@ pub enum JobsError<'input> {
     InvalidUserSelector(String),
     /// There was an issue with a regex string in the configuration
     InvalidUserRegex(regex::Error),
-    /// There was an issue while serializing a value
-    PrinterError,
 }
 impl Display for JobsError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,7 +56,6 @@ impl Display for JobsError<'_> {
                 f.write_fmt(format_args!("Invalid selector in configuration: {e}"))
             }
             Self::InvalidUserRegex(e) => e.fmt(f),
-            Self::PrinterError => f.write_str("Error while serializing a value"),
         }
     }
 }
