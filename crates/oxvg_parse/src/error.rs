@@ -3,18 +3,12 @@
 #[derive(Debug, Clone, PartialEq)]
 /// An error that can occur while parsing path data
 pub enum PathError {
-    /// A command ended before it's expected length of arguments was reached
-    CommandEndedTooEarly(usize),
     /// A command was not given when expected
     NoCommand,
-    /// Multiple commas were found between arguments
-    DuplicateComma,
     /// A non move command was provided first
     InvalidFirstCommand,
-    /// A sign (`+`/`-`) was given with one of the first two arc arguments
-    InvalidArcSign,
-    /// An arc command was invalid
-    InvalidArc,
+    /// A flag (`0` or `1`) was expected with one two arc flags
+    InvalidArcFlag,
     /// A command argument was invalid
     InvalidNumber(std::num::ParseFloatError),
 }
@@ -105,12 +99,9 @@ impl std::error::Error for Error<'_> {}
 impl std::fmt::Display for PathError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let fmt = match self {
-            Self::CommandEndedTooEarly(_) => "A path command ended too early",
             Self::NoCommand => "Expected a path command",
-            Self::DuplicateComma => "Found unexpected comma in path command",
             Self::InvalidFirstCommand => "Expected path to start with `m` or `M`",
-            Self::InvalidArcSign => "Unexpected sign given on one of first two `a` or `A` commands",
-            Self::InvalidArc => "Badly formatted `a` or `A` command",
+            Self::InvalidArcFlag => "Expected binary digit (`0` or `1`) for arc flag",
             Self::InvalidNumber(e) => &format!("Failed to parse number in path: {e}"),
         };
         f.write_str(fmt)?;

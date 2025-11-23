@@ -43,8 +43,6 @@ pub enum JobsError<'input> {
     InvalidUserSelector(String),
     /// There was an issue with a regex string in the configuration
     InvalidUserRegex(regex::Error),
-    /// There was an issue while serializing a value
-    PrinterError,
 }
 impl Display for JobsError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,8 +56,24 @@ impl Display for JobsError<'_> {
                 f.write_fmt(format_args!("Invalid selector in configuration: {e}"))
             }
             Self::InvalidUserRegex(e) => e.fmt(f),
-            Self::PrinterError => f.write_str("Error while serializing a value"),
         }
     }
 }
 impl std::error::Error for JobsError<'_> {}
+
+impl JobsError<'_> {
+    /// Returns whether the error is important enough to fail-fast or whether the rest of the jobs
+    /// can continue despite the error.
+    pub fn is_important(&self) -> bool {
+        match self {
+            // Computed style error should throw before any ill-effect has been made on the document
+            Self::ComputedStylesError(_) => false,
+            // Precheck is intended to fail-fast
+            | JobsError::Precheck(_)
+            // User errors should be fail-fast to inform the user to fix
+            | JobsError::CleanupValuesPrecision(_)
+            | JobsError::InvalidUserSelector(_)
+            | JobsError::InvalidUserRegex(_) => true
+        }
+    }
+}

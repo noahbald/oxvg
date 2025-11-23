@@ -12,8 +12,6 @@ pub enum XmlWriterError {
     IO(std::io::Error),
     /// An error while formatting
     FMT(std::fmt::Error),
-    /// An error while flushing buffer.
-    BufWriter(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
     /// An error after writing to string.
     UTF8(std::string::FromUtf8Error),
     #[cfg(feature = "serialize")]
@@ -35,7 +33,6 @@ impl std::fmt::Display for XmlWriterError {
         match self {
             Self::IO(err) => err.fmt(f),
             Self::FMT(err) => err.fmt(f),
-            Self::BufWriter(err) => err.fmt(f),
             Self::UTF8(err) => err.fmt(f),
             #[cfg(feature = "serialize")]
             Self::PrinterError(err) => err.fmt(f),

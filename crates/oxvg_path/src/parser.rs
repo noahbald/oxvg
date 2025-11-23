@@ -109,7 +109,7 @@ fn parse_flag<'input>(
     match f {
         '0' => Ok(0.0),
         '1' => Ok(1.0),
-        _ => Err(oxvg_parse::error::Error::Path(PathError::InvalidArcSign)),
+        _ => Err(oxvg_parse::error::Error::Path(PathError::InvalidArcFlag)),
     }
 }
 impl command::Data {
