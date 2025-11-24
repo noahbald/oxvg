@@ -1,4 +1,4 @@
-//! Funcions for serializing XML trees
+//! Functions for serializing XML trees
 use std::io::Write;
 
 use oxvg_serialize::error::PrinterError;

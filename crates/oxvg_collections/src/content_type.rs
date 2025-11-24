@@ -19,7 +19,7 @@ use super::attribute::filter_effect::{
 };
 use super::attribute::fonts::{ArabicForm, Orientation};
 use super::attribute::inheritable::Inheritable;
-use super::attribute::list_of::{ListOf, Seperators};
+use super::attribute::list_of::{ListOf, Separators};
 use super::attribute::path::{Path, Points};
 use super::attribute::presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
@@ -145,14 +145,14 @@ impl<'input, F: FnMut(Reference<'_, 'input>)> visitor::Visitor<'input>
 macro_rules! define_content_types {
     ($($name:ident($ty:ty)$(<$i:lifetime>)?,)+) => {
         #[derive(Debug, PartialEq)]
-        /// A reference to an attribute's value, mutably mapped to it's conent type
+        /// A reference to an attribute's value, mutably mapped to it's content type
         pub enum ContentType<'a, 'input> {
             $(
                 #[doc=concat!("a `", stringify!($name), "` value")]
                 $name(ContentTypeRef<'a, $ty>)$(<$i>)?,
             )+
-            /// A set of a content-type seperated by some deliminator
-            ListOf(ListOf<Box<ContentType<'a, 'input>>, Seperators>),
+            /// A set of a content-type separated by some deliminator
+            ListOf(ListOf<Box<ContentType<'a, 'input>>, Separators>),
             /// A content type that can be inherited with the `"inherited"` keyword
             Inheritable(Inheritable<Box<ContentType<'a, 'input>>>),
         }
@@ -163,8 +163,8 @@ macro_rules! define_content_types {
                 #[doc=concat!("a `", stringify!($name), "` value")]
                 $name,
             )+
-            /// A set of a content-type seperated by some deliminator
-            ListOf(Box<ContentTypeId>, Seperators),
+            /// A set of a content-type separated by some deliminator
+            ListOf(Box<ContentTypeId>, Separators),
             /// A content type that can be inherited with the `"inherited"` keyword
             Inheritable(Box<ContentTypeId>),
         }
@@ -208,7 +208,7 @@ impl<'input> ContentType<'_, 'input> {
             },
             Self::ColorProfileName(color_profile_name) => match &**color_profile_name {
                 ColorProfileName::Name(value) => value.is_empty(),
-                ColorProfileName::Srbg => false,
+                ColorProfileName::Srgb => false,
             },
             Self::FilterList(filter_list) => match &**filter_list {
                 FilterList::Filters(list) => list.is_empty(),
@@ -573,7 +573,7 @@ impl<'input> ContentType<'_, 'input> {
             | Self::Frequency(ContentTypeRef::RefMut(Frequency::Hz(n) | Frequency::KHz(n)))
             // Opacity
             | Self::Opacity(ContentTypeRef::RefMut(AlphaValue(n)))
-            // RepeateCount
+            // RepeatCount
             | Self::RepeatCount(ContentTypeRef::RefMut(RepeatCount::Number(n)))
             // Rotate
             | Self::Rotate(ContentTypeRef::RefMut(Rotate::Number(n)))
@@ -617,7 +617,7 @@ impl<'input> ContentType<'_, 'input> {
         }
     }
 
-    /// Rounds any safetly roundable numbers in the content type
+    /// Rounds any safely roundable numbers in the content type
     pub fn round(&mut self, float_precision: i32, convert_px: bool, round_list: bool) {
         debug_assert!(
             float_precision <= 5,

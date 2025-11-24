@@ -178,7 +178,7 @@ enum_attr!(
         /// A type of dialog that contains an alert message, where initial focus goes to an element within the dialog.
         AlertDialog: "alertdialog",
         /// A structure containing one or more focusable elements requiring user input that do not follow a standard interaction pattern supported by a widget role.
-        Application: "aplication",
+        Application: "application",
         /// A section of a page that consists of a composition that forms an independent part of a document, page, or site.
         Article: "article",
         /// A region that contains mostly site-oriented content, rather than page-specific content.

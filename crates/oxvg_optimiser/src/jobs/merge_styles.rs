@@ -302,7 +302,7 @@ fn merge_styles() -> anyhow::Result<()> {
         r#"{ "mergeStyles": true }"#,
         Some(
             r#"<svg id="test" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <!-- Should remove empty syles -->
+    <!-- Should remove empty styles -->
     <style>
 	  </style>
     <rect width="100" height="100" class="st0" style="stroke-width:3;margin-top:1em;margin-right:1em;margin-bottom:1em;margin-left:1em"/>

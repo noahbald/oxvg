@@ -194,7 +194,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     /// Whether the allocation id is the same address as the other
     ///
     /// # Warn
-    /// ID values are likely to overlap when comparing from seperate arenas
+    /// ID values are likely to overlap when comparing from separate arenas
     pub fn id_eq(&self, other: &Node<'_, '_>) -> bool {
         self.id() == other.id()
     }

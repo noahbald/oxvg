@@ -704,7 +704,7 @@ define_elements! {
         expected_attributes: &[
             AttrId::In,
             AttrId::Order,
-            AttrId::KernalMatrix,
+            AttrId::KernelMatrix,
             AttrId::Divisor,
             AttrId::Bias,
             AttrId::TargetX,

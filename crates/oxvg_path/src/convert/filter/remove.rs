@@ -16,7 +16,7 @@ pub fn repeated_close_path(
     if matches!(prev.command, command::Data::ClosePath) {
         return true;
     }
-    // prev may not have been `z`, but state is too close to curent position to be considered
+    // prev may not have been `z`, but state is too close to current position to be considered
     // useful
     state.options.flags.remove_useless()
         && state.info.contains(StyleInfo::is_safe_to_use_z)

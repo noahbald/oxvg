@@ -308,7 +308,7 @@ enum_attr!(
         ResetSize: "reset-size",
         /// Use the line-under design of CJK text
         Ideographic: "ideographic",
-        /// Use the basline for Latin, Cyrillic, Greek, etc. text
+        /// Use the baseline for Latin, Cyrillic, Greek, etc. text
         Alphabetic: "alphabetic",
         /// Use the baseline for Tibetan and similar scripts
         Hanging: "hanging",
@@ -329,7 +329,7 @@ enum_attr!(
 /// Specifies how the SVG manages the accumulation of the background image
 pub enum EnableBackground {
     /// If an ancestor has `enable-background="new ..."`, then the current
-    /// continer is rendered into parent's background and to the target device.
+    /// container is rendered into parent's background and to the target device.
     Accumulate,
     /// Enables children to access a new background image
     New(Option<(Number, Number, Number, Number)>),

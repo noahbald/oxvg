@@ -828,7 +828,7 @@ fn cleanup_ids() -> anyhow::Result<()> {
         Some(
             r##"<svg xmlns="http://www.w3.org/2000/svg">
   <!--
-  When a reference to a non-existant id would be created by minification, try the next
+  When a reference to a non-existent id would be created by minification, try the next
   possible generated id
   -->
   <defs>

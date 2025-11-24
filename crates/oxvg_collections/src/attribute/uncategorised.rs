@@ -21,7 +21,7 @@ enum_attr!(
     /// [w3](https://www.w3.org/TR/compositing-1/#ltblendmodegt)
     #[derive(Default)]
     BlendMode {
-        /// Blended like overlapping peices of paper
+        /// Blended like overlapping pieces of paper
         #[default]
         Normal: "normal",
         /// Blended like images printed on transparent film overlapping.
@@ -230,7 +230,7 @@ enum_attr!(
         XMidYMid: "xMidYMid",
         /// Scale edges uniformly from the maximum x and middle y value of the viewport
         XMaxYMid: "xMaxYMid",
-        /// Scale edges uniformly from the minumum x and maximum y value of the viewport
+        /// Scale edges uniformly from the minimum x and maximum y value of the viewport
         XMinYMax: "xMinYMax",
         /// Scale edges uniformly from the middle x and maximum y value of the viewport
         XMidYMax: "xMidYMax",
@@ -608,7 +608,7 @@ fn radius() {
 pub enum ColorProfileName<'input> {
     #[default]
     /// Case-insensitive name of the pre-defined standard colour profile.
-    Srbg,
+    Srgb,
     /// The name of an icc-color specification.
     Name(Atom<'input>),
 }
@@ -619,7 +619,7 @@ impl<'input> Parse<'input> for ColorProfileName<'input> {
             .try_parse(|input| {
                 let ident = input.expect_ident().map_err(|_| ())?.to_lowercase();
                 if ident == "srgb" {
-                    Ok(Self::Srbg)
+                    Ok(Self::Srgb)
                 } else {
                     Err(())
                 }
@@ -634,7 +634,7 @@ impl ToValue for ColorProfileName<'_> {
         W: std::fmt::Write,
     {
         match self {
-            Self::Srbg => dest.write_str("sRGB"),
+            Self::Srgb => dest.write_str("sRGB"),
             Self::Name(name) => name.write_value(dest),
         }
     }
@@ -644,11 +644,11 @@ fn color_profile_name() {
     use oxvg_parse::Parse as _;
     assert_eq!(
         ColorProfileName::parse_string("sRGB"),
-        Ok(ColorProfileName::Srbg)
+        Ok(ColorProfileName::Srgb)
     );
     assert_eq!(
         ColorProfileName::parse_string("srgb"),
-        Ok(ColorProfileName::Srbg)
+        Ok(ColorProfileName::Srgb)
     );
     assert_eq!(
         ColorProfileName::parse_string("name"),
@@ -851,8 +851,8 @@ enum_attr!(
     ///
     /// # Security
     ///
-    /// Referrers can potential contain sensitive information, so the refferer policy should be given
-    /// when the current page does not already have a refferer-policy and it used on URLs that are
+    /// Referrers can potential contain sensitive information, so the referrer policy should be given
+    /// when the current page does not already have a referrer-policy and it used on URLs that are
     /// unknown or may contain sensitive information.
     ///
     /// [w3](https://w3c.github.io/webappsec-referrer-policy/#referrer-policy)

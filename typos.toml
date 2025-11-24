@@ -1,0 +1,7 @@
+[files]
+extend-exclude = ["*.snap"]
+
+[default.extend-identifiers]
+PNGs = "PNGs"
+SOMEclass = "SOMEclass"
+OnSeeked = "OnSeeked"

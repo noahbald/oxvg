@@ -47,11 +47,11 @@ fn main() -> Result {
     // Write concrete attributes
     w.write_attribute(&Attr::XText(ListOf {
         list: vec![LengthPercentage::px(10.0)],
-        seperator: SpaceOrComma,
+        separator: SpaceOrComma,
     }))?;
     w.write_attribute(&Attr::YText(ListOf {
         list: vec![LengthPercentage::px(20.0)],
-        seperator: SpaceOrComma,
+        separator: SpaceOrComma,
     }))?;
     w.write_text_fmt(format_args!("length is {}", 5))?;
 

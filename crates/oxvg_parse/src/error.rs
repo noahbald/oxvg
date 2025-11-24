@@ -13,10 +13,10 @@ pub enum PathError {
     InvalidNumber(std::num::ParseFloatError),
 }
 
-/// Parse errors that can be encoutered by parsing
+/// Parse errors that can be encountered by parsing
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error<'input> {
-    /// The end of an input was reched before parsing finished
+    /// The end of an input was reached before parsing finished
     EndOfInput,
     /// An invalid number was parsed.
     InvalidNumber,
@@ -80,7 +80,7 @@ impl std::fmt::Display for Error<'_> {
             }
             Self::ExpectedChar { expected, received } => {
                 return f.write_fmt(format_args!(
-                    "Expected '{expected}' but received '{received}' intead"
+                    "Expected '{expected}' but received '{received}' instead"
                 ))
             }
             Self::ExpectedIdent { expected, received } => {

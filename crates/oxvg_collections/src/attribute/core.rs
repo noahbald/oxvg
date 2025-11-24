@@ -284,7 +284,7 @@ pub type Name<'i> = Anything<'i>;
 pub type Number = CSSNumber;
 
 #[derive(Clone, Debug, PartialEq)]
-/// A pair of numbers, where the second is optional, seperated by a comma or whitespace
+/// A pair of numbers, where the second is optional, separated by a comma or whitespace
 pub struct NumberOptionalNumber(pub Number, pub Option<Number>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for NumberOptionalNumber {

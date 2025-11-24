@@ -5,7 +5,7 @@ use oxvg_ast::error::ComputedStylesError;
 use oxvg_collections::atom::Atom;
 
 #[derive(Debug, Clone)]
-/// Represents conditions in which the precheck job dissallows processing of a document
+/// Represents conditions in which the precheck job disallows processing of a document
 pub enum PrecheckError<'input> {
     /// Document cannot be process due to risk of breaking scripting
     ScriptingNotSupported,
