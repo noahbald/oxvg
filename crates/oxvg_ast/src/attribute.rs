@@ -267,6 +267,11 @@ impl<'a, 'input> Attributes<'a, 'input> {
         AttributesIterMut::new(self)
     }
 
+    /// Extracts a slice of all the attributes
+    pub fn as_slice(&self) -> Ref<'a, [Attr<'input>]> {
+        cell::Ref::map(self.0.borrow(), |attrs| attrs.as_slice())
+    }
+
     /// Sorts attributes with the following behaviour.
     ///
     /// 1. Keeps the `xmlns` attribute at the front if `xmlns_front` is `true`

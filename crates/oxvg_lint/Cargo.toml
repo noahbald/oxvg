@@ -9,11 +9,18 @@ readme = "../../readme.md"
 workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["parse"]
+parse = ["oxvg_ast/parse", "oxvg_ast/roxmltree"]
+clap = ["dep:clap"]
 
 [dependencies]
-markup5ever = { workspace = true }
-rcdom = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+oxvg_ast = { workspace = true, features = ["range"] }
+oxvg_collections = { workspace = true }
+
+bytecount = { workspace = true }
+clap = { workspace = true, optional = true }
+rayon = { workspace = true }
 
 [dev-dependencies]
-xml5ever = { workspace = true }
+insta = { workspace = true }

@@ -1,4 +1,7 @@
 //! Analyses SVG documents to find common errors
+pub mod error;
+#[cfg(feature = "parse")]
+mod parse;
 mod rules;
 
-pub use rules::*;
+pub use rules::{Rules, Severity};
