@@ -56,10 +56,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveComments {
 }
 
 impl RemoveComments {
-    fn remove_comment<'input, 'arena>(
-        &self,
-        comment: &Node<'input, 'arena>,
-    ) -> Result<(), JobsError<'input>> {
+    fn remove_comment<'input>(&self, comment: &Node<'input, '_>) -> Result<(), JobsError<'input>> {
         let value = comment
             .node_value()
             .expect("Comment nodes should always have a value");
