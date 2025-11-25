@@ -36,6 +36,8 @@ selectors = [
   "dep:precomputed-hash",
   "dep:servo_arc",
 ]
+# Include source-spans for nodes and attributes
+range = []
 # Includes a visitor trait for building visitors
 visitor = ["dep:bitflags"]
 

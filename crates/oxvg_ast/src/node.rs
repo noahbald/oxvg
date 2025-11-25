@@ -46,6 +46,18 @@ pub enum Type {
     DocumentFragment,
 }
 
+#[cfg(feature = "range")]
+#[derive(Debug, Clone)]
+/// Source-code ranges for a symbol
+pub struct Ranges {
+    /// The range across the entire symbol
+    pub range: std::ops::Range<usize>,
+    /// The range across the name
+    pub name: std::ops::Range<usize>,
+    /// The range across the value
+    pub value: std::ops::Range<usize>,
+}
+
 #[derive(derive_more::Debug, Clone)]
 /// The data of a node in an XML document.
 pub enum NodeData<'input> {
@@ -63,6 +75,9 @@ pub enum NodeData<'input> {
         #[debug(skip)]
         /// Flags used for caching whether an element matches a selector
         selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
+        #[cfg(feature = "range")]
+        /// The source-code ranges for each attribute
+        ranges: std::collections::HashMap<oxvg_collections::attribute::AttrId<'input>, Ranges>,
     },
     /// A processing instruction. (e.g. <?xml version="1.0"?>)
     PI {
@@ -144,6 +159,9 @@ pub struct Node<'input, 'arena> {
     pub last_child: Link<'input, 'arena>,
     /// The node's type and associated data.
     pub node_data: NodeData<'input>,
+    #[cfg(feature = "range")]
+    /// The node's range in bytes in the original document
+    pub range: Option<std::ops::Range<usize>>,
     /// The node's id, determined by it's allocation
     id: usize,
 }
@@ -188,6 +206,8 @@ impl<'input, 'arena> Node<'input, 'arena> {
             last_child: Cell::new(None),
             node_data,
             id,
+            #[cfg(feature = "range")]
+            range: None,
         }
     }
 

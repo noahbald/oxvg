@@ -62,6 +62,8 @@ impl<'input, 'arena> Document<'input, 'arena> {
             attrs: RefCell::new(vec![]),
             #[cfg(feature = "selectors")]
             selector_flags: std::cell::Cell::new(None),
+            #[cfg(feature = "range")]
+            ranges: std::collections::HashMap::new(),
         }))
         .expect("created element should be an element")
     }

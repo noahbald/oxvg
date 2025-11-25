@@ -213,11 +213,22 @@ fn parse_element<'a, 'input: 'a, 'arena>(
 
     let xml_node_namespaces = xml_node.namespaces();
     let xml_node_attributes = xml_node.attributes();
+    #[cfg(feature = "range")]
+    let mut ranges = HashMap::new();
     let mut attrs = Vec::with_capacity(xml_node_attributes.len() + xml_node_namespaces.len());
     attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns)));
-    attrs.extend(
-        xml_node_attributes.map(|attr| parse_attr(&name, attr, namespace_map, attr.value())),
-    );
+    attrs.extend(xml_node_attributes.map(|attr| {
+        #[cfg(feature = "range")]
+        let range = crate::node::Ranges {
+            range: attr.range(),
+            name: attr.range_qname(),
+            value: attr.range_value(),
+        };
+        let attr = parse_attr(&name, attr, namespace_map, attr.value());
+        #[cfg(feature = "range")]
+        ranges.insert(attr.name().clone(), range);
+        attr
+    }));
     let is_style_element = name == ElementId::Style
         && !attrs.iter().any(|attr| match attr {
             Attr::TypeStyle(r#type) => !r#type.is_empty() && &**r#type != "text/css",
@@ -228,6 +239,8 @@ fn parse_element<'a, 'input: 'a, 'arena>(
         attrs: RefCell::new(attrs),
         #[cfg(feature = "selectors")]
         selector_flags: std::cell::Cell::new(None),
+        #[cfg(feature = "range")]
+        ranges,
     };
     let node = arena.alloc(element);
     if is_style_element {
