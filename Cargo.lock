@@ -1170,6 +1170,7 @@ version = "0.0.3"
 dependencies = [
  "bitflags",
  "cfg-if",
+ "clap",
  "cssparser 0.34.0",
  "derive-where",
  "derive_more 2.0.1",

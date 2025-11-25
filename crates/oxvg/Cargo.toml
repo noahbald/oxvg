@@ -25,6 +25,7 @@ oxvg_ast = { workspace = true, features = [
   "roxmltree",
   "selectors",
   "serialize",
+  "clap",
 ] }
 
 anyhow = { workspace = true }

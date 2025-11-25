@@ -15,6 +15,7 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["visitor", "serialize"]
+clap = ["dep:clap"]
 # Includes a parser that uses xml5ever
 markup5ever = [
   "parse",
@@ -45,6 +46,7 @@ oxvg_serialize = { workspace = true, optional = true }
 
 bitflags = { workspace = true, optional = true }
 cfg-if = { workspace = true }
+clap = { workspace = true, optional = true }
 cssparser = { workspace = true }
 derive_more = { workspace = true, features = ["debug"] }
 derive-where = { workspace = true }
