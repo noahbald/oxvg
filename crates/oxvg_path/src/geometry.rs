@@ -300,8 +300,8 @@ impl Circle {
         let mid_point = Point::cubic_bezier(curve, 0.5).0;
         let m1 = [mid_point[0] / 2.0, mid_point[1] / 2.0];
         let m2 = [
-            (mid_point[0] + curve.0[4]) / 2.0,
-            (mid_point[1] + curve.0[5]) / 2.0,
+            f64::midpoint(mid_point[0], curve.0[4]),
+            f64::midpoint(mid_point[1], curve.0[5]),
         ];
         let center = Point::intersection([
             m1[0],

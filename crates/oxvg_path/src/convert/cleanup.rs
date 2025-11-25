@@ -18,7 +18,7 @@ pub fn cleanup_unpositioned(path: &mut crate::Path) {
             })
             .collect(),
     );
-    *path = cleanup(positioned_path).take()
+    *path = cleanup(positioned_path).take();
 }
 
 /// Cleans redundancy from paths.

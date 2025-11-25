@@ -79,21 +79,26 @@ enum Pattern {
     Optional(Box<Pattern>),
 }
 
-#[test]
-fn attributes_order() {
-    use xml5ever::{
-        driver::{parse_document, XmlParseOpts},
-        tendril::TendrilSink,
-    };
+#[cfg(test)]
+mod tests {
+    use super::{Order, Rules};
 
-    let dom: rcdom::RcDom = parse_document(rcdom::RcDom::default(), XmlParseOpts::default())
-        .one(r#"<svg z="" a=""></svg>"#);
-    let root = &*dom.document.children.borrow()[0];
+    #[test]
+    fn attributes_order() {
+        use xml5ever::{
+            driver::{parse_document, XmlParseOpts},
+            tendril::TendrilSink,
+        };
 
-    // Expect some error, as "z" is before "a"
-    let rule = Rules {
-        order: Some(Order::Alphabetical),
-        ..Rules::default()
-    };
-    assert!(rule.order(root).is_some());
+        let dom: rcdom::RcDom = parse_document(rcdom::RcDom::default(), XmlParseOpts::default())
+            .one(r#"<svg z="" a=""></svg>"#);
+        let root = &*dom.document.children.borrow()[0];
+
+        // Expect some error, as "z" is before "a"
+        let rule = Rules {
+            order: Some(Order::Alphabetical),
+            ..Rules::default()
+        };
+        assert!(rule.order(root).is_some());
+    }
 }

@@ -39,7 +39,10 @@ impl Path {
     /// ```
     ///
     /// Otherwise, `None`
-    pub fn split_mut(path: &mut [Option<Position>], index: usize) -> Option<SplitPositionedPath> {
+    pub fn split_mut(
+        path: &mut [Option<Position>],
+        index: usize,
+    ) -> Option<SplitPositionedPath<'_>> {
         let (prev, item, next_paths) = Self::split_mut_with_prev_option(path, index)?;
         let Some(prev) = prev else {
             // Don't change; `item` is first item
@@ -52,7 +55,7 @@ impl Path {
     pub fn split_mut_with_prev_option(
         path: &mut [Option<Position>],
         index: usize,
-    ) -> Option<SplitPositionedPathWithPrevOption> {
+    ) -> Option<SplitPositionedPathWithPrevOption<'_>> {
         let (prev, next_inclusive) = path.split_at_mut(index);
         let Some((item, next_paths)) = next_inclusive.split_first_mut() else {
             // Can't use; empty list

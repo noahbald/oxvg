@@ -154,7 +154,7 @@ fn convert_command_to_relative(
         command::Data::Implicit(command) => {
             return convert_command_to_relative(*command, start, cursor, is_first);
         }
-    };
+    }
     command::Position {
         command,
         start: base,

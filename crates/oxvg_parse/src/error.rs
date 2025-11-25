@@ -88,6 +88,7 @@ impl std::fmt::Display for Error<'_> {
                     "Expected {expected} but received `{received}` instead"
                 ))
             }
+            #[cfg(feature = "lightningcss")]
             Self::Lightningcss(e) => return e.fmt(f),
             Self::Path(e) => return e.fmt(f),
         };
