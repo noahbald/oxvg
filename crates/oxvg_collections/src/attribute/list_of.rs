@@ -60,7 +60,7 @@ pub trait Separator: Clone + SeparatorBound {
             .map(|_| ())
     }
     /// Returns whether the character matches the separator
-    fn matches<'input>(char: char) -> bool;
+    fn matches(char: char) -> bool;
 }
 impl Separator for Space {
     fn id(&self) -> Separators {
@@ -69,7 +69,7 @@ impl Separator for Space {
     fn new() -> Self {
         Self
     }
-    fn matches<'input>(char: char) -> bool {
+    fn matches(char: char) -> bool {
         char.is_whitespace()
     }
 }
