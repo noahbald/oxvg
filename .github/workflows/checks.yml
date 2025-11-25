@@ -1,0 +1,58 @@
+name: checks
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  formatting:
+    name: Rust formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Rust formatting
+        run: cargo fmt --all --check
+
+  rust_checks:
+    name: Rust checks (clippy, doc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Rust clippy
+        run: cargo clippy --workspace --profile=test --locked
+      - name: Rust doc
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        if: $${{ always() }} # run even if clippy failed
+        run: cargo doc --workspace --no-deps --locked
+      - name: Run tests
+        run: cargo test --verbose --locked
+
+  toml:
+    name: Toml formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gwen-lg/taplo-action@v1
+        with:
+          format: true
+
+  spelling:
+    name: Spell Check with Typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1
