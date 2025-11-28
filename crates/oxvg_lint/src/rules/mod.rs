@@ -5,12 +5,15 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use rayon::prelude::*;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
 mod no_unknown_attributes;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 /// What is the severity of the reported error.
 pub enum Severity {
@@ -23,7 +26,9 @@ pub enum Severity {
     Error,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// A set of rules to assert against a document.
 ///
 /// The [`Severity`] provided for each rule determines the display of each attribute

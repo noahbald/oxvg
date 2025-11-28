@@ -1192,6 +1192,7 @@ dependencies = [
  "oxvg_ast",
  "oxvg_collections",
  "rayon",
+ "serde",
 ]
 
 [[package]]

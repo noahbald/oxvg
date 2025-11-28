@@ -27,7 +27,12 @@ pub struct Check {
     pub level: Severity,
 }
 impl RunCommand for Check {
-    fn run(self, _config: Config) -> anyhow::Result<()> {
+    fn run(self, config: Config) -> anyhow::Result<()> {
+        self.walk(&config.lint.unwrap_or_default())
+    }
+}
+impl Check {
+    fn walk(self, rules: &Rules) -> anyhow::Result<()> {
         let walk = Walk {
             paths: &self.paths,
             output: None,
@@ -36,8 +41,8 @@ impl RunCommand for Check {
             threads: self.threads,
         };
         walk.run(|| {
+            let rules = rules.clone();
             Box::new(move |source, path, _| {
-                let rules = Rules::default();
                 let result = rules.lint_with_path(source, path);
                 match result {
                     Err(LintingError::Reported { .. }) => {}
@@ -45,8 +50,7 @@ impl RunCommand for Check {
                     _ => {}
                 }
             })
-        })?;
-        Ok(())
+        })
     }
 }
 

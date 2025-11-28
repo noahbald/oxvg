@@ -27,7 +27,7 @@ oxvg_ast = { workspace = true, features = [
   "clap",
 ] }
 oxvg_optimiser = { workspace = true, features = ["clap"] }
-oxvg_lint = { workspace = true, features = ["clap"] }
+oxvg_lint = { workspace = true, features = ["clap", "serde"] }
 
 anyhow = { workspace = true }
 clap = { workspace = true }

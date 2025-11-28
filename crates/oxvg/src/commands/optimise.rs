@@ -140,6 +140,7 @@ impl Optimise {
                     std::io::stdout(),
                     &Config {
                         optimise: Some(config.optimise.unwrap_or_default()),
+                        lint: Some(config.lint.unwrap_or_default()),
                     },
                 )?;
                 Ok(None)
@@ -151,6 +152,7 @@ impl Optimise {
                     jobs: Jobs::none(),
                     omit: None,
                 }),
+                lint: config.lint,
             }))
         } else {
             log::debug!("using inferred config");

@@ -2,6 +2,7 @@
 use std::{env::current_dir, fs::read_to_string, path::PathBuf};
 
 use etcetera::{choose_base_strategy, BaseStrategy};
+use oxvg_lint::Rules;
 use oxvg_optimiser::Extends;
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +25,8 @@ pub struct Optimise {
 pub struct Config {
     /// The options for each job to override the specified preset.
     pub optimise: Option<Optimise>,
+    /// The options for each lint to override the default configuration.
+    pub lint: Option<Rules>,
 }
 
 impl Config {
