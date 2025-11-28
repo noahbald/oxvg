@@ -1997,6 +1997,7 @@ define_elements! {
         expected_attributes: &[
             AttrId::ExternalResourcesRequired,
             AttrId::XTRef,
+            AttrId::YTRef,
             AttrId::DXTSpan,
             AttrId::DYTSpan,
             AttrId::RotateText,
