@@ -1,4 +1,10 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use oxvg_ast::{
     parse::roxmltree::parse_with_options,
@@ -49,7 +55,9 @@ impl RunCommand for Format {
             hidden: self.hidden,
             threads: self.threads,
         };
+        let error = Arc::new(AtomicBool::new(false));
         walk.run(|| {
+            let error = Arc::clone(&error);
             let format_options = Options {
                 indent: self.pretty,
                 trim_whitespace: self.space,
@@ -74,12 +82,18 @@ impl RunCommand for Format {
                         Ok(())
                     },
                 );
+                error.store(true, Ordering::Relaxed);
                 match result {
                     Err(err) => eprintln!("{err}"),
                     Ok(Err(err)) => eprintln!("{err}"),
                     Ok(Ok(())) => {}
                 }
             })
-        })
+        })?;
+        if error.load(Ordering::Relaxed) {
+            Err(anyhow::anyhow!("Failed to format document!"))
+        } else {
+            Ok(())
+        }
     }
 }
