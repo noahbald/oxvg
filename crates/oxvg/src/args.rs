@@ -2,7 +2,7 @@
 use clap::{Parser, Subcommand};
 
 use crate::{
-    commands::{Format, Optimise},
+    commands::{Format, Lint, Optimise},
     config::Config,
 };
 
@@ -45,4 +45,7 @@ pub enum Command {
     /// This is an alias for `oxvg optimise --extends none` with default options sensible
     /// for formatting
     Format(Format),
+    /// Lint SVG documents
+    #[command(subcommand)]
+    Lint(Lint),
 }

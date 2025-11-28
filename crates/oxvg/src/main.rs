@@ -3,6 +3,7 @@
 use clap::Parser;
 use oxvg::{
     args::{Args, Command, RunCommand},
+    commands::Lint,
     config::Config,
 };
 
@@ -11,8 +12,10 @@ fn main() -> anyhow::Result<()> {
     let config = Config::load().unwrap_or_default();
 
     match args.command {
-        Command::Optimise(args) => args.run(config)?,
-        Command::Format(args) => args.run(config)?,
+        Command::Optimise(args) => args.run(config),
+        Command::Format(args) => args.run(config),
+        Command::Lint(lint) => match lint {
+            Lint::Check(args) => args.run(config),
+        },
     }
-    Ok(())
 }
