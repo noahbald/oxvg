@@ -12,6 +12,7 @@ workspace = true
 [features]
 default = ["parse"]
 clap = ["dep:clap"]
+lsp = ["dep:lsp-types"]
 parse = ["oxvg_ast/parse", "oxvg_ast/roxmltree"]
 serde = ["dep:serde"]
 
@@ -21,6 +22,7 @@ oxvg_collections = { workspace = true }
 
 bytecount = { workspace = true }
 clap = { workspace = true, optional = true }
+lsp-types = { workspace = true, optional = true }
 rayon = { workspace = true }
 serde = { workspace = true, optional = true }
 

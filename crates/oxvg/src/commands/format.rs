@@ -41,7 +41,7 @@ pub struct Format {
 }
 
 impl RunCommand for Format {
-    fn run(self, _config: Config) -> anyhow::Result<()> {
+    async fn run(self, _config: Config) -> anyhow::Result<()> {
         let walk = Walk {
             paths: &self.paths,
             output: self.output.as_ref().and_then(|output| output.first()),

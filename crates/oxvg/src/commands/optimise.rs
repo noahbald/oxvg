@@ -53,7 +53,7 @@ pub struct Optimise {
 }
 
 impl RunCommand for Optimise {
-    fn run(self, config: Config) -> anyhow::Result<()> {
+    async fn run(self, config: Config) -> anyhow::Result<()> {
         let config = self.handle_config(config)?;
         let Some(config) = config else {
             return Ok(());

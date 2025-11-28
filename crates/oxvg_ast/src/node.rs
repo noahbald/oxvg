@@ -57,6 +57,20 @@ pub struct Ranges {
     /// The range across the value
     pub value: std::ops::Range<usize>,
 }
+#[cfg(feature = "range")]
+impl Ranges {
+    /// For a given code-point of a source, it will return a line-number and column
+    /// that the point belongs to.
+    pub fn to_line_and_col(cursor: usize, source: &[u8]) -> (usize, usize) {
+        let line_start = source[..cursor]
+            .iter()
+            .rposition(|char| *char == b'\n')
+            .map_or(0, |i| i + 1);
+        let line_number = bytecount::count(&source[..line_start], b'\n');
+        let column = cursor - line_start;
+        (line_number, column)
+    }
+}
 
 #[derive(derive_more::Debug, Clone)]
 /// The data of a node in an XML document.

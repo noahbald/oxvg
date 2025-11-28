@@ -1,4 +1,6 @@
 //! Traits and types for handling the command line arguments for OXVG.
+use std::future::Future;
+
 use clap::{Parser, Subcommand};
 
 use crate::{
@@ -15,7 +17,7 @@ pub trait RunCommand {
     /// If any part of the lifecycle fails
     /// * Fails to read or parse any files
     /// * Fails to write or serialize to any files
-    fn run(self, config: Config) -> anyhow::Result<()>;
+    fn run(self, config: Config) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 #[derive(Parser)]

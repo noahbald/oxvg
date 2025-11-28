@@ -5,6 +5,8 @@ use oxvg_lint::{error::LintingError, Rules, Severity};
 
 use crate::{args::RunCommand, config::Config, walk::Walk};
 
+mod lsp;
+
 #[derive(clap::Args, Debug)]
 pub struct Check {
     /// The target paths to optimise
@@ -27,7 +29,7 @@ pub struct Check {
     pub level: Severity,
 }
 impl RunCommand for Check {
-    fn run(self, config: Config) -> anyhow::Result<()> {
+    async fn run(self, config: Config) -> anyhow::Result<()> {
         self.walk(&config.lint.unwrap_or_default())
     }
 }
@@ -54,9 +56,23 @@ impl Check {
     }
 }
 
+#[derive(clap::Args, Debug)]
+pub struct Serve {
+    /// A path to the specified config.
+    #[clap(long, short, num_args(0..=1))]
+    pub config: Option<Vec<PathBuf>>,
+}
+impl RunCommand for Serve {
+    async fn run(self, config: Config) -> anyhow::Result<()> {
+        Ok(lsp::serve(config.lint.unwrap_or_default()).await)
+    }
+}
+
 #[derive(Subcommand)]
 /// Run analysis against input files and reports any problems that it may detect.
 pub enum Lint {
     /// Analyse SVG documents for problems and report them to standard output
     Check(Check),
+    /// Start a server for an editor or other type of client to analyse documents
+    Serve(Serve),
 }
