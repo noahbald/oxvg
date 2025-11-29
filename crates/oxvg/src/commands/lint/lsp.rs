@@ -2,7 +2,7 @@ use oxvg_ast::{
     arena::Allocator,
     node::{Ranges, Ref},
     parse::roxmltree::{parse_with_options, ParsingOptions},
-    visitor::{Info, Visitor},
+    visitor::Visitor,
 };
 use oxvg_lint::error::Error;
 use oxvg_lint::{Rules, Severity};
@@ -72,18 +72,7 @@ impl Backend {
         uri: &Uri,
     ) -> std::result::Result<(), Vec<Diagnostic>> {
         let path = uri.to_file_path().map(|p| p.to_path_buf());
-        let Some(mut root) = dom.find_element() else {
-            return Ok(());
-        };
-        let Err(diagnostics) = self.rules.start(
-            &mut root,
-            &Info {
-                path,
-                multipass_count: 0,
-                allocator,
-            },
-            None,
-        ) else {
+        let Err(diagnostics) = self.rules.start_with_path(dom, allocator, path) else {
             return Ok(());
         };
         Err(diagnostics

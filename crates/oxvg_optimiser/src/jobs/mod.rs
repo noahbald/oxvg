@@ -47,13 +47,13 @@ macro_rules! jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
             fn run_jobs<'input, 'arena>(
                 &self,
-                element: &mut Element<'input, 'arena>,
+                element: &Element<'input, 'arena>,
                 info: &Info<'input, 'arena>
             ) -> Result<usize, JobsError<'input>> {
                 let mut count = 0;
                 $(if let Some(job) = self.$name.as_ref() {
                     log::debug!(concat!("💼 starting ", stringify!($name)));
-                    match job.start(element, info, None) {
+                    match job.start_with_info(element, info, None) {
                         Err(e) if e.is_important() => return Err(e),
                         Err(e) => log::error!("{} failed {e}", stringify!($name)),
                         Ok(r) => if !r.contains(PrepareOutcome::skip) {
@@ -242,12 +242,12 @@ impl Jobs {
         root: Ref<'input, 'arena>,
         info: &Info<'input, 'arena>,
     ) -> Result<(), JobsError<'input>> {
-        let Some(mut root_element) = Element::from_parent(root) else {
+        let Some(root_element) = Element::from_parent(root) else {
             log::warn!("No elements found in the document, skipping");
             return Ok(());
         };
 
-        let count = self.run_jobs(&mut root_element, info)?;
+        let count = self.run_jobs(&root_element, info)?;
         log::debug!("completed {count} jobs");
         Ok(())
     }

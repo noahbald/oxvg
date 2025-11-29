@@ -50,7 +50,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveOffCanvasPaths {
             State {
                 view_box_data: RefCell::new(None),
             }
-            .start(&mut document.clone(), context.info, None)?;
+            .start_with_context(document, context)?;
         }
         Ok(PrepareOutcome::skip)
     }

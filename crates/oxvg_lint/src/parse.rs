@@ -4,9 +4,8 @@ use std::{
 };
 
 use oxvg_ast::{
-    element::Element,
     parse::roxmltree::{self, ParsingOptions},
-    visitor::{Info, Visitor},
+    visitor::Visitor,
 };
 
 use crate::{
@@ -123,19 +122,7 @@ impl Rules {
                 ..ParsingOptions::default()
             },
             |root, allocator| {
-                let Some(mut root) = Element::from_parent(root) else {
-                    return Ok(());
-                };
-                let path = path.cloned();
-                let Err(errors) = self.start(
-                    &mut root,
-                    &Info {
-                        path: path.clone(),
-                        multipass_count: 0,
-                        allocator,
-                    },
-                    None,
-                ) else {
+                let Err(errors) = self.start_with_path(root, allocator, path.cloned()) else {
                     return Ok(());
                 };
                 error_count += errors
@@ -150,7 +137,7 @@ impl Rules {
                 let report = Report {
                     source,
                     errors,
-                    path,
+                    path: path.cloned(),
                 };
                 write!(&mut w, "{report}")
             },

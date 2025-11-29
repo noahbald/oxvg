@@ -71,7 +71,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupEnableBackground {
             return Ok(PrepareOutcome::skip);
         }
         if let Some(root) = document.find_element() {
-            State::new(&root).start(&mut document.clone(), context.info, None)?;
+            State::new(&root).start_with_context(document, context)?;
         }
         Ok(PrepareOutcome::skip)
     }

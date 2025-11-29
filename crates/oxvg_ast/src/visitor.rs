@@ -1,5 +1,5 @@
 //! Visitors for traversing and manipulating nodes of an xml document
-use std::cell::RefCell;
+use std::{cell::RefCell, path::PathBuf};
 
 use lightningcss::rules::CssRuleList;
 
@@ -242,17 +242,65 @@ pub trait Visitor<'input, 'arena> {
     /// If any of the visitor's methods fail
     fn start(
         &self,
-        root: &mut Element<'input, 'arena>,
+        root: Ref<'input, 'arena>,
+        allocator: Allocator<'input, 'arena>,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        self.start_with_path(root, allocator, None)
+    }
+
+    /// Starts visiting the document, adding the path to the visitor's context
+    ///
+    /// # Errors
+    /// If any of the visitor's methods fail
+    fn start_with_path(
+        &self,
+        root: Ref<'input, 'arena>,
+        allocator: Allocator<'input, 'arena>,
+        path: Option<PathBuf>,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        let Some(root) = Element::from_parent(root) else {
+            return Ok(PrepareOutcome::none);
+        };
+        self.start_with_info(
+            &root,
+            &Info {
+                path,
+                multipass_count: 0,
+                allocator,
+            },
+            None,
+        )
+    }
+
+    /// Creates context for root using the provided information and visits it
+    ///
+    /// # Errors
+    /// If any of the visitor's methods fail
+    fn start_with_info(
+        &self,
+        root: &Element<'input, 'arena>,
         info: &Info<'input, 'arena>,
         flags: Option<ContextFlags>,
     ) -> Result<PrepareOutcome, Self::Error> {
         let flags = flags.unwrap_or_default();
         let mut context = Context::new(root.clone(), flags, info);
-        let prepare_outcome = self.prepare(root, &mut context)?;
+        self.start_with_context(root, &mut context)
+    }
+
+    /// Starts visiting the document, using an already existing visitor's context
+    ///
+    /// # Errors
+    /// If any of the visitor's methods fail
+    fn start_with_context(
+        &self,
+        root: &Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
+    ) -> Result<PrepareOutcome, Self::Error> {
+        let prepare_outcome = self.prepare(root, context)?;
         if prepare_outcome.contains(PrepareOutcome::skip) {
             return Ok(prepare_outcome);
         }
-        self.visit(root, &mut context)?;
+        self.visit(root, context)?;
 
         Ok(prepare_outcome)
     }

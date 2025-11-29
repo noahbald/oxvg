@@ -121,11 +121,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupIds {
         }
 
         state.prepare_id_rename(document);
-        state.start(
-            &mut document.clone(),
-            context.info,
-            Some(context.flags.clone()),
-        )?;
+        state.start_with_context(document, context)?;
         Ok(PrepareOutcome::skip) // work done with `state`
     }
 }

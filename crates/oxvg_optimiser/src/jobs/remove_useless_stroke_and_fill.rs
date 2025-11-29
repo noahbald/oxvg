@@ -63,11 +63,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessStrokeAndFill {
             options: self,
             id_rc_byte: Cell::new(None),
         }
-        .start(
-            &mut document.clone(),
-            &context.info.clone(),
-            Some(context.flags.clone()),
-        )?;
+        .start_with_context(document, context)?;
         Ok(PrepareOutcome::skip)
     }
 }
