@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_lint/src/rules/no_unknown_attributes.rs
+expression: result
+---
+ [31m⚠ Unknown attribute `foo` for element <svg>[0m
+  ╭─[:0:5]
+1 │ <svg foo="bar" /
+  · [35m1─────────────[0m
+  ╰────

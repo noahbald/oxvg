@@ -1,8 +1,10 @@
 //! Traits and types for handling the command line arguments for OXVG.
+use std::future::Future;
+
 use clap::{Parser, Subcommand};
 
 use crate::{
-    commands::{Format, Optimise},
+    commands::{Format, Lint, Optimise},
     config::Config,
 };
 
@@ -15,7 +17,7 @@ pub trait RunCommand {
     /// If any part of the lifecycle fails
     /// * Fails to read or parse any files
     /// * Fails to write or serialize to any files
-    fn run(self, config: Config) -> anyhow::Result<()>;
+    fn run(self, config: Config) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 #[derive(Parser)]
@@ -45,4 +47,7 @@ pub enum Command {
     /// This is an alias for `oxvg optimise --extends none` with default options sensible
     /// for formatting
     Format(Format),
+    /// Lint SVG documents
+    #[command(subcommand)]
+    Lint(Lint),
 }

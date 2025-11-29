@@ -59,6 +59,8 @@ impl<'input, 'arena> HashableElement<'input, 'arena> {
 pub struct ElementData<'a, 'input> {
     name: &'a ElementId<'input>,
     attrs: &'a RefCell<Vec<Attr<'input>>>,
+    #[cfg(feature = "range")]
+    ranges: &'a std::collections::HashMap<AttrId<'input>, crate::node::Ranges>,
 }
 
 #[derive(Debug)]
@@ -416,6 +418,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
             attrs: attrs.clone(),
             #[cfg(feature = "selectors")]
             selector_flags: Cell::new(None),
+            #[cfg(feature = "range")]
+            ranges: std::collections::HashMap::new(),
         });
         self.replace_with(replacement);
         Self(&*replacement)
@@ -493,6 +497,14 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | attributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes)
     pub fn attributes<'a>(&'a self) -> Attributes<'a, 'input> {
         Attributes(self.data().attrs)
+    }
+
+    #[cfg(feature = "range")]
+    /// Returns the source-code ranges for each of the attributes
+    pub fn attribute_ranges(
+        &self,
+    ) -> &std::collections::HashMap<AttrId<'input>, crate::node::Ranges> {
+        self.data().ranges
     }
 
     /// Replaces the element's collection of attributes with a new collection.
@@ -723,10 +735,17 @@ impl<'input, 'arena> Element<'input, 'arena> {
         if let NodeData::Element {
             ref name,
             ref attrs,
+            #[cfg(feature = "range")]
+            ref ranges,
             ..
         } = self.node_data
         {
-            ElementData { name, attrs }
+            ElementData {
+                name,
+                attrs,
+                #[cfg(feature = "range")]
+                ranges,
+            }
         } else {
             unreachable!("Element contains non-element data. This is a bug!")
         }

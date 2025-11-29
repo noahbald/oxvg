@@ -36,6 +36,8 @@ selectors = [
   "dep:precomputed-hash",
   "dep:servo_arc",
 ]
+# Include source-spans for nodes and attributes
+range = ["dep:bytecount"]
 # Includes a visitor trait for building visitors
 visitor = ["dep:bitflags"]
 
@@ -45,6 +47,7 @@ oxvg_path = { workspace = true }
 oxvg_serialize = { workspace = true, optional = true }
 
 bitflags = { workspace = true, optional = true }
+bytecount = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
 cssparser = { workspace = true }

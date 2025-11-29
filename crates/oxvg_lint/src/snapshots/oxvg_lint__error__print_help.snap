@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_lint/src/error.rs
+expression: result
+---
+ [31m× Unknown attribute `xlink:href` for element <a>[0m
+   ╭─[[34m[0m:2:7]
+ 1 │ <svg xmlns:xlink="http://unknown.com">
+ 2 │     <a xlink:href="/foo">foo</a>
+   ·        [35m─────────────────[0m
+ 3 │ </svg>
+   ╰────
+ [36mhelp:[0m Unknown prefix defined by `xmlns:xlink="http://unknown.com"`

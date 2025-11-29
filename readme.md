@@ -1,18 +1,20 @@
 # Oxidised Vector Graphics
 
-[![release](https://img.shields.io/github/v/release/noahbald/oxvg)](https://github.com/noahbald/oxvg) [![npm](https://img.shields.io/npm/v/@oxvg/wasm)](https://www.npmjs.com/~oxvg) [![crate](https://img.shields.io/crates/v/oxvg)](https://crates.io/users/noahbald) [![discord](https://img.shields.io/discord/1385773366396325899)](https://discord.gg/9RudZ7kTGH)
+[![release](https://img.shields.io/github/v/release/noahbald/oxvg)](https://github.com/noahbald/oxvg) [![npm](https://img.shields.io/npm/v/@oxvg/wasm)](https://www.npmjs.com/~oxvg) [![crate](https://img.shields.io/crates/v/oxvg)](https://crates.io/users/noahbald) [![discord](https://img.shields.io/discord/1385773366396325899)](https://discord.gg/9RudZ7kTGH) [![wiki](https://img.shields.io/badge/docs-home-green)](https://github.com/noahbald/oxvg/wiki)
 
 OXVG is an effort to create high-performance SVG tooling.
 
 Bindings for [node](https://www.npmjs.com/package/@oxvg/napi) and [wasm](https://www.npmjs.com/package/@oxvg/wasm) are available through NPM.
-
-You can try out OXVG right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
 
 ## 🎯 Tools
 
 The following tools will be available in a CLI binary.
 
 ### 🪶 Optimiser
+
+> [!TIP]
+> You can try out OXVG right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
+
 
 An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is available and runs [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
 
