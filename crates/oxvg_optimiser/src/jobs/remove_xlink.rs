@@ -64,7 +64,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveXlink {
             overridden_prefix_stack: RefCell::new(vec![]),
             used_in_legacy_element_stack: RefCell::new(vec![]),
         }
-        .start(&mut document.clone(), context.info, None)?;
+        .start_with_context(document, context)?;
         Ok(PrepareOutcome::skip)
     }
 }

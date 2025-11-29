@@ -67,7 +67,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {
             styles.borrow_mut().0.visit(&mut state)?;
         }
         if !state.referenced_shapes.contains(ReferencedShapes::Path) {
-            state.start(&mut document.clone(), context.info, None)?;
+            state.start_with_context(document, context)?;
         }
         Ok(PrepareOutcome::skip)
     }

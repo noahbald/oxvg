@@ -43,7 +43,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                                 let job = ConvertPathData::default();
                                 let info = &Info::new(allocator);
                                 let start = Instant::now();
-                                let _ = black_box(job.start(&mut root, info, None));
+                                let _ = black_box(job.start_with_info(&mut root, info, None));
                                 result += start.elapsed();
                             },
                         )

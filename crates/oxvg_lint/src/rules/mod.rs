@@ -55,7 +55,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Rules {
             rules: self,
             reports: RefCell::default(),
         };
-        reporter.start(&mut document.clone(), context.info, None)?;
+        reporter.start_with_context(document, context)?;
         let reports = reporter.reports.take();
         if reports.is_empty() {
             Ok(PrepareOutcome::skip)

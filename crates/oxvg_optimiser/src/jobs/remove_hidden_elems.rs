@@ -222,13 +222,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveHiddenElems {
             opacity_zero: self.opacity_zero.unwrap_or(true),
             ..Data::default()
         };
-        data.start(document, context.info, Some(context.flags.clone()))?;
+        data.start_with_context(document, context)?;
         log::debug!("data collected");
         State {
             options: self,
             data: &mut data,
         }
-        .start(document, context.info, Some(context.flags.clone()))?;
+        .start_with_context(document, context)?;
         Ok(PrepareOutcome::skip)
     }
 }

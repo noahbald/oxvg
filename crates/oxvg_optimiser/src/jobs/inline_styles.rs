@@ -230,7 +230,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for InlineStyles {
         document: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        State::new(self).start(&mut document.clone(), context.info, None)?;
+        State::new(self).start_with_context(document, context)?;
         Ok(PrepareOutcome::skip)
     }
 }

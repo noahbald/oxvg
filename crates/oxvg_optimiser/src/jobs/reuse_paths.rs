@@ -57,7 +57,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ReusePaths {
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
-            State::default().start(&mut document.clone(), context.info, None)?;
+            State::default().start_with_context(document, context)?;
         }
         Ok(PrepareOutcome::skip)
     }
