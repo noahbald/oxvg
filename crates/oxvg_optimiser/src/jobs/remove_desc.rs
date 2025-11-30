@@ -4,6 +4,7 @@ use oxvg_ast::{
     node::{self},
     visitor::{Context, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -13,8 +14,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes the `<desc>` element from the document when empty or only contains editor attribution.
 ///
 /// # Correctness
@@ -29,7 +31,7 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDesc {
-    #[serde(default = "bool::default")]
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     /// Whether to remove all `<desc>` elements
     pub remove_any: bool,
 }

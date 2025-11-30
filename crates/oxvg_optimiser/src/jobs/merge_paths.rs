@@ -14,6 +14,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::attribute::{inheritable::Inheritable, path};
 use oxvg_path::command;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -23,8 +24,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Merge multiple paths into one
 ///
 /// # Differences to SVGO
@@ -43,7 +45,7 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct MergePaths {
-    #[serde(default = "default_force")]
+    #[cfg_attr(feature = "serde", serde(default = "default_force"))]
     /// Whether to merge paths despite intersections
     pub force: bool,
 }

@@ -12,6 +12,7 @@ use oxvg_collections::{
     content_type::{ContentType, ContentTypeRef},
 };
 use oxvg_serialize::{PrinterOptions, ToValue as _};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 fn default_elem_separator() -> String {
@@ -29,8 +30,9 @@ use crate::{error::JobsError, utils::regex_memo};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Remove attributes based on whether it matches a pattern.
 ///
 /// The patterns syntax is `[ element* : attribute* : value* ]`; where
@@ -65,12 +67,12 @@ pub struct RemoveAttrs {
     // FIXME: We really don't need the complexity of a DSL here.
     /// A list of patterns that match attributes.
     pub attrs: Vec<String>,
-    #[serde(default = "default_elem_separator")]
+    #[cfg_attr(feature = "serde", serde(default = "default_elem_separator"))]
     /// The separator for different parts of the pattern. By default this is `":"`.
     ///
     /// You may need to use this if you need to match attributes with a `:` (i.e. prefixed attributes).
     pub elem_separator: String,
-    #[serde(default = "default_preserve_current_color")]
+    #[cfg_attr(feature = "serde", serde(default = "default_preserve_current_color"))]
     /// Whether to ignore attributes set to `currentColor`
     pub preserve_current_color: bool,
 }

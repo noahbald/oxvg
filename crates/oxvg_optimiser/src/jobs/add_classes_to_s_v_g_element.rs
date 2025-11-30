@@ -12,6 +12,7 @@ use oxvg_collections::{
         list_of::{ListOf, Space},
     },
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -21,8 +22,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Adds to the `class` attribute of the root `<svg>` element, omitting duplicates
 ///
 /// # Differences to SVGO

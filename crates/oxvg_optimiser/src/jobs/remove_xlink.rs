@@ -12,6 +12,7 @@ use oxvg_collections::{
     is_prefix,
     name::{QualName, NS},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -21,7 +22,8 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default)]
 /// Replaces `xlink` prefixed attributes to the native SVG equivalent.
 ///
 /// # Correctness
@@ -34,7 +36,7 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveXlink {
-    #[serde(default = "bool::default")]
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     /// Whether to also convert xlink attributes for legacy elements which don't
     /// support the SVG 2 `href` attribute (e.g. `<cursor>`).
     ///

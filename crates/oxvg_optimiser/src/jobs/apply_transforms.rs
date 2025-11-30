@@ -19,6 +19,7 @@ use oxvg_collections::attribute::{
     Attr, AttrId,
 };
 use oxvg_path::{command::Data, convert, Path};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -28,8 +29,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Default, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Apply transformations of a `transform` attribute to the path data, removing the `transform`
 /// in the process.
 ///
@@ -56,7 +58,7 @@ pub struct ApplyTransforms {
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub transform_precision: Option<f64>,
     /// Whether or not to apply transforms to paths with a stroke.
-    #[serde(default = "bool::default")]
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     pub apply_transforms_stroked: bool,
 }
 

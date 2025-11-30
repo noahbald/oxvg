@@ -7,6 +7,7 @@ use oxvg_collections::{
     attribute::{presentation::LengthPercentage, uncategorised::Radius},
     element::ElementId,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
@@ -16,8 +17,9 @@ use tsify::Tsify;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Converts non-eccentric `<ellipse>` to `<circle>` elements.
 ///
 /// # Correctness

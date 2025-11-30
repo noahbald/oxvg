@@ -22,6 +22,7 @@ use oxvg_collections::{
     },
     is_prefix,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{error::JobsError, utils::minify_style};
@@ -47,8 +48,9 @@ pub enum RemoveUnused {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Minify `<style>` elements with lightningcss
 ///
 /// # Differences to SVGO
@@ -67,7 +69,7 @@ pub enum RemoveUnused {
 pub struct MinifyStyles {
     /// Whether to remove styles with no matching elements.
     #[cfg_attr(feature = "wasm", tsify(type = r#"boolean | "force""#, optional))]
-    #[serde(default = "RemoveUnused::default")]
+    #[cfg_attr(feature = "serde", serde(default = "RemoveUnused::default"))]
     pub remove_unused: RemoveUnused,
 }
 
@@ -250,6 +252,7 @@ impl<'a> State<'a, '_, '_> {
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for RemoveUnused {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -270,6 +273,7 @@ impl<'de> Deserialize<'de> for RemoveUnused {
     }
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for RemoveUnused {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

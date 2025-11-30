@@ -5,6 +5,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{presentation::LengthPercentage, uncategorised::ViewBox, AttrId};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -14,8 +15,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes `width` and `height` from the `<svg>` and replaces it with `viewBox` if missing.
 ///
 /// This job is the opposite of [`super::RemoveViewBox`] and should be disabled before

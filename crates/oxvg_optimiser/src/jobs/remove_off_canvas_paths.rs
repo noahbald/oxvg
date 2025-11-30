@@ -8,6 +8,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
 use oxvg_path::{command::Data, Path};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -17,8 +18,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// For SVGs with a `viewBox` attribute, removes `<path>` element outside of it's bounds.
 ///
 /// Elements with `transform` are ignored, as they may be affected by animations.

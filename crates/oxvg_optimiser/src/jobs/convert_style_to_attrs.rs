@@ -7,6 +7,7 @@ use oxvg_ast::{
     visitor::{Context, Visitor},
 };
 use oxvg_collections::attribute::{Attr, AttrId};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -16,8 +17,9 @@ use crate::{error::JobsError, utils::minify_style};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Converts presentation attributes in element styles to the equivalent XML attribute.
 ///
 /// Presentation attributes can be used in both attributes and styles, but in most cases it'll take fewer
@@ -48,9 +50,17 @@ use crate::{error::JobsError, utils::minify_style};
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertStyleToAttrs {
-    #[serde(default = "default_keep_important")]
+    #[cfg_attr(feature = "serde", serde(default = "default_keep_important"))]
     /// Whether to always keep `!important` styles.
     pub keep_important: bool,
+}
+
+impl Default for ConvertStyleToAttrs {
+    fn default() -> Self {
+        Self {
+            keep_important: default_keep_important(),
+        }
+    }
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for ConvertStyleToAttrs {

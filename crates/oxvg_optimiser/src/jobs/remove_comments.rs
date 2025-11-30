@@ -1,7 +1,9 @@
 use std::sync::LazyLock;
 
 use oxvg_ast::{node::Node, visitor::Visitor};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
 use serde_with::skip_serializing_none;
 
 #[cfg(feature = "wasm")]
@@ -11,9 +13,10 @@ use crate::{error::JobsError, utils::regex_memo};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[skip_serializing_none]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", skip_serializing_none)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes XML comments from the document.
 ///
 /// By default this job ignores comments starting with `<!--!` which is often used
@@ -80,6 +83,7 @@ impl RemoveComments {
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for PreservePattern {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -90,6 +94,7 @@ impl<'de> Deserialize<'de> for PreservePattern {
     }
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for PreservePattern {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

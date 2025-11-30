@@ -9,6 +9,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::uncategorised::MediaQueryList;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
@@ -26,8 +27,9 @@ struct State<'input, 'arena> {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Merge multiple `<style>` elements into one
 ///
 /// # Correctness

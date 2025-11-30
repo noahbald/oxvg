@@ -7,6 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom, attribute::presentation::LengthPercentage, content_type::ContentType,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -16,8 +17,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes the `viewBox` attribute when it matches the `width` and `height`.
 ///
 /// # Correctness

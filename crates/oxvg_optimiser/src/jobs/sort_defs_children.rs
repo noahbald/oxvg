@@ -5,6 +5,7 @@ use oxvg_ast::{
     is_element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -14,8 +15,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Sorts the children of `<defs>` into a predictable order.
 ///
 /// This doesn't affect the size of a document but will likely improve readability

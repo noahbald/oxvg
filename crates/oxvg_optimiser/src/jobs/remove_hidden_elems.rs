@@ -21,6 +21,7 @@ use oxvg_collections::{
     },
     element::{ElementId, ElementInfo},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -30,8 +31,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Default, Deserialize, Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes hidden or invisible elements from the document.
 ///
 /// # Correctness

@@ -12,6 +12,7 @@ use oxvg_collections::{
     element::ElementCategory,
     is_prefix,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -21,8 +22,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes useless `stroke` and `fill` attributes
 ///
 /// # Correctness
@@ -35,13 +37,13 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveUselessStrokeAndFill {
-    #[serde(default = "default_stroke")]
+    #[cfg_attr(feature = "serde", serde(default = "default_stroke"))]
     /// Whether to remove redundant strokes
     pub stroke: bool,
-    #[serde(default = "default_fill")]
+    #[cfg_attr(feature = "serde", serde(default = "default_fill"))]
     /// Whether to remove redundant fills
     pub fill: bool,
-    #[serde(default = "default_remove_none")]
+    #[cfg_attr(feature = "serde", serde(default = "default_remove_none"))]
     /// Whether to remove elements with no stroke or fill
     pub remove_none: bool,
 }

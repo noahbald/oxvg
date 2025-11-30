@@ -4,6 +4,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{Attr, AttributeGroup};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -13,8 +14,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes `<script>` elements, event attributes, and javascript `href`s from the document.
 ///
 /// This can help remove the risk of Cross-site scripting (XSS) attacks.

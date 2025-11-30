@@ -4,6 +4,7 @@ use oxvg_ast::{
     visitor::{Context, Visitor},
 };
 use oxvg_collections::content_type::{ContentType, ContentTypeRef};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -13,8 +14,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes redundant whitespace from attribute values.
 ///
 /// # Correctness
@@ -33,13 +35,13 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CleanupAttrs {
-    #[serde(default = "newlines_default")]
+    #[cfg_attr(feature = "serde", serde(default = "newlines_default"))]
     /// Whether to replace `'\n'` with `' '`.
     pub newlines: bool,
-    #[serde(default = "trim_default")]
+    #[cfg_attr(feature = "serde", serde(default = "trim_default"))]
     /// Whether to remove whitespace from each end of the value
     pub trim: bool,
-    #[serde(default = "spaces_default")]
+    #[cfg_attr(feature = "serde", serde(default = "spaces_default"))]
     /// Whether to replace multiple whitespace characters with a single `' '`.
     pub spaces: bool,
 }
