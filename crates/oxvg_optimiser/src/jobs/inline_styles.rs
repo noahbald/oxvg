@@ -26,6 +26,7 @@ use parcel_selectors::{
     attr::{AttrSelectorOperator, CaseSensitivity},
     parser::LocalName,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -43,8 +44,9 @@ struct RemovedToken<'input, 'arena> {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Merges styles from a `<style>` element to the `style` attribute of matching elements.
 ///
 /// # Differences to SVGO
@@ -62,21 +64,21 @@ struct RemovedToken<'input, 'arena> {
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct InlineStyles {
     /// If to only inline styles if the selector matches one element.
-    #[serde(default = "default_only_matched_once")]
+    #[cfg_attr(feature = "serde", serde(default = "default_only_matched_once"))]
     pub only_matched_once: bool,
     /// If to remove the selector and styles from the stylesheet while inlining the styles. This
     /// does not remove the selectors that did not match any elements.
-    #[serde(default = "default_remove_matched_selectors")]
+    #[cfg_attr(feature = "serde", serde(default = "default_remove_matched_selectors"))]
     pub remove_matched_selectors: bool,
     /// An array of media query conditions to use, such as `screen`. An empty string signifies all
     /// selectors outside of a media query.
     /// Using `["*"]` will match all media-queries
-    #[serde(default = "default_use_mqs")]
+    #[cfg_attr(feature = "serde", serde(default = "default_use_mqs"))]
     pub use_mqs: Vec<String>,
     /// What pseudo-classes and pseudo-elements to use. An empty string signifies all non-pseudo
     /// classes and non-pseudo elements.
     /// Using `["*"]` will match all pseudo-elements and pseudo-classes.
-    #[serde(default = "default_use_pseudos")]
+    #[cfg_attr(feature = "serde", serde(default = "default_use_pseudos"))]
     pub use_pseudos: Vec<String>,
 }
 

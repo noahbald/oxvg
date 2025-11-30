@@ -12,6 +12,7 @@ use oxvg_collections::attribute::{
     transform::{Precision, SVGTransform},
     AttrId,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -21,8 +22,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::struct_excessive_bools)]
 /// Merge transforms and convert to shortest form.
 ///
@@ -37,30 +39,30 @@ use crate::error::JobsError;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertTransform {
     /// Whether to convert transforms to their shorthand alternative.
-    #[serde(default = "default_convert_to_shorts")]
+    #[cfg_attr(feature = "serde", serde(default = "default_convert_to_shorts"))]
     pub convert_to_shorts: bool,
     /// Number of decimal places to round degrees to, for `rotate` and `skew`.
     ///
     /// Some of the precision may also be lost during serialization.
-    #[serde(default = "Option::default")]
+    #[cfg_attr(feature = "serde", serde(default = "Option::default"))]
     pub deg_precision: Option<i32>,
     /// Number of decimal places to round to, for `rotate`'s origin and `translate`.
-    #[serde(default = "default_float_precision")]
+    #[cfg_attr(feature = "serde", serde(default = "default_float_precision"))]
     pub float_precision: i32,
     /// Number of decimal places to round to, for `scale`.
-    #[serde(default = "default_transform_precision")]
+    #[cfg_attr(feature = "serde", serde(default = "default_transform_precision"))]
     pub transform_precision: i32,
     /// Whether to convert matrices into transforms.
-    #[serde(default = "default_matrix_to_transform")]
+    #[cfg_attr(feature = "serde", serde(default = "default_matrix_to_transform"))]
     pub matrix_to_transform: bool,
     /// Whether to remove redundant arguments from `translate` (e.g. `translate(10 0)` -> `transflate(10)`).
-    #[serde(default = "default_short_rotate")]
+    #[cfg_attr(feature = "serde", serde(default = "default_short_rotate"))]
     pub short_rotate: bool,
     /// Whether to remove redundant transforms (e.g. `translate(0)`).
-    #[serde(default = "default_remove_useless")]
+    #[cfg_attr(feature = "serde", serde(default = "default_remove_useless"))]
     pub remove_useless: bool,
     /// Whether to merge transforms.
-    #[serde(default = "default_collapse_into_one")]
+    #[cfg_attr(feature = "serde", serde(default = "default_collapse_into_one"))]
     pub collapse_into_one: bool,
 }
 

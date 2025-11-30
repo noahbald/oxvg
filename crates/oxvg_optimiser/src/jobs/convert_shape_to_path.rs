@@ -11,6 +11,7 @@ use oxvg_collections::{
     element::ElementId,
 };
 use oxvg_path::{command::Data, convert, Path};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
@@ -22,8 +23,9 @@ use tsify::Tsify;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Converts basic shapes to `<path>` elements
 ///
 /// # Differences to SVGO
@@ -42,12 +44,21 @@ use tsify::Tsify;
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct ConvertShapeToPath {
     /// Whether to convert `<circle>` and `<ellipses>` to paths.
-    #[serde(default = "default_convert_arcs")]
+    #[cfg_attr(feature = "serde", serde(default = "default_convert_arcs"))]
     pub convert_arcs: bool,
     /// The number of decimal places to round to
     #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
-    #[serde(default = "ConvertPrecision::default")]
+    #[cfg_attr(feature = "serde", serde(default = "ConvertPrecision::default"))]
     pub float_precision: ConvertPrecision,
+}
+
+impl Default for ConvertShapeToPath {
+    fn default() -> Self {
+        Self {
+            convert_arcs: default_convert_arcs(),
+            float_precision: ConvertPrecision::default(),
+        }
+    }
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {

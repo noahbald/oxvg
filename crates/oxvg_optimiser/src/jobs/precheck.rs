@@ -6,6 +6,7 @@ See [license](https://github.com/RazrFalcon/svgcleaner/blob/master/LICENSE.txt)
 */
 use oxvg_ast::{element::Element, get_attribute, is_element, visitor::Visitor};
 use oxvg_collections::attribute::AttributeGroup;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -15,8 +16,9 @@ use crate::error::{JobsError, PrecheckError};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Runs a series of checks to more confidently be sure the document won't break
 /// due to unsupported/unstable features.
 ///
@@ -26,12 +28,21 @@ use crate::error::{JobsError, PrecheckError};
 /// may cause the document to break with optimisations.
 pub struct Precheck {
     /// Whether to exit with an error instead of a log
-    #[serde(default = "default_fail_fast")]
+    #[cfg_attr(feature = "serde", serde(default = "default_fail_fast"))]
     pub fail_fast: bool,
     /// Whether to run thorough pre-clean checks as to maintain document correctness
     /// similar to [svgcleaner](https://github.com/RazrFalcon/svgcleaner)
-    #[serde(default = "default_preclean_check")]
+    #[cfg_attr(feature = "serde", serde(default = "default_preclean_check"))]
     pub preclean_checks: bool,
+}
+
+impl Default for Precheck {
+    fn default() -> Self {
+        Self {
+            fail_fast: default_fail_fast(),
+            preclean_checks: default_preclean_check(),
+        }
+    }
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for Precheck {

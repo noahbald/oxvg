@@ -10,6 +10,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::content_type::Reference;
 use regex::Match;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -44,8 +45,9 @@ const fn default_prefix_class_names() -> bool {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Prefix element ids and classnames with the filename or provided string. This
 /// is useful for reducing the likelihood of conflicts when inlining SVGs.
 ///
@@ -65,17 +67,17 @@ const fn default_prefix_class_names() -> bool {
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct PrefixIds {
-    #[serde(default = "default_delim")]
+    #[cfg_attr(feature = "serde", serde(default = "default_delim"))]
     /// Content to insert between the prefix and original value.
     pub delim: String,
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     /// A string or generator that resolves to a string
     #[cfg_attr(feature = "wasm", tsify(type = "string | boolean | null"))]
     pub prefix: PrefixGenerator,
-    #[serde(default = "default_prefix_ids")]
+    #[cfg_attr(feature = "serde", serde(default = "default_prefix_ids"))]
     /// Whether to prefix ids
     pub prefix_ids: bool,
-    #[serde(default = "default_prefix_class_names")]
+    #[cfg_attr(feature = "serde", serde(default = "default_prefix_class_names"))]
     /// Whether to prefix classnames
     pub prefix_class_names: bool,
 }
@@ -245,6 +247,7 @@ impl PrefixIds {
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for PrefixGenerator {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -269,6 +272,7 @@ impl<'de> Deserialize<'de> for PrefixGenerator {
     }
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for PrefixGenerator {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

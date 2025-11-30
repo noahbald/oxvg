@@ -3,6 +3,7 @@ use oxvg_ast::{
     is_element, remove_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -12,8 +13,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Clone, Default, Debug)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes the `xmlns` attribute from `<svg>`.
 ///
 /// This can be useful for SVGs that will be inlined.

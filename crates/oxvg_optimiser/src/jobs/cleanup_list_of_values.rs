@@ -2,6 +2,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -11,8 +12,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Rounds number and removes default `px` unit in attributes specified with number lists.
 ///
 /// # Correctness
@@ -23,18 +25,18 @@ use crate::error::JobsError;
 ///
 /// When a float-precision greater than the maximum is given.
 pub struct CleanupListOfValues {
-    #[serde(default = "default_float_precision")]
+    #[cfg_attr(feature = "serde", serde(default = "default_float_precision"))]
     // WARN: Lightningcss will round values to 5 decimal places
     /// Number of decimal places to round floating point numbers to, to a maximum of 5.
     pub float_precision: u8,
-    #[serde(default = "default_leading_zero")]
+    #[cfg_attr(feature = "serde", serde(default = "default_leading_zero"))]
     #[deprecated(note = "This option has no effect; leading zeroes are always removed")]
     /// Whether to trim leading zeros.
     pub leading_zero: bool,
-    #[serde(default = "default_default_px")]
+    #[cfg_attr(feature = "serde", serde(default = "default_default_px"))]
     /// Whether to remove `px` from a number's unit.
     pub default_px: bool,
-    #[serde(default = "default_convert_to_px")]
+    #[cfg_attr(feature = "serde", serde(default = "default_convert_to_px"))]
     /// Whether to convert absolute units like `cm` and `in` to `px`.
     pub convert_to_px: bool,
 }

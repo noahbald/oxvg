@@ -8,6 +8,7 @@ use oxvg_collections::{
     attribute::{Attr, AttrId},
     name::{Prefix, QualName},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -17,8 +18,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Clone, Default, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes all xml namespaces associated with editing software.
 ///
 /// # Correctness

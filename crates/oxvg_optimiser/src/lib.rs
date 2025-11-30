@@ -45,6 +45,7 @@ pub mod error;
 mod jobs;
 mod utils;
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub use crate::jobs::*;
@@ -56,8 +57,9 @@ use tsify::Tsify;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// A preset which the specified jobs can overwrite
 pub enum Extends {
     /// A preset that contains no jobs.

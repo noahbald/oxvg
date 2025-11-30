@@ -3,7 +3,9 @@ use oxvg_ast::{
     node::Ref,
     visitor::{ContextFlags, Info, PrepareOutcome, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
 use serde_with::skip_serializing_none;
 
 use crate::error::JobsError;
@@ -17,12 +19,13 @@ macro_rules! jobs {
 
         $(pub use self::$name::$job;)+
 
-        #[skip_serializing_none]
+        #[cfg_attr(feature = "serde", skip_serializing_none)]
         #[cfg_attr(feature = "napi", napi(object))]
         #[cfg_attr(feature = "wasm", derive(Tsify))]
         #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
-        #[derive(Deserialize, Serialize, Clone, Debug)]
-        #[serde(rename_all = "camelCase")]
+        #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+        #[derive(Clone, Debug)]
+        #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
         /// Each task for optimising an SVG document.
         pub struct Jobs {
             $(
@@ -79,6 +82,7 @@ macro_rules! jobs {
             ///
             /// If you believe an errors should be fixed, please raise an issue
             /// [here](https://github.com/noahbald/oxvg/issues)
+            #[cfg(feature = "serde")]
             pub fn from_svgo_plugin_config(value: Option<Vec<serde_json::Value>>) -> Result<Self, serde_json::Error> {
                 use serde::de::Error as _;
 

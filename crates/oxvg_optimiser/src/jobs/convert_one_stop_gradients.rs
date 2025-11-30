@@ -26,6 +26,7 @@ use oxvg_collections::{
     content_type::ContentType,
     name::{Prefix, QualName},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -35,8 +36,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Converts `linearGradient` and `radialGradient` nodes that are a solid colour
 /// to the equivalent colour.
 ///

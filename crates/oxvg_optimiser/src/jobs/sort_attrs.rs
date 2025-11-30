@@ -2,6 +2,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -11,8 +12,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
-#[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 /// The method for ordering xmlns attributes
 pub enum XMLNSOrder {
     /// Sort xmlns attributes alphabetically
@@ -29,8 +31,9 @@ pub enum XMLNSOrder {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Sorts attributes into a predictable order.
 ///
 /// This doesn't affect the size of a document but will likely improve readability
