@@ -1,5 +1,5 @@
 //! NAPI bindings for OXVG
-use napi::{Error, Status};
+use napi::{bindgen_prelude::Unknown, Error, Status};
 use oxvg_ast::{
   parse::roxmltree::parse,
   serialize::{Node as _, Options},
@@ -87,8 +87,13 @@ pub fn extend(extend: Extends, config: Option<Jobs>) -> Jobs {
 ///
 /// If you believe an errors should be fixed, please raise an issue
 /// [here](https://github.com/noahbald/oxvg/issues)
-pub fn convert_svgo_config(config: Option<Vec<serde_json::Value>>) -> Result<Jobs, Error<Status>> {
-  Jobs::from_svgo_plugin_config(config).map_err(generic_error)
+pub fn convert_svgo_config(
+  #[napi(
+    ts_arg_type = "Array<'preset-default' | {[K in keyof Jobs]: K | { name: K, params?: Jobs[K] }}[keyof Jobs]> | undefined | null"
+  )]
+  config: Option<Vec<Unknown>>,
+) -> Result<Jobs, Error<Status>> {
+  Jobs::napi_from_svgo_plugin_config(config)
 }
 
 #[allow(clippy::needless_pass_by_value)]

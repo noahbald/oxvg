@@ -17,7 +17,7 @@
  * If you believe an errors should be fixed, please raise an issue
  * [here](https://github.com/noahbald/oxvg/issues)
  */
-export declare function convertSvgoConfig(config?: Array<any> | undefined | null): Jobs
+export declare function convertSvgoConfig(config?: Array<'preset-default' | {[K in keyof Jobs]: K | { name: K, params?: Jobs[K] }}[keyof Jobs]> | undefined | null): Jobs
 
 /**
  * Returns the given config with omitted options replaced with the config provided by `extends`.
@@ -83,7 +83,7 @@ export declare function optimise(svg: string, config?: Jobs | undefined | null):
  *
  * Add an attribute with a prefix
  *
- * ```ignore
+ * ```
  * use std::collections::BTreeMap;
  * use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
  *
@@ -124,13 +124,13 @@ export interface AddAttributesToSvgElement {
  *
  * Use with a list of classes
  *
- * ```ignore
- * use oxvg_optimiser::{Jobs, AddClassesToSVG};
+ * ```
+ * use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
  *
  * let jobs = Jobs {
- *   add_classes_to_svg: Some(AddClassesToSVG {
+ *   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
  *     class_names: Some(vec![String::from("foo"), String::from("bar")]),
- *     ..AddClassesToSVG::default()
+ *     ..AddClassesToSVGElement::default()
  *   }),
  *   ..Jobs::none()
  * };
@@ -138,13 +138,13 @@ export interface AddAttributesToSvgElement {
  *
  * Use with a class string
  *
- * ```ignore
- * use oxvg_optimiser::{Jobs, AddClassesToSVG};
+ * ```
+ * use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
  *
  * let jobs = Jobs {
- *   add_classes_to_svg: Some(AddClassesToSVG {
+ *   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
  *     class_name: Some(String::from("foo bar")),
- *     ..AddClassesToSVG::default()
+ *     ..AddClassesToSVGElement::default()
  *   }),
  *   ..Jobs::none()
  * };
@@ -475,6 +475,11 @@ export interface ConvertPrecision {
 
 /**
  * Converts basic shapes to `<path>` elements
+ *
+ * # Differences to SVGO
+ *
+ * OXVG will avoid converting shapes which may be referenced by local-name
+ * in stylesheets.
  *
  * # Correctness
  *
@@ -862,7 +867,7 @@ export interface RemoveAttributesBySelector {
  *
  * Match `fill` attribute in `<path>` elements
  *
- * ```ignore
+ * ```
  * use oxvg_optimiser::{Jobs, RemoveAttrs};
  *
  * let mut remove_attrs = RemoveAttrs::default();
@@ -1344,6 +1349,11 @@ export interface RemoveUnusedNs {
 /**
  * Removes unreferenced `<defs>` elements
  *
+ * # Differences to SVGO
+ *
+ * Defs with a class attribute will be retained, as only useful ones should remain
+ * after running `inline_styles`.
+ *
  * # Correctness
  *
  * This job should never visually change the document.
@@ -1430,6 +1440,8 @@ export interface RemoveXlink {
  *
  * This job may break document when used outside of HTML.
  *
+ * This may cause issues if the XMLNS doesn't reference the SVG namespace.
+ *
  * # Errors
  *
  * Never.
@@ -1513,7 +1525,7 @@ export interface SortAttrs {
  *
  * # Correctness
  *
- * This job should never visually change the document.
+ * This job may affect the document if selectors or scripts depend on ordering.
  *
  * # Errors
  *

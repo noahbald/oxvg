@@ -75,6 +75,10 @@ test("optimise with config", async () => {
 					name: "inlineStyles",
 					params: {
 						onlyMatchedOnce: false,
+						// FIXME: Once napi allows optional object values, like `#[serde(default = "...")]`
+						removeMatchedSelectors: true,
+						useMqs: ["", "screen"],
+						usePseudos: [""],
 					},
 				},
 			]);

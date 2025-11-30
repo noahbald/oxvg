@@ -1053,7 +1053,6 @@ dependencies = [
  "parcel_selectors",
  "paste",
  "pathdiff",
- "serde",
  "smallvec",
 ]
 
@@ -1139,8 +1138,6 @@ dependencies = [
  "napi-sys",
  "nohash-hasher",
  "rustc-hash",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1326,7 +1323,6 @@ dependencies = [
  "oxvg_ast",
  "oxvg_optimiser",
  "roxmltree",
- "serde_json",
  "typed-arena",
 ]
 
