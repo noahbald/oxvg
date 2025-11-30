@@ -67,6 +67,39 @@ macro_rules! jobs {
                 Ok(count)
             }
 
+            #[cfg(feature = "napi")]
+            #[doc(hidden)]
+            pub fn napi_from_svgo_plugin_config(value: Option<Vec<napi::bindgen_prelude::Unknown>>) -> napi::Result<Self> {
+                use napi::{bindgen_prelude::{Status, Object}, ValueType};
+                let Some(plugins) = value else { return Ok(Self::default()) };
+
+                let mut oxvg_config = Self::none();
+                for plugin in plugins {
+                    match plugin.get_type()? {
+                        ValueType::String => unsafe {
+                            let svgo_name: String = plugin.cast()?;
+                            oxvg_config
+                                .from_svgo_plugin_string(&svgo_name)
+                                .map_err(|_| napi::Error::new(Status::InvalidArg, format!("unknown job `{svgo_name}`")))?;
+                        }
+                        ValueType::Object => unsafe {
+                            let plugin: Object = plugin.cast()?;
+                            let svgo_name: Option<String> = plugin.get("name")?;
+                            let Some(svgo_name) = svgo_name else {
+                                return Err(napi::Error::new(Status::InvalidArg, "expected name to be string"));
+                            };
+                            let name = Self::from_svgo_plugin_to_snake_case(&svgo_name);
+                            match name.as_str() {
+                                $(stringify!($name) => oxvg_config.$name = Some(plugin.get("params")?.unwrap_or_default()),)+
+                                _ => return Err(napi::Error::new(Status::InvalidArg, format!("unknown job `{name}`"))),
+                            }
+                        }
+                        _ => return Err(napi::Error::new(Status::InvalidArg, "unexpected type")),
+                    }
+                }
+                Ok(oxvg_config)
+            }
+
             /// Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
             ///
             /// Note that this will deduplicate any plugins listed.
@@ -88,65 +121,69 @@ macro_rules! jobs {
 
                 let Some(plugins) = value else { return Ok(Self::default()) };
 
-                let to_snake_case = |name: &str| {
-                    let mut output = String::with_capacity(name.len());
-                    for char in name.chars() {
-                        if char.is_lowercase() {
-                            output.push(char);
-                        } else {
-                            output.push('_');
-                            output.extend(char.to_lowercase());
-                        }
-                    }
-                    output
-                };
-
-                let mut oxvg_config = serde_json::Map::new();
+                let mut oxvg_config = Self::none();
                 for plugin in plugins {
-                    if let serde_json::Value::String(svgo_name) = plugin {
-                        if svgo_name == "preset-default" {
-                            macro_rules! is_default {
-                                ($_name:ident $_job:ident $_default:ident) => {
-                                    oxvg_config.insert(
-                                        String::from(stringify!($_name)),
-                                        serde_json::to_value($_job::default())?
-                                    )
-                                };
-                                ($_name:ident $_job:ident) => { () };
-                            }
-                            $(is_default!($name $job $($default)?);)+
-                            continue;
+                    match plugin {
+                        serde_json::Value::String(svgo_name) => {
+                            oxvg_config
+                                .from_svgo_plugin_string(&svgo_name)
+                                .map_err(|_| serde_json::Error::custom(format!("unknown job `{svgo_name}`")))?;
                         }
-                        let name = to_snake_case(&svgo_name);
-                        match name.as_str() {
-                            $(stringify!($name) => oxvg_config.insert(
-                                svgo_name,
-                                serde_json::to_value($job::default())?
-                            ),)+
-                            _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
-                        };
-                    } else if let serde_json::Value::Object(mut plugin) = plugin {
-                        let svgo_name = plugin.remove("name").ok_or_else(|| serde_json::Error::missing_field("name"))?;
-                        let serde_json::Value::String(svgo_name) = svgo_name else {
-                            return Err(serde_json::Error::custom("expected name to be string"));
-                        };
-                        let params = plugin.remove("params");
-                        if let Some(params) = params {
-                            oxvg_config.insert(svgo_name, params);
-                        } else {
-                            let name = to_snake_case(&svgo_name);
-                            match name.as_str() {
-                                $(stringify!($name) => oxvg_config.insert(
-                                    svgo_name,
-                                    serde_json::to_value($job::default())?
-                                ),)+
-                                _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                        serde_json::Value::Object(mut plugin) => {
+                            let svgo_name = plugin.remove("name").ok_or_else(|| serde_json::Error::missing_field("name"))?;
+                            let serde_json::Value::String(svgo_name) = svgo_name else {
+                                return Err(serde_json::Error::custom("expected name to be string"));
                             };
+                            let name = Self::from_svgo_plugin_to_snake_case(&svgo_name);
+                            let params = plugin.remove("params");
+                            if let Some(params) = params {
+                                match name.as_str() {
+                                    $(stringify!($name) => oxvg_config.$name = Some(serde_json::from_value(params)?),)+
+                                    _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                                }
+                            } else {
+                                match name.as_str() {
+                                    $(stringify!($name) => oxvg_config.$name = Some($job::default()),)+
+                                    _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                                };
+                            }
                         }
+                        _ => return Err(serde_json::Error::custom(format!("unexpected type"))),
                     }
                 }
 
-                serde_json::from_value(serde_json::Value::Object(oxvg_config))
+                Ok(oxvg_config)
+            }
+
+            fn from_svgo_plugin_string(&mut self, svgo_name: &str) -> Result<(), ()> {
+                if svgo_name == "preset-default" {
+                    macro_rules! is_default {
+                        ($_name:ident $_job:ident $_default:ident) => {
+                            self.$_name = Some($_job::default())
+                        };
+                        ($_name:ident $_job:ident) => { () };
+                    }
+                    $(is_default!($name $job $($default)?);)+
+                    return Ok(());
+                }
+                let name = Self::from_svgo_plugin_to_snake_case(&svgo_name);
+                match name.as_str() {
+                    $(stringify!($name) => self.$name = Some($job::default()),)+
+                    _ => return Err(()),
+                };
+                Ok(())
+            }
+
+            fn from_svgo_plugin_to_snake_case(name: &str) -> String {
+                let caps = name.chars().filter(|char| char.is_uppercase()).count();
+                let mut snake = String::with_capacity(name.len() + caps);
+                for char in name.chars() {
+                    if char.is_uppercase() {
+                        snake.push('_');
+                    }
+                    snake.push(char.to_ascii_lowercase());
+                }
+                snake
             }
 
             /// Overwrites `self`'s fields with the `Some` fields of `other`

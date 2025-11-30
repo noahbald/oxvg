@@ -23,7 +23,6 @@ oxvg_ast = { workspace = true, features = ["roxmltree", "serialize"] }
 napi = { workspace = true }
 napi-derive = { workspace = true }
 roxmltree = { workspace = true }
-serde_json = { workspace = true }
 typed-arena = { workspace = true }
 
 [build-dependencies]
