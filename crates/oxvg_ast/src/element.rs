@@ -60,6 +60,8 @@ pub struct ElementData<'a, 'input> {
     name: &'a ElementId<'input>,
     attrs: &'a RefCell<Vec<Attr<'input>>>,
     #[cfg(feature = "range")]
+    range: &'a Option<std::ops::Range<usize>>,
+    #[cfg(feature = "range")]
     ranges: &'a std::collections::HashMap<AttrId<'input>, crate::node::Ranges>,
 }
 
@@ -419,6 +421,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
             #[cfg(feature = "selectors")]
             selector_flags: Cell::new(None),
             #[cfg(feature = "range")]
+            range: None,
+            #[cfg(feature = "range")]
             ranges: std::collections::HashMap::new(),
         });
         self.replace_with(replacement);
@@ -500,6 +504,12 @@ impl<'input, 'arena> Element<'input, 'arena> {
     }
 
     #[cfg(feature = "range")]
+    /// Returns the source-code range for the element
+    pub fn range(&self) -> &Option<std::ops::Range<usize>> {
+        self.data().range
+    }
+
+    #[cfg(feature = "range")]
     /// Returns the source-code ranges for each of the attributes
     pub fn attribute_ranges(
         &self,
@@ -517,7 +527,10 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
     pub fn parent_element(&self) -> Option<Self> {
-        self.parent_node()
+        self.parent_node().and_then(|e| match e.node_type() {
+            node::Type::Element => Some(e),
+            _ => None,
+        })
     }
 
     /// Returns the number of child elements of this element.
@@ -731,10 +744,12 @@ impl<'input, 'arena> Element<'input, 'arena> {
         selector_flags.set(Some(flags));
     }
 
-    fn data<'a>(&'a self) -> ElementData<'a, 'input> {
+    pub fn data<'a>(&'a self) -> ElementData<'a, 'input> {
         if let NodeData::Element {
             ref name,
             ref attrs,
+            #[cfg(feature = "range")]
+            ref range,
             #[cfg(feature = "range")]
             ref ranges,
             ..
@@ -743,6 +758,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
             ElementData {
                 name,
                 attrs,
+                #[cfg(feature = "range")]
+                range,
                 #[cfg(feature = "range")]
                 ranges,
             }

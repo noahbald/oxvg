@@ -215,6 +215,8 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     let xml_node_attributes = xml_node.attributes();
     #[cfg(feature = "range")]
     let mut ranges = HashMap::new();
+    #[cfg(feature = "range")]
+    let range = xml_node.range();
     let mut attrs = Vec::with_capacity(xml_node_attributes.len() + xml_node_namespaces.len());
     attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns)));
     attrs.extend(xml_node_attributes.map(|attr| {
@@ -239,6 +241,8 @@ fn parse_element<'a, 'input: 'a, 'arena>(
         attrs: RefCell::new(attrs),
         #[cfg(feature = "selectors")]
         selector_flags: std::cell::Cell::new(None),
+        #[cfg(feature = "range")]
+        range: Some(range),
         #[cfg(feature = "range")]
         ranges,
     };

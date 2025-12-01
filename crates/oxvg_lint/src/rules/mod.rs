@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::Error;
 
 mod no_unknown_attributes;
+mod no_unknown_elements;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -34,7 +35,9 @@ pub enum Severity {
 /// The [`Severity`] provided for each rule determines the display of each attribute
 /// by the [`crate::error::Report`].
 pub struct Rules {
-    /// Disallow using attribute that do not belong to a known element's content model
+    /// Disallow using elements that do not belong to a document's content model
+    pub no_unknown_elements: Severity,
+    /// Disallow using attributes that do not belong to a known element's content model
     pub no_unknown_attributes: Severity,
 }
 
@@ -73,24 +76,41 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
+        let parent = element.parent_element();
+        let parent = parent.as_ref();
+        let parent_name = parent.map(Element::qual_name);
         let name = element.qual_name();
+        let range = element.range();
         let attributes = element.attributes();
         let attributes_slice = attributes.as_slice();
         let attribute_ranges = element.attribute_ranges();
-
-        let no_unknown_attributes = match &self.rules.no_unknown_attributes {
-            Severity::Off => None,
-            severity => no_unknown_attributes::no_unknown_attributes(
-                name,
-                &attributes_slice,
-                attribute_ranges,
-                *severity,
-            ),
-        };
-
         let mut reports = self.reports.borrow_mut();
-        if let Some(r) = no_unknown_attributes {
-            reports.par_extend(r);
+
+        match &self.rules.no_unknown_elements {
+            Severity::Off => {}
+            severity => {
+                if let Some(r) = no_unknown_elements::no_unknown_elements(
+                    parent_name,
+                    name,
+                    range.as_ref(),
+                    *severity,
+                ) {
+                    reports.push(r);
+                };
+            }
+        }
+        match &self.rules.no_unknown_attributes {
+            Severity::Off => {}
+            severity => {
+                if let Some(r) = no_unknown_attributes::no_unknown_attributes(
+                    name,
+                    &attributes_slice,
+                    attribute_ranges,
+                    *severity,
+                ) {
+                    reports.par_extend(r);
+                }
+            }
         }
 
         Ok(())

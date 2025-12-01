@@ -28,6 +28,14 @@ impl std::fmt::Write for StdoutWriter {
 }
 
 impl Rules {
+    /// Returns a set of rules with all the rules set to [`Severity::Off`]
+    pub fn off() -> Self {
+        Self {
+            no_unknown_elements: Severity::Off,
+            no_unknown_attributes: Severity::Off,
+        }
+    }
+
     /// Analyses the file and reports any problems to standard output
     ///
     /// # Errors

@@ -6,9 +6,9 @@ use std::{
     path::PathBuf,
 };
 
-use oxvg_collections::{attribute::AttrId, element::ElementId};
+use oxvg_collections::{attribute::AttrId, element::ElementId, name::QualName};
 
-use crate::Severity;
+use crate::{utils::naive_range, Severity};
 
 #[derive(Debug)]
 /// Errors that may occur while linting
@@ -40,12 +40,22 @@ pub enum Problem<'input> {
         /// The element the attribute was found on
         element: ElementId<'input>,
     },
+    /// There was an SVG element unknown for it's parent's content-model
+    UnknownElement {
+        /// The element that contains the unknown element
+        parent: ElementId<'input>,
+        /// The element that's unknown for it's parent's content-model
+        element: ElementId<'input>,
+    },
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnknownAttribute { attribute, element } => f.write_fmt(format_args!(
                 "Unknown attribute `{attribute}` for element <{element}>"
+            )),
+            Self::UnknownElement { parent, element } => f.write_fmt(format_args!(
+                "Unknown element <{element}> for parent <{parent}>"
             )),
         }
     }
@@ -71,10 +81,13 @@ impl Error<'_> {
         path: Option<&PathBuf>,
     ) -> std::fmt::Result {
         let path = path.and_then(|path| path.to_str()).unwrap_or("");
-        let Some(range) = &self.range else {
+        let Some(mut range) = self.range.clone() else {
             return f.write_fmt(format_args!(" \x1b[1;34m{path}\x1b"));
         };
         let source_bytes = source.as_bytes();
+        if range.start == range.end {
+            range = naive_range(source_bytes, range.start);
+        }
         let line_start = source_bytes[..range.start]
             .iter()
             .rposition(|char| *char == b'\n')
@@ -195,6 +208,7 @@ fn print_single_error_single_line() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to(&mut result, r#"<svg foo="bar" />"#)
         .ok();
@@ -208,6 +222,7 @@ fn print_many_error_single_line() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to(&mut result, r#"<svg foo="bar" bar="baz" />"#)
         .ok();
@@ -221,6 +236,7 @@ fn print_single_error_many_line() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to(
             &mut result,
@@ -239,6 +255,7 @@ fn print_many_error_many_line() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to(
             &mut result,
@@ -257,6 +274,7 @@ fn print_warning() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Warn,
+            ..crate::Rules::off()
         }
         .lint_to(&mut result, r#"<svg foo="bar" />"#)
         .ok();
@@ -270,6 +288,7 @@ fn print_help() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to(
             &mut result,
@@ -288,6 +307,7 @@ fn print_path() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Error,
+            ..crate::Rules::off()
         }
         .lint_to_with_path(
             &mut result,
@@ -305,6 +325,7 @@ fn empty() {
         let mut result = String::new();
         crate::Rules {
             no_unknown_attributes: Severity::Off,
+            ..crate::Rules::off()
         }
         .lint_to(&mut result, r#"<svg foo="bar" />"#)
         .unwrap();
