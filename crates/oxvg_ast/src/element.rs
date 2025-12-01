@@ -527,7 +527,10 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | parentElement](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentElement)
     pub fn parent_element(&self) -> Option<Self> {
-        self.parent_node()
+        self.parent_node().and_then(|e| match e.node_type() {
+            node::Type::Element => Some(e),
+            _ => None,
+        })
     }
 
     /// Returns the number of child elements of this element.
