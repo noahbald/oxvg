@@ -110,9 +110,14 @@ macro_rules! define_elements {
         impl<'input> ElementId<'input> {
             /// Creates a qualified name from a prefix and local part
             pub fn new(prefix: Prefix<'input>, local: Atom<'input>) -> Self {
-                match (prefix, &*local) {
+                let name = match (prefix.unaliased(), &*local) {
                     $((Prefix::SVG, $name) => Self::$element,)+
-                    (prefix, _) => Self::Unknown(QualName { prefix, local }),
+                    (_, _) => return Self::Unknown(QualName { prefix, local }),
+                };
+                if prefix.is_aliased() {
+                    Self::Aliased { prefix, element_id: Box::new(name) }
+                } else {
+                    name
                 }
             }
 
