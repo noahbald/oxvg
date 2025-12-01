@@ -8,7 +8,10 @@ use oxvg_collections::{
 };
 use rayon::prelude::*;
 
-use crate::error::{Error, Problem};
+use crate::{
+    error::{Error, Problem},
+    utils::prefix_help,
+};
 
 use super::Severity;
 
@@ -32,20 +35,7 @@ pub fn no_unknown_attributes<'a, 'input>(
         {
             None
         } else {
-            let prefix = attr.prefix();
-            let help = if let Prefix::Unknown { prefix, ns } = prefix {
-                let prefix = prefix.as_deref();
-                let ns = ns.uri();
-                if let Some(prefix) = prefix {
-                    Some(format!(
-                        r#"Unknown prefix defined by `xmlns:{prefix}="{ns}"`"#
-                    ))
-                } else {
-                    Some(format!(r#"Unknown prefix defined by `xmlns="{ns}"`"#))
-                }
-            } else {
-                None
-            };
+            let help = prefix_help(attr.prefix());
             Some(Error {
                 problem: Problem::UnknownAttribute {
                     attribute: attr_id.clone(),
