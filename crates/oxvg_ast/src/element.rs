@@ -60,6 +60,8 @@ pub struct ElementData<'a, 'input> {
     name: &'a ElementId<'input>,
     attrs: &'a RefCell<Vec<Attr<'input>>>,
     #[cfg(feature = "range")]
+    range: &'a Option<std::ops::Range<usize>>,
+    #[cfg(feature = "range")]
     ranges: &'a std::collections::HashMap<AttrId<'input>, crate::node::Ranges>,
 }
 
@@ -419,6 +421,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
             #[cfg(feature = "selectors")]
             selector_flags: Cell::new(None),
             #[cfg(feature = "range")]
+            range: None,
+            #[cfg(feature = "range")]
             ranges: std::collections::HashMap::new(),
         });
         self.replace_with(replacement);
@@ -497,6 +501,12 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | attributes](https://developer.mozilla.org/en-US/docs/Web/API/Element/attributes)
     pub fn attributes<'a>(&'a self) -> Attributes<'a, 'input> {
         Attributes(self.data().attrs)
+    }
+
+    #[cfg(feature = "range")]
+    /// Returns the source-code range for the element
+    pub fn range(&self) -> &Option<std::ops::Range<usize>> {
+        self.data().range
     }
 
     #[cfg(feature = "range")]
@@ -731,10 +741,12 @@ impl<'input, 'arena> Element<'input, 'arena> {
         selector_flags.set(Some(flags));
     }
 
-    fn data<'a>(&'a self) -> ElementData<'a, 'input> {
+    pub fn data<'a>(&'a self) -> ElementData<'a, 'input> {
         if let NodeData::Element {
             ref name,
             ref attrs,
+            #[cfg(feature = "range")]
+            ref range,
             #[cfg(feature = "range")]
             ref ranges,
             ..
@@ -743,6 +755,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
             ElementData {
                 name,
                 attrs,
+                #[cfg(feature = "range")]
+                range,
                 #[cfg(feature = "range")]
                 ranges,
             }
