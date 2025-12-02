@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
+mod no_default_attributes;
 mod no_deprecated;
 mod no_unknown_attributes;
 mod no_unknown_elements;
@@ -36,12 +37,18 @@ pub enum Severity {
 /// The [`Severity`] provided for each rule determines the display of each attribute
 /// by the [`crate::error::Report`].
 pub struct Rules {
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
     /// Disallow using elements that do not belong to a document's content model
     pub no_unknown_elements: Severity,
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
     /// Disallow using attributes that do not belong to a known element's content model
     pub no_unknown_attributes: Severity,
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
     /// Disallow using deprecated elements and attributes
     pub no_deprecated: Severity,
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
+    /// Disallow using attribute values that can be omitted
+    pub no_default_attributes: Severity,
 }
 
 struct Reporter<'o, 'input> {
@@ -127,6 +134,16 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
                 ));
             }
         }
+        match &self.rules.no_default_attributes {
+            Severity::Off => {}
+            severity => {
+                reports.par_extend(no_default_attributes::no_default_attributes(
+                    &attributes_slice,
+                    attribute_ranges,
+                    *severity,
+                ));
+            }
+        }
 
         Ok(())
     }
@@ -142,6 +159,11 @@ impl std::fmt::Display for Severity {
     }
 }
 impl Severity {
+    /// Returns off variant of self, useful for passing as a serde default
+    pub const fn off() -> Self {
+        Self::Off
+    }
+
     pub(crate) fn color_start(self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Off => Ok(()),
