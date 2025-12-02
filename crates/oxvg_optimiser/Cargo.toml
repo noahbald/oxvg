@@ -14,10 +14,12 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = []
+default = ["serde"]
 clap = ["dep:clap"]
+serde = ["dep:serde", "dep:serde_json", "dep:serde_with", "oxvg_path/serde"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_path/napi"]
 wasm = [
+  "serde",
   "dep:wasm-bindgen",
   "dep:serde-wasm-bindgen",
   "dep:tsify",
@@ -31,7 +33,7 @@ oxvg_ast = { workspace = true, features = [
   "visitor",
 ] }
 oxvg_collections = { workspace = true }
-oxvg_path = { workspace = true, features = ["serde"] }
+oxvg_path = { workspace = true }
 oxvg_serialize = { workspace = true }
 
 anyhow = { workspace = true }
@@ -42,10 +44,10 @@ dashmap = { workspace = true }
 derive_more = { workspace = true }
 derive-where = { workspace = true }
 itertools = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
-serde_with = { workspace = true }
+serde_with = { workspace = true, optional = true }
 lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }

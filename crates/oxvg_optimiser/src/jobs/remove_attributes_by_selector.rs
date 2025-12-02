@@ -2,6 +2,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -11,8 +12,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// A selector and set of attributes to remove.
 pub struct Selector {
     /// A CSS selector.
@@ -23,8 +25,9 @@ pub struct Selector {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes attributes from elements that match a selector.
 ///
 /// # Correctness

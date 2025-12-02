@@ -12,6 +12,7 @@ use oxvg_collections::{
     attribute::{core::NonWhitespace, Attr, AttrId},
     content_type::Reference,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
@@ -45,8 +46,9 @@ struct State<'o, 'input, 'arena> {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes unused ids and minifies used ids.
 ///
 /// # Differences to SVGO
@@ -69,10 +71,10 @@ struct State<'o, 'input, 'arena> {
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct CleanupIds {
-    #[serde(default = "default_remove")]
+    #[cfg_attr(feature = "serde", serde(default = "default_remove"))]
     /// Whether to remove unreferenced ids.
     pub remove: bool,
-    #[serde(default = "default_minify")]
+    #[cfg_attr(feature = "serde", serde(default = "default_minify"))]
     /// Whether to minify ids
     pub minify: bool,
     /// Skips ids that match an item in the list
@@ -81,7 +83,7 @@ pub struct CleanupIds {
     /// Skips ids that start with a string matching a prefix in the list
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub preserve_prefixes: Option<Vec<String>>,
-    #[serde(default = "bool::default")]
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     /// Whether to run despite `<script>` or `<style>`
     pub force: bool,
 }

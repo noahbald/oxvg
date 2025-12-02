@@ -3,6 +3,7 @@ use oxvg_ast::{
     get_attribute,
     visitor::{Context, Visitor},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -12,7 +13,8 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Default, Deserialize, Serialize, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Debug, Clone)]
 /// Remove elements by ID or classname
 ///
 /// # Correctness
@@ -25,10 +27,10 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveElementsByAttr {
-    #[serde(default = "Vec::new")]
+    #[cfg_attr(feature = "serde", serde(default = "Vec::new"))]
     /// Ids of elements to be removed
     pub id: Vec<String>,
-    #[serde(default = "Vec::new")]
+    #[cfg_attr(feature = "serde", serde(default = "Vec::new"))]
     /// Class-names of elements to be removed
     pub class: Vec<String>,
 }

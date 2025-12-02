@@ -5,7 +5,9 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_path::{convert, geometry::MakeArcs};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
 use serde_json::Value;
 
 #[cfg(feature = "wasm")]
@@ -15,8 +17,9 @@ use crate::{error::JobsError, utils::style_info::gather_style_info};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::struct_excessive_bools)]
 /// Converts paths found in `<path>`, `<glyph>`, and `<missing-glyph>` elements. Path
 /// commands are used within the `d` attributes of these elements.
@@ -42,46 +45,46 @@ use crate::{error::JobsError, utils::style_info::gather_style_info};
 /// Rounding errors may result in slight visual differences.
 ///
 pub struct ConvertPathData {
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to remove redundant path commands.
     pub remove_useless: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to round the radius of circular arcs when the effective change is under error bounds.
     pub smart_arc_rounding: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert straight curves to lines
     pub straight_curves: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert complex curves that look like cubic beziers (q) into them.
     pub convert_to_q: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert normal lines that move in one direction to a vertical or horizontal line command.
     pub line_shorthands: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether merge repeated commands into one.
     pub collapse_repeated: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert complex curves that look like smooth curves into them.
     pub curve_smooth_shorthands: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert lines that close a curve to a close command (z).
     pub convert_to_z: bool,
-    #[serde(default = "bool::default")]
+    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
     /// Whether to always convert relative paths to absolute, even if larger.
     pub force_absolute_path: bool,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to weakly force absolute commands, when slightly suboptimal
     pub negative_extra_space: bool,
-    #[serde(default = "MakeArcs::default")]
+    #[cfg_attr(feature = "serde", serde(default = "MakeArcs::default"))]
     /// Controls whether to convert from curves to arcs
     pub make_arcs: MakeArcs,
-    #[serde(default = "ConvertPrecision::default")]
+    #[cfg_attr(feature = "serde", serde(default = "ConvertPrecision::default"))]
     #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
     /// Number of decimal places to round to.
     ///
     /// Precisions larger than 20 will be treated as 0.
     pub float_precision: ConvertPrecision,
-    #[serde(default = "flag_default_true")]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert from relative to absolute, when shorter.
     pub utilize_absolute: bool,
 }
@@ -188,11 +191,13 @@ const fn flag_default_true() -> bool {
 }
 
 #[derive(Debug)]
+#[cfg(feature = "serde")]
 enum DeserializePrecisionError {
     OutOfRange,
     InvalidType,
 }
 
+#[cfg(feature = "serde")]
 impl std::fmt::Display for DeserializePrecisionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -202,8 +207,10 @@ impl std::fmt::Display for DeserializePrecisionError {
     }
 }
 
+#[cfg(feature = "serde")]
 impl serde::de::StdError for DeserializePrecisionError {}
 
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for ConvertPrecision {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -230,6 +237,7 @@ impl<'de> Deserialize<'de> for ConvertPrecision {
     }
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for ConvertPrecision {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

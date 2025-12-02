@@ -10,6 +10,7 @@ use oxvg_collections::{
     attribute::{core::Style, Attr},
     element::ElementId,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -19,8 +20,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// How the type will be converted.
 pub enum Method {
     #[default]
@@ -40,8 +42,9 @@ pub enum Method {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Converts color references to their shortest equivalent.
 ///
 /// Colors are minified using lightningcss' [minification](https://lightningcss.dev/minification.html#minify-colors).

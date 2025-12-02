@@ -18,6 +18,7 @@ use oxvg_collections::{
 };
 use oxvg_path::Path;
 use parcel_selectors::parser::Component;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug)]
@@ -34,8 +35,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// For duplicate `<path>` elements, replaces it with a `<use>` that references a single
 /// `<path>` definition.
 ///

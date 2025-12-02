@@ -7,6 +7,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{AttrId, AttributeInfo};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -77,8 +78,9 @@ impl<'input> AttrStylesheet<'input> {
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes deprecated attributes from elements.
 ///
 /// # Correctnesss
@@ -94,7 +96,7 @@ impl<'input> AttrStylesheet<'input> {
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDeprecatedAttrs {
-    #[serde(default = "default_remove_unsafe")]
+    #[cfg_attr(feature = "serde", serde(default = "default_remove_unsafe"))]
     /// Whether to remove deprecated presentation attributes
     pub remove_unsafe: bool,
 }

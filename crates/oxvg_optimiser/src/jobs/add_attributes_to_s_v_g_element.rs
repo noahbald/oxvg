@@ -6,6 +6,7 @@ use oxvg_ast::{
     visitor::{Context, Visitor},
 };
 use oxvg_collections::attribute::Attr;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -15,8 +16,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Deserialize, Serialize, Default, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Adds attributes to SVG elements in the document. This is not an optimisation
 /// and will increase the size of SVG documents.
 ///

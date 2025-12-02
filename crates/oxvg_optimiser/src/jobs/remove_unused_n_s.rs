@@ -10,6 +10,7 @@ use oxvg_collections::{
     attribute::{Attr, AttrId},
     name::{Prefix, QualName},
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
@@ -19,8 +20,9 @@ use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes `xmlns` prefixed elements that are never referenced by a qualified name.
 ///
 /// # Correctness

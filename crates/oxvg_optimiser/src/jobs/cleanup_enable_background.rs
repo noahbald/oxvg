@@ -22,6 +22,7 @@ use oxvg_collections::{
     content_type::ContentType,
     element::ElementId,
 };
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
@@ -31,8 +32,9 @@ use tsify::Tsify;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", serde(transparent))]
 /// Cleans up `enable-background` attributes and styles. It will only remove it if
 /// - The document has no `<filter>` element; and
 /// - The value matches the document's width and height; or
