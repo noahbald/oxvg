@@ -982,7 +982,7 @@ define_elements! {
             AttrId::FilterUnits,
             AttrId::PrimitiveUnits,
         ],
-        info: ElementInfo::NonRendering.union(ElementInfo::Legacy),
+        info: ElementInfo::NonRendering,
     },
     Font {
         name: "font",
