@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
+mod no_deprecated;
 mod no_unknown_attributes;
 mod no_unknown_elements;
 
@@ -39,6 +40,8 @@ pub struct Rules {
     pub no_unknown_elements: Severity,
     /// Disallow using attributes that do not belong to a known element's content model
     pub no_unknown_attributes: Severity,
+    /// Disallow using deprecated elements and attributes
+    pub no_deprecated: Severity,
 }
 
 struct Reporter<'o, 'input> {
@@ -110,6 +113,18 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
                 ) {
                     reports.par_extend(r);
                 }
+            }
+        }
+        match &self.rules.no_deprecated {
+            Severity::Off => {}
+            severity => {
+                reports.par_extend(no_deprecated::no_deprecated(
+                    name,
+                    &attributes_slice,
+                    range.as_ref(),
+                    attribute_ranges,
+                    *severity,
+                ));
             }
         }
 

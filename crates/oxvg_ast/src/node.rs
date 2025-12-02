@@ -90,6 +90,7 @@ pub enum NodeData<'input> {
         /// Flags used for caching whether an element matches a selector
         selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
         #[cfg(feature = "range")]
+        /// The source-code range for the element
         range: Option<std::ops::Range<usize>>,
         #[cfg(feature = "range")]
         /// The source-code ranges for each attribute
