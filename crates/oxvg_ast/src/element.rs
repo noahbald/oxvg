@@ -744,6 +744,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         selector_flags.set(Some(flags));
     }
 
+    /// Returns the data points associated with the element
     pub fn data<'a>(&'a self) -> ElementData<'a, 'input> {
         if let NodeData::Element {
             ref name,

@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use oxvg_collections::{attribute::AttrId, element::ElementId, name::QualName};
+use oxvg_collections::{attribute::AttrId, element::ElementId};
 
 use crate::{utils::naive_range, Severity};
 
@@ -47,6 +47,8 @@ pub enum Problem<'input> {
         /// The element that's unknown for it's parent's content-model
         element: ElementId<'input>,
     },
+    /// There was an attribute or element that's marked as deprecated and may be removed in the future
+    Deprecated(DeprecatedProblem<'input>),
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,6 +59,29 @@ impl Display for Problem<'_> {
             Self::UnknownElement { parent, element } => f.write_fmt(format_args!(
                 "Unknown element <{element}> for parent <{parent}>"
             )),
+            Self::Deprecated(problem) => problem.fmt(f),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Either an element or an attribute is deprecated
+pub enum DeprecatedProblem<'input> {
+    /// The specified element is deprecated
+    DeprecatedElement(ElementId<'input>),
+    /// The specified attribute is deprecated
+    DeprecatedAttribute(AttrId<'input>),
+}
+impl Display for DeprecatedProblem<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let support = "will be removed in SVG 2 and may not be supported by modern clients.";
+        match self {
+            Self::DeprecatedElement(element) => {
+                f.write_fmt(format_args!("Deprecated element <{element}> {support}"))
+            }
+            Self::DeprecatedAttribute(attribute) => {
+                f.write_fmt(format_args!("Deprecated attribute `{attribute}` {support}"))
+            }
         }
     }
 }

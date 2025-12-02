@@ -33,6 +33,7 @@ impl Rules {
         Self {
             no_unknown_elements: Severity::Off,
             no_unknown_attributes: Severity::Off,
+            no_deprecated: Severity::Off,
         }
     }
 
