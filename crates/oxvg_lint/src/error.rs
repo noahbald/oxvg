@@ -49,6 +49,8 @@ pub enum Problem<'input> {
     },
     /// There was an attribute or element that's marked as deprecated and may be removed in the future
     Deprecated(DeprecatedProblem<'input>),
+    /// There was an attribute with a value that matches its default
+    DefaultAttribute(AttrId<'input>),
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,6 +62,7 @@ impl Display for Problem<'_> {
                 "Unknown element <{element}> for parent <{parent}>"
             )),
             Self::Deprecated(problem) => problem.fmt(f),
+            Self::DefaultAttribute(attribute) => f.write_fmt(format_args!("The attribute `{attribute}` has a value that matches its default and can be safely omitted"))
         }
     }
 }

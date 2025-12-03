@@ -34,6 +34,17 @@ impl Rules {
             no_unknown_elements: Severity::Off,
             no_unknown_attributes: Severity::Off,
             no_deprecated: Severity::Off,
+            no_default_attributes: Severity::Off,
+        }
+    }
+
+    /// Returns a balanced set of rules
+    pub fn recommended() -> Self {
+        Self {
+            no_unknown_elements: Severity::Error,
+            no_unknown_attributes: Severity::Error,
+            no_deprecated: Severity::Error,
+            no_default_attributes: Severity::Warn,
         }
     }
 
