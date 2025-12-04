@@ -35,6 +35,7 @@ impl Rules {
             no_unknown_attributes: Severity::Off,
             no_deprecated: Severity::Off,
             no_default_attributes: Severity::Off,
+            no_x_link: Severity::Off,
         }
     }
 
@@ -45,6 +46,7 @@ impl Rules {
             no_unknown_attributes: Severity::Error,
             no_deprecated: Severity::Error,
             no_default_attributes: Severity::Warn,
+            no_x_link: Severity::Warn,
         }
     }
 

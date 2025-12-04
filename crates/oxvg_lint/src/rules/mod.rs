@@ -14,6 +14,7 @@ mod no_default_attributes;
 mod no_deprecated;
 mod no_unknown_attributes;
 mod no_unknown_elements;
+mod no_xlink;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -49,6 +50,9 @@ pub struct Rules {
     #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
     /// Disallow using attribute values that can be omitted
     pub no_default_attributes: Severity,
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
+    /// Disallow using xlink attributes
+    pub no_x_link: Severity,
 }
 
 struct Reporter<'o, 'input> {
@@ -143,6 +147,14 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
                     *severity,
                 ));
             }
+        }
+        match &self.rules.no_x_link {
+            Severity::Off => {}
+            severity => reports.par_extend(no_xlink::no_xlink(
+                &attributes_slice,
+                attribute_ranges,
+                *severity,
+            )),
         }
 
         Ok(())

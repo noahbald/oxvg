@@ -30,7 +30,7 @@ pub struct Check {
 }
 impl RunCommand for Check {
     async fn run(self, config: Config) -> anyhow::Result<()> {
-        self.walk(&config.lint.unwrap_or_default())
+        self.walk(&config.lint.unwrap_or_else(Rules::recommended))
     }
 }
 impl Check {
@@ -64,7 +64,8 @@ pub struct Serve {
 }
 impl RunCommand for Serve {
     async fn run(self, config: Config) -> anyhow::Result<()> {
-        Ok(lsp::serve(config.lint.unwrap_or_default()).await)
+        lsp::serve(config.lint.unwrap_or_else(Rules::recommended)).await;
+        Ok(())
     }
 }
 
