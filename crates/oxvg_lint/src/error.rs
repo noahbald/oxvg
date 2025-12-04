@@ -40,17 +40,19 @@ pub enum Problem<'input> {
         /// The element the attribute was found on
         element: ElementId<'input>,
     },
-    /// There was an SVG element unknown for it's parent's content-model
+    /// There was an SVG element unknown for its parent's content-model
     UnknownElement {
         /// The element that contains the unknown element
         parent: ElementId<'input>,
-        /// The element that's unknown for it's parent's content-model
+        /// The element that's unknown for its parent's content-model
         element: ElementId<'input>,
     },
     /// There was an attribute or element that's marked as deprecated and may be removed in the future
     Deprecated(DeprecatedProblem<'input>),
     /// There was an attribute with a value that matches its default
     DefaultAttribute(AttrId<'input>),
+    /// There was an `xlink`-prefixed attribute used in the document.
+    NoXLink(NoXLinkProblem<'input>),
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -62,7 +64,8 @@ impl Display for Problem<'_> {
                 "Unknown element <{element}> for parent <{parent}>"
             )),
             Self::Deprecated(problem) => problem.fmt(f),
-            Self::DefaultAttribute(attribute) => f.write_fmt(format_args!("The attribute `{attribute}` has a value that matches its default and can be safely omitted"))
+            Self::DefaultAttribute(attribute) => f.write_fmt(format_args!("The attribute `{attribute}` has a value that matches its default and can be safely omitted")),
+            Self::NoXLink(problem) => problem.fmt(f)
         }
     }
 }
@@ -85,6 +88,44 @@ impl Display for DeprecatedProblem<'_> {
             Self::DeprecatedAttribute(attribute) => {
                 f.write_fmt(format_args!("Deprecated attribute `{attribute}` {support}"))
             }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+/// Different variants of an `xlink` being used
+pub enum NoXLinkProblem<'input> {
+    /// `xlink:show="replace"` was used.
+    XLinkShowReplace,
+    /// `xlink:show="new"` was used.
+    XLinkShowNew,
+    /// `xlink:title` was used.
+    XLinkTitle,
+    /// `xlink:href` was used.
+    XLinkHref,
+    /// An `xlink`-prefixed attribute was used.
+    XLinkUnsupported(AttrId<'input>),
+}
+static XLINK_SHOW_PRELUDE: &str =
+    "The attribute `xlink:show` is deprecated and may be replaced with";
+impl Display for NoXLinkProblem<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::XLinkShowReplace => {
+                f.write_fmt(format_args!(r#"{XLINK_SHOW_PRELUDE} `target="_new"`."#))
+            }
+            Self::XLinkShowNew => {
+                f.write_fmt(format_args!(r#"{XLINK_SHOW_PRELUDE} `target="_blank"`."#))
+            }
+            Self::XLinkTitle => f.write_str(
+                "The attribute `xlink:title` is deprecated and may be replaced with `<title>`.",
+            ),
+            Self::XLinkHref => f.write_str(
+                "The attribute `xlink:href` is deprecated and may be replaced with `href`.",
+            ),
+            Self::XLinkUnsupported(attr) => f.write_fmt(format_args!(
+                "The attribute `{attr}` is deprecated and may not be supported by clients."
+            )),
         }
     }
 }
