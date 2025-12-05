@@ -1,36 +1,31 @@
-use std::collections::HashMap;
-
-use oxvg_ast::node::Ranges;
-use oxvg_collections::{
-    attribute::{Attr, AttrId, AttributeInfo},
-    element::{ElementId, ElementInfo},
-};
+use oxvg_collections::{attribute::AttributeInfo, element::ElementInfo};
 use rayon::prelude::*;
 
 use crate::error::{DeprecatedProblem, Error, Problem};
 
-use super::Severity;
+use super::{RuleData, Severity};
 
-pub fn no_deprecated<'a, 'input>(
-    element: &'a ElementId<'input>,
-    attributes: &'a [Attr<'input>],
-    range: Option<&'a std::ops::Range<usize>>,
-    attribute_ranges: &'a HashMap<AttrId<'input>, Ranges>,
+pub fn no_deprecated<'input>(
+    RuleData {
+        reports,
+        element,
+        attributes,
+        range,
+        attribute_ranges,
+        ..
+    }: &mut RuleData<'_, 'input>,
     severity: Severity,
-) -> impl ParallelIterator<Item = Error<'input>> + use<'a, 'input> {
-    let once = if element.info().intersects(ElementInfo::Legacy) {
-        rayon::iter::once(Some(Error {
+) {
+    if element.info().intersects(ElementInfo::Legacy) {
+        reports.push(Error {
             problem: Problem::Deprecated(DeprecatedProblem::DeprecatedElement(element.clone())),
             severity,
-            range: range.map(|range| range.start..range.start),
+            range: range.as_ref().map(|range| range.start..range.start),
             help: None,
-        }))
-    } else {
-        rayon::iter::once(None)
-    }
-    .filter_map(|e| e);
+        })
+    };
 
-    once.chain(attributes.par_iter().filter_map(move |attr| {
+    reports.par_extend(attributes.par_iter().filter_map(move |attr| {
         let attr_id = attr.name();
         if !attr_id
             .info()
@@ -58,6 +53,7 @@ mod test {
     use super::no_deprecated;
     use crate::{
         error::{DeprecatedProblem, Problem},
+        rules::RuleData,
         Severity,
     };
     use oxvg_ast::node::Ranges;
@@ -66,50 +62,43 @@ mod test {
         attribute::{uncategorised::ViewBox, xml::XmlSpace, Attr, AttrId},
         element::ElementId,
     };
-    use rayon::iter::ParallelIterator as _;
-    use std::collections::HashMap;
 
-    static OK_ELEMENT: ElementId = ElementId::Svg;
-    static LEGACY_ELEMENT: ElementId = ElementId::TRef;
-    static OK_ATTRIBUTE: Attr = Attr::ViewBox(ViewBox {
+    const OK_ELEMENT: ElementId = ElementId::Svg;
+    const LEGACY_ELEMENT: ElementId = ElementId::TRef;
+    const OK_ATTRIBUTE: Attr = Attr::ViewBox(ViewBox {
         min_x: 0.0,
         min_y: 0.0,
         width: 0.0,
         height: 0.0,
     });
-    static DEPRECATED_SAFE_ATTRIBUTE: Attr = Attr::Version(Atom::Static("1.1"));
-    static DEPRECATED_UNSAFE_ATTRIBUTE: Attr = Attr::XmlSpace(XmlSpace::Default);
-    static DEPRECATED_SAFE_ATTR_ID: AttrId = AttrId::Version;
-    static DEPRECATED_UNSAFE_ATTR_ID: AttrId = AttrId::XmlSpace;
+    const DEPRECATED_SAFE_ATTRIBUTE: Attr = Attr::Version(Atom::Static("1.1"));
+    const DEPRECATED_UNSAFE_ATTRIBUTE: Attr = Attr::XmlSpace(XmlSpace::Default);
+    const DEPRECATED_SAFE_ATTR_ID: AttrId = AttrId::Version;
+    const DEPRECATED_UNSAFE_ATTR_ID: AttrId = AttrId::XmlSpace;
 
     #[test]
     fn report_deprecated_ok() {
-        let ranges = HashMap::new();
-        let report: Vec<_> = no_deprecated(
-            &OK_ELEMENT,
-            &[OK_ATTRIBUTE.clone()],
-            None,
-            &ranges,
-            Severity::Error,
-        )
-        .collect();
-        assert!(report.is_empty());
+        let mut test_data = RuleData::test_data();
+        test_data.element = OK_ELEMENT;
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[OK_ATTRIBUTE]);
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_deprecated(&mut test_data, Severity::Error);
+        assert!(test_data.reports.is_empty());
     }
     #[test]
     fn report_deprecated_element() {
-        let ranges = HashMap::new();
-        let report: Vec<_> = no_deprecated(
-            &LEGACY_ELEMENT,
-            &[],
-            Some(&(0..1)),
-            &ranges,
-            Severity::Error,
-        )
-        .collect();
+        let mut test_data = RuleData::test_data();
+        test_data.element = LEGACY_ELEMENT;
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_deprecated(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,
-            Problem::Deprecated(DeprecatedProblem::DeprecatedElement(LEGACY_ELEMENT.clone()))
+            Problem::Deprecated(DeprecatedProblem::DeprecatedElement(LEGACY_ELEMENT))
         );
         assert_eq!(report[0].severity, Severity::Error);
         assert_eq!(report[0].range, Some(0..0));
@@ -117,27 +106,28 @@ mod test {
     }
     #[test]
     fn report_deprecated_attribute_safe() {
-        let ranges = HashMap::from([(
-            DEPRECATED_SAFE_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data.element = OK_ELEMENT;
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[DEPRECATED_SAFE_ATTRIBUTE]);
+        test_data.attribute_ranges.insert(
+            DEPRECATED_SAFE_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> = no_deprecated(
-            &OK_ELEMENT,
-            &[DEPRECATED_SAFE_ATTRIBUTE.clone()],
-            None,
-            &ranges,
-            Severity::Error,
-        )
-        .collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_deprecated(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,
             Problem::Deprecated(DeprecatedProblem::DeprecatedAttribute(
-                DEPRECATED_SAFE_ATTR_ID.clone()
+                DEPRECATED_SAFE_ATTR_ID
             ))
         );
         assert_eq!(report[0].severity, Severity::Error);
@@ -149,22 +139,23 @@ mod test {
     }
     #[test]
     fn report_deprecated_attribute_unsafe() {
-        let ranges = HashMap::from([(
-            DEPRECATED_UNSAFE_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data.element = OK_ELEMENT;
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[DEPRECATED_UNSAFE_ATTRIBUTE]);
+        test_data.attribute_ranges.insert(
+            DEPRECATED_UNSAFE_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> = no_deprecated(
-            &OK_ELEMENT,
-            &[DEPRECATED_UNSAFE_ATTRIBUTE.clone()],
-            None,
-            &ranges,
-            Severity::Error,
-        )
-        .collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_deprecated(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,

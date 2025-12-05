@@ -53,6 +53,7 @@ pub enum Problem<'input> {
     DefaultAttribute(AttrId<'input>),
     /// There was an `xlink`-prefixed attribute used in the document.
     NoXLink(NoXLinkProblem<'input>),
+    /// There was an `id` value that isn't used anywhere else in the document
     UnreferencedId(Atom<'input>),
 }
 impl Display for Problem<'_> {

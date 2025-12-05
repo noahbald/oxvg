@@ -1,22 +1,23 @@
-use std::collections::HashMap;
-
-use oxvg_ast::node::Ranges;
 use oxvg_collections::{
-    attribute::{xlink::XLinkShow, Attr, AttrId},
+    attribute::{xlink::XLinkShow, Attr},
     is_prefix,
 };
 use rayon::prelude::*;
 
 use crate::error::{Error, NoXLinkProblem, Problem};
 
-use super::Severity;
+use super::{RuleData, Severity};
 
 pub fn no_xlink<'a, 'input>(
-    attributes: &'a [Attr<'input>],
-    attribute_ranges: &'a HashMap<AttrId<'input>, Ranges>,
+    RuleData {
+        reports,
+        attributes,
+        attribute_ranges,
+        ..
+    }: &mut RuleData<'_, 'input>,
     severity: Severity,
-) -> impl ParallelIterator<Item = Error<'input>> + use<'a, 'input> {
-    attributes.par_iter().filter_map(move |attr| {
+) {
+    reports.par_extend(attributes.par_iter().filter_map(move |attr| {
         let attr_id = attr.name();
         let problem = match attr.unaliased() {
             Attr::XLinkShow(XLinkShow::Replace) => {
@@ -41,7 +42,7 @@ pub fn no_xlink<'a, 'input>(
                 .map(|range| range.range.clone()),
             help: None,
         })
-    })
+    }));
 }
 
 #[cfg(test)]
@@ -49,6 +50,7 @@ mod test {
     use super::no_xlink;
     use crate::{
         error::{NoXLinkProblem, Problem},
+        rules::RuleData,
         Severity,
     };
     use oxvg_ast::node::Ranges;
@@ -57,44 +59,52 @@ mod test {
         attribute::{Attr, AttrId},
         name::{Prefix, QualName},
     };
-    use rayon::iter::ParallelIterator as _;
-    use std::collections::HashMap;
 
-    static SVG_ATTR: Attr = Attr::Href(Atom::Static("#"));
-    static XLINK_ATTR: Attr = Attr::XLinkHref(Atom::Static("#"));
-    static UNKNOWN_XLINK_ATTR: Attr = Attr::Unparsed {
+    const SVG_ATTR: Attr = Attr::Href(Atom::Static("#"));
+    const XLINK_ATTR: Attr = Attr::XLinkHref(Atom::Static("#"));
+    const UNKNOWN_XLINK_ATTR: Attr = Attr::Unparsed {
         attr_id: AttrId::Unknown(QualName {
             prefix: Prefix::XLink,
             local: Atom::Static("foo"),
         }),
         value: Atom::Static("bar"),
     };
-    static XLINK_ATTR_ID: AttrId = AttrId::XLinkHref;
-    static UNKNOWN_XLINK_ATTR_ID: AttrId = AttrId::Unknown(QualName {
+    const XLINK_ATTR_ID: AttrId = AttrId::XLinkHref;
+    const UNKNOWN_XLINK_ATTR_ID: AttrId = AttrId::Unknown(QualName {
         prefix: Prefix::XLink,
         local: Atom::Static("foo"),
     });
 
     #[test]
     fn report_no_xlink_ok() {
-        let attrs = [SVG_ATTR.clone()];
-        let ranges = HashMap::new();
-        let report: Vec<_> = no_xlink(&attrs, &ranges, Severity::Error).collect();
-        assert_eq!(report.len(), 0);
+        let test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[SVG_ATTR]);
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_xlink(&mut test_data, Severity::Error);
+        assert!(test_data.reports.is_empty());
     }
 
     #[test]
     fn report_no_xlink_known() {
-        let attrs = [XLINK_ATTR.clone()];
-        let ranges = HashMap::from([(
-            XLINK_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[XLINK_ATTR]);
+        test_data.attribute_ranges.insert(
+            XLINK_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> = no_xlink(&attrs, &ranges, Severity::Error).collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_xlink(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,
@@ -107,16 +117,22 @@ mod test {
 
     #[test]
     fn report_no_xlink_unknown() {
-        let attrs = [UNKNOWN_XLINK_ATTR.clone()];
-        let ranges = HashMap::from([(
-            UNKNOWN_XLINK_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[UNKNOWN_XLINK_ATTR]);
+        test_data.attribute_ranges.insert(
+            UNKNOWN_XLINK_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> = no_xlink(&attrs, &ranges, Severity::Error).collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_xlink(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,

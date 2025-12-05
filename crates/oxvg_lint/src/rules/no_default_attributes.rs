@@ -1,19 +1,19 @@
-use std::collections::HashMap;
-
-use oxvg_ast::node::Ranges;
-use oxvg_collections::attribute::{Attr, AttrId};
 use rayon::prelude::*;
 
 use crate::error::{Error, Problem};
 
-use super::Severity;
+use super::{RuleData, Severity};
 
 pub fn no_default_attributes<'a, 'input>(
-    attributes: &'a [Attr<'input>],
-    attribute_ranges: &'a HashMap<AttrId<'input>, Ranges>,
+    RuleData {
+        reports,
+        attributes,
+        attribute_ranges,
+        ..
+    }: &mut RuleData<'_, 'input>,
     severity: Severity,
-) -> impl ParallelIterator<Item = Error<'input>> + use<'a, 'input> {
-    attributes.par_iter().filter_map(move |attr| {
+) {
+    reports.par_extend(attributes.par_iter().filter_map(move |attr| {
         let name = attr.name().clone();
         if Some(attr) == name.default().as_ref() {
             Some(Error {
@@ -25,48 +25,50 @@ pub fn no_default_attributes<'a, 'input>(
         } else {
             None
         }
-    })
+    }))
 }
 
 #[cfg(test)]
 mod test {
     use super::no_default_attributes;
-    use crate::{error::Problem, Severity};
+    use crate::{error::Problem, rules::RuleData, Severity};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::attribute::{uncategorised::Target, Attr, AttrId};
-    use rayon::iter::ParallelIterator as _;
-    use std::collections::HashMap;
 
-    static ATTR_NOT_DEFAULT: Attr = Attr::Target(Target::_Blank);
-    static ATTR_DEFAULT: Attr = Attr::Target(Target::_Self);
-    static ATTR_ID: AttrId = AttrId::Target;
+    const ATTR_NOT_DEFAULT: Attr = Attr::Target(Target::_Blank);
+    const ATTR_DEFAULT: Attr = Attr::Target(Target::_Self);
+    const ATTR_ID: AttrId = AttrId::Target;
 
     #[test]
     fn report_no_default_attributes_ok() {
-        let report: Vec<_> = no_default_attributes(
-            &[ATTR_NOT_DEFAULT.clone()],
-            &HashMap::new(),
-            Severity::Error,
-        )
-        .collect();
-        assert!(report.is_empty());
+        let test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[ATTR_NOT_DEFAULT]);
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_default_attributes(&mut test_data, Severity::Error);
+        assert!(test_data.reports.is_empty());
     }
 
     #[test]
     fn report_no_default_attributes_error() {
-        let report: Vec<_> = no_default_attributes(
-            &[ATTR_DEFAULT.clone()],
-            &HashMap::from([(
-                ATTR_ID.clone(),
-                Ranges {
-                    range: 0..1,
-                    name: 1..2,
-                    value: 2..3,
-                },
-            )]),
-            Severity::Error,
-        )
-        .collect();
+        let mut test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[ATTR_DEFAULT]);
+        test_data.attribute_ranges.insert(
+            ATTR_ID,
+            Ranges {
+                range: 0..1,
+                name: 1..2,
+                value: 2..3,
+            },
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_default_attributes(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,

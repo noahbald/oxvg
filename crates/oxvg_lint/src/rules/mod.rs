@@ -1,7 +1,8 @@
 use std::{
-    cell::RefCell,
+    cell::{self, RefCell},
     collections::{HashMap, HashSet},
     fmt::Write,
+    ops::Range,
 };
 
 use lightningcss::visitor::Visit as _;
@@ -13,8 +14,8 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{Attr, AttrId},
+    element::ElementId,
 };
-use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -76,6 +77,15 @@ struct Reporter<'o, 'input> {
     referenced_ids: RefCell<HashSet<String>>,
 }
 
+pub(crate) struct RuleData<'e, 'input> {
+    reports: cell::RefMut<'e, Vec<Error<'input>>>,
+    parent: Option<ElementId<'input>>,
+    element: &'e ElementId<'input>,
+    attributes: cell::Ref<'e, [Attr<'input>]>,
+    range: &'e Option<Range<usize>>,
+    attribute_ranges: &'e HashMap<AttrId<'input>, Ranges>,
+}
+
 impl<'input, 'arena> Visitor<'input, 'arena> for Rules {
     type Error = Vec<Error<'input>>;
 
@@ -114,80 +124,37 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let parent = element.parent_element();
-        let parent = parent.as_ref();
-        let parent_name = parent.map(Element::qual_name);
-        let name = element.qual_name();
-        let range = element.range();
-        let attributes = element.attributes();
-        let attributes_slice = attributes.as_slice();
-        let attribute_ranges = element.attribute_ranges();
-        let mut reports = self.reports.borrow_mut();
+        let mut rule_data = RuleData::new(element, self.reports.borrow_mut());
 
         match &self.rules.no_unknown_elements {
             Severity::Off => {}
-            severity => {
-                if let Some(r) = no_unknown_elements::no_unknown_elements(
-                    parent_name,
-                    name,
-                    range.as_ref(),
-                    *severity,
-                ) {
-                    reports.push(r);
-                };
-            }
+            severity => no_unknown_elements::no_unknown_elements(&mut rule_data, *severity),
         }
         match &self.rules.no_unknown_attributes {
             Severity::Off => {}
-            severity => {
-                if let Some(r) = no_unknown_attributes::no_unknown_attributes(
-                    name,
-                    &attributes_slice,
-                    attribute_ranges,
-                    *severity,
-                ) {
-                    reports.par_extend(r);
-                }
-            }
+            severity => no_unknown_attributes::no_unknown_attributes(&mut rule_data, *severity),
         }
         match &self.rules.no_deprecated {
             Severity::Off => {}
-            severity => {
-                reports.par_extend(no_deprecated::no_deprecated(
-                    name,
-                    &attributes_slice,
-                    range.as_ref(),
-                    attribute_ranges,
-                    *severity,
-                ));
-            }
+            severity => no_deprecated::no_deprecated(&mut rule_data, *severity),
         }
         match &self.rules.no_default_attributes {
             Severity::Off => {}
-            severity => {
-                reports.par_extend(no_default_attributes::no_default_attributes(
-                    &attributes_slice,
-                    attribute_ranges,
-                    *severity,
-                ));
-            }
+            severity => no_default_attributes::no_default_attributes(&mut rule_data, *severity),
         }
         match &self.rules.no_x_link {
             Severity::Off => {}
-            severity => reports.par_extend(no_xlink::no_xlink(
-                &attributes_slice,
-                attribute_ranges,
-                *severity,
-            )),
+            severity => no_xlink::no_xlink(&mut rule_data, *severity),
         }
 
-        drop(attributes_slice);
+        drop(rule_data.attributes);
         let mut referenced_ids = self.referenced_ids.borrow_mut();
-        for mut attribute in attributes.into_iter_mut() {
+        for mut attribute in element.attributes().into_iter_mut() {
             if let Attr::Id(id) = attribute.unaliased() {
-                self.ids
-                    .borrow_mut()
-                    .insert(id.0.clone(), attribute_ranges.get(&AttrId::Id).cloned());
+                self.ids.borrow_mut().insert(
+                    id.0.clone(),
+                    rule_data.attribute_ranges.get(&AttrId::Id).cloned(),
+                );
                 continue;
             }
             attribute.value_mut().visit_id(|id| {
@@ -221,11 +188,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
 
         match self.rules.no_unused_ids {
             Severity::Off => {}
-            severity => reports.par_extend(no_unused_ids::no_unused_ids(
-                &ids,
-                &referenced_ids,
-                severity,
-            )),
+            severity => no_unused_ids::no_unused_ids(&mut reports, &ids, &referenced_ids, severity),
         }
         Ok(())
     }
@@ -271,5 +234,57 @@ impl Severity {
     }
     pub(crate) fn color_reset(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("\x1b[0m")
+    }
+}
+
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+struct TestData<'input> {
+    reports: RefCell<Vec<Error<'input>>>,
+    parent: Option<ElementId<'input>>,
+    element: ElementId<'input>,
+    attributes: RefCell<Vec<Attr<'input>>>,
+    range: Option<Range<usize>>,
+    attribute_ranges: HashMap<AttrId<'input>, Ranges>,
+}
+impl<'e, 'input> RuleData<'e, 'input> {
+    fn new(
+        element: &'e Element<'input, '_>,
+        reports: cell::RefMut<'e, Vec<Error<'input>>>,
+    ) -> Self {
+        Self {
+            reports,
+            parent: element
+                .parent_element()
+                .as_ref()
+                .map(Element::qual_name)
+                .cloned(),
+            element: element.qual_name(),
+            attributes: element.attributes().as_slice(),
+            range: element.range(),
+            attribute_ranges: element.attribute_ranges(),
+        }
+    }
+    #[cfg(test)]
+    fn test_data() -> TestData<'input> {
+        TestData {
+            reports: RefCell::new(vec![]),
+            parent: Some(ElementId::Svg),
+            element: ElementId::Svg,
+            attributes: RefCell::new(vec![]),
+            range: Some(0..1),
+            attribute_ranges: HashMap::new(),
+        }
+    }
+    #[cfg(test)]
+    fn from_test_data(test_data: &'e TestData<'input>) -> Self {
+        Self {
+            reports: test_data.reports.borrow_mut(),
+            parent: test_data.parent.clone(),
+            element: &test_data.element,
+            attributes: cell::Ref::map(test_data.attributes.borrow(), |a| a.as_slice()),
+            range: &test_data.range,
+            attribute_ranges: &test_data.attribute_ranges,
+        }
     }
 }
