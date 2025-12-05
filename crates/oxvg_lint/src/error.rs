@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use oxvg_collections::{attribute::AttrId, element::ElementId};
+use oxvg_collections::{atom::Atom, attribute::AttrId, element::ElementId};
 
 use crate::{utils::naive_range, Severity};
 
@@ -53,6 +53,7 @@ pub enum Problem<'input> {
     DefaultAttribute(AttrId<'input>),
     /// There was an `xlink`-prefixed attribute used in the document.
     NoXLink(NoXLinkProblem<'input>),
+    UnreferencedId(Atom<'input>),
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -65,7 +66,8 @@ impl Display for Problem<'_> {
             )),
             Self::Deprecated(problem) => problem.fmt(f),
             Self::DefaultAttribute(attribute) => f.write_fmt(format_args!("The attribute `{attribute}` has a value that matches its default and can be safely omitted")),
-            Self::NoXLink(problem) => problem.fmt(f)
+            Self::NoXLink(problem) => problem.fmt(f),
+            Self::UnreferencedId(id) => f.write_fmt(format_args!(r#"The id `"{id}"` is not referenced anywhere else in the document"#)),
         }
     }
 }

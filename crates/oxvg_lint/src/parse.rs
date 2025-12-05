@@ -36,6 +36,7 @@ impl Rules {
             no_deprecated: Severity::Off,
             no_default_attributes: Severity::Off,
             no_x_link: Severity::Off,
+            no_unused_ids: Severity::Off,
         }
     }
 
@@ -47,6 +48,7 @@ impl Rules {
             no_deprecated: Severity::Error,
             no_default_attributes: Severity::Warn,
             no_x_link: Severity::Warn,
+            no_unused_ids: Severity::Warn,
         }
     }
 

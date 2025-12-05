@@ -1306,6 +1306,7 @@ dependencies = [
  "bytecount",
  "clap",
  "insta",
+ "lightningcss",
  "lsp-types",
  "oxvg_ast",
  "oxvg_collections",
