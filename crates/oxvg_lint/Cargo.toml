@@ -23,6 +23,7 @@ oxvg_collections = { workspace = true }
 bytecount = { workspace = true }
 clap = { workspace = true, optional = true }
 lsp-types = { workspace = true, optional = true }
+lightningcss = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true, optional = true }
 
