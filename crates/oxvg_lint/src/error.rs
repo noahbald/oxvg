@@ -55,6 +55,8 @@ pub enum Problem<'input> {
     NoXLink(NoXLinkProblem<'input>),
     /// There was an `id` value that isn't used anywhere else in the document
     UnreferencedId(Atom<'input>),
+    /// There was an `xmlns` attribute that isn't used by any of its descendants
+    UnreferencedXMLNS(Option<Atom<'input>>, Atom<'input>),
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -69,6 +71,11 @@ impl Display for Problem<'_> {
             Self::DefaultAttribute(attribute) => f.write_fmt(format_args!("The attribute `{attribute}` has a value that matches its default and can be safely omitted")),
             Self::NoXLink(problem) => problem.fmt(f),
             Self::UnreferencedId(id) => f.write_fmt(format_args!(r#"The id `"{id}"` is not referenced anywhere else in the document"#)),
+            Self::UnreferencedXMLNS(prefix, uri) => f.write_fmt(format_args!(
+                r#"The namespace `xmlns{}{}="{uri}" is not referenced by any descendants`"#,
+                if prefix.is_some() {":"} else {""},
+                prefix.as_deref().unwrap_or("")
+            )),
         }
     }
 }
