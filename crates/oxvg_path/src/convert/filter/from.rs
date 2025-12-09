@@ -59,7 +59,7 @@ fn make_specific_longhand(next: &mut Option<Position>, id: &command::ID, data: &
     };
     if &next.command.id() != id {
         return;
-    };
+    }
     next.command.make_longhand(data);
 }
 

@@ -7,14 +7,14 @@ use lightningcss::{
     stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
 };
 
-pub(crate) fn style<'i>(style: &mut DeclarationBlock<'i>) {
+pub(crate) fn style(style: &mut DeclarationBlock) {
     let mut stub = StyleAttribute::parse("", ParserOptions::default()).unwrap();
     std::mem::swap(style, &mut stub.declarations);
     stub.minify(MinifyOptions::default());
     std::mem::swap(style, &mut stub.declarations);
 }
 
-pub(crate) fn style_list<'i>(style: &mut CssRuleList<'i>) -> Result<(), Error<MinifyErrorKind>> {
+pub(crate) fn style_list(style: &mut CssRuleList) -> Result<(), Error<MinifyErrorKind>> {
     let mut stub = StyleSheet::parse("", ParserOptions::default()).unwrap();
     std::mem::swap(style, &mut stub.rules);
     stub.minify(MinifyOptions::default())?;

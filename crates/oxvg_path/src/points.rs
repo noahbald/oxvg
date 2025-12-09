@@ -130,18 +130,24 @@ impl Points {
                                     add_point(
                                         &mut sub_path,
                                         [
-                                            (base_point[0] + data[0]) / 2.0,
-                                            (base_point[1] + data[1]) / 2.0,
+                                            f64::midpoint(base_point[0], data[0]),
+                                            f64::midpoint(base_point[1], data[1]),
                                         ],
                                     );
                                 }
                                 add_point(
                                     &mut sub_path,
-                                    [(data[0] + data[2]) / 2.0, (data[1] + data[3]) / 2.0],
+                                    [
+                                        f64::midpoint(data[0], data[2]),
+                                        f64::midpoint(data[1], data[3]),
+                                    ],
                                 );
                                 add_point(
                                     &mut sub_path,
-                                    [(data[2] + data[4]) / 2.0, (data[3] + data[5]) / 2.0],
+                                    [
+                                        f64::midpoint(data[2], data[4]),
+                                        f64::midpoint(data[3], data[5]),
+                                    ],
                                 );
                                 prev_ctrl_point = [data[4] - data[2], data[5] - data[3]];
                                 add_point(&mut sub_path, [data[4], data[5]]);
@@ -203,15 +209,19 @@ impl Points {
                                         add_point(
                                             &mut sub_path,
                                             [
-                                                prev_base_point[0] + (c_data[0] + c_data[2]) / 2.0,
-                                                prev_base_point[1] + (c_data[1] + c_data[3]) / 2.0,
+                                                prev_base_point[0]
+                                                    + f64::midpoint(c_data[0], c_data[2]),
+                                                prev_base_point[1]
+                                                    + f64::midpoint(c_data[1], c_data[3]),
                                             ],
                                         );
                                         add_point(
                                             &mut sub_path,
                                             [
-                                                prev_base_point[0] + (c_data[2] + c_data[4]) / 2.0,
-                                                prev_base_point[1] + (c_data[3] + c_data[5]) / 2.0,
+                                                prev_base_point[0]
+                                                    + f64::midpoint(c_data[2], c_data[4]),
+                                                prev_base_point[1]
+                                                    + f64::midpoint(c_data[3], c_data[5]),
                                             ],
                                         );
                                         if i < end - 1 {
