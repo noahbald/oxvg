@@ -9,11 +9,12 @@ use crate::error::{Error, Problem};
 use super::Severity;
 
 pub fn no_unused_ids<'a, 'input>(
+    reports: &mut Vec<Error<'input>>,
     ids: &'a HashMap<Atom<'input>, Option<Ranges>>,
     referenced_ids: &'a HashSet<String>,
     severity: Severity,
-) -> impl ParallelIterator<Item = Error<'input>> + use<'a, 'input> {
-    ids.par_iter().filter_map(move |(id, ranges)| {
+) {
+    reports.par_extend(ids.par_iter().filter_map(move |(id, ranges)| {
         if referenced_ids.contains(id.as_str()) {
             None
         } else {
@@ -24,7 +25,7 @@ pub fn no_unused_ids<'a, 'input>(
                 help: None,
             })
         }
-    })
+    }));
 }
 
 #[cfg(test)]
@@ -33,7 +34,6 @@ mod test {
     use crate::{error::Problem, Severity};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::atom::Atom;
-    use rayon::iter::ParallelIterator as _;
     use std::collections::{HashMap, HashSet};
 
     #[test]
@@ -47,7 +47,8 @@ mod test {
             }),
         )]);
         let referenced_ids = HashSet::from([String::from("foo")]);
-        let report: Vec<_> = no_unused_ids(&ids, &referenced_ids, Severity::Error).collect();
+        let mut report = vec![];
+        no_unused_ids(&mut report, &ids, &referenced_ids, Severity::Error);
         assert!(report.is_empty());
     }
 
@@ -62,7 +63,8 @@ mod test {
             }),
         )]);
         let referenced_ids = HashSet::from([]);
-        let report: Vec<_> = no_unused_ids(&ids, &referenced_ids, Severity::Error).collect();
+        let mut report = vec![];
+        no_unused_ids(&mut report, &ids, &referenced_ids, Severity::Error);
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,

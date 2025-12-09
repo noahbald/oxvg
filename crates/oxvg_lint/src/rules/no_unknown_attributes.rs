@@ -1,11 +1,4 @@
-use std::collections::HashMap;
-
-use oxvg_ast::node::Ranges;
-use oxvg_collections::{
-    attribute::{Attr, AttrId},
-    element::ElementId,
-    name::Prefix,
-};
+use oxvg_collections::{element::ElementId, name::Prefix};
 use rayon::prelude::*;
 
 use crate::{
@@ -13,21 +6,25 @@ use crate::{
     utils::prefix_help,
 };
 
-use super::Severity;
+use super::{RuleData, Severity};
 
-pub fn no_unknown_attributes<'a, 'input>(
-    element: &'a ElementId<'input>,
-    attributes: &'a [Attr<'input>],
-    attribute_ranges: &'a HashMap<AttrId<'input>, Ranges>,
+pub fn no_unknown_attributes<'input>(
+    RuleData {
+        reports,
+        element,
+        attributes,
+        attribute_ranges,
+        ..
+    }: &mut RuleData<'_, 'input>,
     severity: Severity,
-) -> Option<impl ParallelIterator<Item = Error<'input>> + use<'a, 'input>> {
+) {
     if matches!(element, ElementId::Unknown(_)) {
-        return None;
+        return;
     }
 
     let expected_attributes = element.expected_attributes();
     let expected_attribute_groups = element.expected_attribute_groups();
-    Some(attributes.par_iter().filter_map(move |attr| {
+    reports.par_extend(attributes.par_iter().filter_map(move |attr| {
         let attr_id = attr.name();
         if expected_attributes.contains(attr_id)
             || expected_attribute_groups.intersects(attr_id.attribute_group())
@@ -54,7 +51,7 @@ pub fn no_unknown_attributes<'a, 'input>(
 #[cfg(test)]
 mod test {
     use super::no_unknown_attributes;
-    use crate::{error::Problem, Severity};
+    use crate::{error::Problem, rules::RuleData, Severity};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{
         atom::Atom,
@@ -62,33 +59,31 @@ mod test {
         element::ElementId,
         name::{Prefix, QualName, NS},
     };
-    use rayon::iter::ParallelIterator as _;
-    use std::collections::HashMap;
 
-    static UNKNOWN_ELEMENT: ElementId<'static> = ElementId::Unknown(QualName {
+    const UNKNOWN_ELEMENT: ElementId<'static> = ElementId::Unknown(QualName {
         prefix: Prefix::SVG,
         local: Atom::Static("foo"),
     });
-    static KNOWN_ELEMENT: ElementId<'static> = ElementId::Svg;
-    static UNKNOWN_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
+    const KNOWN_ELEMENT: ElementId<'static> = ElementId::Svg;
+    const UNKNOWN_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
         prefix: Prefix::SVG,
         local: Atom::Static("foo"),
     });
-    static UNKNOWN_ATTR: Attr<'static> = Attr::Unparsed {
+    const UNKNOWN_ATTR: Attr<'static> = Attr::Unparsed {
         attr_id: AttrId::Unknown(QualName {
             prefix: Prefix::SVG,
             local: Atom::Static("foo"),
         }),
         value: Atom::Static("bar"),
     };
-    static UNKNOWN_PREFIXED_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
+    const UNKNOWN_PREFIXED_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
         prefix: Prefix::Unknown {
             prefix: Some(Atom::Static("xml")),
             ns: NS::Unknown(Atom::Static("https://unknown.org")),
         },
         local: Atom::Static("foo"),
     });
-    static UNKNOWN_PREFIXED_ATTR: Attr<'static> = Attr::Unparsed {
+    const UNKNOWN_PREFIXED_ATTR: Attr<'static> = Attr::Unparsed {
         attr_id: AttrId::Unknown(QualName {
             prefix: Prefix::Unknown {
                 prefix: Some(Atom::Static("xml")),
@@ -98,46 +93,53 @@ mod test {
         }),
         value: Atom::Static("bar"),
     };
-    static KNOWN_ATTR: Attr<'static> = Attr::Version(Atom::Static("1.1"));
+    const KNOWN_ATTR: Attr<'static> = Attr::Version(Atom::Static("1.1"));
 
     #[test]
     fn report_unknown_attribute_ok() {
-        let attrs = [KNOWN_ATTR.clone()];
-        let ranges = HashMap::new();
-        let report: Vec<_> =
-            no_unknown_attributes(&KNOWN_ELEMENT, &attrs, &ranges, Severity::Error)
-                .unwrap()
-                .collect();
-        assert_eq!(report.len(), 0);
+        let test_data = RuleData::test_data();
+        test_data.attributes.borrow_mut().push(KNOWN_ATTR);
+        let mut test_data = RuleData::from_test_data(&test_data);
+
+        no_unknown_attributes(&mut test_data, Severity::Error);
+        assert!(test_data.reports.is_empty());
     }
     #[test]
     fn report_unknown_attribute_unknown_element() {
-        let attrs = [KNOWN_ATTR.clone(), UNKNOWN_ATTR.clone()];
-        let ranges = HashMap::new();
-        let report = no_unknown_attributes(&UNKNOWN_ELEMENT, &attrs, &ranges, Severity::Error);
-        assert!(report.is_none());
+        let mut test_data = RuleData::test_data();
+        test_data.element = UNKNOWN_ELEMENT;
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_ATTR]);
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_unknown_attributes(&mut test_data, Severity::Error);
+        assert!(test_data.reports.is_empty());
     }
     #[test]
     fn report_unknown_attribute() {
-        let attrs = [KNOWN_ATTR.clone(), UNKNOWN_ATTR.clone()];
-        let ranges = HashMap::from([(
-            UNKNOWN_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_ATTR]);
+        test_data.attribute_ranges.insert(
+            UNKNOWN_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> =
-            no_unknown_attributes(&KNOWN_ELEMENT, &attrs, &ranges, Severity::Error)
-                .unwrap()
-                .collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_unknown_attributes(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,
             Problem::UnknownAttribute {
-                attribute: UNKNOWN_ATTR_ID.clone(),
-                element: KNOWN_ELEMENT.clone()
+                attribute: UNKNOWN_ATTR_ID,
+                element: KNOWN_ELEMENT
             }
         );
         assert_eq!(report[0].severity, Severity::Error);
@@ -146,25 +148,28 @@ mod test {
     }
     #[test]
     fn report_unknown_attribute_prefixed() {
-        let attrs = [KNOWN_ATTR.clone(), UNKNOWN_PREFIXED_ATTR.clone()];
-        let ranges = HashMap::from([(
-            UNKNOWN_PREFIXED_ATTR_ID.clone(),
+        let mut test_data = RuleData::test_data();
+        test_data
+            .attributes
+            .borrow_mut()
+            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_PREFIXED_ATTR]);
+        test_data.attribute_ranges.insert(
+            UNKNOWN_PREFIXED_ATTR_ID,
             Ranges {
                 range: 0..1,
                 name: 1..2,
                 value: 2..3,
             },
-        )]);
-        let report: Vec<_> =
-            no_unknown_attributes(&KNOWN_ELEMENT, &attrs, &ranges, Severity::Error)
-                .unwrap()
-                .collect();
+        );
+        let mut test_data = RuleData::from_test_data(&test_data);
+        no_unknown_attributes(&mut test_data, Severity::Error);
+        let report = test_data.reports;
         assert_eq!(report.len(), 1);
         assert_eq!(
             report[0].problem,
             Problem::UnknownAttribute {
-                attribute: UNKNOWN_PREFIXED_ATTR_ID.clone(),
-                element: KNOWN_ELEMENT.clone()
+                attribute: UNKNOWN_PREFIXED_ATTR_ID,
+                element: KNOWN_ELEMENT
             }
         );
         assert_eq!(report[0].severity, Severity::Error);
