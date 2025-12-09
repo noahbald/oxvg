@@ -328,8 +328,7 @@ impl Severity {
     }
 }
 
-#[cfg(debug_assertions)]
-#[allow(dead_code)]
+#[cfg(test)]
 struct TestData<'input> {
     reports: RefCell<Vec<Error<'input>>>,
     parent: Option<ElementId<'input>>,
