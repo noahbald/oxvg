@@ -11,6 +11,6 @@ expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<
         <pattern xlink:href="url(#a)" id="b"/>
     </defs>
     <g>
-        <path d="..."/>
+        <path d=""/>
     </g>
 </svg>

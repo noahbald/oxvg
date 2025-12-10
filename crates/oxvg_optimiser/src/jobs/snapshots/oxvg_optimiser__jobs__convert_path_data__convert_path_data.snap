@@ -18,5 +18,5 @@ expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmln
     <path d="M-10-50"/>
     <path d="M-10-50"/>
     <path d="M-10-50"/>
-    <path d="..."/>
+    <path d=""/>
 </svg>

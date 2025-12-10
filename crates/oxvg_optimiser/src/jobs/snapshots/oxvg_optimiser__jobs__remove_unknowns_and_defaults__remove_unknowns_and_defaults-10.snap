@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\
     <!-- retain matching non-inheritable attributes -->
     <g transform="translate(792)">
         <g transform="translate(792)">
-            <path d="M118.8 186.9l79.2"/>
+            <path d="M118.8 186.9"/>
         </g>
     </g>
 </svg>

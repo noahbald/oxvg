@@ -4,6 +4,6 @@ expression: "test_config(r#\"{ \"removeUselessDefs\": true }\"#,\nSome(r#\"<svg>
 ---
 <svg>
     <defs>
-        <path d="..." id="a"/>
+        <path d="" id="a"/>
     </defs>
 </svg>

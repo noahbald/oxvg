@@ -5,6 +5,6 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should remove useless group -->
     <g filter="url(#...)">
-        <path d="..."/>
+        <path d=""/>
     </g>
 </svg>
