@@ -57,6 +57,11 @@ pub enum Problem<'input> {
     UnreferencedId(Atom<'input>),
     /// There was an `xmlns` attribute that isn't used by any of its descendants
     UnreferencedXMLNS(Option<Atom<'input>>, Atom<'input>),
+    /// There was an attribute with an invalid value
+    InvalidAttribute {
+        /// The invalid attribute
+        attribute: AttrId<'input>,
+    },
 }
 impl Display for Problem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -76,6 +81,7 @@ impl Display for Problem<'_> {
                 if prefix.is_some() {":"} else {""},
                 prefix.as_deref().unwrap_or("")
             )),
+            Self::InvalidAttribute { attribute } => f.write_fmt(format_args!("The attribute `{attribute}` has an invalid value for it's content-type"))
         }
     }
 }

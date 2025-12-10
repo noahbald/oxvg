@@ -38,6 +38,7 @@ impl Rules {
             no_x_link: Severity::Off,
             no_unused_ids: Severity::Off,
             no_unused_xmlns: Severity::Off,
+            no_invalid_attributes: Severity::Off,
         }
     }
 
@@ -51,6 +52,7 @@ impl Rules {
             no_x_link: Severity::Warn,
             no_unused_ids: Severity::Warn,
             no_unused_xmlns: Severity::Warn,
+            no_invalid_attributes: Severity::Error,
         }
     }
 
