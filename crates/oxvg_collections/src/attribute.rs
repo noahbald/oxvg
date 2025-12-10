@@ -31,16 +31,16 @@ use lightningcss::{
     },
     vendor_prefix::VendorPrefix,
 };
-use list_of::{Comma, ListOf, Semicolon, Separators, Space, SpaceOrComma};
+use list_of::{ListOf, Semicolon, Separators, Space, SpaceOrComma};
 use path::{Path, Points};
 use presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
     ColorRendering, Cursor, Direction, Display, DominantBaseline, EnableBackground, FillRule,
     FilterList, Font, FontFamily, FontSize, FontSizeAdjust, FontStretch, FontStyle, FontVariant,
-    FontWeight, GlyphOrientationVertical, ImageRendering, Kerning, LengthOrNumber,
-    LengthPercentage, Marker, Mask, Overflow, PaintOrder, PointerEvents, Position, ShapeRendering,
-    Spacing, StrokeDasharray, StrokeLinecap, StrokeLinejoin, TextAnchor, TextDecoration,
-    TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
+    FontWeight, GlyphOrientationHorizontal, GlyphOrientationVertical, ImageRendering, Kerning,
+    LengthOrNumber, LengthPercentage, Marker, Mask, Overflow, PaintOrder, PointerEvents, Position,
+    ShapeRendering, Spacing, StrokeDasharray, StrokeLinecap, StrokeLinejoin, TextAnchor,
+    TextDecoration, TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
 };
 use smallvec::SmallVec;
 use transfer_function::TransferFunctionType;
@@ -787,7 +787,8 @@ define_attrs! {
         info: AttributeInfo::DeprecatedUnsafe,
         default: Atom::Static("none"),
     },
-    Bbox(ListOf<Number, Comma>) {
+    Bbox(ListOf<Number, SpaceOrComma>) {
+        // NOTE: The spec says comma-separated, but the w3c tests include space-separated
         name: "bbox",
         info: AttributeInfo::DeprecatedUnsafe,
     },
@@ -1723,9 +1724,9 @@ define_attrs! {
         name: "spreadMethod",
         default: SpreadMethod::Pad,
     },
-    StartOffset(LengthOrNumber) {
+    StartOffset(LengthPercentage) {
         name: "startOffset",
-        default: LengthOrNumber::Number(0.0),
+        default: LengthPercentage::px(0.0),
     },
     StdDeviationFeDropShadow(NumberOptionalNumber) {
         name: "stdDeviation",
@@ -2345,12 +2346,12 @@ define_attrs! {
         // NOTE: SVGO uses `all` but this is different to the spec
         default: Inheritable::Defined(FontWeight::Absolute(AbsoluteFontWeight::Normal)),
     },
-    GlyphOrientationHorizontal(Inheritable<Angle>) {
+    GlyphOrientationHorizontal(Inheritable<GlyphOrientationHorizontal>) {
         name: "glyph-orientation-horizontal",
         categories: AttributeGroup::Presentation,
         info: AttributeInfo::DeprecatedUnsafe
             .union(AttributeInfo::Inheritable),
-        default: Inheritable::Defined(Angle::Deg(0.0)),
+        default: Inheritable::Defined(GlyphOrientationHorizontal(Angle::Deg(0.0))),
     },
     GlyphOrientationVertical(Inheritable<GlyphOrientationVertical>) {
         name: "glyph-orientation-vertical",

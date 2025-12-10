@@ -25,9 +25,9 @@ use super::attribute::presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
     ColorRendering, Cursor, Direction, Display, DominantBaseline, EnableBackground, FillRule,
     FilterList, Font, FontFamily, FontSize, FontSizeAdjust, FontStretch, FontStyle, FontVariant,
-    FontWeight, GlyphOrientationVertical, ImageRendering, Kerning, LengthOrNumber,
-    LengthPercentage, Marker, Mask, MaskType, Overflow, PaintOrder, PointerEvents, Position,
-    ShapeRendering, Spacing, StrokeDasharray, StrokeLinecap, StrokeLinejoin, TextAnchor,
+    FontWeight, GlyphOrientationHorizontal, GlyphOrientationVertical, ImageRendering, Kerning,
+    LengthOrNumber, LengthPercentage, Marker, Mask, MaskType, Overflow, PaintOrder, PointerEvents,
+    Position, ShapeRendering, Spacing, StrokeDasharray, StrokeLinecap, StrokeLinejoin, TextAnchor,
     TextDecoration, TextRendering, UnicodeBidi, VectorEffect, Visibility, WritingMode,
 };
 use super::attribute::transfer_function::TransferFunctionType;
@@ -158,6 +158,7 @@ macro_rules! define_content_types {
         }
 
         /// An identifier for an attribute's content type
+        #[derive(Debug)]
         pub enum ContentTypeId {
             $(
                 #[doc=concat!("a `", stringify!($name), "` value")]
@@ -710,6 +711,7 @@ define_content_types! {
     FontStyle(FontStyle),
     FontVariant(FontVariant),
     FontWeight(FontWeight),
+    GlyphOrientationHorizontal(GlyphOrientationHorizontal),
     GlyphOrientationVertical(GlyphOrientationVertical),
     ImageRendering(ImageRendering),
     Kerning(Kerning),
