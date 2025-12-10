@@ -6,24 +6,27 @@ use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
+type InvalidRemainingContent<'input> = Option<&'input str>;
+
 #[derive(Clone, Debug, PartialEq)]
 /// A set of path commands
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/paths.html#PathData)
 /// [w3 | SVG 2](https://svgwg.org/svg2-draft/paths.html#DProperty)
-pub struct Path(pub oxvg_path::Path);
-impl<'input> Parse<'input> for Path {
-    // TODO: implement ToCss compatible method
+pub struct Path<'input>(pub oxvg_path::Path, pub InvalidRemainingContent<'input>);
+impl<'input> Parse<'input> for Path<'input> {
     /// Parse a value from a string
     ///
     /// # Errors
     /// If parsing fails
     fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
-        oxvg_path::Path::parse(input).map(Self)
+        let mut result = oxvg_path::Path(vec![]);
+        let error = result.parse_extend(input, false).err();
+        Ok(Self(result, error.map(|e| e.remaining_content)))
     }
 }
 #[cfg(feature = "serialize")]
-impl ToValue for Path {
+impl ToValue for Path<'_> {
     fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,
@@ -49,16 +52,16 @@ impl ToValue for Path {
 ///
 /// [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/shapes.html#PointsBNF)
 /// [SVG 2](https://svgwg.org/svg2-draft/shapes.html#PolylineElementPointsAttribute)
-pub struct Points(pub oxvg_path::Path);
+pub struct Points<'input>(pub oxvg_path::Path, pub InvalidRemainingContent<'input>);
 #[cfg(feature = "parse")]
-impl<'input> Parse<'input> for Points {
+impl<'input> Parse<'input> for Points<'input> {
     fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut result = oxvg_path::Path(vec![]);
-        result.parse_extend(input, true)?;
-        Ok(Self(result))
+        let error = result.parse_extend(input, true).err();
+        Ok(Self(result, error.map(|e| e.remaining_content)))
     }
 }
-impl Deref for Path {
+impl Deref for Path<'_> {
     type Target = oxvg_path::Path;
 
     fn deref(&self) -> &Self::Target {
@@ -66,7 +69,7 @@ impl Deref for Path {
     }
 }
 #[cfg(feature = "serialize")]
-impl ToValue for Points {
+impl ToValue for Points<'_> {
     fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
     where
         W: std::fmt::Write,

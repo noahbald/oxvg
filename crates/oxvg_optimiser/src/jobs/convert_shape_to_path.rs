@@ -240,7 +240,7 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        set_attribute!(element, D(path::Path(path)));
+        set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::XGeometry);
         element.remove_attribute(&AttrId::YGeometry);
         element.remove_attribute(&AttrId::WidthRect);
@@ -284,7 +284,7 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        set_attribute!(element, D(path::Path(path)));
+        set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::X1Line);
         element.remove_attribute(&AttrId::Y1Line);
         element.remove_attribute(&AttrId::X2Line);
@@ -304,13 +304,18 @@ impl ConvertShapeToPath {
             return;
         };
         let mut data = points.0 .0;
+        if data.len() <= 1 {
+            // Remove pointless data ;)
+            element.remove();
+            return;
+        }
         if is_polygon {
             data.push(Data::ClosePath);
         }
         let mut path = Path(data);
         options.round_path(&mut path, options.error());
 
-        set_attribute!(element, D(path::Path(path)));
+        set_attribute!(element, D(path::Path(path, None)));
         let _ = element.set_local_name(ElementId::Path, &info.allocator);
     }
 
@@ -347,7 +352,7 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        set_attribute!(element, D(path::Path(path)));
+        set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);
         element.remove_attribute(&AttrId::CYGeometry);
         element.remove_attribute(&AttrId::RGeometry);
@@ -393,7 +398,7 @@ impl ConvertShapeToPath {
         ]);
         options.round_path(&mut path, options.error());
 
-        set_attribute!(element, D(path::Path(path)));
+        set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);
         element.remove_attribute(&AttrId::CYGeometry);
         element.remove_attribute(&AttrId::RX);

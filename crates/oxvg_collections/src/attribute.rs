@@ -848,7 +848,7 @@ define_attrs! {
         name: "cy",
         default: LengthPercentage::px(50.0),
     },
-    D(Path) {
+    D(Path<'input>) {
         name: "d",
     },
     Descent(Number) {
@@ -1543,7 +1543,7 @@ define_attrs! {
             separator: Space,
         },
     },
-    Path(Path) {
+    Path(Path<'input>) {
         name: "path",
     },
     PathLength(Number) {
@@ -1572,7 +1572,7 @@ define_attrs! {
         name: "playbackorder",
         default: Playbackorder::All,
     },
-    Points(Points) {
+    Points(Points<'input>) {
         name: "points",
     },
     PointsAtX(Number) {
