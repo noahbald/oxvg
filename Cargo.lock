@@ -1310,6 +1310,7 @@ dependencies = [
  "lsp-types",
  "oxvg_ast",
  "oxvg_collections",
+ "oxvg_path",
  "rayon",
  "serde",
 ]

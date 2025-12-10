@@ -24,6 +24,7 @@ use crate::error::Error;
 
 mod no_default_attributes;
 mod no_deprecated;
+mod no_invalid_attributes;
 mod no_unknown_attributes;
 mod no_unknown_elements;
 mod no_unused_ids;
@@ -73,6 +74,9 @@ pub struct Rules {
     #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
     /// Disallow using xmlns attributes that are not referenced by the document
     pub no_unused_xmlns: Severity,
+    #[cfg_attr(feature = "serde", serde(default = "Severity::off"))]
+    /// Disallow using attributes that do not fit the expected content-type
+    pub no_invalid_attributes: Severity,
 }
 
 type NamespaceStack<'input> = Vec<HashSet<(Option<Atom<'input>>, Atom<'input>, bool)>>;
@@ -153,6 +157,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
         match &self.rules.no_x_link {
             Severity::Off => {}
             severity => no_xlink::no_xlink(&mut rule_data, *severity),
+        }
+        match &self.rules.no_invalid_attributes {
+            Severity::Off => {}
+            severity => no_invalid_attributes::no_invalid_attributes(&mut rule_data, *severity),
         }
 
         drop(rule_data.attributes);

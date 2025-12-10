@@ -52,7 +52,20 @@ impl<'input> Parse<'input> for ClockValue {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         // NOTE: Technically clock-value isn't allowed sign (+/-), but we allow it here for easier parsing
         // where clock-value *is* used *and* allows signs
-        let timecount = f32::parse(input)?;
+        // This does mean that invalid clock-values may be allowed.
+        input.skip_whitespace();
+        let sign = input
+            .try_parse(|input| {
+                let char = input.read().map_err(|_| ())?;
+                input.skip_whitespace();
+                match char {
+                    '+' => Ok(1.0),
+                    '-' => Ok(-1.0),
+                    _ => Err(()),
+                }
+            })
+            .unwrap_or(1.0);
+        let timecount = f32::parse(input)? * sign;
         Ok(input
             .try_parse(|input| {
                 Ok(Self::TimecountValue {

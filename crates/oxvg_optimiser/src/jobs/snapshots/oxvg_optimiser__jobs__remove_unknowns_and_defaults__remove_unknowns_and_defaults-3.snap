@@ -5,6 +5,6 @@ expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r##
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- default values are preserved when inheritable -->
     <g fill="red">
-        <path fill="#000" d="M118.8 186.9l79.2"/>
+        <path fill="#000" d="M118.8 186.9"/>
     </g>
 </svg>

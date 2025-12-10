@@ -228,7 +228,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
 impl<'input, 'arena> State<'input, 'arena> {
     fn add_path(&self, element: &Element<'input, 'arena>) {
-        let Some(path::Path(path)) = get_attribute!(element, D).as_deref().cloned() else {
+        let Some(path::Path(path, _)) = get_attribute!(element, D).as_deref().cloned() else {
             return;
         };
         let fill = get_attribute!(element, Fill).as_deref().cloned();

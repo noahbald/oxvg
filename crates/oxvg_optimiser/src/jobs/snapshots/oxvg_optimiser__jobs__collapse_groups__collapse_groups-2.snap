@@ -4,14 +4,14 @@ expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xml
 ---
 <svg xmlns="http://www.w3.org/2000/svg">
     <!-- Should pass all inheritable attributes to children -->
-    <path d="..." attr1="val1"/>
-    <path d="..." attr2="val2" attr1="val1"/>
+    <path d="" attr1="val1"/>
+    <path d="" attr2="val2" attr1="val1"/>
     <g attr1="val1">
-        <path d="..."/>
-        <path d="..."/>
+        <path d=""/>
+        <path d=""/>
     </g>
     <g attr1="val1">
-        <path d="..." attr2="val2"/>
-        <path d="..."/>
+        <path d="" attr2="val2"/>
+        <path d=""/>
     </g>
 </svg>

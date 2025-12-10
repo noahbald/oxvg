@@ -10,10 +10,10 @@ expression: "test_config(r#\"{ \"cleanupIds\": {} }\"#,\nSome(r##\"<svg xmlns=\"
             <stop offset="95%" stop-color="#ff6"/>
         </linearGradient>
         <text id="b">referenced text</text>
-        <path id="c" d="..."/>
-        <path id="d" d="..."/>
-        <path id="e" d="..."/>
-        <path d="..."/>
+        <path id="c" d=""/>
+        <path id="d" d=""/>
+        <path id="e" d=""/>
+        <path d=""/>
     </defs>
     <g>
         <circle fill="url(#a)" cx="60" cy="60" r="50"/>

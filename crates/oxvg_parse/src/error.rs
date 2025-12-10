@@ -13,6 +13,18 @@ pub enum PathError {
     InvalidNumber(std::num::ParseFloatError),
 }
 
+/// Parsing error with type and
+///
+/// Consumers can use mutated list and discard remaining content
+/// [Path data error handling](https://svgwg.org/svg2-draft/paths.html#PathDataErrorHandling)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError<'input> {
+    /// The type of error from parsing
+    pub error: Error<'input>,
+    /// The remaining content that wasn't parsed
+    pub remaining_content: &'input str,
+}
+
 /// Parse errors that can be encountered by parsing
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error<'input> {

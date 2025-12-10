@@ -9,7 +9,7 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<
     </mask>
     <g transform="rotate(45)scale(2)" fill="red">
         <g>
-            <path d="..."/>
+            <path d=""/>
         </g>
         <circle/>
     </g>

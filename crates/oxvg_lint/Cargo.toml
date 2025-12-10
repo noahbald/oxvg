@@ -28,4 +28,6 @@ rayon = { workspace = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
+oxvg_path = { workspace = true }
+
 insta = { workspace = true }

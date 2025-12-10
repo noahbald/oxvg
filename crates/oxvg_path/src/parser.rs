@@ -11,7 +11,7 @@ impl<'input> Parse<'input> for Path {
         input: &mut oxvg_parse::Parser<'input>,
     ) -> Result<Self, oxvg_parse::error::Error<'input>> {
         let mut result = Path(vec![]);
-        result.parse_extend(input, false)?;
+        result.parse_extend(input, false).map_err(|err| err.error)?;
         Ok(result)
     }
 }
@@ -25,7 +25,7 @@ impl<'input> Path {
         &mut self,
         input: &mut oxvg_parse::Parser<'input>,
         allow_implicit_start: bool,
-    ) -> Result<(), oxvg_parse::error::Error<'input>> {
+    ) -> Result<(), oxvg_parse::error::ParseError<'input>> {
         let list = &mut self.0;
 
         while !input.is_empty() {
@@ -34,28 +34,43 @@ impl<'input> Path {
                 input.skip_char(',');
                 input.skip_whitespace();
             }
-            let mut command_id = input.try_parse(command::ID::parse).or_else(|_| {
-                if let Some(last) = list.last() {
-                    Ok(command::ID::Implicit(Box::new(last.id().next_implicit())))
-                } else if allow_implicit_start {
-                    Ok(command::ID::MoveTo)
-                } else {
-                    Err(oxvg_parse::error::Error::Path(PathError::NoCommand))
-                }
-            })?;
+            let mut command_id = input
+                .try_parse(command::ID::parse)
+                .or_else(|_| {
+                    if let Some(last) = list.last() {
+                        Ok(command::ID::Implicit(Box::new(last.id().next_implicit())))
+                    } else if allow_implicit_start {
+                        Ok(command::ID::MoveTo)
+                    } else {
+                        Err(oxvg_parse::error::Error::Path(PathError::NoCommand))
+                    }
+                })
+                .map_err(|error| oxvg_parse::error::ParseError {
+                    error,
+                    remaining_content: input.take_slice(),
+                })?;
             if let Some(last) = list.last() {
                 if !command_id.is_implicit() && last.id().next_implicit() == command_id {
                     command_id = command::ID::Implicit(Box::new(command_id));
                 }
             } else if !matches!(command_id, command::ID::MoveBy | command::ID::MoveTo) {
-                return Err(oxvg_parse::error::Error::ExpectedIdent {
-                    expected: "implicit or `m` or `M`",
-                    received: "other",
+                return Err(oxvg_parse::error::ParseError {
+                    error: oxvg_parse::error::Error::ExpectedIdent {
+                        expected: "implicit or `m` or `M`",
+                        received: "other",
+                    },
+                    remaining_content: input.take_slice(),
                 });
             }
 
-            let command = command::Data::parse(input, command_id)?;
-            list.push(command);
+            list.push(
+                input
+                    .try_parse(|input| command::Data::parse(input, command_id))
+                    .map_err(|error| oxvg_parse::error::ParseError {
+                        error,
+                        remaining_content: input.take_slice(),
+                    })?,
+            );
         }
         Ok(())
     }

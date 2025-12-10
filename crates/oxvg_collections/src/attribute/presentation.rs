@@ -892,6 +892,40 @@ impl ToValue for FontVariantNumeric {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+/// Affects the amount that the current text position advances as each glyph is rendered
+///
+/// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/text.html#GlyphOrientationHorizontalProperty)
+pub struct GlyphOrientationHorizontal(pub Angle);
+#[cfg(feature = "parse")]
+impl<'input> Parse<'input> for GlyphOrientationHorizontal {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        input
+            .try_parse(|input| input.try_parse(Angle::parse).map(Self))
+            .or_else(|_| Number::parse(input).map(Angle::Deg).map(Self))
+    }
+}
+#[cfg(feature = "serialize")]
+impl ToValue for GlyphOrientationHorizontal {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    where
+        W: std::fmt::Write,
+    {
+        self.0.write_value(dest)
+    }
+}
+#[test]
+fn glyph_orientation_horizontal() {
+    assert_eq!(
+        GlyphOrientationHorizontal::parse_string("90deg"),
+        Ok(GlyphOrientationHorizontal(Angle::Deg(90.0)))
+    );
+    assert_eq!(
+        GlyphOrientationHorizontal::parse_string("90"),
+        Ok(GlyphOrientationHorizontal(Angle::Deg(90.0)))
+    );
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 /// Affects the amount that the current text position advances as each glyph is rendered
 ///
@@ -908,7 +942,13 @@ impl<'input> Parse<'input> for GlyphOrientationVertical {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
-            .or_else(|_| Angle::parse(input).map(Self::Angle))
+            .or_else(|_| input.try_parse(Angle::parse).map(Self::Angle))
+            .or_else(|_| {
+                input
+                    .try_parse(Number::parse)
+                    .map(Angle::Deg)
+                    .map(Self::Angle)
+            })
     }
 }
 #[cfg(feature = "serialize")]
@@ -931,6 +971,10 @@ fn glyph_orientation_vertical() {
     );
     assert_eq!(
         GlyphOrientationVertical::parse_string("90deg"),
+        Ok(GlyphOrientationVertical::Angle(Angle::Deg(90.0)))
+    );
+    assert_eq!(
+        GlyphOrientationVertical::parse_string("90"),
         Ok(GlyphOrientationVertical::Angle(Angle::Deg(90.0)))
     );
 }

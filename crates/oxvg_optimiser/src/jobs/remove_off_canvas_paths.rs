@@ -83,7 +83,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
             return Ok(());
         };
         let mut path = get_attribute_mut!(element, D);
-        let Some(path::Path(path)) = path.as_deref_mut() else {
+        let Some(path::Path(path, _)) = path.as_deref_mut() else {
             return Ok(());
         };
 

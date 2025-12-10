@@ -9,6 +9,6 @@ expression: "test_config(r#\"{ \"moveElemsAttrsToGroup\": true }\"#,\nSome(r#\"<
             text
         </g>
         <circle attr2="val2" attr3="val3"/>
-        <path d="..."/>
+        <path d=""/>
     </g>
 </svg>
