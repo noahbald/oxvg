@@ -27,9 +27,11 @@ Differences for any of the jobs are also documented with each struct/interface's
 
 An SVG transformer similar to Inkscape's actions is planned.
 
-### 🧹 Linter (Planned)
+### 🧹 Linter
 
-A basic linter similar to svglint is planned to make catching issues in SVG documents much easier.
+A basic [linter](https://github.com/noahbald/oxvg/wiki/Linter) similar to svglint or vnu is available to make catching issues in SVG documents much easier. It's accessible as a printer or a language server.
+
+<img width="1147" height="334" alt="image" src="https://github.com/user-attachments/assets/a5c190e6-b685-4c6e-ba35-1c8bd3578b02" />
 
 ## 📖 Libraries
 
@@ -42,7 +44,7 @@ These are where the commands for our transformer will live and will contain a se
 
 ### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast) (beta)
 
-This crate provides a set of traits that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
+This crate provides a set of types that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
 
 There's currently an implementation that can be used with either the xml5ever or the roxmltree parser which can do the following.
 
@@ -50,16 +52,14 @@ There's currently an implementation that can be used with either the xml5ever or
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
 - An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
 
-The AST is open for extension, so you can implement your own parser or document representation to get it working with the optimiser.
+### [Collections](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_collections) (beta)
 
-#### [Style](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast/src/style.rs)
+This crate provides types and meta-types for SVG content.
 
-This crate uses lightningcss to provide some shortcuts for using CSS with our AST.
+- Parsing attributes into structured data
+- Enumerators for known element, attributes, and namespaces
 
-- Parsing presentation attributes as CSS (hopefully this can be ported to lightningcss)
-- Collecting the computed styles of a HTML element
-
-### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser) (beta)
+### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser)
 
 This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
 
@@ -98,6 +98,8 @@ cargo run -- --help
 ## Contributing
 
 You're welcome to help out and pick up a [good first issue](https://github.com/noahbald/oxvg/labels/good%20first%20issue) or email me to help.
+
+[Contributing](https://github.com/noahbald/oxvg/wiki/Contributing) and [architecture](https://github.com/noahbald/oxvg/wiki/Architecture) guides are available as well.
 
 ---
 
