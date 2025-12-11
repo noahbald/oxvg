@@ -33,9 +33,19 @@ pub struct Optimise {
     /// If the path is a directory, whether to walk through and optimise its subdirectories
     #[clap(long, short, default_value = "false")]
     pub recursive: bool,
-    /// Search through hidden files and directories
+    /// Search through hidden files and directories.
+    ///
+    /// A file or directory is considered hidden if its base name starts with a '.' or if the operating
+    /// system provides a "hidden" file attribute.
+    ///
+    /// Ignored files will continue to be skipped and can be enabled with the `--no-ignore` flag.
     #[clap(long, short = '.', default_value = "false")]
     pub hidden: bool,
+    /// When set, patterns defined in files such as `.gitigore` will be disregarded.
+    ///
+    /// Hidden files will continue to be skipped and can be enabled with the `--hidden` flag.
+    #[clap(long, default_value = "false")]
+    pub no_ignore: bool,
     /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
     #[clap(long, short, default_value = "0")]
     pub threads: usize,
@@ -80,6 +90,7 @@ impl Optimise {
             output: self.output.as_ref().and_then(|output| output.first()),
             recursive: self.recursive,
             hidden: self.hidden,
+            no_ignore: self.no_ignore,
             threads: self.threads,
         };
         walk.run(move || {

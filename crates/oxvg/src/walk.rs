@@ -23,6 +23,8 @@ pub struct Walk<'a> {
     pub recursive: bool,
     /// Whether to search through hidden files and directories
     pub hidden: bool,
+    /// Whether to disregard ignore patterns
+    pub no_ignore: bool,
     /// Sets the approximate number of threads to use. A value of 0 will
     /// automatically determine the appropriate number
     pub threads: usize,
@@ -114,11 +116,12 @@ impl Walk<'_> {
                 })
             })
         };
+        dbg!(&self.no_ignore);
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
             .hidden(!self.hidden)
-            .git_ignore(!self.hidden)
-            .ignore(!self.hidden)
+            .git_ignore(!self.no_ignore)
+            .ignore(!self.no_ignore)
             .follow_links(true)
             .threads(self.threads)
             .build_parallel()
