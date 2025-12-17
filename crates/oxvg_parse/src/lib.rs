@@ -22,6 +22,11 @@ impl<'input> Parser<'input> {
         self.cursor
     }
 
+    /// Changes the current position in the input being read
+    pub fn set_cursor(&mut self, cursor: usize) {
+        self.cursor = cursor;
+    }
+
     /// Try reading the next value
     ///
     /// # Errors
