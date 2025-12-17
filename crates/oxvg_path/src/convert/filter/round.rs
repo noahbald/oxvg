@@ -53,7 +53,7 @@ fn update_relative_subpoint(
     index: usize,
 ) {
     options.round_data(&mut state.relative_subpoints[index], state.error);
-    match &item.command {
+    match &mut item.command {
         command::Data::MoveBy(_)
         | command::Data::LineBy(_)
         | command::Data::SmoothQuadraticBezierBy(_)
@@ -66,15 +66,15 @@ fn update_relative_subpoint(
                 args[i] += item.start.0[i % 2] - relative_subpoint[i % 2];
             }
         }
-        command::Data::HorizontalLineBy(mut a) => {
+        command::Data::HorizontalLineBy(a) => {
             let relative_subpoint = state.relative_subpoints[index];
             a[0] += item.start.0[0] - relative_subpoint[0];
         }
-        command::Data::VerticalLineBy(mut a) => {
+        command::Data::VerticalLineBy(a) => {
             let relative_subpoint = state.relative_subpoints[index];
             a[0] += item.start.0[1] - relative_subpoint[1];
         }
-        command::Data::ArcBy(mut a) => {
+        command::Data::ArcBy(a) => {
             let relative_subpoint = state.relative_subpoints[index];
             a[5] += item.start.0[0] - relative_subpoint[0];
             a[6] += item.start.0[1] - relative_subpoint[1];
