@@ -437,6 +437,14 @@ impl ToValue for FontFamily<'_> {
         self.0.write_value(dest)
     }
 }
+#[test]
+fn font_family() {
+    let value = FontFamily::parse_string(
+        r#"'MS Hei',"MS Song",LiSu,隶书,Code2000,'Arial Unicode MS', sans-serif "#,
+    )
+    .unwrap();
+    assert_eq!(value.0.list.len(), 7);
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// An aspect value for an element that will preserve the x-height

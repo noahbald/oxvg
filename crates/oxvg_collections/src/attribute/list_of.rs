@@ -227,7 +227,26 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
     for ListOf<T, S>
 {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
-        let mut start = Parser::new(input.take_matches(|char| !S::matches(char)));
+        let mut quote = None;
+        let take_matches = |input: &mut Parser<'input>, quote: Option<&char>| {
+            if let Some(quote) = quote {
+                let mut quotes = 0;
+                input.take_matches(|char| {
+                    let done = quotes < 2;
+                    if char == *quote {
+                        quotes += 1;
+                    }
+                    done
+                })
+            } else {
+                input.take_matches(|char| !S::matches(char))
+            }
+        };
+        if input.slice().starts_with('"') || input.slice().starts_with('\'') {
+            quote = input.slice().chars().next();
+        }
+        let mut start = Parser::new(take_matches(input, quote.as_ref()));
+        quote = None;
         let mut list = match T::parse(&mut start) {
             Ok(first) if start.is_empty() => vec![first],
             Ok(_) => return Err(Error::ExpectedDone),
@@ -240,13 +259,22 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
             Err(e) => return Err(e),
         };
         loop {
+            let cursor = input.cursor();
             if S::parse(input).is_err() {
                 break;
             }
             S::maybe_skip_whitespace(input);
-            list.push(T::parse_string(
-                input.take_matches(|char| !S::matches(char)),
-            )?);
+            if input.is_empty() {
+                input.set_cursor(cursor);
+                break;
+            }
+
+            if input.slice().starts_with('"') || input.slice().starts_with('\'') {
+                quote = input.slice().chars().next();
+            }
+            list.push(T::parse_string(take_matches(input, quote.as_ref()))?);
+            quote = None;
+            S::maybe_skip_whitespace(input);
         }
         Ok(Self {
             list,
@@ -344,7 +372,7 @@ fn list_of() {
     );
     assert_eq!(
         ListOf::<i64, Comma>::parse_string("1,"),
-        Err(Error::InvalidNumber)
+        Err(Error::ExpectedDone)
     );
 }
 
