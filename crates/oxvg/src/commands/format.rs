@@ -93,7 +93,9 @@ impl RunCommand for Format {
                         Ok(())
                     },
                 );
-                error.store(true, Ordering::Relaxed);
+                if matches!(result, Err(_) | Ok(Err(_))) {
+                    error.store(true, Ordering::Relaxed);
+                }
                 match result {
                     Err(err) => eprintln!("{err}"),
                     Ok(Err(err)) => eprintln!("{err}"),
