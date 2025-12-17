@@ -47,7 +47,7 @@ cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3" }
 itertools = "0.14"
 lazy_static = "1.5"
 lightningcss = { version = "1.0.0-alpha.68", default-features = false, features = [
@@ -83,7 +83,7 @@ xml5ever = "0.36"
 
 # Developer dependencies
 ctor = "0.2"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 env_logger = "0.11"
 insta = "1.42"
 pretty_assertions = "1.4"

@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
-rand = "0.8.5"
+rand = "0.9"
 
 [dev-dependencies]
 insta = { workspace = true }
