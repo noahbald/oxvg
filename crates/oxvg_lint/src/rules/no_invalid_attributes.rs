@@ -20,10 +20,10 @@ pub fn no_invalid_attributes(
     reports.par_extend(attributes.par_iter().filter_map(|attr| {
         let attr_id = attr.name();
         match attr {
-            Attr::Unparsed { attr_id, value } if !matches!(attr_id, AttrId::Unknown(_)) => {
+            Attr::Unparsed { attr_id, value } if !matches!(&**attr_id, AttrId::Unknown(_)) => {
                 Some(Error {
                     problem: Problem::InvalidAttribute {
-                        attribute: attr_id.clone(),
+                        attribute: *attr_id.clone(),
                     },
                     severity,
                     range: attribute_ranges.get(attr_id).map(|r| r.value.clone()),
@@ -63,10 +63,6 @@ mod test {
     const ATTR_ID: AttrId<'static> = AttrId::Path;
     const VALID_ATTR: Attr<'static> = Attr::Path(Path(oxvg_path::Path(vec![]), None));
     const PARTIAL_VALID_ATTR: Attr<'static> = Attr::Path(Path(oxvg_path::Path(vec![]), Some("M0")));
-    const INVALID_ATTR: Attr<'static> = Attr::Unparsed {
-        attr_id: AttrId::Path,
-        value: Atom::Static("foo"),
-    };
 
     #[test]
     fn report_invalid_attributes_ok() {
@@ -110,7 +106,10 @@ mod test {
     #[test]
     fn report_invalid_attributes_err() {
         let mut test_data = RuleData::test_data();
-        test_data.attributes.borrow_mut().push(INVALID_ATTR);
+        test_data.attributes.borrow_mut().push(Attr::Unparsed {
+            attr_id: Box::new(AttrId::Path),
+            value: Atom::Static("foo"),
+        });
         test_data.attribute_ranges.insert(
             ATTR_ID,
             Ranges {

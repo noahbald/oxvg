@@ -214,10 +214,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
         if !defs.is_empty() {
             defs.set_attribute(Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName {
+                attr_id: Box::new(AttrId::Unknown(QualName {
                     prefix: Prefix::XMLNS,
                     local: Prefix::XLink.value().unwrap(),
-                }),
+                })),
                 value: NS::XLink.uri().clone(),
             });
         }

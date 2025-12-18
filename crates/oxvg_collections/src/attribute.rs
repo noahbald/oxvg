@@ -276,14 +276,14 @@ macro_rules! define_attrs {
             /// An attribute with an unknown name or invalid value
             Unparsed {
                 /// The name of the attribute
-                attr_id: AttrId<'input>,
+                attr_id: Box<AttrId<'input>>,
                 /// The unparsed string of the attribute
                 value: Atom<'input>,
             },
             /// An attribute converted from lightningcss
             CSSUnknown {
                 /// An unknown variant of [`AttrId`]
-                attr_id: AttrId<'input>,
+                attr_id: Box<AttrId<'input>>,
                 /// A parsed list of CSS tokens
                 value: TokenList<'input>,
             },
@@ -365,7 +365,7 @@ macro_rules! define_attrs {
                         Err(err) => {
                             log::debug!("failed to parse {}: {err:?}", stringify!($attr));
                             Self::Unparsed {
-                                attr_id: AttrId::$attr,
+                                attr_id: Box::new(AttrId::$attr),
                                 value: value.into(),
                             }
                         }
@@ -375,7 +375,7 @@ macro_rules! define_attrs {
                         value: Box::new(Self::new(*attr_id, value)),
                     },
                     AttrId::Unknown(name) => Self::Unparsed {
-                        attr_id: AttrId::Unknown(name),
+                        attr_id: Box::new(AttrId::Unknown(name)),
                         value: value.into(),
                     },
                 }
@@ -2575,10 +2575,10 @@ macro_rules! try_from_into_property {
                         name: CustomPropertyName::Unknown(name),
                         value,
                     }) => Attr::CSSUnknown {
-                        attr_id: AttrId::Unknown(QualName {
+                        attr_id: Box::new(AttrId::Unknown(QualName {
                             prefix: Prefix::SVG,
                             local: name.0.into(),
-                        }),
+                        })),
                         value: TokenList(value),
                     },
                     _ => return Err(())

@@ -83,11 +83,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
         let mut overridden_prefix_stack = self.overridden_prefix_stack.borrow_mut();
         let mut used_in_legacy_element_stack = self.used_in_legacy_element_stack.borrow_mut();
         for attr in element.attributes() {
-            let Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName { prefix, local }),
-                value,
-            } = &*attr
-            else {
+            let Attr::Unparsed { attr_id, value } = &*attr else {
+                continue;
+            };
+            let AttrId::Unknown(QualName { prefix, local }) = &**attr_id else {
                 continue;
             };
             if !is_prefix!(prefix, XMLNS) {
@@ -123,11 +122,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         element.attributes().retain(|attr| {
-            let Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName { prefix, .. }),
-                value,
-            } = attr
-            else {
+            let Attr::Unparsed { attr_id, value } = attr else {
+                return true;
+            };
+            let AttrId::Unknown(QualName { prefix, .. }) = &**attr_id else {
                 return true;
             };
             if is_prefix!(prefix, XMLNS) && value == NS::XLink.uri() {
