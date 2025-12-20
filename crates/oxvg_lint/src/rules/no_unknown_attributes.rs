@@ -69,13 +69,6 @@ mod test {
         prefix: Prefix::SVG,
         local: Atom::Static("foo"),
     });
-    const UNKNOWN_ATTR: Attr<'static> = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
-            prefix: Prefix::SVG,
-            local: Atom::Static("foo"),
-        }),
-        value: Atom::Static("bar"),
-    };
     const UNKNOWN_PREFIXED_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
         prefix: Prefix::Unknown {
             prefix: Some(Atom::Static("xml")),
@@ -83,16 +76,6 @@ mod test {
         },
         local: Atom::Static("foo"),
     });
-    const UNKNOWN_PREFIXED_ATTR: Attr<'static> = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
-            prefix: Prefix::Unknown {
-                prefix: Some(Atom::Static("xml")),
-                ns: NS::Unknown(Atom::Static("https://unknown.org")),
-            },
-            local: Atom::Static("foo"),
-        }),
-        value: Atom::Static("bar"),
-    };
     const KNOWN_ATTR: Attr<'static> = Attr::Version(Atom::Static("1.1"));
 
     #[test]
@@ -108,10 +91,16 @@ mod test {
     fn report_unknown_attribute_unknown_element() {
         let mut test_data = RuleData::test_data();
         test_data.element = UNKNOWN_ELEMENT;
-        test_data
-            .attributes
-            .borrow_mut()
-            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_ATTR]);
+        test_data.attributes.borrow_mut().extend_from_slice(&[
+            KNOWN_ATTR,
+            Attr::Unparsed {
+                attr_id: Box::new(AttrId::Unknown(QualName {
+                    prefix: Prefix::SVG,
+                    local: Atom::Static("foo"),
+                })),
+                value: Atom::Static("bar"),
+            },
+        ]);
         let mut test_data = RuleData::from_test_data(&test_data);
         no_unknown_attributes(&mut test_data, Severity::Error);
         assert!(test_data.reports.is_empty());
@@ -119,10 +108,16 @@ mod test {
     #[test]
     fn report_unknown_attribute() {
         let mut test_data = RuleData::test_data();
-        test_data
-            .attributes
-            .borrow_mut()
-            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_ATTR]);
+        test_data.attributes.borrow_mut().extend_from_slice(&[
+            KNOWN_ATTR,
+            Attr::Unparsed {
+                attr_id: Box::new(AttrId::Unknown(QualName {
+                    prefix: Prefix::SVG,
+                    local: Atom::Static("foo"),
+                })),
+                value: Atom::Static("bar"),
+            },
+        ]);
         test_data.attribute_ranges.insert(
             UNKNOWN_ATTR_ID,
             Ranges {
@@ -149,10 +144,19 @@ mod test {
     #[test]
     fn report_unknown_attribute_prefixed() {
         let mut test_data = RuleData::test_data();
-        test_data
-            .attributes
-            .borrow_mut()
-            .extend_from_slice(&[KNOWN_ATTR, UNKNOWN_PREFIXED_ATTR]);
+        test_data.attributes.borrow_mut().extend_from_slice(&[
+            KNOWN_ATTR,
+            Attr::Unparsed {
+                attr_id: Box::new(AttrId::Unknown(QualName {
+                    prefix: Prefix::Unknown {
+                        prefix: Some(Atom::Static("xml")),
+                        ns: NS::Unknown(Atom::Static("https://unknown.org")),
+                    },
+                    local: Atom::Static("foo"),
+                })),
+                value: Atom::Static("bar"),
+            },
+        ]);
         test_data.attribute_ranges.insert(
             UNKNOWN_PREFIXED_ATTR_ID,
             Ranges {

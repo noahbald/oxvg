@@ -38,13 +38,12 @@ use crate::error::JobsError;
 /// ```
 /// use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
 ///
-/// let jobs = Jobs {
-///   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
+/// let jobs = Jobs(vec![
+///   Box::new(AddClassesToSVGElement {
 ///     class_names: Some(vec![String::from("foo"), String::from("bar")]),
 ///     ..AddClassesToSVGElement::default()
 ///   }),
-///   ..Jobs::none()
-/// };
+/// ]);
 /// ```
 ///
 /// Use with a class string
@@ -52,13 +51,12 @@ use crate::error::JobsError;
 /// ```
 /// use oxvg_optimiser::{Jobs, AddClassesToSVGElement};
 ///
-/// let jobs = Jobs {
-///   add_classes_to_s_v_g_element: Some(AddClassesToSVGElement {
+/// let jobs = Jobs(vec![
+///   Box::new(AddClassesToSVGElement {
 ///     class_name: Some(String::from("foo bar")),
 ///     ..AddClassesToSVGElement::default()
 ///   }),
-///   ..Jobs::none()
-/// };
+/// ]);
 /// ```
 ///
 ///

@@ -261,15 +261,14 @@ impl<'input> Reporter<'_, 'input> {
                 Attr::XMLNS(uri) => {
                     namespaces.insert((None, uri.clone(), false));
                 }
-                Attr::Unparsed {
-                    attr_id:
-                        AttrId::Unknown(QualName {
-                            prefix: Prefix::XMLNS,
-                            local,
-                        }),
-                    value,
-                } => {
-                    namespaces.insert((Some(local.clone()), value.clone(), false));
+                Attr::Unparsed { attr_id, value } => {
+                    if let AttrId::Unknown(QualName {
+                        prefix: Prefix::XMLNS,
+                        local,
+                    }) = &**attr_id
+                    {
+                        namespaces.insert((Some(local.clone()), value.clone(), false));
+                    }
                 }
                 _ => {}
             }

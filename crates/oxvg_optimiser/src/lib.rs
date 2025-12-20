@@ -96,7 +96,7 @@ impl Extends {
     /// Creates a configuration with the presets jobs extended by the given jobs.
     pub fn extend(&self, jobs: &Jobs) -> Jobs {
         let mut result = self.jobs();
-        result.extend(jobs);
+        result.extend(jobs.clone());
         result
     }
 }

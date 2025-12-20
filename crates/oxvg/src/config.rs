@@ -93,7 +93,7 @@ fn serde() -> anyhow::Result<()> {
 
     assert_eq!(
         serde_json::to_string(&config)?,
-        String::from(r#"{"extends":"default","jobs":{"removeComments":{}}}"#),
+        String::from(r#"{"extends":"default","jobs":[{"name":"removeComments","params":{}}]}"#),
         "preset should not affect deserialization of `jobs`"
     );
 
@@ -105,11 +105,10 @@ fn serde() -> anyhow::Result<()> {
 fn resolve_jobs() {
     let config = Optimise {
         extends: Some(Extends::Default),
-        jobs: oxvg_optimiser::Jobs {
-            precheck: Some(Default::default()),
-            remove_scripts: Some(Default::default()),
-            ..oxvg_optimiser::Jobs::none()
-        },
+        jobs: oxvg_optimiser::Jobs(vec![
+            Box::new(oxvg_optimiser::Precheck::default()),
+            Box::new(oxvg_optimiser::RemoveDoctype::default()),
+        ]),
         omit: Some(vec![
             String::from("precheck"),
             String::from("remove_doctype"),
@@ -117,17 +116,7 @@ fn resolve_jobs() {
     };
 
     let resolved = config.resolve_jobs();
-    assert!(resolved.precheck.is_none(), "omitted value should be None");
-    assert!(
-        resolved.remove_doctype.is_none(),
-        "omitted value should be None"
-    );
-    assert!(
-        resolved.remove_scripts.is_some(),
-        "specified value should be Some"
-    );
-    assert!(
-        resolved.remove_comments.is_some(),
-        "extended value should be Some"
-    );
+    assert_eq!(resolved.0.len(), 43);
+    assert!(!resolved.0.iter().any(|j| j.name() == "precheck"));
+    assert!(!resolved.0.iter().any(|j| j.name() == "remove_doctype"));
 }

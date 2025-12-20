@@ -116,7 +116,6 @@ impl Walk<'_> {
                 })
             })
         };
-        dbg!(&self.no_ignore);
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
             .hidden(!self.hidden)

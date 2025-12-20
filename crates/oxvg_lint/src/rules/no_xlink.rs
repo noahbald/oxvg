@@ -62,13 +62,6 @@ mod test {
 
     const SVG_ATTR: Attr = Attr::Href(Atom::Static("#"));
     const XLINK_ATTR: Attr = Attr::XLinkHref(Atom::Static("#"));
-    const UNKNOWN_XLINK_ATTR: Attr = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
-            prefix: Prefix::XLink,
-            local: Atom::Static("foo"),
-        }),
-        value: Atom::Static("bar"),
-    };
     const XLINK_ATTR_ID: AttrId = AttrId::XLinkHref;
     const UNKNOWN_XLINK_ATTR_ID: AttrId = AttrId::Unknown(QualName {
         prefix: Prefix::XLink,
@@ -121,7 +114,13 @@ mod test {
         test_data
             .attributes
             .borrow_mut()
-            .extend_from_slice(&[UNKNOWN_XLINK_ATTR]);
+            .extend_from_slice(&[Attr::Unparsed {
+                attr_id: Box::new(AttrId::Unknown(QualName {
+                    prefix: Prefix::XLink,
+                    local: Atom::Static("foo"),
+                })),
+                value: Atom::Static("bar"),
+            }]);
         test_data.attribute_ranges.insert(
             UNKNOWN_XLINK_ATTR_ID,
             Ranges {

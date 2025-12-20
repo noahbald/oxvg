@@ -360,10 +360,10 @@ fn find_new_xmlns<'a, 'input: 'a>(
         }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
-            attr_id: AttrId::Unknown(QualName {
+            attr_id: Box::new(AttrId::Unknown(QualName {
                 prefix: Prefix::XMLNS,
                 local: prefix.into(),
-            }),
+            })),
             value: uri.into(),
         })
     } else if !ns.uri().is_empty() {

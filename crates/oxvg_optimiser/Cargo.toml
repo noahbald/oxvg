@@ -39,6 +39,7 @@ oxvg_serialize = { workspace = true }
 anyhow = { workspace = true }
 bitflags = { workspace = true }
 clap = { workspace = true, optional = true }
+convert_case = { workspace = true }
 cssparser = { workspace = true }
 dashmap = { workspace = true }
 derive_more = { workspace = true }

@@ -107,16 +107,15 @@ impl<'input, 'arena> Element<'input, 'arena> {
                             return None;
                         }
                     }
-                    Attr::Unparsed {
-                        attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
-                        value,
-                    } if matching_prefix.is_none() => {
-                        if value == uri {
-                            matching_prefix = Some(local.clone());
+                    Attr::Unparsed { attr_id, value } if matching_prefix.is_none() => {
+                        if let AttrId::Unknown(QualName {
+                            prefix: Prefix::XMLNS,
+                            local,
+                        }) = &**attr_id
+                        {
+                            if value == uri {
+                                matching_prefix = Some(local.clone());
+                            }
                         }
                     }
                     _ => (),
@@ -140,17 +139,16 @@ impl<'input, 'arena> Element<'input, 'arena> {
                             return ns.clone();
                         }
                     }
-                    Attr::Unparsed {
-                        attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
-                        value,
-                    } => {
-                        if let Some(prefix) = prefix {
-                            if prefix == local.as_str() {
-                                return value.clone();
+                    Attr::Unparsed { attr_id, value } => {
+                        if let AttrId::Unknown(QualName {
+                            prefix: Prefix::XMLNS,
+                            local,
+                        }) = &**attr_id
+                        {
+                            if let Some(prefix) = prefix {
+                                if prefix == local.as_str() {
+                                    return value.clone();
+                                }
                             }
                         }
                     }
