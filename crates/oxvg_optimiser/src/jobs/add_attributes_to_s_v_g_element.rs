@@ -41,12 +41,11 @@ use crate::error::JobsError;
 /// use std::collections::BTreeMap;
 /// use oxvg_optimiser::{Jobs, AddAttributesToSVGElement};
 ///
-/// let jobs = Jobs {
-///   add_attributes_to_s_v_g_element: Some(AddAttributesToSVGElement {
+/// let jobs = Jobs(vec![
+///   Box::new(AddAttributesToSVGElement {
 ///     attributes: BTreeMap::from([(String::from("prefix:local"), String::from("value"))]),
 ///   }),
-///   ..Jobs::none()
-/// };
+/// ]);
 /// ```
 ///
 /// # Correctness

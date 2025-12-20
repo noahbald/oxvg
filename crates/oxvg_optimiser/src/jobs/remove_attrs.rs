@@ -50,10 +50,9 @@ use crate::{error::JobsError, utils::regex_memo};
 ///
 /// let mut remove_attrs = RemoveAttrs::default();
 /// remove_attrs.attrs = vec![String::from("path:fill")];
-/// let jobs = Jobs {
-///   remove_attrs: Some(remove_attrs),
-///   ..Jobs::none()
-/// };
+/// let jobs = Jobs(vec![
+///   Box::new(remove_attrs),
+/// ]);
 /// ```
 /// # Correctness
 ///

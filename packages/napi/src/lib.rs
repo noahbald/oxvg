@@ -47,7 +47,13 @@ extern crate napi_derive;
 ///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
 /// );
 /// ```
-pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Status>> {
+pub fn optimise(
+  svg: String,
+  #[napi(
+    ts_arg_type = "Array<'preset-default' | {[K in keyof Jobs]: K | { name: K, params?: Jobs[K] }}[keyof Jobs]> | undefined | null"
+  )]
+  config: Option<Jobs>,
+) -> Result<String, Error<Status>> {
   let config = config.unwrap_or_default();
   parse(&svg, |dom, allocator| {
     config
@@ -60,11 +66,19 @@ pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Statu
   .map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?
 }
 
-#[napi]
+#[napi(
+  ts_return_type = "Array<'preset-default' | {[K in keyof Jobs]: K | { name: K, params?: Jobs[K] }}[keyof Jobs]>"
+)]
 #[allow(clippy::needless_pass_by_value)]
 /// Returns the given config with omitted options replaced with the config provided by `extends`.
 /// I.e. acts like `{ ...extends, ...config }`
-pub fn extend(extend: Extends, config: Option<Jobs>) -> Jobs {
+pub fn extend(
+  extend: Extends,
+  #[napi(
+    ts_arg_type = "Array<'preset-default' | {[K in keyof Jobs]: K | { name: K, params?: Jobs[K] }}[keyof Jobs]> | undefined | null"
+  )]
+  config: Option<Jobs>,
+) -> Jobs {
   match config {
     Some(ref jobs) => extend.extend(jobs),
     None => extend.jobs(),
