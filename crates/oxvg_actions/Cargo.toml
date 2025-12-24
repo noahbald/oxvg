@@ -2,8 +2,12 @@
 name = "oxvg_actions"
 version = "0.0.3"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
 readme = "../../readme.md"
+keywords = ["svg", "svgo", "optimisation"]
+description = "The OXVG actions library is used for transforming SVG documents."
 
 [lints]
 workspace = true

@@ -2,8 +2,12 @@
 name = "oxvg_lint"
 version = "0.0.3"
 edition = "2021"
+license.workspace = true
+repository.workspace = true
 authors.workspace = true
 readme = "../../readme.md"
+keywords = ["svg", "lint"]
+description = "The OXVG linter is a library for finding issues with SVG documents."
 
 [lints]
 workspace = true
