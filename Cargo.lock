@@ -1223,7 +1223,7 @@ checksum = "b410bbe7e14ab526a0e86877eb47c6996a2bd7746f027ba551028c925390e4e9"
 
 [[package]]
 name = "oxvg"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -1243,7 +1243,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_actions"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "insta",
  "rand",
@@ -1253,7 +1253,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bitflags 2.7.0",
  "bytecount",
@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bitflags 2.7.0",
  "cssparser 0.33.0",
@@ -1301,7 +1301,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_lint"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bytecount",
  "clap",
@@ -1317,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_napi"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "napi",
  "napi-build",
@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "bitflags 2.7.0",
@@ -1369,7 +1369,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_parse"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "cssparser 0.33.0",
  "lightningcss",
@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bitflags 2.7.0",
  "insta",
@@ -1397,7 +1397,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_serialize"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "cssparser 0.33.0",
  "lightningcss",
@@ -1405,7 +1405,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_wasm"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "console_error_panic_hook",
  "getrandom",
