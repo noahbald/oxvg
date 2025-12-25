@@ -1,6 +1,6 @@
 {
 	"name": "@oxvg/napi-linux-x64-gnu",
-	"version": "0.0.4-1",
+	"version": "0.0.4",
 	"os": ["linux"],
 	"repository": {
 		"url": "git+https://github.com/noahbald/oxvg.git"
