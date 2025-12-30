@@ -120,16 +120,14 @@ fn root_element<'input>(
     }
 
     for attr in element.attributes() {
-        if let Attr::Unparsed {
-            attr_id:
-                AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    ..
-                }),
-            value,
-        } = &*attr
-        {
-            unused_namespaces.insert(value.clone());
+        if let Attr::Unparsed { attr_id, value } = &*attr {
+            if let AttrId::Unknown(QualName {
+                prefix: Prefix::XMLNS,
+                ..
+            }) = &**attr_id
+            {
+                unused_namespaces.insert(value.clone());
+            }
         }
     }
 }
@@ -140,14 +138,13 @@ fn exit_root_element(element: &Element, unused_namespaces: &mut HashSet<Atom>) {
     }
 
     element.attributes().retain(|attr| {
-        let Attr::Unparsed {
-            attr_id:
-                AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    ..
-                }),
-            value,
-        } = attr
+        let Attr::Unparsed { attr_id, value } = attr else {
+            return true;
+        };
+        let AttrId::Unknown(QualName {
+            prefix: Prefix::XMLNS,
+            ..
+        }) = &**attr_id
         else {
             return true;
         };

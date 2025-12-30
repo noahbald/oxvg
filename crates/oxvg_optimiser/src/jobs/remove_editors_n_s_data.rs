@@ -61,20 +61,18 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
         }
 
         element.attributes().retain(|attr| {
-            if let Attr::Unparsed {
-                attr_id:
-                    AttrId::Unknown(QualName {
-                        prefix: Prefix::XMLNS,
-                        local: _,
-                    }),
-                value,
-            } = attr
-            {
-                return !is_editor_namespace(value)
-                    && !self
-                        .additional_namespaces
-                        .as_ref()
-                        .is_some_and(|set| set.contains(&**value));
+            if let Attr::Unparsed { attr_id, value } = attr {
+                if let AttrId::Unknown(QualName {
+                    prefix: Prefix::XMLNS,
+                    local: _,
+                }) = &**attr_id
+                {
+                    return !is_editor_namespace(value)
+                        && !self
+                            .additional_namespaces
+                            .as_ref()
+                            .is_some_and(|set| set.contains(&**value));
+                }
             }
 
             let uri = attr.prefix().ns().uri();
