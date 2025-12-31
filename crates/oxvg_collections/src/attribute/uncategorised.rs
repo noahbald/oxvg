@@ -416,9 +416,12 @@ pub struct MediaQueryList<'i>(pub MediaList<'i>);
 #[cfg(feature = "parse")]
 impl<'input> oxvg_parse::Parse<'input> for MediaQueryList<'input> {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
-        MediaList::parse(&mut cssparser_lightningcss::Parser::new(
-            &mut cssparser_lightningcss::ParserInput::new(input.take_slice()),
-        ))
+        MediaList::parse(
+            &mut cssparser_lightningcss::Parser::new(
+                &mut cssparser_lightningcss::ParserInput::new(input.take_slice()),
+            ),
+            &lightningcss::stylesheet::ParserOptions::default(),
+        )
         .map(Self)
         .map_err(Error::Lightningcss)
     }
