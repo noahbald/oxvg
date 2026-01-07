@@ -8,13 +8,13 @@ use crate::error::{Error, NoXLinkProblem, Problem};
 
 use super::{RuleData, Severity};
 
-pub fn no_xlink<'a, 'input>(
+pub fn no_xlink(
     RuleData {
         reports,
         attributes,
         attribute_ranges,
         ..
-    }: &mut RuleData<'_, 'input>,
+    }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
     reports.par_extend(attributes.par_iter().filter_map(move |attr| {

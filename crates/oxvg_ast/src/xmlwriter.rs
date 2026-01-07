@@ -421,8 +421,8 @@ impl<W: Write> fmt::Write for FmtWriter<W> {
             // unlikely to ever happen, and even libxml2 does not do it.
             Escape::Comment | Escape::CData | Escape::Style => self.writer.write_all(s.as_bytes()),
         };
-        if error.is_err() {
-            self.error_kind = Some(error.as_ref().unwrap_err().kind());
+        if let Err(error) = error.as_ref() {
+            self.error_kind = Some(error.kind());
             Err(fmt::Error)
         } else {
             Ok(())

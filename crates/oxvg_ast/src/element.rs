@@ -285,7 +285,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         self.attributes().get_named_item_local(local_name)
     }
 
-    /// See [`Attributes::get_attribute_node`]
+    /// See [`Attributes::get_named_item`]
     pub fn get_attribute_node_mut<'a>(
         &'a self,
         attr_name: &AttrId,
@@ -375,7 +375,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Replaces this element in the children list of it's parent with another.
     ///
     /// [MDN | replaceWith](https://developer.mozilla.org/en-US/docs/Web/API/Element/replaceWith)
-    fn replace_with(&self, other: Ref<'input, 'arena>) {
+    pub fn replace_with(&self, other: Ref<'input, 'arena>) {
         self.after(other);
         self.remove();
     }

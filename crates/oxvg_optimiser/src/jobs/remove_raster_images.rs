@@ -63,10 +63,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveRasterImages {
     }
 }
 
-lazy_static! {
-    static ref RASTER_IMAGE: regex::Regex =
-        regex::Regex::new(r"(\.|image\/)(jpe?g|png|gif)").unwrap();
-}
+static RASTER_IMAGE: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"(\.|image\/)(jpe?g|png|gif)").unwrap());
 
 #[test]
 fn remove_raster_images() -> anyhow::Result<()> {

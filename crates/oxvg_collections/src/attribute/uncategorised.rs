@@ -1182,15 +1182,15 @@ enum_attr!(
     ///
     /// [w3](https://svgwg.org/specs/animations/#AnimateTransformElementTypeAttribute)
     TypeAnimateTransform {
-        /// each individual value is expressed as <tx> [,<ty>].
+        /// each individual value is expressed as `<tx> [,<ty>]`.
         Translate: "translate",
-        /// each individual value is expressed as <sx> [,<sy>].
+        /// each individual value is expressed as `<sx> [,<sy>]`.
         Scale: "scale",
-        /// each individual value is expressed as <rotate-angle> [<cx> <cy>].
+        /// each individual value is expressed as `<rotate-angle> [<cx> <cy>]`.
         Rotate: "rotate",
-        /// each individual value is expressed as <skew-angle>.
+        /// each individual value is expressed as `<skew-angle>`.
         SkewX: "skewX",
-        /// each individual value is expressed as <skew-angle>.
+        /// each individual value is expressed as `<skew-angle>`.
         SkewY: "skewY",
     }
 );

@@ -3,9 +3,9 @@ use strum_macros::EnumIter;
 #[derive(EnumIter, Debug)]
 /// Each action that can be applied to the document or the program's state.
 pub enum Actions {
-    /// See [`About`]
+    /// See `About`
     About,
-    /// See [`ActionList`]
+    /// See `ActionList`
     ActionList,
 }
 

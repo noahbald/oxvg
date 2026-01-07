@@ -30,9 +30,6 @@ let result: String = parse(
 */
 
 #[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
 extern crate bitflags;
 
 #[cfg(feature = "napi")]
@@ -65,12 +62,12 @@ pub enum Extends {
     /// A preset that contains no jobs.
     None,
     /// The default preset.
-    /// Uses [`oxvg_optimiser::Jobs::default`]
+    /// Uses [`crate::Jobs::default`]
     #[default]
     Default,
     /// The correctness preset. Produces a preset that is less likely to
     /// visually change the document.
-    /// Uses [`oxvg_optimiser::Jobs::correctness`]
+    /// Uses [`crate::Jobs::precheck`]
     Safe,
     // TODO: File(Path),
     #[doc(hidden)]

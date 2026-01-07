@@ -233,9 +233,9 @@ impl ApplyTransforms {
         if let Some(Inheritable::Defined(StrokeDasharray::Values(stroke_dasharray))) =
             get_attribute_mut!(element, StrokeDasharray).as_deref_mut()
         {
-            stroke_dasharray
-                .iter_mut()
-                .for_each(|dash| *dash = dash.clone().mul(scale));
+            for dash in stroke_dasharray.iter_mut() {
+                *dash = dash.clone().mul(scale);
+            }
         }
 
         false

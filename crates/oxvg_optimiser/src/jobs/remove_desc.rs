@@ -63,9 +63,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDesc {
     }
 }
 
-lazy_static! {
-    static ref STANDARD_DESCS: regex::Regex = regex::Regex::new("^Created (with|using)").unwrap();
-}
+static STANDARD_DESCS: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new("^Created (with|using)").unwrap());
 
 #[test]
 fn remove_desc() -> anyhow::Result<()> {

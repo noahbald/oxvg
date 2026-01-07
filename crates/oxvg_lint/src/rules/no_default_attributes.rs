@@ -4,13 +4,13 @@ use crate::error::{Error, Problem};
 
 use super::{RuleData, Severity};
 
-pub fn no_default_attributes<'a, 'input>(
+pub fn no_default_attributes(
     RuleData {
         reports,
         attributes,
         attribute_ranges,
         ..
-    }: &mut RuleData<'_, 'input>,
+    }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
     reports.par_extend(attributes.par_iter().filter_map(move |attr| {
@@ -25,7 +25,7 @@ pub fn no_default_attributes<'a, 'input>(
         } else {
             None
         }
-    }))
+    }));
 }
 
 #[cfg(test)]

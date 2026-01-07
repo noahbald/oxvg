@@ -304,8 +304,10 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
             #[cfg(feature = "selectors")]
             selector_flags: Cell::new(None),
             // NOTE: No range support https://github.com/servo/html5ever/issues/48
-            #[range]
-            ranges: HashMap::default(),
+            #[cfg(feature = "range")]
+            range: None,
+            #[cfg(feature = "range")]
+            ranges: std::collections::HashMap::default(),
         })
     }
 
