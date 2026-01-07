@@ -35,12 +35,11 @@ pub(crate) struct Output<'a, 'input, 'arena> {
     pub dom: Ref<'input, 'arena>,
     pub input: Option<&'a PathBuf>,
     pub destination: Option<&'a PathBuf>,
-    pub input_size: f64,
+    pub input_bytes: f64,
 }
 impl Output<'_, '_, '_> {
     pub fn output(self) -> anyhow::Result<()> {
         let is_stdin = self.input.is_none();
-        let input_size = self.input_size;
         if let Some(output) = self.destination {
             if is_stdin && output.metadata().is_ok_and(|f| f.is_dir()) {
                 eprintln!("Cannot use dir as output with stdin. Printing result to stdout instead");
@@ -52,12 +51,13 @@ impl Output<'_, '_, '_> {
                 let file = std::fs::File::create(output)?;
                 self.dom.serialize_into(file, self.options)?;
 
-                let output_size = output.metadata()?.len() as f64 / 1000.0;
-                let change = 100.0 * (input_size - output_size) / input_size;
+                let input_kb = self.input_bytes / 1000.0;
+                let output_kb = output.metadata()?.len() as f64 / 1000.0;
+                let change = 100.0 * (input_kb - output_kb) / input_kb;
                 let increased = if change < 0.0 { "\x1b[31m" } else { "" };
                 let path = self.input.and_then(|p| p.to_str()).unwrap_or("");
                 println!(
-            "\n\n\x1b[32m{path:?} ({input_size:.1}KB) -> {output:?} ({output_size:.1}KB) {increased}({change:.2}%)\x1b[0m"
+            "\n\n\x1b[32m{path:?} ({input_kb:.1}KB) -> {output:?} ({output_kb:.1}KB) {increased}({change:.2}%)\x1b[0m"
                 );
             }
         } else {

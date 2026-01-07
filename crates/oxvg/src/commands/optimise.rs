@@ -108,7 +108,7 @@ impl Optimise {
                         ..ParsingOptions::default()
                     },
                     |dom, allocator| -> anyhow::Result<()> {
-                        let input_size = source.len() as f64;
+                        let input_bytes = source.len() as f64;
                         let info = Info {
                             path: path.cloned(),
                             multipass_count: 0,
@@ -122,7 +122,7 @@ impl Optimise {
                             dom,
                             input: path,
                             destination: output,
-                            input_size,
+                            input_bytes,
                         };
                         output.output()?;
                         Ok(())

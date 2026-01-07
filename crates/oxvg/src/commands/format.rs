@@ -87,7 +87,7 @@ impl RunCommand for Format {
                             dom,
                             input: path,
                             destination: output,
-                            input_size: source.len() as f64,
+                            input_bytes: source.len() as f64,
                         };
                         output.output()?;
                         Ok(())
