@@ -29,10 +29,6 @@ pub struct CleanupNumericValues {
     // WARN: Lightningcss will round values to 5 decimal places
     /// Number of decimal places to round floating point numbers to, to a maximum of 5.
     pub float_precision: u8,
-    #[cfg_attr(feature = "serde", serde(default = "default_leading_zero"))]
-    #[deprecated(note = "This option has no effect; leading zeroes are always removed")]
-    /// Whether to trim leading zeros.
-    pub leading_zero: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_default_px"))]
     /// Whether to remove `px` from a number's unit.
     pub default_px: bool,
@@ -45,7 +41,6 @@ impl Default for CleanupNumericValues {
     fn default() -> Self {
         CleanupNumericValues {
             float_precision: default_float_precision(),
-            leading_zero: default_leading_zero(),
             default_px: default_default_px(),
             convert_to_px: default_convert_to_px(),
         }
@@ -82,9 +77,6 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupNumericValues {
 
 const fn default_float_precision() -> u8 {
     3
-}
-const fn default_leading_zero() -> bool {
-    true
 }
 const fn default_default_px() -> bool {
     true
