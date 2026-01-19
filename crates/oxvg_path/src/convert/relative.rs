@@ -1,11 +1,10 @@
 use crate::{command, geometry::Point, positioned, Path};
 
-/// Convert absolute path data coordinates to relative
+/// Convert absolute path data coordinates to relative coordinates.
 pub fn relative(path: Path) -> positioned::Path {
     #[cfg(debug_assertions)]
     let original_dbg = path.to_string();
 
-    let path = path;
     let start = &mut Point([0.0; 2]);
     let cursor = &mut Point([0.0; 2]);
 

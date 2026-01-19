@@ -565,10 +565,13 @@ impl<'input, 'arena> Node<'input, 'arena> {
                 self.empty();
                 self.append_child(allocator.alloc(NodeData::Style(RefCell::new(content))));
             }
-            _ => assert!(
-                !cfg!(debug_assertions),
-                "Node::set_style_content called on non-style node"
-            ),
+            #[allow(clippy::assertions_on_constants)]
+            _ => {
+                assert!(
+                    !cfg!(debug_assertions),
+                    "Node::set_style_content called on non-style node"
+                );
+            }
         }
     }
 

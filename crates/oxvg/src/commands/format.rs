@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[derive(clap::Args, Debug)]
-/// Runs [`Optimise`] with options and defaults specialised for formatting
+/// Runs [`crate::commands::Optimise`] with options and defaults specialised for formatting
 pub struct Format {
     /// The target paths to optimise
     #[clap(value_parser)]
@@ -81,6 +81,7 @@ impl RunCommand for Format {
                         allow_dtd: true,
                         ..ParsingOptions::default()
                     },
+                    #[allow(clippy::cast_precision_loss)]
                     |dom, _| -> anyhow::Result<()> {
                         let output = Output {
                             options: format_options,

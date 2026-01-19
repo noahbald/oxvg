@@ -48,7 +48,6 @@ serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
-lazy_static = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
 napi = { workspace = true, optional = true }

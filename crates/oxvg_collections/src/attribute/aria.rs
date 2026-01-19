@@ -28,7 +28,7 @@ enum_attr!(
     AriaCurrent {
         /// Represents the current page within a set of pages.
         Page: "page",
-        /// https://www.w3.org/TR/wai-aria-1.1/#aria-current
+        /// <https://www.w3.org/TR/wai-aria-1.1/#aria-current>
         Step: "step",
         /// Represents the current location within an environment or context.
         Location: "location",

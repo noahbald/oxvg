@@ -5,7 +5,7 @@ use crate::error::{DeprecatedProblem, Error, Problem};
 
 use super::{RuleData, Severity};
 
-pub fn no_deprecated<'input>(
+pub fn no_deprecated(
     RuleData {
         reports,
         element,
@@ -13,7 +13,7 @@ pub fn no_deprecated<'input>(
         range,
         attribute_ranges,
         ..
-    }: &mut RuleData<'_, 'input>,
+    }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
     if element.info().intersects(ElementInfo::Legacy) {
@@ -22,8 +22,8 @@ pub fn no_deprecated<'input>(
             severity,
             range: range.as_ref().map(|range| range.start..range.start),
             help: None,
-        })
-    };
+        });
+    }
 
     reports.par_extend(attributes.par_iter().filter_map(move |attr| {
         let attr_id = attr.name();
@@ -45,7 +45,7 @@ pub fn no_deprecated<'input>(
                 None
             },
         })
-    }))
+    }));
 }
 
 #[cfg(test)]

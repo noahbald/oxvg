@@ -122,7 +122,7 @@ impl Curve {
         )
     }
 
-    /// Returns whether the arc fits on a straight line
+    /// Returns whether the arc fits on a straight line.
     pub fn is_straight(&self, error: f64) -> bool {
         Self::is_data_straight(&self.0, error)
     }
@@ -136,11 +136,11 @@ impl Curve {
         let d = 1.0 / (a * a + b * b); // same part for all points
 
         if i <= 1 || !d.is_finite() {
-            // curve that ends at start point isn't the case
+            // Curve that ends at start point isn't the case
             return false;
         }
 
-        // Distance from point (x0, y0) to the line is sqrt((c − a·x0 − b·y0)² / (a² + b²))
+        // Distance from point `(x0, y0)` to the line is `sqrt((c − a·x0 − b·y0)² / (a² + b²))`
         for i in (0..=(i - 2)).rev().step_by(2) {
             if f64::sqrt(f64::powi(a * args[i] + b * args[i + 1], 2) * d) > error {
                 return false;
@@ -203,11 +203,13 @@ impl Point {
     }
 
     /// Creates a point diagonally across from another point
+    #[must_use]
     pub fn reflect(&self, base: Self) -> Self {
         Self([2.0 * base.0[0] - self.0[0], 2.0 * base.0[1] - self.0[1]])
     }
 
     /// The subtraction of two points
+    #[must_use]
     pub fn sub(&self, Self(v2): Self) -> Self {
         Self([self.0[0] - v2[0], self.0[1] - v2[1]])
     }
@@ -223,11 +225,13 @@ impl Point {
     }
 
     /// The inverse of a point, by multiplying by `-1`
+    #[must_use]
     pub fn minus(&self) -> Self {
         Self([-self.0[0], -self.0[1]])
     }
 
     /// The orthogonal of a point
+    #[must_use]
     pub fn orth(&self, from: &Self) -> Self {
         let o = Self([-self.0[1], self.0[0]]);
         if o.dot(&from.minus()) < 0.0 {

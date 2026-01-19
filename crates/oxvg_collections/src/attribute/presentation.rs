@@ -677,6 +677,7 @@ fn font_variant() {
 ///
 /// [w3](https://www.w3.org/TR/css-fonts-3/#propdef-font-variant)
 #[derive(Clone, Debug, Default, PartialEq)]
+#[allow(clippy::struct_field_names)]
 pub struct FontVariantLigatures {
     common_lig_values: Option<CommonLigValues>,
     discretionary_lig_values: Option<DiscretionaryLigValues>,

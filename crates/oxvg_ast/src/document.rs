@@ -34,7 +34,7 @@ impl<'input, 'arena> Document<'input, 'arena> {
     /// Creates a new attribute node and returns it
     ///
     /// [MDN | createAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Document/createAttribute)
-    pub fn create_attribute<'a>(&self, name: AttrId<'input>) -> Attr<'input> {
+    pub fn create_attribute(&self, name: AttrId<'input>) -> Attr<'input> {
         Attr::new(name, Default::default())
     }
 
@@ -57,7 +57,7 @@ impl<'input, 'arena> Document<'input, 'arena> {
         tag_name: ElementId<'input>,
         allocator: &Allocator<'input, 'arena>,
     ) -> Element<'input, 'arena> {
-        Element::new(allocator.alloc(NodeData::Element {
+        Element(allocator.alloc(NodeData::Element {
             name: tag_name,
             attrs: RefCell::new(vec![]),
             #[cfg(feature = "selectors")]
@@ -67,7 +67,6 @@ impl<'input, 'arena> Document<'input, 'arena> {
             #[cfg(feature = "range")]
             ranges: std::collections::HashMap::new(),
         }))
-        .expect("created element should be an element")
     }
 
     /// Generates a new processing instruction node and returns it

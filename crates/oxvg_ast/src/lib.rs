@@ -1,4 +1,4 @@
-//! OXVG uses an ast representation of an XML document for processing SVGs.
+//! OXVG uses an AST representation of an XML document for processing SVGs.
 //!
 //! As opposed to `oxvg_collections`, which is for the data types of an SVG document,
 //! `oxvg_ast` is for the structural types of an SVG document.
@@ -9,13 +9,13 @@
 //!
 //! - [`node::Node`] for data nodes of an SVG document.
 //! - [`element::Element`] for a node that contains SVG element data.
-//! - [`attribute::Attribute`] for attributes of an SVG element.
+//! - [`attribute::Attributes`] for attributes of an SVG element.
 //!
 //! # Features
 //!
 //! ## Parsing
 //!
-//! When a parser such as [`parse::markup5ever`] or [`parse::roxmltree`] feature flag is enabled,
+//! When a parser such as `markup5ever` or `roxmltree` has its feature flag enabled,
 //! you can bring the respective parsing library and use that to build an OXVG AST representation.
 //!
 //! ## Visitors

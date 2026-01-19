@@ -12,7 +12,7 @@ enum_attr!(
 );
 
 enum_attr!(
-    /// Provides documentation to XLink-aware processors.
+    /// Provides documentation to `XLink`-aware processors.
     ///
     /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/linking.html#XLinkShowAttribute)
     XLinkShow {
@@ -30,7 +30,7 @@ enum_attr!(
 );
 
 enum_attr!(
-    /// Identifies the type of XLink being used..
+    /// Identifies the type of `XLink` being used.
     XLinkType {
         /// Associates the local resource with one remote resource.
         Simple: "simple",

@@ -8,14 +8,14 @@ use crate::{
 
 use super::{RuleData, Severity};
 
-pub fn no_unknown_attributes<'input>(
+pub fn no_unknown_attributes(
     RuleData {
         reports,
         element,
         attributes,
         attribute_ranges,
         ..
-    }: &mut RuleData<'_, 'input>,
+    }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
     if matches!(element, ElementId::Unknown(_)) {
@@ -45,7 +45,7 @@ pub fn no_unknown_attributes<'input>(
                 help,
             })
         }
-    }))
+    }));
 }
 
 #[cfg(test)]

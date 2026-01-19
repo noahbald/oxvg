@@ -51,11 +51,12 @@ use std::ops::{Deref, DerefMut};
 use crate::atom::Atom;
 
 #[derive(Debug, PartialEq)]
-/// A reference to the content type, as received from [`Attr::value`] or [`Attr::value_mut`]
+/// A reference to the content type, as received from [`crate::attribute::Attr::value`]
+/// or [`crate::attribute::Attr::value_mut`]
 pub enum ContentTypeRef<'a, T: std::fmt::Debug + PartialEq> {
-    /// A reference received from [`Attr::value`]
+    /// A reference received from [`crate::attribute::Attr::value`]
     Ref(&'a T),
-    /// A reference received from [`Attr::value_mut`]
+    /// A reference received from [`crate::attribute::Attr::value_mut`]
     RefMut(&'a mut T),
 }
 impl<T: std::fmt::Debug + PartialEq> Deref for ContentTypeRef<'_, T> {
@@ -145,7 +146,7 @@ impl<'input, F: FnMut(Reference<'_, 'input>)> visitor::Visitor<'input>
 macro_rules! define_content_types {
     ($($name:ident($ty:ty)$(<$i:lifetime>)?,)+) => {
         #[derive(Debug, PartialEq)]
-        /// A reference to an attribute's value, mutably mapped to it's content type
+        /// A reference to an attribute's value, mutably mapped to its content type
         pub enum ContentType<'a, 'input> {
             $(
                 #[doc=concat!("a `", stringify!($name), "` value")]
@@ -318,7 +319,7 @@ impl<'input> ContentType<'_, 'input> {
         }
     }
 
-    /// For an attribute, visits any IDs it may contain or reference, including [`Attr::Id`]
+    /// For an attribute, visits any IDs it may contain or reference, including [`crate::attribute::Attr::Id`]
     pub fn visit_id<F>(&mut self, mut f: F)
     where
         F: FnMut(Reference<'_, 'input>),
@@ -339,7 +340,7 @@ impl<'input> ContentType<'_, 'input> {
         F: FnMut(Reference<'_, 'input>),
     {
         match self {
-            Self::IDReference(value) | Self::Id(value) => f(Reference::Atom(&mut (&mut *value).0)),
+            Self::IDReference(value) | Self::Id(value) => f(Reference::Atom(&mut (value).0)),
             Self::BeginEnd(begin_end) => match &mut **begin_end {
                 BeginEnd::SyncbaseValue { id, .. }
                 | BeginEnd::EventValue { id: Some(id), .. }
@@ -360,7 +361,7 @@ impl<'input> ContentType<'_, 'input> {
         }
     }
 
-    /// For an attribute, visits any classes it may contain or reference, including [`Attr::Class`]
+    /// For an attribute, visits any classes it may contain or reference, including [`crate::attribute::Attr::Class`]
     pub fn visit_class<F>(&mut self, mut f: F)
     where
         F: FnMut(Reference<'_, 'input>),

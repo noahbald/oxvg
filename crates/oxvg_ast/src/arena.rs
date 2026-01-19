@@ -14,7 +14,7 @@ type PrivateValues<'input> = &'input typed_arena::Arena<u8>;
 ///
 /// Used for copying values into a document which may not live for `'input`.
 ///
-/// For inputs that do live for `'input`, try using [`Atom::from`]
+/// For inputs that do live for `'input`, try using [`oxvg_collections::atom::Atom::from`]
 pub struct Values(typed_arena::Arena<u8>);
 
 /// The allocator for adding new data points that live as long as the document
@@ -72,7 +72,7 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
     ///
     /// # Performance
     ///
-    /// This method copies the string for the given lifetime. You may prefer to use [`crate::atom::Atom`]
+    /// This method copies the string for the given lifetime. You may prefer to use [`oxvg_collections::atom::Atom`]
     /// when possible.
     pub fn alloc_str(&self, str: &str) -> &'input mut str {
         self.values.alloc_str(str)

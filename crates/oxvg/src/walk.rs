@@ -38,6 +38,8 @@ pub(crate) struct Output<'a, 'input, 'arena> {
     pub input_bytes: f64,
 }
 impl Output<'_, '_, '_> {
+    #[allow(clippy::unnecessary_debug_formatting)]
+    #[allow(clippy::cast_precision_loss)]
     pub fn output(self) -> anyhow::Result<()> {
         let is_stdin = self.input.is_none();
         if let Some(output) = self.destination {
@@ -116,7 +118,6 @@ impl Walk<'_> {
                 })
             })
         };
-        dbg!(&self.no_ignore);
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
             .hidden(!self.hidden)

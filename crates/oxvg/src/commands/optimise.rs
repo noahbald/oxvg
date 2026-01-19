@@ -107,6 +107,7 @@ impl Optimise {
                         allow_dtd: true,
                         ..ParsingOptions::default()
                     },
+                    #[allow(clippy::cast_precision_loss)]
                     |dom, allocator| -> anyhow::Result<()> {
                         let input_bytes = source.len() as f64;
                         let info = Info {

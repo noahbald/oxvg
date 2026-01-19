@@ -2,7 +2,7 @@
 use crate::command::Position;
 
 #[derive(Debug, Clone)]
-/// Equivalent of a [Path](Path), with positional information
+/// Equivalent of a [Path], with positional information
 pub struct Path(pub Vec<Position>);
 
 type SplitPositionedPath<'a> = (
@@ -18,7 +18,7 @@ type SplitPositionedPathWithPrevOption<'a> = (
 );
 
 impl Path {
-    /// Converts self into a [Path](Path), emptying self in the process
+    /// Converts self into a [Path], emptying self in the process
     pub fn take(self) -> crate::Path {
         crate::Path(self.0.into_iter().map(|p| p.command).collect())
     }

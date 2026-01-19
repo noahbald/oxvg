@@ -7,14 +7,14 @@ use crate::{
 
 use super::{RuleData, Severity};
 
-pub fn no_unknown_elements<'input>(
+pub fn no_unknown_elements(
     RuleData {
         reports,
         parent,
         element,
         range,
         ..
-    }: &mut RuleData<'_, 'input>,
+    }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
     let Some(parent) = parent else {
@@ -37,7 +37,7 @@ pub fn no_unknown_elements<'input>(
         //       Using a zero-length range will cause the error reporter to use `utils::naive_range`.
         range: range.as_ref().map(|range| range.start..range.start),
         help: prefix_help(element.prefix()),
-    })
+    });
 }
 
 #[cfg(test)]

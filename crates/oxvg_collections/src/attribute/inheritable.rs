@@ -83,7 +83,7 @@ impl<'input, T: Parse<'input> + Debug + PartialEq> Parse<'input> for Inheritable
 }
 #[cfg(feature = "serialize")]
 impl<T: ToValue + Debug + PartialEq> Inheritable<Box<T>> {
-    /// See [`crate::serialize::ToValue::write_value`]
+    /// See [`oxvg_serialize::ToValue::write_value`]
     ///
     /// # Errors
     /// If the printer fails

@@ -13,6 +13,8 @@ use crate::error::JobsError;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
+pub use convert_colors::Method;
+
 macro_rules! jobs {
     ($($name:ident: $job:ident$(< $($t:ty),* >)? $((is_default: $default:ident))?,)+) => {
         $(mod $name;)+
@@ -23,6 +25,7 @@ macro_rules! jobs {
         #[cfg_attr(feature = "napi", napi(object))]
         #[cfg_attr(feature = "wasm", derive(Tsify))]
         #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
+        #[allow(clippy::unsafe_derive_deserialize)]
         #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
         #[derive(Clone, Debug)]
         #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
@@ -79,7 +82,7 @@ macro_rules! jobs {
                         ValueType::String => unsafe {
                             let svgo_name: String = plugin.cast()?;
                             oxvg_config
-                                .from_svgo_plugin_string(&svgo_name)
+                                .set_svgo_plugin_string(&svgo_name)
                                 .map_err(|_| napi::Error::new(Status::InvalidArg, format!("unknown job `{svgo_name}`")))?;
                         }
                         ValueType::Object => unsafe {
@@ -126,7 +129,7 @@ macro_rules! jobs {
                     match plugin {
                         serde_json::Value::String(svgo_name) => {
                             oxvg_config
-                                .from_svgo_plugin_string(&svgo_name)
+                                .set_svgo_plugin_string(&svgo_name)
                                 .map_err(|_| serde_json::Error::custom(format!("unknown job `{svgo_name}`")))?;
                         }
                         serde_json::Value::Object(mut plugin) => {
@@ -155,7 +158,7 @@ macro_rules! jobs {
                 Ok(oxvg_config)
             }
 
-            fn from_svgo_plugin_string(&mut self, svgo_name: &str) -> Result<(), ()> {
+            fn set_svgo_plugin_string(&mut self, svgo_name: &str) -> Result<(), ()> {
                 if svgo_name == "preset-default" {
                     macro_rules! is_default {
                         ($_name:ident $_job:ident $_default:ident) => {

@@ -93,9 +93,9 @@ impl SVGTransform {
     }
 
     fn round_vec(transforms: &mut [Self], precision: &Precision) {
-        transforms
-            .iter_mut()
-            .for_each(|transform| transform.round(precision));
+        for transform in transforms.iter_mut() {
+            transform.round(precision);
+        }
     }
 
     #[cfg(feature = "serialize")]

@@ -49,7 +49,6 @@ derive_more = "2.0"
 derive-where = "1.2"
 getrandom = { version = "0.2", features = ["js"] }
 itertools = "0.14"
-lazy_static = "1.5"
 lightningcss = { version = "1.0.0-alpha.63", default-features = false, features = [
   "grid",
   "visitor",

@@ -58,7 +58,7 @@ pub enum Method {
 /// By default this job should never visually change the document.
 ///
 /// If the [`Method::CurrentColor`] is used all colours will inherit their text colour, which
-/// may be different to original.
+/// may be different to the original.
 ///
 /// # Errors
 ///

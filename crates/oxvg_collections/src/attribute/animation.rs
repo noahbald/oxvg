@@ -28,9 +28,9 @@ enum_attr!(
 /// Defines when the element should begin
 /// [w3](https://svgwg.org/specs/animations/#BeginValueListSyntax)
 pub enum BeginEnd<'i> {
-    /// (Clock-value)
+    /// `(Clock-value)`
     OffsetValue(ClockValue),
-    /// (Id-value "." ( "begin" | "end" )) (Clock-value)?
+    /// `(Id-value "." ( "begin" | "end" )) (Clock-value)?`
     SyncbaseValue {
         /// An ID reference to another element that has animations to sync with
         id: Atom<'i>,
@@ -39,7 +39,7 @@ pub enum BeginEnd<'i> {
         /// The clock time to delay the synced animation by
         offset: Option<ClockValue>,
     },
-    /// (Id-value ".")? (Event-ref) (Clock-value)?
+    /// `(Id-value ".")? (Event-ref) (Clock-value)?`
     EventValue {
         /// An ID reference to another element that has events to sync with
         id: Option<Atom<'i>>,
@@ -49,7 +49,7 @@ pub enum BeginEnd<'i> {
         /// The clock time to delay the synced animation by
         offset: Option<ClockValue>,
     },
-    /// (Id-value ".")? "repeat(<integer>)" (Clock-value)?
+    /// `(Id-value ".")? "repeat(<integer>)" (Clock-value)?`
     RepeatValue {
         /// An ID reference to another element
         id: Option<Atom<'i>>,
@@ -58,16 +58,16 @@ pub enum BeginEnd<'i> {
         /// The clock time to delay the synced animation by
         offset: Option<ClockValue>,
     },
-    /// "accessKey(<character>)" (Clock-value)?
+    /// `accessKey(<character>) (Clock-value)?`
     AccessKeyValue {
         /// The key name that will begin the animation when pressed by the user
         character: Atom<'i>,
         /// The clock time to delay the synced animation by
         offset: Option<ClockValue>,
     },
-    /// "wallclock(<wallclock-value>)"
+    /// `wallclock(<wallclock-value>)`
     WallclockSyncValue(Atom<'i>),
-    /// "indefinite"
+    /// `indefinite`
     Indefinite,
 }
 #[cfg(feature = "parse")]
