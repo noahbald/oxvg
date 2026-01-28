@@ -33,7 +33,7 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 etcetera = "0.10"
 ignore = "0.4"
-log = { workspace = true }
+log = { workspace = true, features = ["release_max_level_off"] }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
