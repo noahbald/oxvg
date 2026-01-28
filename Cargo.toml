@@ -53,7 +53,7 @@ lightningcss = { version = "1.0.0-alpha.63", default-features = false, features 
   "grid",
   "visitor",
 ] }
-log = { version = "0.4", features = ["release_max_level_off"] }
+log = { version = "0.4" }
 lsp-types = "0.97"
 markup5ever = "0.14"
 napi = { version = "3.4", default-features = false, features = ["napi7"] }
