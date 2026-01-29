@@ -106,7 +106,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         document: &Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        context.query_has_script(document);
+        context.query_has_stylesheet(document);
         Ok(PrepareOutcome::none)
     }
 
@@ -164,7 +164,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                 RemoveUnused::True
                     if !context
                         .flags
-                        .intersects(ContextFlags::query_has_script_result) =>
+                        .intersects(ContextFlags::query_has_stylesheet_result) =>
                 {
                     style_sheet.visit(&mut visitor)?;
                 }
