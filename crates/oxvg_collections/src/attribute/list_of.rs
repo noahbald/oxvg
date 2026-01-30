@@ -240,6 +240,10 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
             Err(e) => return Err(e),
         };
         loop {
+            if input.slice().trim_end().is_empty() {
+                S::maybe_skip_whitespace(input);
+                break;
+            }
             if S::parse(input).is_err() {
                 break;
             }
@@ -449,5 +453,29 @@ fn list_of_semicolon() {
     assert_eq!(
         ListOf::<i64, Semicolon>::parse_string("1,2,3"),
         Err(Error::ExpectedDone)
+    );
+}
+
+#[test]
+fn list_of_non_whitespace() {
+    use crate::{atom::Atom, attribute::core::NonWhitespace};
+
+    assert_eq!(
+        ListOf::<NonWhitespace, Space>::parse_string("a "),
+        Ok(ListOf {
+            list: vec![NonWhitespace(Atom::Static("a"))],
+            separator: Space
+        })
+    );
+
+    assert_eq!(
+        ListOf::<NonWhitespace, Space>::parse_string(" a b "),
+        Ok(ListOf {
+            list: vec![
+                NonWhitespace(Atom::Static("a")),
+                NonWhitespace(Atom::Static("b"))
+            ],
+            separator: Space
+        })
     );
 }
