@@ -255,7 +255,7 @@ fn matrix32_to_slice(matrix: &Matrix<f32>) -> [f64; 6] {
 
 #[allow(clippy::too_many_lines)]
 fn apply_matrix_to_path_data(path_data: &mut Path, matrix: &[f64; 6]) {
-    log::debug!("applying matrix: {:?}", matrix);
+    log::debug!("applying matrix: {matrix:?}");
     let mut start = [0.0; 2];
     let mut cursor = [0.0; 2];
     if let Some(data) = path_data.0.get_mut(0) {

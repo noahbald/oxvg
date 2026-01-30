@@ -134,7 +134,7 @@ impl SVGTransform {
             }
         }
 
-        log::debug!("converted to transform: {:?}", shortest);
+        log::debug!("converted to transform: {shortest:?}");
         shortest
     }
 
@@ -142,11 +142,11 @@ impl SVGTransform {
         let mut decompositions = vec![];
 
         if let Some(qrcd) = Self::qrcd(matrix) {
-            log::debug!(r#"decomposed qrcd: "{:?}""#, qrcd);
+            log::debug!(r#"decomposed qrcd: "{qrcd:?}""#);
             decompositions.push(qrcd);
         }
         if let Some(qrab) = Self::qrab(matrix) {
-            log::debug!(r#"decomposed qrab: "{:?}""#, qrab);
+            log::debug!(r#"decomposed qrab: "{qrab:?}""#);
             decompositions.push(qrab);
         }
         decompositions
