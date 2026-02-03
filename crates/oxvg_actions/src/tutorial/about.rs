@@ -1,4 +1,4 @@
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 
 /// Details about OXVG as a project
 pub struct About<'a> {
@@ -16,7 +16,7 @@ impl Default for About<'_> {
         // NOTE: To contributors, make a PR to add yourself
         // TODO: Fetch from github api?
         let mut authors = vec!["Noah <noahwbaldwin@gmail.com>"];
-        authors.shuffle(&mut thread_rng());
+        authors.shuffle(&mut rng());
         Self {
             version: "v0.1.0",
             authors,
