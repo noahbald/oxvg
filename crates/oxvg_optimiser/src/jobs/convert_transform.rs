@@ -191,12 +191,12 @@ impl ConvertTransform {
                 transform.0 = vec![SVGTransform::Matrix(matrix)];
             }
         }
-        log::debug!(r#"working with data "{:?}""#, transform);
+        log::debug!(r#"working with data "{transform:?}""#);
 
         self.convert_to_shorts(transform);
-        log::debug!(r#"converted transforms to short "{:?}""#, transform);
+        log::debug!(r#"converted transforms to short "{transform:?}""#);
         self.remove_useless(transform);
-        log::debug!(r#"removed useless transform "{:?}""#, transform);
+        log::debug!(r#"removed useless transform "{transform:?}""#);
     }
 
     fn remove_useless(&self, data: &mut SVGTransformList) {
@@ -231,7 +231,7 @@ impl ConvertTransform {
             deg: deg_precision,
             transform: transform_precision,
         };
-        log::debug!("converting with precision: {:?}", precision);
+        log::debug!("converting with precision: {precision:?}");
         if !self.convert_to_shorts {
             data.0
                 .iter_mut()
@@ -290,7 +290,7 @@ impl ConvertTransform {
                 result.push(SVGTransform::Rotate(deg, start_x, start_y));
                 skip = 2;
             }
-            log::debug!(r#"shortened rotates: "{:?}""#, result);
+            log::debug!(r#"shortened rotates: "{result:?}""#);
             data.0 = result;
         } else {
             data.0 = shorts;
