@@ -32,7 +32,7 @@ napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
-schemars = { version = "0.8.19", optional = true }
+schemars = { workspace = true, optional = true }
 tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 ryu = { version = "1.0.18", optional = true }
