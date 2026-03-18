@@ -1,5 +1,6 @@
 //! Categories for element
 bitflags! {
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     /// Specifies which categories an element may belong to
     pub struct ElementCategory: u32 {
         /// Elements used for animation

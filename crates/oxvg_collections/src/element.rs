@@ -88,6 +88,7 @@ macro_rules! define_elements {
         }
 
         #[derive(Clone, Debug, Hash, Eq)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// Identifies an element by it's local-name and namespace
         ///
         /// [MDN | SVG element reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element)
@@ -122,7 +123,7 @@ macro_rules! define_elements {
             }
 
             /// Returns the prefix of the qualified name.
-            pub fn prefix(&self) -> &Prefix<'input> {
+            pub const fn prefix(&self) -> &Prefix<'input> {
                 match self {
                     Self::Unknown(name) => &name.prefix,
                     Self::Aliased { prefix, .. } => prefix,

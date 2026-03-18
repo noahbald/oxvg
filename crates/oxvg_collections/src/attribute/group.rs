@@ -1,6 +1,7 @@
 //! Groups for attributes
 bitflags! {
     #[derive(Copy, Clone, Hash, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     /// Specifies which attribute groups an attribute may belong to
     pub struct AttributeGroup: u32 {
         /// Attributes used for animation addition

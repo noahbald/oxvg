@@ -16,6 +16,7 @@ workspace = true
 [features]
 default = ["parse", "serialize"]
 parse = ["dep:oxvg_parse", "dep:cssparser_lightningcss"]
+serde = ["dep:serde", "bitflags/serde"]
 serialize = ["dep:oxvg_serialize"]
 markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
 
@@ -30,6 +31,7 @@ dashmap = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
 smallvec = { workspace = true }
 string_cache = { workspace = true, optional = true }
 tendril = { workspace = true, optional = true }

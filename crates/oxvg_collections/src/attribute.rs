@@ -233,6 +233,7 @@ macro_rules! define_attrs {
         }
 
         #[derive(Eq, Clone, Debug, Hash)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// Identifies one of an element's attributes.
         ///
         /// [MDN | SVG Attribute reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute)

@@ -44,6 +44,7 @@ macro_rules! define_prefix {
         }
 
         #[derive(Debug, Clone)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// A prefix for a qualified name, e.g. `xlink` of `xlink:href`
         pub enum Prefix<'input> {
             $(
@@ -67,6 +68,7 @@ macro_rules! define_prefix {
         }
 
         #[derive(Debug, Clone, Hash)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// A namespace for a qualified name's prefix
         pub enum NS<'input> {
             $(
@@ -190,6 +192,7 @@ macro_rules! define_prefix {
 
 /// A qualified name used for the names of tags and attributes.
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QualName<'input> {
     /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
     pub prefix: Prefix<'input>,
