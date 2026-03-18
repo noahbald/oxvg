@@ -26,6 +26,7 @@ readme = "readme.md"
 
 [workspace.dependencies]
 oxvg = { path = "crates/oxvg" }
+oxvg_actions = { path = "crates/oxvg_actions", version = ">=0.0" }
 oxvg_ast = { path = "crates/oxvg_ast", version = ">=0.0" }
 oxvg_collections = { path = "crates/oxvg_collections", version = ">=0.0" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = ">=0.0" }
