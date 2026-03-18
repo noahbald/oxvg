@@ -19,7 +19,7 @@ use oxvg_collections::{
 };
 
 use crate::{
-    arena::Allocator,
+    arena::{Allocator, Arena, Values},
     node::{Node, NodeData, Ref},
 };
 
@@ -67,22 +67,21 @@ impl<'input> NamespaceMap<'input> {
     }
 }
 
-/// parse an xml document already in roxmltree representation
+/// parse an xml document already in roxmltree representation with an allocator
 ///
 /// # Errors
 ///
 /// If the depth of the tree is too deep
-pub fn parse_tree<
-    T,
-    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
->(
-    source: &roxmltree::Document,
+pub fn parse_tree_with_allocator<'input, 'arena, T, F>(
+    source: &'input roxmltree::Document<'input>,
+    arena: &'arena mut Arena<'input, 'arena>,
+    values: &'input Values,
     mut f: F,
-) -> Result<T, ParseError> {
-    let values = Allocator::new_values();
-    let capacity = source.descendants().len();
-    let mut arena = Allocator::new_arena_with_capacity(capacity);
-    let mut allocator = Allocator::new(&mut arena, &values);
+) -> Result<T, ParseError>
+where
+    F: FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+{
+    let mut allocator = Allocator::new(arena, values);
 
     let mut namespace_map = NamespaceMap::new();
     namespace_map.insert(Some("xml"), Some("http://www.w3.org/XML/1998/namespace"));
@@ -97,6 +96,25 @@ pub fn parse_tree<
     )?;
 
     Ok(f(document, allocator))
+}
+
+/// parse an xml document already in roxmltree representation
+///
+/// # Errors
+///
+/// If the depth of the tree is too deep
+pub fn parse_tree<
+    T,
+    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+>(
+    source: &roxmltree::Document,
+    f: F,
+) -> Result<T, ParseError> {
+    let values = Allocator::new_values();
+    let capacity = source.descendants().len();
+    let mut arena = Allocator::new_arena_with_capacity(capacity);
+
+    parse_tree_with_allocator(source, &mut arena, &values, f)
 }
 
 /// parse an xml document using roxmltree and parsing options
