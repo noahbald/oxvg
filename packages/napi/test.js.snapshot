@@ -1,0 +1,172 @@
+exports[`actor > constructor 1`] = `
+{
+  "history": [],
+  "selection": [],
+  "info": {
+    "contentModel": {
+      "permittedCategories": 0,
+      "permittedElements": []
+    },
+    "attributes": {
+      "expectedAttributeGroups": 0,
+      "expectedAttributes": [],
+      "values": []
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > select 1`] = `
+{
+  "history": [
+    {
+      "type": "Select",
+      "field0": "path"
+    }
+  ],
+  "selection": [
+    11,
+    13,
+    9
+  ],
+  "info": {
+    "contentModel": {
+      "permittedCategories": 524287,
+      "permittedElements": [
+        {
+          "type": "ClipPath"
+        },
+        {
+          "type": "Marker"
+        },
+        {
+          "type": "Mask"
+        },
+        {
+          "type": "Script"
+        },
+        {
+          "type": "Style"
+        }
+      ]
+    },
+    "attributes": {
+      "expectedAttributeGroups": 131071,
+      "expectedAttributes": [
+        {
+          "type": "D"
+        },
+        {
+          "type": "ExternalResourcesRequired"
+        },
+        {
+          "type": "PathLength"
+        }
+      ],
+      "values": []
+    },
+    "elementId": {
+      "type": "Path"
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > select 2`] = `
+{
+  "history": [
+    {
+      "type": "Select",
+      "field0": ".different-value"
+    },
+    {
+      "type": "Select",
+      "field0": "path"
+    }
+  ],
+  "selection": [
+    5,
+    7
+  ],
+  "info": {
+    "contentModel": {
+      "permittedCategories": 524287,
+      "permittedElements": [
+        {
+          "type": "A"
+        },
+        {
+          "type": "AltGlyphDef"
+        },
+        {
+          "type": "ClipPath"
+        },
+        {
+          "type": "ColorProfile"
+        },
+        {
+          "type": "Cursor"
+        },
+        {
+          "type": "Filter"
+        },
+        {
+          "type": "Font"
+        },
+        {
+          "type": "FontFace"
+        },
+        {
+          "type": "ForeignObject"
+        },
+        {
+          "type": "Image"
+        },
+        {
+          "type": "Marker"
+        },
+        {
+          "type": "Mask"
+        },
+        {
+          "type": "Pattern"
+        },
+        {
+          "type": "Script"
+        },
+        {
+          "type": "Style"
+        },
+        {
+          "type": "Switch"
+        },
+        {
+          "type": "Text"
+        },
+        {
+          "type": "View"
+        }
+      ]
+    },
+    "attributes": {
+      "expectedAttributeGroups": 131071,
+      "expectedAttributes": [
+        {
+          "type": "ExternalResourcesRequired"
+        }
+      ],
+      "values": []
+    },
+    "elementId": {
+      "type": "G"
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > select 3`] = `
+"<svg xmlns=\\"http://www.w3.org/2000/svg\\" xmlns:oxvg=\\"https://oxvg.noahwbaldwin.me\\"><!-- Should convert to hex --><g class=\\"different-type different-value\\" color=\\"#000\\"/><g class=\\"different-value\\" color=\\"#00f\\"/><path class=\\"different-type same-value\\" fill=\\"#404040\\"/><path class=\\"same-value\\" fill=\\"#404040\\"/><path fill=\\"#dcddde\\"/><oxvg:state><oxvg:history><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>path</oxvg:arg></oxvg:action><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>.different-value</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids=\\"5, 7\\"/></oxvg:state></svg>"
+`;

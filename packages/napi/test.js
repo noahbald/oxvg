@@ -5,6 +5,7 @@ const {
 	optimise,
 	convertSvgoConfig,
 	extend,
+	Actor,
 } = require("./index.js");
 
 // Force stable keys for snapshot objects
