@@ -55,7 +55,7 @@ lightningcss = { version = "1.0.0-alpha.70", default-features = false, features 
 ] }
 log = { version = "0.4" }
 lsp-types = "0.97"
-napi = { version = "3.4", default-features = false, features = ["napi7"] }
+napi = { version = "3.8", default-features = false, features = ["napi7"] }
 napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
 paste = "1.0"
@@ -78,7 +78,7 @@ tokio = "1.48"
 tower-lsp-server = "0.22"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = "=0.2.104"
 xml5ever = "0.38"
 
 # Developer dependencies
