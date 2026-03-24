@@ -106,3 +106,6 @@ lto = true
 
 [profile.release.package.oxvg_napi]
 strip = "symbols"
+
+[profile.release.package.oxvg_wasm]
+strip = true

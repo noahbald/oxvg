@@ -1,0 +1,174 @@
+exports[`actor > constructor 1`] = `
+{
+  "history": [],
+  "selection": [],
+  "info": {
+    "content_model": {
+      "permitted_categories": 0,
+      "permitted_elements": []
+    },
+    "attributes": {
+      "expected_attribute_groups": 0,
+      "expected_attributes": [],
+      "values": {}
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > on empty 1`] = `
+{
+  "history": [
+    {
+      "Select": "svg"
+    }
+  ],
+  "selection": [
+    1
+  ],
+  "info": {
+    "element_id": "Svg",
+    "content_model": {
+      "permitted_categories": 524287,
+      "permitted_elements": [
+        "A",
+        "AltGlyphDef",
+        "ClipPath",
+        "ColorProfile",
+        "Cursor",
+        "Filter",
+        "Font",
+        "FontFace",
+        "ForeignObject",
+        "Image",
+        "Marker",
+        "Mask",
+        "Pattern",
+        "Script",
+        "Style",
+        "Switch",
+        "Text",
+        "View"
+      ]
+    },
+    "attributes": {
+      "expected_attribute_groups": 131071,
+      "expected_attributes": [
+        "BaseProfile",
+        "ContentScriptType",
+        "ContentStyleType",
+        "ExternalResourcesRequired",
+        "HeightSvg",
+        "Playbackorder",
+        "PreserveAspectRatio",
+        "Timelinebegin",
+        "Version",
+        "ViewBox",
+        "WidthSvg",
+        "XGeometry",
+        "YGeometry",
+        "ZoomAndPan"
+      ],
+      "values": {}
+    }
+  }
+}
+`;
+
+exports[`actor > on empty 2`] = `
+"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 100 100\\" width=\\"100\\" height=\\"100\\" xmlns:oxvg=\\"https://oxvg.noahwbaldwin.me\\"><oxvg:state><oxvg:history><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>svg</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids=\\"1\\"/></oxvg:state></svg>"
+`;
+
+exports[`actor > select 1`] = `
+{
+  "history": [
+    {
+      "Select": "path"
+    }
+  ],
+  "selection": [
+    11,
+    13,
+    9
+  ],
+  "info": {
+    "element_id": "Path",
+    "content_model": {
+      "permitted_categories": 524287,
+      "permitted_elements": [
+        "ClipPath",
+        "Marker",
+        "Mask",
+        "Script",
+        "Style"
+      ]
+    },
+    "attributes": {
+      "expected_attribute_groups": 131071,
+      "expected_attributes": [
+        "D",
+        "ExternalResourcesRequired",
+        "PathLength"
+      ],
+      "values": {}
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > select 2`] = `
+{
+  "history": [
+    {
+      "Select": ".different-value"
+    },
+    {
+      "Select": "path"
+    }
+  ],
+  "selection": [
+    5,
+    7
+  ],
+  "info": {
+    "element_id": "G",
+    "content_model": {
+      "permitted_categories": 524287,
+      "permitted_elements": [
+        "A",
+        "AltGlyphDef",
+        "ClipPath",
+        "ColorProfile",
+        "Cursor",
+        "Filter",
+        "Font",
+        "FontFace",
+        "ForeignObject",
+        "Image",
+        "Marker",
+        "Mask",
+        "Pattern",
+        "Script",
+        "Style",
+        "Switch",
+        "Text",
+        "View"
+      ]
+    },
+    "attributes": {
+      "expected_attribute_groups": 131071,
+      "expected_attributes": [
+        "ExternalResourcesRequired"
+      ],
+      "values": {}
+    },
+    "text": ""
+  }
+}
+`;
+
+exports[`actor > select 3`] = `
+"<svg xmlns=\\"http://www.w3.org/2000/svg\\" xmlns:oxvg=\\"https://oxvg.noahwbaldwin.me\\">\\n    <!-- Should convert to hex -->\\n    <g class=\\"different-type different-value\\" color=\\"#000\\"/>\\n    <g class=\\"different-value\\" color=\\"#00f\\"/>\\n    <path class=\\"different-type same-value\\" fill=\\"#404040\\"/>\\n    <path class=\\"same-value\\" fill=\\"#404040\\"/>\\n    <path fill=\\"#dcddde\\"/>\\n<oxvg:state><oxvg:history><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>path</oxvg:arg></oxvg:action><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>.different-value</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids=\\"5, 7\\"/></oxvg:state></svg>"
+`;

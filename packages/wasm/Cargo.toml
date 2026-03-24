@@ -15,15 +15,26 @@ workspace = true
 [lib]
 crate-type = ["cdylib"]
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+  "-Oz",
+  "--enable-bulk-memory",
+  "--enable-reference-types",
+  "--enable-nontrapping-float-to-int",
+]
+
 [dependencies]
-oxvg_optimiser = { workspace = true, features = ["wasm"] }
+oxvg_actions = { workspace = true, features = ["wasm"] }
 oxvg_ast = { workspace = true, features = ["roxmltree", "serialize"] }
+oxvg_collections = { workspace = true }
+oxvg_optimiser = { workspace = true, features = ["wasm"] }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true, features = ["wasm_js"] }
 roxmltree = { workspace = true }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
+tsify = { workspace = true }
 typed-arena = { workspace = true }
 wasm-bindgen = { workspace = true }
 
