@@ -13,7 +13,7 @@ The following tools will be available in a CLI binary.
 ### 🪶 Optimiser
 
 > [!TIP]
-> You can try out OXVG right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
+> You can try out the OXVG optimiser right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
 
 
 An SVG optimiser similar to [SVGO](https://github.com/svg/svgo) is available and runs [multiple times faster](https://github.com/noahbald/oxvg/wiki/Benchmarks) on some tasks.
@@ -23,9 +23,13 @@ The optimiser is based on SVGO, but please be aware that this isn't an exact clo
 You can read more about these differences and why in [this wiki page](https://github.com/noahbald/oxvg/wiki/Optimiser#svgo-parity).
 Differences for any of the jobs are also documented with each struct/interface's declaration.
 
-### 🤖 Transformer (Planned)
+### 🤖 Actions (Under Development)
 
-An SVG transformer similar to Inkscape's actions is planned.
+> [!TIP]
+> You can try out OXVG actions right in your browser using [Vivec](https://oxvg.noahwbaldwin.me/), an integration of actions into a Vi-like web-editor.
+
+[Actions](https://github.com/noahbald/oxvg/wiki/Actions) are a set of commands that can be invoked by a program to manipulate an SVG document or pull information from it.
+It is comparable to InkScape's actions, but without any dependency on the UI or rendering.
 
 ### 🧹 Linter
 
@@ -36,13 +40,13 @@ A basic [linter](https://github.com/noahbald/oxvg/wiki/Linter) similar to svglin
 ## 📖 Libraries
 
 If you're a Rust developer wanting to work with SVGs in your project, we have a set of crates at your disposal.
-As of now though, we're quite unstable and certain crates may be updated, merged, or moved as we see fit.
+As of now though, some are unstable and may be updated, merged, or moved as we see fit.
 
-### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions) (pre-alpha)
+### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions) (Unstable)
 
 These are where the commands for our transformer will live and will contain a set of actions to manipulate SVGs.
 
-### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast) (beta)
+### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast)
 
 This crate provides a set of types that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
 
@@ -52,7 +56,7 @@ There's currently an implementation that can be used with either the xml5ever or
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
 - An implementation of [selectors](https://docs.rs/selectors/0.26.0/selectors/) for using DOM CSS queries
 
-### [Collections](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_collections) (beta)
+### [Collections](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_collections)
 
 This crate provides types and meta-types for SVG content.
 
@@ -63,19 +67,11 @@ This crate provides types and meta-types for SVG content.
 
 This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
 
-### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path) (beta)
+### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path) (Unstable)
 
 This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
 
 Please expect some instability as we may add new features to enable simple manipulations for paths in the future.
-
-## 💭 Other future ideas
-
-The future potential of this project is still undecided. The following may be available some point in the future.
-
-- NPX bindings
-- A web frontend comparable to InkScape
-- A TUI frontend
 
 ## Building
 
@@ -89,10 +85,11 @@ cargo build --package oxvg
 ./target/debug/oxvg.exe --help
 ```
 
-Or you can try running it through `cargo` instead
+Or you can install it through `cargo`
 
 ```sh
-cargo run -- --help
+cargo install oxvg
+oxvg --help
 ```
 
 ## Contributing
