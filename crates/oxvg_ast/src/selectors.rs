@@ -259,14 +259,13 @@ impl<'input, 'arena> Iterator for Select<'input, 'arena> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.find(|element| {
-            Element::parent_element(element).is_some()
-                && self.selector.matches_with_scope_and_cache(
-                    &SelectElement {
-                        element: element.clone(),
-                    },
-                    self.scope.clone(),
-                    &mut self.selector_caches,
-                )
+            self.selector.matches_with_scope_and_cache(
+                &SelectElement {
+                    element: element.clone(),
+                },
+                self.scope.clone(),
+                &mut self.selector_caches,
+            )
         })
     }
 }
