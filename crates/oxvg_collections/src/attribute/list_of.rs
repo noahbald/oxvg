@@ -398,7 +398,7 @@ fn list_of_space() {
 
 #[test]
 fn list_of_space_or_comma() {
-    use crate::attribute::core::{Length, Percentage};
+    use crate::attribute::core_attrs::{Length, Percentage};
     assert_eq!(
         ListOf::<i64, SpaceOrComma>::parse_string("1, 2, 3"),
         Ok(ListOf {
@@ -437,7 +437,7 @@ fn list_of_semicolon() {
     use crate::attribute::{
         animation::BeginEnd,
         animation_timing::{ClockValue, Metric},
-        core::NumberOptionalNumber,
+        core_attrs::NumberOptionalNumber,
     };
     assert_eq!(
         ListOf::<NumberOptionalNumber, Semicolon>::parse_string("1, 2; 3"),
@@ -482,7 +482,7 @@ fn list_of_semicolon() {
 
 #[test]
 fn list_of_non_whitespace() {
-    use crate::{atom::Atom, attribute::core::NonWhitespace};
+    use crate::{atom::Atom, attribute::core_attrs::NonWhitespace};
 
     assert_eq!(
         ListOf::<NonWhitespace, Space>::parse_string("a "),

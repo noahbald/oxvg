@@ -15,10 +15,12 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["parse", "serialize"]
+markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
+napi = ["dep:napi", "dep:napi-derive"]
 parse = ["dep:oxvg_parse", "dep:cssparser_lightningcss"]
 serde = ["dep:serde", "bitflags/serde"]
 serialize = ["dep:oxvg_serialize"]
-markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
+wasm = ["dep:tsify", "dep:wasm-bindgen"]
 
 [dependencies]
 oxvg_parse = { workspace = true, features = ["lightningcss"], optional = true }
@@ -31,8 +33,12 @@ dashmap = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 log = { workspace = true }
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 smallvec = { workspace = true }
 string_cache = { workspace = true, optional = true }
 tendril = { workspace = true, optional = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 xml5ever = { workspace = true, optional = true }

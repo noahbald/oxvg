@@ -8,7 +8,7 @@ use crate::{atom::Atom, enum_attr};
 
 use super::{
     animation_timing::ClockValue,
-    core::{Integer, Number},
+    core_attrs::{Integer, Number},
 };
 
 enum_attr!(

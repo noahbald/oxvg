@@ -1,7 +1,7 @@
 //! ARIA attribute types as specified in [ARIA](https://www.w3.org/TR/wai-aria-1.1/)
 use crate::enum_attr;
 
-use super::core::NonWhitespace;
+use super::core_attrs::NonWhitespace;
 
 enum_attr!(
     #[derive(Default)]

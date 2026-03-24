@@ -32,6 +32,10 @@
 #[macro_use]
 extern crate bitflags;
 
+#[cfg(feature = "napi")]
+#[macro_use]
+extern crate napi_derive;
+
 pub mod atom;
 pub mod attribute;
 pub mod content_type;

@@ -3,6 +3,10 @@ use std::ops::Deref;
 
 use lightningcss::values::string::CowArcStr;
 use oxvg_parse::error::Error;
+
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 #[cfg(feature = "markup5ever")]
 use tendril::SliceExt;
 
@@ -15,11 +19,13 @@ use tendril::SliceExt;
 ///
 /// Certain parsers (e.g. `feature = "markup5ever"`) will enable
 /// atomised values for common SVG strings and interning otherwise.
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum Atom<'input> {
     /// The string is an atom generated in a `const` or `static` context
     Static(&'static str),
     /// The string is a string generated while parsing
-    Cow(CowArcStr<'input>),
+    Cow(#[cfg_attr(feature = "wasm", tsify(type = "unknown"))] CowArcStr<'input>),
     #[cfg(feature = "markup5ever")]
     /// The string is an atomised namespace
     NS(string_cache::Atom<xml5ever::NamespaceStaticSet>),

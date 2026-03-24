@@ -13,7 +13,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
-    core::SVGTransformList,
+    core_attrs::SVGTransformList,
     inheritable::Inheritable,
     presentation::{LengthPercentage, VectorEffect},
     Attr, AttrId,

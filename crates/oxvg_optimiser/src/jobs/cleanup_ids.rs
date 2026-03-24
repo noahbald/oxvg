@@ -9,7 +9,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{core::NonWhitespace, Attr, AttrId},
+    attribute::{core_attrs::NonWhitespace, Attr, AttrId},
     content_type::Reference,
 };
 #[cfg(feature = "serde")]

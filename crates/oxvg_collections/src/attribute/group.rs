@@ -1,7 +1,14 @@
 //! Groups for attributes
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 bitflags! {
     #[derive(Copy, Clone, Hash, PartialEq, Eq)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+    #[cfg_attr(feature = "wasm", tsify(type = "number"))]
+    #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+    #[cfg_attr(feature = "napi", napi)]
+    #[derive(Debug)]
     /// Specifies which attribute groups an attribute may belong to
     pub struct AttributeGroup: u32 {
         /// Attributes used for animation addition
@@ -48,6 +55,44 @@ impl AttributeGroup {
             .union(Self::DocumentElementEvent)
             .union(Self::GraphicalEvent)
             .union(Self::GlobalEvent)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for AttributeGroup {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.bits().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for AttributeGroup {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(AttributeGroup::from_bits_retain(u32::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
+#[cfg(feature = "napi")]
+#[napi]
+impl AttributeGroup {
+    #[napi(constructor)]
+    /// Convert from bits
+    pub fn new(bits: u32) -> AttributeGroup {
+        AttributeGroup::from_bits_retain(bits)
+    }
+
+    #[napi]
+    /// Get the underlying bits
+    pub const fn to_bits(&self) -> u32 {
+        self.bits()
     }
 }
 
