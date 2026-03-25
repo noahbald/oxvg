@@ -1,0 +1,54 @@
+---
+source: crates/oxvg_actions/src/actions.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "path",
+            ),
+        ),
+    ],
+    selection: [
+        7,
+        9,
+        11,
+        13,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                Path,
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {
+                    ClipPath,
+                    Marker,
+                    Mask,
+                    Script,
+                    Style,
+                },
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {
+                    D,
+                    ExternalResourcesRequired,
+                    PathLength,
+                },
+                values: {},
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+}

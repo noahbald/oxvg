@@ -13,7 +13,7 @@ use oxvg_parse::{error::Error, Parse, Parser};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{error::PrinterError, Printer, PrinterOptions, ToValue};
 
-use super::core::{Angle, Number};
+use super::core_attrs::{Angle, Number};
 
 #[derive(Debug, Clone, PartialEq)]
 /// A transform applied to an element and it's children

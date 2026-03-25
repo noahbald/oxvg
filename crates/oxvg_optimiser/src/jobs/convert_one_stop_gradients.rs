@@ -19,7 +19,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::{Color, Paint},
+        core_attrs::{Color, Paint},
         inheritable::Inheritable,
         Attr, AttrId,
     },
@@ -279,7 +279,8 @@ fn update_style_references<'input>(
 ) -> Result<(), JobsError<'input>> {
     for element in context.root.breadth_first() {
         let mut style = get_attribute_mut!(element, Style);
-        let Some(oxvg_collections::attribute::core::Style(style)) = style.as_deref_mut() else {
+        let Some(oxvg_collections::attribute::core_attrs::Style(style)) = style.as_deref_mut()
+        else {
             continue;
         };
         style.visit(&mut VisitPaint { url, color })?;

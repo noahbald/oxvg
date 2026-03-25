@@ -5,7 +5,7 @@ use std::cell::{Cell, RefMut};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::{Class, NonWhitespace},
+        core_attrs::{Class, NonWhitespace},
         list_of::{ListOf, Space},
         Attr, AttrId,
     },

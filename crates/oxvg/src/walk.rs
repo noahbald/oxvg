@@ -12,21 +12,36 @@ use oxvg_ast::{node::Ref, serialize::Node as _, xmlwriter::Options};
 
 type FnVisitor = Box<dyn FnMut(&str, Option<&PathBuf>, Option<&PathBuf>) + Send>;
 
+#[derive(clap::Args, Debug)]
 /// This will iterate over a set of paths.
-pub struct Walk<'a> {
+pub struct Walk {
     /// The set of paths to visit
-    pub paths: &'a [PathBuf],
-    /// Writes to the given paths instead of the input path when specified.
-    pub output: Option<&'a PathBuf>,
-    /// If the path is a directory, whether to walk through and optimise its
+    #[clap(value_parser)]
+    pub paths: Vec<PathBuf>,
+    /// Whether to write to the specified file or directory.
+    /// Will use the input if flag is given without a value.
+    /// Defaults to standard output.
+    #[clap(long, short, num_args(0..=1))]
+    pub output: Option<Vec<PathBuf>>,
+    /// If the path is a directory, whether to walk through and process its
     /// subdirectories
+    #[clap(long, short, default_value = "false")]
     pub recursive: bool,
-    /// Whether to search through hidden files and directories
+    /// Whether to search through hidden files and directories.
+    ///
+    /// A file or directory is considered hidden if its base name starts with a '.' or if the operating
+    /// system provides a "hidden" file attribute.
+    ///
+    /// Ignored files will continue to be skipped and can be enabled with the `--no-ignore` flag.
+    #[clap(long, short = '.', default_value = "false")]
     pub hidden: bool,
-    /// Whether to disregard ignore patterns
+    /// When set, patterns defined in files such as `.gitigore` will be disregarded.
+    ///
+    /// Hidden files will continue to be skipped and can be enabled with the `--hidden` flag.
+    #[clap(long, default_value = "false")]
     pub no_ignore: bool,
-    /// Sets the approximate number of threads to use. A value of 0 will
-    /// automatically determine the appropriate number
+    /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
+    #[clap(long, short, default_value = "0")]
     pub threads: usize,
 }
 
@@ -69,7 +84,7 @@ impl Output<'_, '_, '_> {
     }
 }
 
-impl Walk<'_> {
+impl Walk {
     /// Start visiting the paths in parallel. `f` is called for each thread
     /// and the resulting function is called for each path.
     ///
@@ -92,7 +107,7 @@ impl Walk<'_> {
             ));
         }
 
-        for path in self.paths {
+        for path in &self.paths {
             self.handle_path(path, &f);
         }
         Ok(())
@@ -101,13 +116,17 @@ impl Walk<'_> {
     fn handle_stdin(&self, mut f: FnVisitor) -> anyhow::Result<()> {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
-        f(&source, None, self.output);
+        f(
+            &source,
+            None,
+            self.output.as_ref().and_then(|output| output.first()),
+        );
         Ok(())
     }
 
     fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) {
         let output_path = |input: &PathBuf| {
-            let Some(output) = self.output else {
+            let Some(output) = self.output.as_ref().and_then(|output| output.first()) else {
                 return Ok(None);
             };
             input.strip_prefix(path).map(|p| {

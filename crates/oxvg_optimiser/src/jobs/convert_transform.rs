@@ -7,7 +7,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
-    core::SVGTransformList,
+    core_attrs::SVGTransformList,
     inheritable,
     transform::{Precision, SVGTransform},
     AttrId,

@@ -9,31 +9,11 @@ mod lsp;
 
 #[derive(clap::Args, Debug)]
 pub struct Check {
-    /// The target paths to optimise
-    #[clap(value_parser)]
-    pub paths: Vec<PathBuf>,
+    #[clap(flatten)]
+    pub walk: Walk,
     /// A path to the specified config.
     #[clap(long, short, num_args(0..=1))]
     pub config: Option<Vec<PathBuf>>,
-    /// If the path is a directory, whether to walk through and optimise its subdirectories
-    #[clap(long, short, default_value = "false")]
-    pub recursive: bool,
-    /// Search through hidden files and directories.
-    ///
-    /// A file or directory is considered hidden if its base name starts with a '.' or if the operating
-    /// system provides a "hidden" file attribute.
-    ///
-    /// Ignored files will continue to be skipped and can be enabled with the `--no-ignore` flag.
-    #[clap(long, short = '.', default_value = "false")]
-    pub hidden: bool,
-    /// When set, patterns defined in files such as `.gitigore` will be disregarded.
-    ///
-    /// Hidden files will continue to be skipped and can be enabled with the `--hidden` flag.
-    #[clap(long, default_value = "false")]
-    pub no_ignore: bool,
-    /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
-    #[clap(long, short, default_value = "0")]
-    pub threads: usize,
     #[clap(long, short, default_value = "error")]
     /// Sets the level at which the program will exit with an error code.
     pub level: Severity,
@@ -44,16 +24,9 @@ impl RunCommand for Check {
     }
 }
 impl Check {
-    fn walk(self, rules: &Rules) -> anyhow::Result<()> {
-        let walk = Walk {
-            paths: &self.paths,
-            output: None,
-            recursive: self.recursive,
-            hidden: self.hidden,
-            no_ignore: self.no_ignore,
-            threads: self.threads,
-        };
-        walk.run(|| {
+    fn walk(mut self, rules: &Rules) -> anyhow::Result<()> {
+        self.walk.output = None;
+        self.walk.run(|| {
             let rules = rules.clone();
             Box::new(move |source, path, _| {
                 let result = rules.lint_with_path(source, path);
@@ -84,6 +57,8 @@ impl RunCommand for Serve {
 /// Run analysis against input files and reports any problems that it may detect.
 pub enum Lint {
     /// Analyse SVG documents for problems and report them to standard output
+    ///
+    /// Note: The `-output` flag has no effect, results will always be printed to stdout.
     Check(Check),
     /// Start a server for an editor or other type of client to analyse documents
     Serve(Serve),

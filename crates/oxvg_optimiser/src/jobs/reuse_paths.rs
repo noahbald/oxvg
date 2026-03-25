@@ -9,7 +9,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::{NonWhitespace, Url},
+        core_attrs::{NonWhitespace, Url},
         inheritable::Inheritable,
         path, Attr, AttrId,
     },

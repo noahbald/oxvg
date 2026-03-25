@@ -6,7 +6,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     attribute::{
-        core::{Color, Paint},
+        core_attrs::{Color, Paint},
         inheritable::Inheritable,
     },
     content_type::{ContentType, ContentTypeRef},

@@ -8,7 +8,7 @@ use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 
 use crate::enum_attr;
 
-use super::core::{Integer, Number};
+use super::core_attrs::{Integer, Number};
 
 #[derive(Clone, Debug, PartialEq)]
 /// [SMIL](https://www.w3.org/TR/2001/REC-smil-animation-20010904/#Timing-ClockValueSyntax)

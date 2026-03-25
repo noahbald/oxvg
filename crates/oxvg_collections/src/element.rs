@@ -9,6 +9,9 @@ use crate::{
 };
 use std::fmt::Display;
 
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 pub use category::{ElementCategory, ElementInfo};
 
 mod category;
@@ -88,6 +91,9 @@ macro_rules! define_elements {
         }
 
         #[derive(Clone, Debug, Hash, Eq)]
+        #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// Identifies an element by it's local-name and namespace
         ///
         /// [MDN | SVG element reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element)
@@ -107,6 +113,45 @@ macro_rules! define_elements {
             Unknown(QualName<'input>),
         }
 
+        #[cfg(feature = "napi")]
+        impl ElementId<'_> {
+            /// Returns an element-id as a NAPI compatible type
+            pub fn to_napi(&self) -> ElementIdNapi {
+                match self {
+                    $(Self::$element => ElementIdNapi::$element,)+
+                    Self::Aliased { prefix, element_id } => ElementIdNapi::Aliased {
+                        prefix: prefix.to_napi(),
+                        name: match &**element_id {
+                            $(Self::$element => (stringify!($element).to_string(), stringify!($name).to_string()),)+
+                            _ => unreachable!()
+                        },
+                    },
+                    Self::Unknown(name) => ElementIdNapi::Unknown(name.to_napi()),
+                }
+            }
+        }
+
+        #[cfg(feature = "napi")]
+        #[napi]
+        /// Identifies an element by it's local-name and namespace
+        ///
+        /// [MDN | SVG element reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element)
+        pub enum ElementIdNapi {
+            $(
+                #[doc=concat!("The `", $name, "` element")]
+                $element,
+            )+
+            /// A known element aliased by a different prefix
+            Aliased {
+                /// The prefix assigned to the element
+                prefix: crate::name::PrefixNapi,
+                /// The associated element
+                name: (String, String),
+            },
+            /// An element that isn't a well-known `ElementId`
+            Unknown(crate::name::QualNameNapi),
+        }
+
         impl<'input> ElementId<'input> {
             /// Creates a qualified name from a prefix and local part
             pub fn new(prefix: Prefix<'input>, local: Atom<'input>) -> Self {
@@ -122,7 +167,7 @@ macro_rules! define_elements {
             }
 
             /// Returns the prefix of the qualified name.
-            pub fn prefix(&self) -> &Prefix<'input> {
+            pub const fn prefix(&self) -> &Prefix<'input> {
                 match self {
                     Self::Unknown(name) => &name.prefix,
                     Self::Aliased { prefix, .. } => prefix,

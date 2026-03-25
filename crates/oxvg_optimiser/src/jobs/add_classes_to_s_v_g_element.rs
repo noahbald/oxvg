@@ -8,7 +8,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::NonWhitespace,
+        core_attrs::NonWhitespace,
         list_of::{ListOf, Space},
     },
 };

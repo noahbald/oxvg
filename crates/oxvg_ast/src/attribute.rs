@@ -17,7 +17,7 @@ use oxvg_collections::{
 /// use oxvg_ast::is_attribute;
 /// use oxvg_collections::{
 ///   atom::Atom,
-///   attribute::{Attr, core::NonWhitespace},
+///   attribute::{Attr, core_attrs::NonWhitespace},
 /// };
 /// use lightningcss::properties::svg::SVGPaint;
 ///

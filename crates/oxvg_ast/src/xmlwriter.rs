@@ -323,6 +323,17 @@ impl Options {
             ..Options::default()
         }
     }
+
+    /// Returns a set of options that will preserve consistency between the source
+    /// file and the output document.
+    pub fn original() -> Self {
+        Options {
+            indent: Indent::None,
+            trim_whitespace: Space::Never,
+            minify: false,
+            ..Options::default()
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

@@ -10,6 +10,7 @@
 		"build:debug": "napi build --platform",
 		"prepublishOnly": "napi prepublish -t npm",
 		"test": "node ./test.js",
+		"test:update-snapshots": "node --test-update-snapshots ./test.js",
 		"universal": "napi universal",
 		"version": "napi version"
 	},

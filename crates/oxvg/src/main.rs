@@ -19,5 +19,6 @@ async fn main() -> anyhow::Result<()> {
             Lint::Check(args) => args.run(config).await,
             Lint::Serve(args) => args.run(config).await,
         },
+        Command::Action(args) => args.run(config).await,
     }
 }

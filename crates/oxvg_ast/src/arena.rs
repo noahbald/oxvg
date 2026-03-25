@@ -1,7 +1,7 @@
 //! The arena used to allocate nodes
-use std::cell::Cell;
+use std::cell::RefCell;
 
-use crate::node::{Node, NodeData};
+use crate::node::{AllocationID, Node, NodeData, Ref};
 
 /// The inner value of [`Arena`]
 type PrivateArena<'input, 'arena> = &'arena typed_arena::Arena<Node<'input, 'arena>>;
@@ -24,8 +24,8 @@ pub struct Allocator<'input, 'arena> {
     arena: PrivateArena<'input, 'arena>,
     /// The arena for new strings
     values: PrivateValues<'input>,
-    /// Incrementally counts the number of allocated nodes to assign as the id of allocated nodes
-    current_node_id: Cell<usize>,
+    /// Contains a mapping of each element to it's id
+    indices: RefCell<Vec<*const Node<'input, 'arena>>>,
 }
 impl<'input, 'arena> Allocator<'input, 'arena> {
     /// Returns an arena that cannot be publicly accessed
@@ -53,19 +53,29 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
         arena: &'arena mut Arena<'input, 'arena>,
         values: &'input Values,
     ) -> Self {
+        let mut indices = vec![];
+        let len = arena.0.len();
+        for node in arena.0.iter_mut() {
+            if indices.is_empty() {
+                indices = vec![std::ptr::from_ref(node); len];
+            }
+            indices[node.id()] = node;
+        }
+
         Self {
             arena: &arena.0,
             values: &values.0,
-            current_node_id: Cell::new(arena.0.len()),
+            indices: RefCell::new(indices),
         }
     }
 
     /// Allocates a node with the given [`NodeData`]
     pub fn alloc(&self, node_data: NodeData<'input>) -> &'arena mut Node<'input, 'arena> {
-        let id = self.current_node_id.get();
-        self.current_node_id.set(id + 1);
-        self.arena
-            .alloc(Node::new(node_data, self.current_node_id.get()))
+        let mut indices = self.indices.borrow_mut();
+        let id = indices.len();
+        let node = self.arena.alloc(Node::new(node_data, id));
+        indices.push(std::ptr::from_ref(node));
+        node
     }
 
     /// Allocates a string to live as long as `'input`
@@ -76,5 +86,99 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
     /// when possible.
     pub fn alloc_str(&self, str: &str) -> &'input mut str {
         self.values.alloc_str(str)
+    }
+
+    /// Returns the node associated with the given allocation id.
+    ///
+    /// # Panics
+    ///
+    /// If the allocator's id and the node's id become out of sync.
+    pub fn get(&self, id: AllocationID) -> Option<Ref<'input, 'arena>> {
+        self.indices.borrow().get(id).map(|&p| {
+            let node = unsafe { &*p };
+
+            assert!(node.id() == id);
+            node
+        })
+    }
+
+    /// Returns an iterator that returns all allocated nodes in order of allocation id
+    pub fn iter(&self) -> Iter<'input, 'arena> {
+        Iter {
+            index: 0,
+            indices: RefCell::clone(&self.indices),
+        }
+    }
+
+    /// Reorders allocations to match the ordering of the given root and it's
+    /// descendants.
+    /// Returns the length of the tree.
+    ///
+    /// Nodes outside of the tree's set have preserved order.
+    pub fn reorder(&self, root: Ref<'input, 'arena>) -> usize {
+        // Move all ids to out of range
+        let len = self.arena.len();
+        for node in self {
+            node.id.set(len);
+        }
+        // Assign ids in order to tree
+        let tree_len = Self::reorder_internal(root, 0);
+        // Reassign ids in order outside of tree
+        let mut index = tree_len;
+        for node in self {
+            if node.id.get() == len {
+                node.id.set(index);
+                index += 1;
+            }
+        }
+        // Sort by id
+        self.indices.borrow_mut().sort_by(|&a, &b| {
+            let a: Ref<'input, 'arena> = unsafe { &*a };
+            let b: Ref<'input, 'arena> = unsafe { &*b };
+            a.id.get().cmp(&b.id.get())
+        });
+        tree_len
+    }
+
+    fn reorder_internal(node: Ref<'input, 'arena>, mut id: usize) -> usize {
+        debug_assert!(node.id.get() <= id, "cannot reorder tree with cycles");
+        node.id.set(id);
+        id += 1;
+        for node in node.child_nodes_iter() {
+            id = Self::reorder_internal(node, id);
+        }
+        id
+    }
+}
+
+impl<'input, 'arena> IntoIterator for &Allocator<'input, 'arena> {
+    type Item = Ref<'input, 'arena>;
+    type IntoIter = Iter<'input, 'arena>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter {
+            index: 0,
+            indices: RefCell::clone(&self.indices),
+        }
+    }
+}
+
+/// An iterator that returns all allocated nodes in order of allocation id
+pub struct Iter<'input, 'arena> {
+    index: usize,
+    indices: RefCell<Vec<*const Node<'input, 'arena>>>,
+}
+
+impl<'input, 'arena> Iterator for Iter<'input, 'arena> {
+    type Item = Ref<'input, 'arena>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self
+            .indices
+            .borrow()
+            .get(self.index)
+            .map(|&p| unsafe { &*p });
+        self.index += 1;
+        node
     }
 }

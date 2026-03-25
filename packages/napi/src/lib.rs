@@ -1,7 +1,9 @@
 //! NAPI bindings for OXVG
 use napi::{bindgen_prelude::Unknown, Error, Status};
+use oxvg_actions::{Action, ActionNapi, DerivedState, DerivedStateNapi};
 use oxvg_ast::{
-  parse::roxmltree::parse,
+  arena::Allocator,
+  parse::roxmltree::{parse, parse_tree_with_allocator},
   serialize::{Node as _, Options},
   visitor::Info,
 };
@@ -47,7 +49,7 @@ extern crate napi_derive;
 ///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
 /// );
 /// ```
-pub fn optimise(svg: String, config: Option<Jobs>) -> Result<String, Error<Status>> {
+pub fn optimise(svg: String, config: Option<Jobs>) -> napi::Result<String> {
   let config = config.unwrap_or_default();
   parse(&svg, |dom, allocator| {
     config
@@ -99,4 +101,127 @@ pub fn convert_svgo_config(
 #[allow(clippy::needless_pass_by_value)]
 fn generic_error<T: ToString>(err: T) -> Error<Status> {
   Error::new(Status::GenericFailure, err.to_string())
+}
+
+#[napi]
+/// An actor holds a reference to a document to act upon.
+///
+/// The actor will embed it's state into the document upon parsing and serializing.
+#[allow(clippy::struct_field_names)]
+pub struct Actor {
+  actor: oxvg_actions::Actor<'static, 'static>,
+  source_ptr: *mut str,
+  xml_ptr: *mut roxmltree::Document<'static>,
+  arena_ptr: *mut oxvg_ast::arena::Arena<'static, 'static>,
+  values_ptr: *mut oxvg_ast::arena::Values,
+}
+
+#[napi]
+impl Actor {
+  #[napi(constructor)]
+  /// Creates a new actor with a reference to the document. The state of the actor will be
+  /// derived from the document's `oxvg:state` element.
+  ///
+  /// # Errors
+  ///
+  /// If parsing fails
+  pub fn new(document: String) -> napi::Result<Self> {
+    let source = Box::leak(document.into_boxed_str());
+    let source_ptr = std::ptr::from_mut(source);
+    let xml = Box::leak(Box::new(
+      roxmltree::Document::parse(source)
+        .map_err(|err| oxvg_actions::Error::ParseError(err.to_string()))
+        .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))?,
+    ));
+    let xml_ptr = std::ptr::from_mut(xml);
+
+    let values = Box::leak(Box::new(Allocator::new_values()));
+    let arena = Box::leak(Box::new(Allocator::new_arena_with_capacity(
+      xml.descendants().len(),
+    )));
+    let values_ptr = std::ptr::from_mut(values);
+    let arena_ptr = std::ptr::from_mut(arena);
+
+    let (root, arena) = parse_tree_with_allocator(xml, arena, values, |root, arena| (root, arena))
+      .map_err(|err| oxvg_actions::Error::ParseError(err.to_string()))
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))?;
+
+    Ok(Self {
+      actor: oxvg_actions::Actor::new(root, arena)
+        .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))?,
+      source_ptr,
+      xml_ptr,
+      arena_ptr,
+      values_ptr,
+    })
+  }
+
+  /// Returns a rich state object based on the `oxvg:state` embedded in the document
+  ///
+  /// # Errors
+  ///
+  /// If the state is invalid
+  #[napi]
+  pub fn derive_state(&self) -> napi::Result<DerivedStateNapi> {
+    self
+      .actor
+      .derive_state()
+      .as_ref()
+      .map(DerivedState::to_napi)
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+
+  /// Executes the given action and it's arguments upon the document.
+  ///
+  /// # Errors
+  ///
+  /// If the action fails
+  #[napi]
+  pub fn dispatch(&mut self, action: ActionNapi) -> napi::Result<()> {
+    self
+      .actor
+      .dispatch(Action::from_napi(action))
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+
+  /// Updates the state of the actor to point to the elements matching the given selector.
+  /// Elements can also be selected by a space/comma separated list of allocation-id
+  /// integers.
+  ///
+  /// # Errors
+  ///
+  /// If the query is invalid
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn select(&mut self, query: String) -> napi::Result<()> {
+    self
+      .actor
+      .select(&query)
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+
+  /// Returns the actor's updated document as a string
+  ///
+  /// # Errors
+  ///
+  /// If serialization fails
+  #[napi]
+  pub fn document(&self) -> napi::Result<String> {
+    self
+      .actor
+      .root
+      .serialize()
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+}
+
+impl Drop for Actor {
+  fn drop(&mut self) {
+    unsafe {
+      drop(Box::from_raw(self.source_ptr));
+      drop(Box::from_raw(self.xml_ptr));
+      drop(Box::from_raw(self.arena_ptr));
+      drop(Box::from_raw(self.values_ptr));
+    }
+  }
 }

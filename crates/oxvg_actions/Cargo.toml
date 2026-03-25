@@ -14,10 +14,32 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+napi = ["dep:napi", "dep:napi-derive", "oxvg_collections/napi"]
+serde = ["dep:serde", "dep:serde_json", "oxvg_collections/serde"]
+wasm = [
+  "serde",
+  "dep:wasm-bindgen",
+  "dep:serde-wasm-bindgen",
+  "dep:tsify",
+  "oxvg_collections/wasm",
+]
+
 [dependencies]
-strum = { version = "0.26.2", features = ["derive"] }
-strum_macros = "0.26.2"
-rand = "0.9"
+oxvg_ast = { workspace = true, features = ["selectors"] }
+oxvg_collections = { workspace = true, features = ["serde"] }
+oxvg_parse = { workspace = true }
+oxvg_serialize = { workspace = true }
+
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
+oxvg_ast = { workspace = true, features = ["roxmltree"] }
+
 insta = { workspace = true }

@@ -6,7 +6,7 @@ use aria::{
     AriaAutocomplete, AriaCurrent, AriaDropEffect, AriaHasPopup, AriaInvalid, AriaLive,
     AriaOrientation, AriaRelevant, AriaSort, IDReference, Role, Tristate,
 };
-use core::{
+use core_attrs::{
     Angle, Anything, Boolean, Class, Color, Id, Integer, Length, Number, NumberOptionalNumber,
     Opacity, Paint, SVGTransformList, Style, TokenList, Url,
 };
@@ -63,6 +63,9 @@ use super::{
 #[cfg(feature = "parse")]
 use oxvg_parse::Parse;
 
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 pub use group::{AttributeGroup, AttributeInfo};
 
 mod group;
@@ -71,7 +74,7 @@ pub mod animation;
 pub mod animation_addition;
 pub mod animation_timing;
 pub mod aria;
-pub mod core;
+pub mod core_attrs;
 pub mod filter_effect;
 pub mod fonts;
 pub mod inheritable;
@@ -232,7 +235,10 @@ macro_rules! define_attrs {
             ];
         }
 
-        #[derive(Eq, Clone, Debug, Hash)]
+        #[derive(Clone, Debug, Hash, Eq)]
+        #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// Identifies one of an element's attributes.
         ///
         /// [MDN | SVG Attribute reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute)
@@ -251,6 +257,46 @@ macro_rules! define_attrs {
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
             Unknown(QualName<'input>),
+        }
+
+        #[cfg(feature = "napi")]
+        impl AttrId<'_> {
+            /// Converts to a napi-compatible type
+            pub fn to_napi(&self) -> AttrIdNapi {
+                match self {
+                    $(Self::$attr => AttrIdNapi::$attr,)+
+                    Self::Aliased { prefix, attr_id } => AttrIdNapi::Aliased {
+                        prefix: prefix.to_napi(),
+                        name: match &**attr_id {
+                            $(Self::$attr => (stringify!($attr).to_string(), stringify!($name).to_string()),)+
+                            _ => unreachable!()
+                        },
+                    },
+                    Self::Unknown(name) => AttrIdNapi::Unknown(name.to_napi()),
+                }
+            }
+        }
+
+        #[cfg(feature = "napi")]
+        #[napi]
+        /// Identifies one of an element's attributes.
+        ///
+        /// [MDN | SVG Attribute reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute)
+        pub enum AttrIdNapi {
+            $(
+                $(#[$meta:meta])*
+                #[doc=concat!("The `", $name, "` attribute")]
+                $attr,
+            )+
+            /// A known attribute aliased by a different prefix
+            Aliased {
+                /// The prefix assigned to the attribute
+                prefix: crate::name::PrefixNapi,
+                /// The associated attribute
+                name: (String, String),
+            },
+            /// An attribute that doesn't match the expected type for a given `ElementId`
+            Unknown(crate::name::QualNameNapi),
         }
 
         #[derive(Debug, Clone)]
@@ -1984,6 +2030,7 @@ define_attrs! {
         name: "x",
         default: LengthPercentage::px(0.0),
     },
+    // WARN: Macro recursion limit starts here
     XGlyphRef(Number) {
         name: "x",
         info: AttributeInfo::DeprecatedUnsafe,

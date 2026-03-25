@@ -9,7 +9,7 @@ use oxvg_serialize::{error::PrinterError, Printer, ToValue};
 use crate::{atom::Atom, enum_attr};
 
 use super::{
-    core::{Angle, Anything, Number, Percentage},
+    core_attrs::{Angle, Anything, Number, Percentage},
     presentation::{LengthOrNumber, LengthPercentage},
     transform::SVGTransform,
 };

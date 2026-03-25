@@ -8,7 +8,7 @@ use super::attribute::aria::{
     AriaAutocomplete, AriaCurrent, AriaDropEffect, AriaHasPopup, AriaInvalid, AriaLive,
     AriaOrientation, AriaRelevant, AriaSort, IDReference, Role, Tristate,
 };
-use super::attribute::core::{
+use super::attribute::core_attrs::{
     Angle, Anything, Boolean, Class, Color, Frequency, FuncIRI, Id, Integer, Length, Name,
     NonWhitespace, Number, NumberOptionalNumber, Opacity, Paint, Percentage, SVGTransformList,
     Style, Time, TokenList, Url, IRI,

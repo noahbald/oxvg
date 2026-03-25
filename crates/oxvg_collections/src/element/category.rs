@@ -1,5 +1,13 @@
 //! Categories for element
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
 bitflags! {
+    #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+    #[cfg_attr(feature = "wasm", tsify(type = "number"))]
+    #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+    #[cfg_attr(feature = "napi", napi)]
+    #[derive(Debug)]
     /// Specifies which categories an element may belong to
     pub struct ElementCategory: u32 {
         /// Elements used for animation
@@ -40,6 +48,44 @@ bitflags! {
         const TransferFunction = 1 << 17;
         /// Uncategorised elements
         const Uncategorised = 1 << 18;
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for ElementCategory {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.bits().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for ElementCategory {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(ElementCategory::from_bits_retain(u32::deserialize(
+            deserializer,
+        )?))
+    }
+}
+
+#[cfg(feature = "napi")]
+#[napi]
+impl ElementCategory {
+    #[napi(constructor)]
+    /// Convert from bits
+    pub fn new(bits: u32) -> ElementCategory {
+        ElementCategory::from_bits_retain(bits)
+    }
+
+    #[napi]
+    /// Get the underlying bits
+    pub const fn to_bits(&self) -> u32 {
+        self.bits()
     }
 }
 

@@ -16,7 +16,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::NonWhitespace, inheritable::Inheritable, presentation::LengthPercentage,
+        core_attrs::NonWhitespace, inheritable::Inheritable, presentation::LengthPercentage,
         uncategorised::Radius, Attr,
     },
     element::{ElementId, ElementInfo},

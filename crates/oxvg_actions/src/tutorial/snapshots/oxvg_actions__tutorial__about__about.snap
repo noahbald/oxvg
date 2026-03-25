@@ -1,5 +1,0 @@
----
-source: crates/oxvg_actions/src/tutorial/about.rs
-expression: about.version
----
-v0.1.0

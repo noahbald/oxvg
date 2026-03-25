@@ -7,7 +7,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{core::Style, Attr},
+    attribute::{core_attrs::Style, Attr},
     element::ElementId,
 };
 #[cfg(feature = "serde")]

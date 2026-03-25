@@ -1,0 +1,65 @@
+---
+source: crates/oxvg_actions/src/actions.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "svg",
+            ),
+        ),
+        Select(
+            Cow(
+                "1",
+            ),
+        ),
+    ],
+    selection: [
+        1,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                Svg,
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {},
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {},
+                values: {
+                    XMLNS: Cow(
+                        "http://www.w3.org/2000/svg",
+                    ),
+                    ViewBox: Cow(
+                        "0 0 100 100",
+                    ),
+                    WidthSvg: Cow(
+                        "100",
+                    ),
+                    HeightSvg: Cow(
+                        "100",
+                    ),
+                    Unknown(
+                        QualName {
+                            prefix: XMLNS,
+                            local: Cow(
+                                "oxvg",
+                            ),
+                        },
+                    ): Cow(
+                        "https://oxvg.noahwbaldwin.me",
+                    ),
+                },
+            },
+            text: None,
+        },
+    ),
+}

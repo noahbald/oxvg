@@ -17,7 +17,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core::{Class, Id},
+        core_attrs::{Class, Id},
         AttrId,
     },
     is_prefix,

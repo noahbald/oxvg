@@ -44,6 +44,9 @@ macro_rules! define_prefix {
         }
 
         #[derive(Debug, Clone)]
+        #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// A prefix for a qualified name, e.g. `xlink` of `xlink:href`
         pub enum Prefix<'input> {
             $(
@@ -66,7 +69,54 @@ macro_rules! define_prefix {
             },
         }
 
+        #[cfg(feature = "napi")]
+        impl Prefix<'_> {
+            /// Converts to a napi-compatible type
+            pub fn to_napi(&self) -> PrefixNapi {
+                match self {
+                    $(Self::$prefix => PrefixNapi::$prefix,)+
+                    Self::Unknown { prefix, ns } => PrefixNapi::Unknown {
+                        prefix: prefix.as_ref().map(Atom::to_string),
+                        ns: ns.to_napi(),
+                    },
+                    Self::Aliased { prefix, alias } => PrefixNapi::Aliased {
+                        prefix: match &**prefix {
+                            $(Self::$prefix => (stringify!($prefix).to_string(), stringify!($prefix).to_string()),)+
+                            _ => unreachable!(),
+                        },
+                        alias: alias.as_ref().map(Atom::to_string),
+                    },
+                }
+            }
+        }
+
+        #[cfg(feature = "napi")]
+        #[napi]
+        /// A prefix for a qualified name, e.g. `xlink` of `xlink:href`
+        pub enum PrefixNapi {
+            $(
+                #[doc=concat!("The standard prefix"$(, " for `", $name, "`")?, " in SVG")]
+                $prefix,
+            )+
+            /// A not well-known prefix, e.g. `sodipodi:nodetypes`
+            Unknown {
+                /// The prefix name, e.g. `prefix` of `xmlns:prefix="<url>"`
+                prefix: Option<String>,
+                /// The unique resource identifier, e.g. `<url>` of `xmlns:prefix="<url>"`
+                ns: NSNapi,
+            },
+            /// A prefix with a non-usual, e.g. `<alias:svg></alias:svg>` when `xmlns:alias="http://www.w3.org/2000/svg"`
+            Aliased {
+                /// The prefix that's being aliased
+                prefix: (String, String),
+                /// The name assigned to the prefix
+                alias: Option<String>,
+            },
+        }
+
         #[derive(Debug, Clone, Hash)]
+        #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// A namespace for a qualified name's prefix
         pub enum NS<'input> {
             $(
@@ -75,6 +125,29 @@ macro_rules! define_prefix {
             )+
             /// A not well-known namespace
             Unknown(Atom<'input>),
+        }
+
+        #[cfg(feature = "napi")]
+        impl NS<'_> {
+            /// Converts to a napi-compatible type
+            pub fn to_napi(&self) -> NSNapi {
+                match self {
+                    $(Self::$prefix => NSNapi::$prefix,)+
+                    Self::Unknown(ns) => NSNapi::Unknown(ns.to_string()),
+                }
+            }
+        }
+
+        #[cfg(feature = "napi")]
+        #[napi]
+        /// A namespace for a qualified name's prefix
+        pub enum NSNapi {
+            $(
+                #[doc=concat!("The standard uri"$(, " for `", $name, "`")?, " in SVG")]
+                $prefix,
+            )+
+            /// A not well-known namespace
+            Unknown(String),
         }
 
         impl<'input> Prefix<'input> {
@@ -190,11 +263,34 @@ macro_rules! define_prefix {
 
 /// A qualified name used for the names of tags and attributes.
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QualName<'input> {
     /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
     pub prefix: Prefix<'input>,
     /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
     pub local: Atom<'input>,
+}
+
+#[cfg(feature = "napi")]
+impl QualName<'_> {
+    /// Converts to a napi-compatible type
+    pub fn to_napi(&self) -> QualNameNapi {
+        QualNameNapi {
+            prefix: self.prefix.to_napi(),
+            local: self.local.to_string(),
+        }
+    }
+}
+
+#[cfg(feature = "napi")]
+#[napi(object)]
+/// A qualified name used for the names of tags and attributes.
+pub struct QualNameNapi {
+    /// The prefix (e.g. `xlink` of `xlink:href`) of a qualified name.
+    pub prefix: PrefixNapi,
+    /// The local name (e.g. the `href` of `xlink:href`) of a qualified name.
+    pub local: String,
 }
 
 impl Display for QualName<'_> {

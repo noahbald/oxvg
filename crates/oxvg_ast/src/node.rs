@@ -180,7 +180,7 @@ pub struct Node<'input, 'arena> {
     /// The node's range in bytes in the original document
     pub range: Option<std::ops::Range<usize>>,
     /// The node's id, determined by it's allocation
-    id: usize,
+    pub(crate) id: Cell<usize>,
 }
 
 /// A reference to a node
@@ -214,7 +214,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     }
 
     /// Creates a clean node with the given node data.
-    pub fn new(node_data: NodeData<'input>, id: usize) -> Self {
+    pub(crate) fn new(node_data: NodeData<'input>, id: usize) -> Self {
         Self {
             parent: Cell::new(None),
             next_sibling: Cell::new(None),
@@ -222,7 +222,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
             first_child: Cell::new(None),
             last_child: Cell::new(None),
             node_data,
-            id,
+            id: Cell::new(id),
             #[cfg(feature = "range")]
             range: None,
         }
@@ -238,7 +238,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
 
     /// The allocation id
     pub fn id(&self) -> AllocationID {
-        self.id
+        self.id.get()
     }
 
     /// Returns an node list containing all the children of this node

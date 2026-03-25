@@ -2,7 +2,7 @@
 use std::ops::{Deref, DerefMut};
 
 use super::{
-    core::{Angle, Anything, Length, Number, Percentage},
+    core_attrs::{Angle, Anything, Length, Number, Percentage},
     list_of::{ListOf, SpaceOrComma},
 };
 use lightningcss::values::length::LengthValue;

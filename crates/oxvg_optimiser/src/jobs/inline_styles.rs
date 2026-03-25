@@ -20,7 +20,7 @@ use oxvg_ast::{
     remove_attribute, set_attribute,
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
-use oxvg_collections::{atom::Atom, attribute::core::Style, is_prefix};
+use oxvg_collections::{atom::Atom, attribute::core_attrs::Style, is_prefix};
 use oxvg_serialize::ToValue as _;
 use parcel_selectors::{
     attr::{AttrSelectorOperator, CaseSensitivity},

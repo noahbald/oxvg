@@ -4,7 +4,7 @@ use std::future::Future;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    commands::{Format, Lint, Optimise},
+    commands::{Action, Format, Lint, Optimise},
     config::Config,
 };
 
@@ -50,4 +50,6 @@ pub enum Command {
     /// Lint SVG documents
     #[command(subcommand)]
     Lint(Lint),
+    /// Transform SVG documents
+    Action(Action),
 }

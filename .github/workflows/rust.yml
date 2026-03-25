@@ -38,7 +38,7 @@ jobs:
           toolchain: stable
           target: ${{ matrix.settings.target }}
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
@@ -48,21 +48,21 @@ jobs:
             target/
           key: ${{ matrix.settings.target }}-cargo-${{ matrix.settings.host }}
       - name: Run tests
-        run: cargo test --verbose --profile release --target=${{ matrix.settings.target }}
+        run: cargo test --verbose --workspace --profile release --target=${{ matrix.settings.target }} --exclude oxvg_napi
       - name: Build
         run: cargo build --verbose --bins --profile release --target=${{ matrix.settings.target }}
       - name: List
         run: ls -R
         shell: bash
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ contains(matrix.settings.target, 'windows') }}
         with:
           name: binary-${{ matrix.settings.target }}
           path: target/${{ matrix.settings.target }}/release/oxvg.exe
           if-no-files-found: error
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ !contains(matrix.settings.target, 'windows') }}
         with:
           name: binary-${{ matrix.settings.target }}
