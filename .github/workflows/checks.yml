@@ -36,7 +36,7 @@ jobs:
         if: $${{ always() }} # run even if clippy failed
         run: cargo doc --workspace --no-deps --locked
       - name: Run tests
-        run: cargo test --verbose --locked
+        run: cargo test --workspace --verbose   --locked --exclude oxvg_napi
 
   toml:
     name: Toml formatting

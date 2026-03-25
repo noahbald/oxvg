@@ -48,7 +48,7 @@ jobs:
             target/
           key: ${{ matrix.settings.target }}-cargo-${{ matrix.settings.host }}
       - name: Run tests
-        run: cargo test --verbose --profile release --target=${{ matrix.settings.target }}
+        run: cargo test --verbose --workspace --profile release --target=${{ matrix.settings.target }} --exclude oxvg_napi
       - name: Build
         run: cargo build --verbose --bins --profile release --target=${{ matrix.settings.target }}
       - name: List
