@@ -30,7 +30,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -42,7 +42,7 @@ jobs:
           toolchain: stable
           targets: wasm32-unknown-unknown
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
@@ -61,7 +61,7 @@ jobs:
       - name: Test
         run: pnpm --filter @oxvg/wasm test
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bindings-wasm
           path: packages/wasm/dist/
@@ -78,7 +78,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - name: Install dependencies
         run: pnpm install
