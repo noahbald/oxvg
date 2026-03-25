@@ -4,7 +4,6 @@ env:
   RUSTFLAGS: -D warnings
 
 on:
-  push:
   pull_request:
 
 jobs:
