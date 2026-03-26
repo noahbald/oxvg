@@ -38,6 +38,8 @@ selectors = [
 ]
 # Include source-spans for nodes and attributes
 range = ["dep:bytecount"]
+# Includes a parser that uses web_sys
+web_sys = ["parse", "dep:web-sys"]
 # Includes a visitor trait for building visitors
 visitor = ["dep:bitflags"]
 
@@ -68,4 +70,18 @@ smallvec = { workspace = true }
 string_cache = { workspace = true, optional = true }
 tendril = { workspace = true, optional = true }
 typed-arena = { workspace = true }
+web-sys = { workspace = true, features = [
+  "Document",
+  "DomParser",
+  "SupportedType",
+  "Node",
+  "NodeList",
+  "Element",
+  "NamedNodeMap",
+  "Attr",
+  "ProcessingInstruction",
+  "StyleSheet",
+  "CharacterData",
+  "Comment",
+], optional = true }
 xml5ever = { workspace = true, optional = true }

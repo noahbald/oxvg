@@ -79,6 +79,7 @@ tower-lsp-server = "0.22"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
 wasm-bindgen = "=0.2.104"
+web-sys = { version = "0.3" }
 xml5ever = "0.38"
 
 # Developer dependencies

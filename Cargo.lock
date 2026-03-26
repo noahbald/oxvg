@@ -1354,6 +1354,7 @@ dependencies = [
  "string_cache",
  "tendril",
  "typed-arena",
+ "web-sys",
  "xml5ever",
 ]
 
@@ -1502,6 +1503,7 @@ dependencies = [
  "tsify",
  "typed-arena",
  "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

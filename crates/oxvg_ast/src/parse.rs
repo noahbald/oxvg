@@ -10,3 +10,6 @@ pub mod markup5ever;
 
 #[cfg(feature = "roxmltree")]
 pub mod roxmltree;
+
+#[cfg(feature = "web_sys")]
+pub mod web_sys;
