@@ -22,7 +22,7 @@ export interface ContentModelNapi {
   permittedElements: Array<ElementIdNapi>
 }
 
-/** See [DerivedState] */
+/** See [`DerivedState`] */
 export interface DerivedStateNapi {
   /** The list of actions specified by `oxvg:history` */
   history: Array<ActionNapi>
@@ -671,19 +671,45 @@ export declare class Actor {
   /**
    * Creates a new actor with a reference to the document. The state of the actor will be
    * derived from the document's `oxvg:state` element.
+   *
+   * # Errors
+   *
+   * If parsing fails
    */
   constructor(document: string)
-  /** Returns a rich state object based on the `oxvg:state` embedded in the document */
+  /**
+   * Returns a rich state object based on the `oxvg:state` embedded in the document
+   *
+   * # Errors
+   *
+   * If the state is invalid
+   */
   deriveState(): DerivedStateNapi
-  /** Executes the given action and it's arguments upon the document. */
+  /**
+   * Executes the given action and it's arguments upon the document.
+   *
+   * # Errors
+   *
+   * If the action fails
+   */
   dispatch(action: ActionNapi): void
   /**
    * Updates the state of the actor to point to the elements matching the given selector.
    * Elements can also be selected by a space/comma separated list of allocation-id
    * integers.
+   *
+   * # Errors
+   *
+   * If the query is invalid
    */
   select(query: string): void
-  /** Returns the actor's updated document as a string */
+  /**
+   * Returns the actor's updated document as a string
+   *
+   * # Errors
+   *
+   * If serialization fails
+   */
   document(): string
 }
 

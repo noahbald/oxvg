@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::LazyLock};
+use std::path::PathBuf;
 
 use lightningcss::{
     rules::CssRuleList, selector::Component, values::ident::Ident, visit_types, visitor::Visit,
@@ -9,7 +9,6 @@ use oxvg_ast::{
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::content_type::Reference;
-use regex::Match;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -313,11 +312,7 @@ impl<'a> GeneratePrefix<'a> {
             PrefixGenerator::None => String::new(),
             PrefixGenerator::Default => match &self.path {
                 Some(path) => match get_basename(path) {
-                    Some(name) => format!(
-                        "{}{}",
-                        ESCAPE_IDENTIFIER_NAME.replace(name.as_str(), "_"),
-                        self.delim
-                    ),
+                    Some(name) => format!("{}{}", name.replace(['.', ' '], "_"), self.delim),
                     None => self.delim.to_string(),
                 },
                 None => format!("prefix{}", self.delim),
@@ -326,18 +321,11 @@ impl<'a> GeneratePrefix<'a> {
     }
 }
 
-fn get_basename(path: &std::path::Path) -> Option<Match<'_>> {
-    let path = path.as_os_str().to_str()?;
-    BASENAME_CAPTURE
-        .captures_iter(path)
+fn get_basename(path: &std::path::Path) -> Option<&str> {
+    path.components()
         .next()
-        .and_then(|m| m.get(0))
+        .and_then(|c| c.as_os_str().to_str())
 }
-
-static ESCAPE_IDENTIFIER_NAME: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new("[. ]").unwrap());
-static BASENAME_CAPTURE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"[/\\]?([^/\\]+)").unwrap());
 
 #[test]
 #[allow(clippy::too_many_lines)]

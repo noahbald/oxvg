@@ -42,7 +42,11 @@ pub enum JobsError<'input> {
     /// There was an issue with a selector in the document or configuration
     InvalidUserSelector(String),
     /// There was an issue with a regex string in the configuration
+    #[cfg(not(feature = "js_sys"))]
     InvalidUserRegex(regex::Error),
+    /// There was an issue with a regex string in the configuration
+    #[cfg(feature = "js_sys")]
+    InvalidUserRegex(std::convert::Infallible),
 }
 impl Display for JobsError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

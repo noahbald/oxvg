@@ -50,6 +50,7 @@ derive_more = "2.0"
 derive-where = "1.2"
 getrandom = { version = "0.3" }
 itertools = "0.14"
+js-sys = { version = "0.3" }
 lightningcss = { version = "1.0.0-alpha.70", default-features = false, features = [
   "visitor",
 ] }

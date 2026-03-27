@@ -32,7 +32,7 @@ web_sys = ["oxvg_ast/web_sys"]
 oxvg_actions = { workspace = true, features = ["wasm"] }
 oxvg_ast = { workspace = true, features = ["serialize"] }
 oxvg_collections = { workspace = true }
-oxvg_optimiser = { workspace = true, features = ["wasm"] }
+oxvg_optimiser = { workspace = true, features = ["wasm", "web_sys"] }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true, features = ["wasm_js"] }
