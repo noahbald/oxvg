@@ -23,11 +23,16 @@ wasm-opt = [
   "--enable-nontrapping-float-to-int",
 ]
 
+[features]
+default = ["roxmltree"]
+roxmltree = ["oxvg_ast/roxmltree"]
+web_sys = ["oxvg_ast/web_sys"]
+
 [dependencies]
 oxvg_actions = { workspace = true, features = ["wasm"] }
-oxvg_ast = { workspace = true, features = ["roxmltree", "serialize"] }
+oxvg_ast = { workspace = true, features = ["serialize"] }
 oxvg_collections = { workspace = true }
-oxvg_optimiser = { workspace = true, features = ["wasm"] }
+oxvg_optimiser = { workspace = true, features = ["wasm", "web_sys"] }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true, features = ["wasm_js"] }
@@ -37,5 +42,6 @@ serde-wasm-bindgen = { workspace = true }
 tsify = { workspace = true }
 typed-arena = { workspace = true }
 wasm-bindgen = { workspace = true }
+web-sys = { workspace = true, features = ["Document"] }
 
 [dev-dependencies]

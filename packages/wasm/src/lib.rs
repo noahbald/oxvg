@@ -1,12 +1,6 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
-use oxvg_ast::{
-    arena::Allocator,
-    parse::roxmltree::{parse_tree_with_allocator, parse_with_options, ParsingOptions},
-    serialize::Node as _,
-    visitor::Info,
-    xmlwriter::Options,
-};
+use oxvg_ast::{arena::Allocator, serialize::Node as _, visitor::Info, xmlwriter::Options};
 use oxvg_collections::{attribute::AttributeGroup, element::ElementCategory};
 use oxvg_optimiser::{Extends, Jobs};
 
@@ -16,6 +10,11 @@ type Atom = oxvg_collections::atom::Atom<'static>;
 type ElementId = oxvg_collections::element::ElementId<'static>;
 type AttrId = oxvg_collections::attribute::AttrId<'static>;
 type Prefix = oxvg_collections::name::Prefix<'static>;
+
+#[cfg(not(feature = "web_sys"))]
+use oxvg_ast::parse::roxmltree::{parse_tree_with_allocator, parse_with_options, ParsingOptions};
+#[cfg(feature = "web_sys")]
+use oxvg_ast::parse::web_sys::{parse, parse_tree_with_allocator, Document};
 
 #[wasm_bindgen]
 /// Optimise an SVG document using the provided config
@@ -58,7 +57,8 @@ pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
     console_error_panic_hook::set_once();
 
     let config = config.unwrap_or_default();
-    parse_with_options(
+    #[cfg(feature = "roxmltree")]
+    return parse_with_options(
         svg,
         ParsingOptions {
             allow_dtd: true,
@@ -71,7 +71,15 @@ pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
             dom.serialize().map_err(|e| e.to_string())
         },
     )
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+    #[cfg(feature = "web_sys")]
+    return parse(svg, |dom, allocator| {
+        config
+            .run(dom, &Info::new(allocator))
+            .map_err(|e| e.to_string())?;
+        dom.serialize().map_err(|e| e.to_string())
+    })
+    .map_err(|e| e.to_string())?;
 }
 
 #[wasm_bindgen(js_name = convertSvgoConfig)]
@@ -206,7 +214,9 @@ pub fn attribute_group_names(groups: &AttributeGroup) -> Vec<String> {
 /// The actor will embed it's state into the document upon parsing and serializing.
 pub struct Actor {
     actor: oxvg_actions::Actor<'static, 'static>,
+    #[cfg(feature = "roxmltree")]
     source_ptr: *mut str,
+    #[cfg(feature = "roxmltree")]
     xml_ptr: *mut roxmltree::Document<'static>,
     arena_ptr: *mut oxvg_ast::arena::Arena<'static, 'static>,
     values_ptr: *mut oxvg_ast::arena::Values,
@@ -218,6 +228,7 @@ type Action = oxvg_actions::Action<'static>;
 
 #[wasm_bindgen]
 impl Actor {
+    #[cfg(feature = "roxmltree")]
     #[wasm_bindgen(constructor)]
     /// Creates a new actor with a reference to the document. The state of the actor will be
     /// derived from the document's `oxvg:state` element.
@@ -248,6 +259,31 @@ impl Actor {
             actor: oxvg_actions::Actor::new(root, arena)?,
             source_ptr,
             xml_ptr,
+            arena_ptr,
+            values_ptr,
+        })
+    }
+
+    #[cfg(feature = "web_sys")]
+    #[wasm_bindgen(constructor)]
+    /// Creates a new actor with a reference to the document. The state of the actor will be
+    /// derived from the document's `oxvg:state` element.
+    ///
+    /// # Errors
+    ///
+    /// If the document cannot be parsed.
+    pub fn new(document: &Document) -> Result<Self, Error> {
+        let values = Box::leak(Box::new(Allocator::new_values()));
+        let arena = Box::leak(Box::new(Allocator::new_arena()));
+        let values_ptr = std::ptr::from_mut(values);
+        let arena_ptr = std::ptr::from_mut(arena);
+
+        let (root, arena) =
+            parse_tree_with_allocator(document, arena, values, |root, arena| (root, arena))
+                .map_err(|err| Error::ParseError(err.to_string()))?;
+
+        Ok(Self {
+            actor: oxvg_actions::Actor::new(root, arena)?,
             arena_ptr,
             values_ptr,
         })
@@ -306,7 +342,9 @@ impl Actor {
 impl Drop for Actor {
     fn drop(&mut self) {
         unsafe {
+            #[cfg(feature = "roxmltree")]
             drop(Box::from_raw(self.source_ptr));
+            #[cfg(feature = "roxmltree")]
             drop(Box::from_raw(self.xml_ptr));
             drop(Box::from_raw(self.arena_ptr));
             drop(Box::from_raw(self.values_ptr));

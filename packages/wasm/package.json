@@ -31,9 +31,9 @@
 	"scripts": {
 		"build": "pnpm run build:web && pnpm run build:node",
 		"build:debug": "pnpm run build:debug:web && pnpm run build:debug:node",
-		"build:web": "wasm-pack build --target web --no-pack --out-dir dist",
+		"build:web": "wasm-pack build --target web --no-pack --out-dir dist -- --no-default-features --features web_sys",
 		"build:node": "wasm-pack build --target nodejs --no-pack --out-dir dist/node && npm run build:node:rename",
-		"build:debug:web": "wasm-pack build --dev --target web --no-pack --out-dir dist",
+		"build:debug:web": "wasm-pack build --dev --target web --no-pack --out-dir dist -- --no-default-features --features web_sys",
 		"build:debug:node": "wasm-pack build --dev --target nodejs --no-pack --out-dir dist/node && npm run build:node:rename",
 		"build:node:rename": "mv dist/node/oxvg_wasm.js dist/node/oxvg_wasm.cjs",
 		"test": "node ./test.cjs",

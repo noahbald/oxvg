@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use oxvg_ast::{
     element::Element,
     visitor::{Context, Visitor},
@@ -26,7 +24,10 @@ const fn default_preserve_current_color() -> bool {
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::{error::JobsError, utils::regex_memo};
+use crate::{
+    error::JobsError,
+    utils::regex_memo::{self, Error, Regex},
+};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -87,15 +88,20 @@ impl Default for RemoveAttrs {
     }
 }
 
-fn create_regex(part: &str) -> Result<regex::Regex, regex::Error> {
+fn create_regex(part: &str) -> Result<Option<Regex>, Error> {
     if matches!(part, "*" | ".*") {
-        return Ok(WILDCARD.clone());
+        return Ok(None);
     }
-    regex_memo::get(&format!("^{part}$")).map(|memo| memo.value().clone())
+    Ok(Some(
+        regex_memo::get(&format!("^{part}$")).map(|memo| memo.value().clone())?,
+    ))
 }
 
 impl RemoveAttrs {
-    fn parse_pattern<'input>(&self, pattern: &str) -> Result<[regex::Regex; 3], JobsError<'input>> {
+    fn parse_pattern<'input>(
+        &self,
+        pattern: &str,
+    ) -> Result<[Option<Regex>; 3], JobsError<'input>> {
         let list = match pattern.split_once(&self.elem_separator) {
             Some((start, rest)) => match rest.split_once(&self.elem_separator) {
                 Some((middle, end)) => [
@@ -106,13 +112,13 @@ impl RemoveAttrs {
                 None => [
                     create_regex(start).map_err(JobsError::InvalidUserRegex)?,
                     create_regex(rest).map_err(JobsError::InvalidUserRegex)?,
-                    WILDCARD.clone(),
+                    None,
                 ],
             },
             None => [
-                WILDCARD.clone(),
+                None,
                 create_regex(pattern).map_err(JobsError::InvalidUserRegex)?,
-                WILDCARD.clone(),
+                None,
             ],
         };
         Ok(list)
@@ -133,7 +139,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttrs {
             parsed_attrs.push(list);
         }
         for pattern in parsed_attrs {
-            if !pattern[0].is_match(&element.qual_name().to_string()) {
+            if !pattern[0]
+                .as_ref()
+                .is_none_or(|p| p.is_match(&element.qual_name().to_string()))
+            {
                 continue;
             }
 
@@ -149,25 +158,23 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttrs {
                     return true;
                 }
 
-                if !pattern[2].is_match(
+                if !pattern[2].as_ref().is_none_or(|p| p.is_match(
                     &attr
                         .value()
                         .to_value_string(PrinterOptions::default())
                         .unwrap(),
-                ) {
+                )) {
                     return true;
                 }
 
                 let name = attr.name().to_string();
-                !pattern[1].is_match(&name)
+                !pattern[1].as_ref().is_none_or(|p| p.is_match(&name))
             });
         }
 
         Ok(())
     }
 }
-
-static WILDCARD: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(".*").unwrap());
 
 #[test]
 fn remove_attrs() -> anyhow::Result<()> {

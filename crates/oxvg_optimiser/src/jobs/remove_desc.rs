@@ -4,6 +4,7 @@ use oxvg_ast::{
     node::{self},
     visitor::{Context, Visitor},
 };
+use oxvg_collections::atom::Atom;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -52,8 +53,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDesc {
             || element.is_empty()
             || element.child_nodes_iter().any(|n| {
                 n.node_type() == node::Type::Text
-                    && n.text_content()
-                        .is_some_and(|s| STANDARD_DESCS.is_match(&s))
+                    && n.text_content().as_ref().is_some_and(is_standard_desc)
             })
         {
             element.remove();
@@ -63,8 +63,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDesc {
     }
 }
 
-static STANDARD_DESCS: std::sync::LazyLock<regex::Regex> =
-    std::sync::LazyLock::new(|| regex::Regex::new("^Created (with|using)").unwrap());
+fn is_standard_desc(text: &Atom) -> bool {
+    text.starts_with("Created with") || text.starts_with("Created using")
+}
 
 #[test]
 fn remove_desc() -> anyhow::Result<()> {

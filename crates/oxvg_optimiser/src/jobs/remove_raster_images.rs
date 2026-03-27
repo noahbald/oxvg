@@ -56,15 +56,18 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveRasterImages {
             return Ok(());
         };
 
-        if RASTER_IMAGE.is_match(&xlink_href) {
+        if is_raster_image(&xlink_href) {
             element.remove();
         }
         Ok(())
     }
 }
 
-static RASTER_IMAGE: std::sync::LazyLock<regex::Regex> =
-    std::sync::LazyLock::new(|| regex::Regex::new(r"(\.|image\/)(jpe?g|png|gif)").unwrap());
+fn is_raster_image(href: &str) -> bool {
+    href.split('.')
+        .chain(href.split("image/"))
+        .any(|ext| ext.starts_with("jpeg") || matches!(ext.get(0..3), Some("jpg" | "png" | "gif")))
+}
 
 #[test]
 fn remove_raster_images() -> anyhow::Result<()> {

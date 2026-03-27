@@ -16,6 +16,7 @@ workspace = true
 [features]
 default = ["serde"]
 clap = ["dep:clap"]
+js_sys = ["dep:js-sys"]
 serde = ["dep:serde", "dep:serde_json", "dep:serde_with", "oxvg_path/serde"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_path/napi"]
 wasm = [
@@ -25,6 +26,7 @@ wasm = [
   "dep:tsify",
   "oxvg_path/wasm",
 ]
+web_sys = ["js_sys"]
 
 [dependencies]
 oxvg_ast = { workspace = true, features = [
@@ -59,6 +61,7 @@ tsify = { workspace = true, optional = true }
 typed-arena = { workspace = true }
 urlencoding = "2.1"
 wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
 
 [dev-dependencies]
 oxvg_ast = { workspace = true, features = [

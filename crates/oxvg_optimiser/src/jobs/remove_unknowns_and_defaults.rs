@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use oxvg_ast::{
     has_attribute, is_attribute,
     node::{self, Ref},
@@ -15,6 +13,10 @@ use oxvg_collections::{
     is_prefix,
     name::Prefix,
 };
+
+#[cfg(not(feature = "js_sys"))]
+use std::sync::LazyLock;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -120,7 +122,16 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
         let Some(parent) = processing_instruction.parent_node() else {
             return Ok(());
         };
-        let data = PI_STANDALONE.replace(data.as_str(), "").to_string().into();
+        #[cfg(not(feature = "js_sys"))]
+        let data: oxvg_collections::atom::Atom =
+            PI_STANDALONE.replace(data.as_str(), "").to_string().into();
+        let data = crate::utils::regex_memo::get(PI_STANDALONE_STR)
+            .unwrap()
+            .value()
+            .replace(data.as_str(), "")
+            .map_err(JobsError::InvalidUserRegex)?
+            .clone()
+            .into();
         let new_pi = context.root.as_document().create_processing_instruction(
             target.clone(),
             data,
@@ -283,8 +294,10 @@ const fn default_keep_role_attr() -> bool {
     false
 }
 
+static PI_STANDALONE_STR: &str = r#"\s*standalone\s*=\s*["']no["']"#;
+#[cfg(not(feature = "js_sys"))]
 static PI_STANDALONE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r#"\s*standalone\s*=\s*["']no["']"#).unwrap());
+    LazyLock::new(|| regex::Regex::new(PI_STANDALONE_STR).unwrap());
 
 #[test]
 #[allow(clippy::too_many_lines)]

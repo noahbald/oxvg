@@ -43,14 +43,15 @@ cfg-if = { version = "1.0" }
 clap = { version = "4.5", features = ["derive"] }
 # NOTE: Out of date version used for compatibility with selectors
 # https://github.com/servo/stylo/blob/main/Cargo.toml#L35
-cssparser = "0.34.0"
+cssparser = "0.36"
 cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
 getrandom = { version = "0.3" }
 itertools = "0.14"
-lightningcss = { version = "1.0.0-alpha.70", default-features = false, features = [
+js-sys = { version = "0.3" }
+lightningcss = { version = "1.0.0-alpha.71", default-features = false, features = [
   "visitor",
 ] }
 log = { version = "0.4" }
@@ -66,7 +67,7 @@ rcdom = { package = "markup5ever_rcdom", version = "0.36.0" }
 regex = "1.11"
 roxmltree = "0.20"
 schemars = { version = "1.2.1" }
-selectors = "0.26"
+selectors = "0.36"
 serde = "1.0"
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
@@ -79,6 +80,7 @@ tower-lsp-server = "0.22"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
 wasm-bindgen = "=0.2.104"
+web-sys = { version = "0.3" }
 xml5ever = "0.38"
 
 # Developer dependencies
