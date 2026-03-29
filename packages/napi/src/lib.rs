@@ -184,6 +184,12 @@ impl Actor {
       .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
   }
 
+  /// Removes OXVG state from the document
+  #[napi]
+  pub fn forget(&mut self) {
+    self.actor.forget();
+  }
+
   /// Updates the state of the actor to point to the elements matching the given selector.
   /// Elements can also be selected by a space/comma separated list of allocation-id
   /// integers.

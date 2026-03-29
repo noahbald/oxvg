@@ -2,6 +2,7 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
+  | { type: 'Forget' }
   | { type: 'Select', field0: string }
 
 /** The attributes common to the selected elements */
@@ -693,6 +694,8 @@ export declare class Actor {
    * If the action fails
    */
   dispatch(action: ActionNapi): void
+  /** Removes OXVG state from the document */
+  forget(): void
   /**
    * Updates the state of the actor to point to the elements matching the given selector.
    * Elements can also be selected by a space/comma separated list of allocation-id

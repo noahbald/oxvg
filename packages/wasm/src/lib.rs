@@ -309,6 +309,12 @@ impl Actor {
         self.actor.dispatch(action)
     }
 
+    /// Removes OXVG state from the document
+    #[wasm_bindgen]
+    pub fn forget(&mut self) {
+        self.actor.forget();
+    }
+
     /// Updates the state of the actor to point to the elements matching the given selector.
     /// Elements can also be selected by a space/comma separated list of allocation-id
     /// integers.

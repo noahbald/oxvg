@@ -244,6 +244,7 @@ impl<'input> Action<'input> {
     const ARG: &'static str = "arg";
     const ID: &'static str = "id";
     // Members
+    const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
 
     fn from_state(element: &Element<'input, '_>) -> Result<Self, Error<'input>> {
@@ -280,6 +281,7 @@ impl<'input> Action<'input> {
         parent.append(*element);
 
         match self {
+            Self::Forget => {}
             Self::Select(query) => {
                 let arg = document.create_element(create_oxvg_element(Self::ARG), allocator);
                 arg.set_text_content(query.clone(), allocator);
@@ -290,6 +292,7 @@ impl<'input> Action<'input> {
 
     fn name(&self) -> &'static str {
         match self {
+            Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
         }
     }
@@ -298,6 +301,7 @@ impl<'input> Action<'input> {
     /// Converts to a napi-compatible type
     pub fn to_napi(&self) -> ActionNapi {
         match self {
+            Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
         }
     }
@@ -306,6 +310,7 @@ impl<'input> Action<'input> {
     /// Converts to a napi-compatible type
     pub fn from_napi(other: ActionNapi) -> Action<'static> {
         match other {
+            ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
         }
     }
