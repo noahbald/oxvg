@@ -73,7 +73,7 @@ pub const fn create_oxvg_attr<'input>(
     }
 }
 
-pub const fn create_oxvg_attr_id<'input>(local_name: &'static str) -> AttrId<'static> {
+pub const fn create_oxvg_attr_id(local_name: &'static str) -> AttrId<'static> {
     AttrId::Unknown(create_oxvg_qual_name(local_name))
 }
 

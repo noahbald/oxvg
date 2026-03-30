@@ -327,6 +327,20 @@ impl Actor {
         self.actor.select(query)
     }
 
+    /// Updates the state of the actor to point to the elements matching the given selector,
+    /// including any previous selections.
+    /// Elements can also be selected by a space/comma separated list of allocation-id
+    /// integers.
+    ///
+    /// # Errors
+    ///
+    /// If query is invalid
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = selectMore)]
+    pub fn select_more(&mut self, query: &str) -> Result<(), Error> {
+        self.actor.select_more(query)
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     #[wasm_bindgen]
     pub fn deselect(&mut self) {

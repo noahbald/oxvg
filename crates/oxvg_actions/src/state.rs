@@ -246,6 +246,7 @@ impl<'input> Action<'input> {
     // Members
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
+    const SELECT_MORE: &'static str = "SelectMore";
     const DESELECT: &'static str = "Deselect";
 
     fn from_state(element: &Element<'input, '_>) -> Result<Self, Error<'input>> {
@@ -282,20 +283,29 @@ impl<'input> Action<'input> {
         parent.append(*element);
 
         match self {
-            Self::Forget => {}
-            Self::Select(query) => {
-                let arg = document.create_element(create_oxvg_element(Self::ARG), allocator);
-                arg.set_text_content(query.clone(), allocator);
-                element.append(*arg);
+            Self::Select(query) | Self::SelectMore(query) => {
+                Self::embed_arg(&element, allocator, query.clone());
             }
-            Self::Deselect => {}
+            Self::Forget | Self::Deselect => {}
         }
+    }
+
+    fn embed_arg<'arena>(
+        parent: &Element<'input, 'arena>,
+        allocator: &Allocator<'input, 'arena>,
+        arg_atom: Atom<'input>,
+    ) {
+        let document = parent.as_document();
+        let arg = document.create_element(create_oxvg_element(Self::ARG), allocator);
+        arg.set_text_content(arg_atom, allocator);
+        parent.append(*arg);
     }
 
     fn name(&self) -> &'static str {
         match self {
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
+            Self::SelectMore(_) => Self::SELECT_MORE,
             Self::Deselect => Self::DESELECT,
         }
     }
@@ -306,6 +316,7 @@ impl<'input> Action<'input> {
         match self {
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
+            Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
             Self::Deselect => ActionNapi::Deselect,
         }
     }
@@ -316,6 +327,7 @@ impl<'input> Action<'input> {
         match other {
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
+            ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),
             ActionNapi::Deselect => Action::Deselect,
         }
     }
