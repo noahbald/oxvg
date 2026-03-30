@@ -32,6 +32,8 @@ pub enum Action<'input> {
     Forget,
     /// See [`Actor::select`]
     Select(Atom<'input>),
+    /// See [`Actor::deselect`]
+    Deselect,
 }
 
 #[cfg(feature = "napi")]
@@ -42,6 +44,8 @@ pub enum ActionNapi {
     Forget,
     /// See [`Actor::select`]
     Select(String),
+    /// See [`Actor::deselect`]
+    Deselect,
 }
 
 impl<'input, 'arena> Actor<'input, 'arena> {
@@ -92,6 +96,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         match action {
             Action::Forget => self.forget(),
             Action::Select(query) => return self.select(query.as_str()),
+            Action::Deselect => self.deselect(),
         }
         Ok(())
     }

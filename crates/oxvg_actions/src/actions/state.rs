@@ -20,9 +20,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn forget(&mut self) {
         self.state.record(&Action::Forget, &self.allocator);
 
-        self.state
-            .get_selections(&self.allocator)
-            .remove_attribute(&create_oxvg_attr_id(StateElement::SELECTION_IDS));
+        self.deselect_internal();
         self.state.state.remove();
     }
 
@@ -71,6 +69,23 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             ));
         self.state.embed(self.root)?;
         Ok(())
+    }
+
+    /// Updates the state of the actor to deselected any selected nodes.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/deselect.md")]
+    pub fn deselect(&mut self) {
+        self.state.record(&Action::Deselect, &self.allocator);
+
+        self.deselect_internal();
+    }
+
+    fn deselect_internal(&mut self) {
+        self.state
+            .get_selections(&self.allocator)
+            .remove_attribute(&create_oxvg_attr_id(StateElement::SELECTION_IDS));
     }
 }
 

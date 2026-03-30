@@ -189,12 +189,19 @@ impl RunCommand for ActionList {
                 "../../../oxvg_actions/src/spec/state/select.md"
             ));
         }
+        if parts.is_empty() || parts.contains(DESELECT) {
+            println!("# Forget\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/state/deselect.md"
+            ));
+        }
         Ok(())
     }
 }
 
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
+const DESELECT: &str = "-deselect";
 
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
     let mut actions = Vec::with_capacity(
@@ -216,6 +223,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                     .ok_or_else(|| anyhow::anyhow!("`{action}` missing query"))?
                     .into(),
             ),
+            DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });
     }

@@ -327,6 +327,12 @@ impl Actor {
         self.actor.select(query)
     }
 
+    /// Updates the state of the actor to deselected any selected nodes.
+    #[wasm_bindgen]
+    pub fn deselect(&mut self) {
+        self.actor.deselect();
+    }
+
     /// Returns the actor's updated document as a string
     ///
     /// # Errors

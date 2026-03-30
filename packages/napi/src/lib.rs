@@ -206,6 +206,12 @@ impl Actor {
       .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
   }
 
+  /// Updates the state of the actor to deselected any selected nodes.
+  #[napi]
+  pub fn deselect(&mut self) {
+    self.actor.deselect();
+  }
+
   /// Returns the actor's updated document as a string
   ///
   /// # Errors

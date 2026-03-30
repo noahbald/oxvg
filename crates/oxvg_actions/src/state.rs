@@ -246,6 +246,7 @@ impl<'input> Action<'input> {
     // Members
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
+    const DESELECT: &'static str = "Deselect";
 
     fn from_state(element: &Element<'input, '_>) -> Result<Self, Error<'input>> {
         assert_oxvg_element(element, Self::ACTION)?;
@@ -287,6 +288,7 @@ impl<'input> Action<'input> {
                 arg.set_text_content(query.clone(), allocator);
                 element.append(*arg);
             }
+            Self::Deselect => {}
         }
     }
 
@@ -294,6 +296,7 @@ impl<'input> Action<'input> {
         match self {
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
+            Self::Deselect => Self::DESELECT,
         }
     }
 
@@ -303,6 +306,7 @@ impl<'input> Action<'input> {
         match self {
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
+            Self::Deselect => ActionNapi::Deselect,
         }
     }
 
@@ -312,6 +316,7 @@ impl<'input> Action<'input> {
         match other {
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
+            ActionNapi::Deselect => Action::Deselect,
         }
     }
 }

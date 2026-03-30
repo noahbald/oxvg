@@ -4,6 +4,7 @@
 export type ActionNapi =
   | { type: 'Forget' }
   | { type: 'Select', field0: string }
+  | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
 export interface AttrModelNapi {
@@ -706,6 +707,8 @@ export declare class Actor {
    * If the query is invalid
    */
   select(query: string): void
+  /** Updates the state of the actor to deselected any selected nodes. */
+  deselect(): void
   /**
    * Returns the actor's updated document as a string
    *
