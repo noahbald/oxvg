@@ -21,7 +21,7 @@ parse = ["oxvg_ast/parse", "oxvg_ast/roxmltree"]
 serde = ["dep:serde"]
 
 [dependencies]
-oxvg_ast = { workspace = true, features = ["range"] }
+oxvg_ast = { workspace = true, features = ["range", "rayon"] }
 oxvg_collections = { workspace = true }
 
 bytecount = { workspace = true }

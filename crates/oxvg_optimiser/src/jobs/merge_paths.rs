@@ -1,4 +1,4 @@
-use std::cell::{self, RefMut};
+use std::sync::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 
 use itertools::Itertools as _;
 use lightningcss::properties::{
@@ -111,8 +111,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
             let computed_styles = ComputedStyles::default()
                 .with_all(&child, &context.query_has_stylesheet_result)
                 .map_err(JobsError::ComputedStylesError)?;
-            let Some(mut current_path_data) =
-                get_attribute_mut!(child, D).map(|d| RefMut::map(d, |path::Path(d, _)| d))
+            let Some(mut current_path_data) = get_attribute_mut!(child, D)
+                .map(|d| MappedRwLockWriteGuard::map(d, |path::Path(d, _)| d))
             else {
                 log::debug!("ending merge, current has no `d`");
                 update_previous_path!(prev_child);
@@ -178,7 +178,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
             }
 
             let current_path_data = get_attribute!(child, D)
-                .map(|d| cell::Ref::map(d, |path::Path(d, _)| d))
+                .map(|d| MappedRwLockReadGuard::map(d, |path::Path(d, _)| d))
                 .expect("D previously used");
             if let Some(path::Path(prev_path_data, _)) = &mut prev_path_data {
                 if prev_path_data.0.last().is_some_and(|d| {

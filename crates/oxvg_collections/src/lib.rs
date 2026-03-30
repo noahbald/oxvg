@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 //! Collections of data and types for SVG
 //!
 //! As opposed to `oxvg_ast`, which is for the structural types of an SVG document,

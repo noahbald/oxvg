@@ -1,5 +1,7 @@
 //! XML element attribute traits.
-use std::cell::{self, Ref, RefCell, RefMut};
+use std::sync::{
+    Arc, MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 
 use oxvg_collections::{
     atom::Atom,
@@ -73,7 +75,7 @@ macro_rules! get_attribute {
         $element
             .get_attribute(&oxvg_collections::attribute::AttrId::$attr)
             .and_then(|attr| {
-                std::cell::Ref::filter_map(attr, |attr| match attr.unaliased() {
+                std::sync::MappedRwLockReadGuard::filter_map(attr, |attr| match attr.unaliased() {
                     oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
                     oxvg_collections::attribute::Attr::Unparsed { .. } => None,
                     _ => unreachable!("{attr:?} did not match {}", stringify!($attr)),
@@ -95,7 +97,7 @@ macro_rules! get_attribute_mut {
         $element
             .get_attribute_node_mut(&oxvg_collections::attribute::AttrId::$attr)
             .and_then(|attr| {
-                std::cell::RefMut::filter_map(attr, |attr| match attr {
+                std::sync::MappedRwLockWriteGuard::filter_map(attr, |attr| match attr {
                     oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
                     oxvg_collections::attribute::Attr::Unparsed { .. } => None,
                     _ => unreachable!(),
@@ -127,14 +129,14 @@ macro_rules! remove_attribute {
 /// A representation of a collection of [Attr] objects.
 ///
 /// [MDN | NamedNodeMap](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap)
-pub struct Attributes<'a, 'input>(pub &'a RefCell<Vec<Attr<'input>>>);
+pub struct Attributes<'a, 'input>(pub &'a Arc<RwLock<Vec<Attr<'input>>>>);
 
 impl<'a, 'input> Attributes<'a, 'input> {
     /// The number of attributes stored in the collection.
     ///
     /// [MDN | length](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/length)
     pub fn len(&self) -> usize {
-        self.0.borrow().len()
+        self.0.read().unwrap().len()
     }
 
     /// Whether there are any attributes stored in the collection
@@ -145,16 +147,19 @@ impl<'a, 'input> Attributes<'a, 'input> {
     /// Returns an attribute corresponding to the given name.
     ///
     /// [MDN | getNamedItem](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/getNamedItem)
-    pub fn get_named_item(&self, name: &AttrId) -> Option<cell::Ref<'a, Attr<'input>>> {
-        cell::Ref::filter_map(self.0.borrow(), |v: &Vec<Attr<'input>>| {
+    pub fn get_named_item(&self, name: &AttrId) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
+        RwLockReadGuard::filter_map(self.0.read().unwrap(), |v: &Vec<Attr<'input>>| {
             v.iter().find(|a| a.name() == name)
         })
         .ok()
     }
 
     /// See [`Attributes::get_named_item`]
-    pub fn get_named_item_local(&self, local_name: &Atom) -> Option<cell::Ref<'a, Attr<'input>>> {
-        cell::Ref::filter_map(self.0.borrow(), |v: &Vec<Attr<'input>>| {
+    pub fn get_named_item_local(
+        &self,
+        local_name: &Atom,
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
+        RwLockReadGuard::filter_map(self.0.read().unwrap(), |v: &Vec<Attr<'input>>| {
             v.iter()
                 .find(|a| a.prefix().is_empty() && a.local_name() == local_name)
         })
@@ -162,8 +167,11 @@ impl<'a, 'input> Attributes<'a, 'input> {
     }
 
     /// See [`Attributes::get_named_item`]
-    pub fn get_named_item_mut(&self, name: &AttrId) -> Option<RefMut<'a, Attr<'input>>> {
-        RefMut::filter_map(self.0.borrow_mut(), |v: &mut Vec<Attr<'input>>| {
+    pub fn get_named_item_mut(
+        &self,
+        name: &AttrId,
+    ) -> Option<MappedRwLockWriteGuard<'a, Attr<'input>>> {
+        RwLockWriteGuard::filter_map(self.0.write().unwrap(), |v: &mut Vec<Attr<'input>>| {
             v.iter_mut()
                 .find(|a| a.prefix() == name.prefix() && a.local_name() == name.local_name())
         })
@@ -175,8 +183,8 @@ impl<'a, 'input> Attributes<'a, 'input> {
         &self,
         namespace: &NS,
         local_name: &Atom,
-    ) -> Option<cell::Ref<'a, Attr<'input>>> {
-        cell::Ref::filter_map(self.0.borrow(), |v: &Vec<Attr<'input>>| {
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
+        RwLockReadGuard::filter_map(self.0.read().unwrap(), |v: &Vec<Attr<'input>>| {
             v.iter()
                 .find(|a| a.prefix().is_ns(namespace) && a.local_name() == local_name)
         })
@@ -186,15 +194,16 @@ impl<'a, 'input> Attributes<'a, 'input> {
     /// Returns the attribute in the collection matching the index
     ///
     /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/item)
-    pub fn item(&self, index: usize) -> Option<cell::Ref<'a, Attr<'input>>> {
-        cell::Ref::filter_map(self.0.borrow(), |v: &Vec<Attr<'input>>| v.get(index)).ok()
+    pub fn item(&self, index: usize) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
+        RwLockReadGuard::filter_map(self.0.read().unwrap(), |v: &Vec<Attr<'input>>| v.get(index))
+            .ok()
     }
 
     /// Returns the mutable attribute in the collection matching the index
     ///
     /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/item)
-    fn item_mut(&self, index: usize) -> Option<RefMut<'a, Attr<'input>>> {
-        RefMut::filter_map(self.0.borrow_mut(), |v: &mut Vec<Attr<'input>>| {
+    fn item_mut(&self, index: usize) -> Option<MappedRwLockWriteGuard<'a, Attr<'input>>> {
+        RwLockWriteGuard::filter_map(self.0.write().unwrap(), |v: &mut Vec<Attr<'input>>| {
             v.get_mut(index)
         })
         .ok()
@@ -204,7 +213,7 @@ impl<'a, 'input> Attributes<'a, 'input> {
     ///
     /// [MDN | removeNamedItem](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/removeNamedItem)
     pub fn remove_named_item(&self, name: &AttrId) -> Option<Attr<'input>> {
-        let mut attrs = self.0.borrow_mut();
+        let mut attrs = self.0.write().unwrap();
         let index = attrs.iter().position(|a| a.name() == name)?;
         Some(attrs.remove(index))
     }
@@ -214,7 +223,7 @@ impl<'a, 'input> Attributes<'a, 'input> {
     ///
     /// [MDN | setNamedItem](https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap/setNamedItem)
     pub fn set_named_item(&self, attr: Attr<'input>) -> Option<Attr<'input>> {
-        let attrs = &mut *self.0.borrow_mut();
+        let attrs = &mut *self.0.write().unwrap();
         if let Some(index) = attrs
             .iter()
             .position(|a| a.prefix() == attr.prefix() && a.local_name() == attr.local_name())
@@ -234,7 +243,7 @@ impl<'a, 'input> Attributes<'a, 'input> {
 
     // For use in macros interoperable with `Element`
     #[doc(hidden)]
-    pub fn get_attribute(&self, name: &AttrId) -> Option<cell::Ref<'a, Attr<'input>>> {
+    pub fn get_attribute(&self, name: &AttrId) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.get_named_item(name)
     }
 
@@ -252,7 +261,10 @@ impl<'a, 'input> Attributes<'a, 'input> {
 
     // For use in macros interoperable with `Element`
     #[doc(hidden)]
-    pub fn get_attribute_node_mut(&self, name: &AttrId) -> Option<RefMut<'a, Attr<'input>>> {
+    pub fn get_attribute_node_mut(
+        &self,
+        name: &AttrId,
+    ) -> Option<MappedRwLockWriteGuard<'a, Attr<'input>>> {
         self.get_named_item_mut(name)
     }
 
@@ -268,8 +280,8 @@ impl<'a, 'input> Attributes<'a, 'input> {
     }
 
     /// Extracts a slice of all the attributes
-    pub fn as_slice(&self) -> Ref<'a, [Attr<'input>]> {
-        cell::Ref::map(self.0.borrow(), |attrs| attrs.as_slice())
+    pub fn as_slice(&self) -> MappedRwLockReadGuard<'a, [Attr<'input>]> {
+        RwLockReadGuard::map(self.0.read().unwrap(), |attrs| attrs.as_slice())
     }
 
     /// Sorts attributes with the following behaviour.
@@ -295,7 +307,7 @@ impl<'a, 'input> Attributes<'a, 'input> {
             0
         }
 
-        self.0.borrow_mut().sort_by(|a, b| {
+        self.0.write().unwrap().sort_by(|a, b| {
             let a_name = a.name();
             let b_name = b.name();
             let a_priority = get_ns_priority(a_name, xmlns_front);
@@ -336,12 +348,12 @@ impl<'a, 'input> Attributes<'a, 'input> {
     where
         F: FnMut(&Attr<'input>) -> bool,
     {
-        self.0.borrow_mut().retain(f);
+        self.0.write().unwrap().retain(f);
     }
 }
 
 impl<'a, 'input> IntoIterator for Attributes<'a, 'input> {
-    type Item = Ref<'a, Attr<'input>>;
+    type Item = MappedRwLockReadGuard<'a, Attr<'input>>;
     type IntoIter = AttributesIter<'a, 'input>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -352,7 +364,7 @@ impl<'a, 'input> IntoIterator for Attributes<'a, 'input> {
 impl std::fmt::Debug for Attributes<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut debug_tuple = f.debug_tuple("Attributes");
-        for a in self.0.borrow().iter() {
+        for a in self.0.read().unwrap().iter() {
             debug_tuple.field(a);
         }
         debug_tuple.finish()
@@ -378,12 +390,12 @@ macro_rules! define_attrs_iter {
         }
 
         impl<'a, 'input> Iterator for $name<'a, 'input> {
-            $(type Item = Ref<'a, $deref<'input>>;)?
-            $(type Item = RefMut<'a, $derefmut<'input>>;)?
+            $(type Item = MappedRwLockReadGuard<'a, $deref<'input>>;)?
+            $(type Item = MappedRwLockWriteGuard<'a, $derefmut<'input>>;)?
 
             fn next(&mut self) -> Option<Self::Item> {
-                $(let output: Option<Ref<'a, $deref<'input>>> = self.attributes.item(self.index);)?
-                $(let output: Option<RefMut<'a, $derefmut<'input>>> = self.attributes.item_mut(self.index);)?
+                $(let output: Option<MappedRwLockReadGuard<'a, $deref<'input>>> = self.attributes.item(self.index);)?
+                $(let output: Option<MappedRwLockWriteGuard<'a, $derefmut<'input>>> = self.attributes.item_mut(self.index);)?
                 self.index += 1;
                 output
             }

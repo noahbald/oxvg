@@ -1321,6 +1321,7 @@ dependencies = [
  "oxvg_serialize",
  "paste",
  "precomputed-hash",
+ "rayon",
  "roxmltree",
  "selectors",
  "servo_arc",

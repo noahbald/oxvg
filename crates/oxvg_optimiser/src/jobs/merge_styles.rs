@@ -85,7 +85,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         let mut css = Vec::new();
         element.child_nodes_iter().for_each(|node| {
             if let Some(style) = node.style() {
-                css.extend(style.borrow().0.clone());
+                css.extend(style.read().unwrap().0.clone());
             }
             if node.node_type() == node::Type::CDataSection {
                 self.is_cdata.set(true);
@@ -112,7 +112,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         let first_style = self.first_style.borrow();
         if let Some(node) = &*first_style {
             if let Some(style) = node.style() {
-                style.borrow_mut().0.extend(css);
+                style.write().unwrap().0.extend(css);
             } else {
                 unreachable!("Style node should have been set");
             }
@@ -144,9 +144,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             return Ok(());
         };
         style.child_nodes_iter().for_each(Node::remove);
-        let child = document
-            .as_document()
-            .create_style_node(css.replace(CssRuleList(vec![])), &context.info.allocator);
+        let child = document.as_document().create_style_node(
+            std::mem::replace(&mut *css.write().unwrap(), CssRuleList(vec![])),
+            &context.info.allocator,
+        );
         style.append_child(child);
         Ok(())
     }

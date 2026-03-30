@@ -282,7 +282,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         }
 
         let mut find_removable_tokens = FindRemovableTokens::new(self.options);
-        let css = &mut *css.borrow_mut();
+        let css = &mut *css.write().unwrap();
         if let Err(err) = find_removable_tokens.inline_rules(css, &context.root) {
             log::debug!("Not merging style: {err}");
             return Ok(());

@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 //! OXVG uses an AST representation of an XML document for processing SVGs.
 //!
 //! As opposed to `oxvg_collections`, which is for the data types of an SVG document,

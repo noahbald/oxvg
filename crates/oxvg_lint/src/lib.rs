@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 //! Analyses SVG documents to find common errors
 pub mod error;
 #[cfg(feature = "parse")]

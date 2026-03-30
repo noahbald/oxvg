@@ -1,8 +1,11 @@
+#[cfg(test)]
+use std::sync::RwLock;
 use std::{
     cell::{self, RefCell},
     collections::{HashMap, HashSet},
     fmt::Write,
     ops::Range,
+    sync::MappedRwLockReadGuard,
 };
 
 use lightningcss::visitor::Visit as _;
@@ -92,7 +95,7 @@ pub(crate) struct RuleData<'e, 'input> {
     reports: cell::RefMut<'e, Vec<Error<'input>>>,
     parent: Option<ElementId<'input>>,
     element: &'e ElementId<'input>,
-    attributes: cell::Ref<'e, [Attr<'input>]>,
+    attributes: MappedRwLockReadGuard<'e, [Attr<'input>]>,
     range: &'e Option<Range<usize>>,
     attribute_ranges: &'e HashMap<AttrId<'input>, Ranges>,
 }
@@ -116,7 +119,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Rules {
             xmlns_stack: RefCell::default(),
         };
         for style_sheet in &context.query_has_stylesheet_result {
-            style_sheet.borrow_mut().visit(&mut reporter).ok();
+            style_sheet.write().unwrap().visit(&mut reporter).ok();
         }
         reporter.start_with_context(document, context)?;
         let reports = reporter.reports.take();
@@ -341,7 +344,7 @@ struct TestData<'input> {
     reports: RefCell<Vec<Error<'input>>>,
     parent: Option<ElementId<'input>>,
     element: ElementId<'input>,
-    attributes: RefCell<Vec<Attr<'input>>>,
+    attributes: RwLock<Vec<Attr<'input>>>,
     range: Option<Range<usize>>,
     attribute_ranges: HashMap<AttrId<'input>, Ranges>,
 }
@@ -369,18 +372,22 @@ impl<'e, 'input> RuleData<'e, 'input> {
             reports: RefCell::new(vec![]),
             parent: Some(ElementId::Svg),
             element: ElementId::Svg,
-            attributes: RefCell::new(vec![]),
+            attributes: RwLock::new(vec![]),
             range: Some(0..1),
             attribute_ranges: HashMap::new(),
         }
     }
     #[cfg(test)]
     fn from_test_data(test_data: &'e TestData<'input>) -> Self {
+        use std::sync::RwLockReadGuard;
+
         Self {
             reports: test_data.reports.borrow_mut(),
             parent: test_data.parent.clone(),
             element: &test_data.element,
-            attributes: cell::Ref::map(test_data.attributes.borrow(), |a| a.as_slice()),
+            attributes: RwLockReadGuard::map(test_data.attributes.read().unwrap(), |a| {
+                a.as_slice()
+            }),
             range: &test_data.range,
             attribute_ranges: &test_data.attribute_ranges,
         }

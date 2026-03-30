@@ -1,4 +1,4 @@
-use std::cell::RefMut;
+use std::sync::MappedRwLockWriteGuard;
 
 use lightningcss::properties::transform::Matrix;
 use oxvg_ast::{
@@ -170,7 +170,7 @@ impl ConvertTransform {
 
     fn transform_attr(
         &self,
-        mut transform: RefMut<SVGTransformList>,
+        mut transform: MappedRwLockWriteGuard<SVGTransformList>,
         name: &AttrId,
         element: &Element,
     ) {

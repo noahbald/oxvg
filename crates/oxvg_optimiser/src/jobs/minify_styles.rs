@@ -157,7 +157,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
             let Some(style_sheet) = style_element.child_nodes_iter().find_map(|n| n.style()) else {
                 continue;
             };
-            let mut style_sheet = style_sheet.borrow_mut();
+            let mut style_sheet = style_sheet.write().unwrap();
 
             let mut visitor = StyleVisitor(self);
             match self.options.remove_unused {

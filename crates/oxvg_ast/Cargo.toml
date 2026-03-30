@@ -38,6 +38,7 @@ selectors = [
 ]
 # Include source-spans for nodes and attributes
 range = ["dep:bytecount"]
+rayon = ["dep:rayon"]
 # Includes a parser that uses web_sys
 web_sys = ["parse", "dep:web-sys"]
 # Includes a visitor trait for building visitors
@@ -60,6 +61,7 @@ lightningcss = { workspace = true }
 log = { workspace = true }
 paste = { workspace = true }
 precomputed-hash = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
 roxmltree = { workspace = true, optional = true }
 # ensure track_alloc_size for wasm compat
 servo_arc = { version = "0.4", features = [

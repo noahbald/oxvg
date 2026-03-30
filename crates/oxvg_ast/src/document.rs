@@ -1,5 +1,6 @@
 //! XML document traits.
-use std::cell::RefCell;
+#[cfg(feature = "selectors")]
+use std::sync::{Arc, RwLock};
 
 use lightningcss::rules::CssRuleList;
 use oxvg_collections::{
@@ -59,9 +60,9 @@ impl<'input, 'arena> Document<'input, 'arena> {
     ) -> Element<'input, 'arena> {
         Element(allocator.alloc(NodeData::Element {
             name: tag_name,
-            attrs: RefCell::new(vec![]),
+            attrs: Arc::new(RwLock::new(vec![])),
             #[cfg(feature = "selectors")]
-            selector_flags: std::cell::Cell::new(None),
+            selector_flags: Arc::new(RwLock::new(None)),
             #[cfg(feature = "range")]
             range: None,
             #[cfg(feature = "range")]
@@ -80,7 +81,7 @@ impl<'input, 'arena> Document<'input, 'arena> {
     ) -> Ref<'input, 'arena> {
         allocator.alloc(NodeData::PI {
             target,
-            value: RefCell::new(Some(data)),
+            value: Arc::new(RwLock::new(Some(data))),
         })
     }
 
@@ -92,7 +93,7 @@ impl<'input, 'arena> Document<'input, 'arena> {
         data: Atom<'input>,
         allocator: &Allocator<'input, 'arena>,
     ) -> Ref<'input, 'arena> {
-        allocator.alloc(NodeData::Text(RefCell::new(Some(data))))
+        allocator.alloc(NodeData::Text(Arc::new(RwLock::new(Some(data)))))
     }
 
     /// Creates a new text node for a `<style>` element
@@ -101,6 +102,6 @@ impl<'input, 'arena> Document<'input, 'arena> {
         data: CssRuleList<'input>,
         allocator: &Allocator<'input, 'arena>,
     ) -> Ref<'input, 'arena> {
-        allocator.alloc(NodeData::Style(RefCell::new(data)))
+        allocator.alloc(NodeData::Style(Arc::new(RwLock::new(data))))
     }
 }

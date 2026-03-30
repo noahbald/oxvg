@@ -1,7 +1,7 @@
 //! XML node traits.
 use std::{
-    cell::{Cell, RefCell},
     fmt::Debug,
+    sync::{Arc, RwLock},
 };
 
 use itertools::Itertools;
@@ -84,11 +84,11 @@ pub enum NodeData<'input> {
         /// The qualified name of the element's tag.
         name: ElementId<'input>,
         /// The attributes of the element.
-        attrs: RefCell<Vec<Attr<'input>>>,
+        attrs: Arc<RwLock<Vec<Attr<'input>>>>,
         #[cfg(feature = "selectors")]
         #[debug(skip)]
         /// Flags used for caching whether an element matches a selector
-        selector_flags: Cell<Option<selectors::matching::ElementSelectorFlags>>,
+        selector_flags: Arc<RwLock<Option<selectors::matching::ElementSelectorFlags>>>,
         #[cfg(feature = "range")]
         /// The source-code range for the element
         range: Option<std::ops::Range<usize>>,
@@ -101,14 +101,14 @@ pub enum NodeData<'input> {
         /// The name of the application to which the instruction is targeted
         target: Atom<'input>,
         /// Data for the application
-        value: RefCell<Option<Atom<'input>>>,
+        value: Arc<RwLock<Option<Atom<'input>>>>,
     },
     /// A comment node. (e.g. `<!-- foo ->`)
-    Comment(RefCell<Option<Atom<'input>>>),
+    Comment(Arc<RwLock<Option<Atom<'input>>>>),
     /// A text node. (e.g. `foo` of `<p>foo</p>`)
-    Text(RefCell<Option<Atom<'input>>>),
+    Text(Arc<RwLock<Option<Atom<'input>>>>),
     /// A text node of a style element. (e.g. `a { color: blue; }` of `<style>a { color: blue; }</style>`)
-    Style(RefCell<CssRuleList<'input>>),
+    Style(Arc<RwLock<CssRuleList<'input>>>),
 }
 
 struct ChildNodes<'input, 'arena> {
@@ -180,22 +180,23 @@ pub struct Node<'input, 'arena> {
     /// The node's range in bytes in the original document
     pub range: Option<std::ops::Range<usize>>,
     /// The node's id, determined by it's allocation
-    pub(crate) id: Cell<usize>,
+    pub(crate) id: Arc<RwLock<usize>>,
 }
 
 /// A reference to a node
 pub type Ref<'input, 'arena> = &'arena Node<'input, 'arena>;
 /// A settable reference to a node
-pub type Link<'input, 'arena> = Cell<Option<Ref<'input, 'arena>>>;
+pub type Link<'input, 'arena> = Arc<RwLock<Option<Ref<'input, 'arena>>>>;
 
 impl<'input, 'arena> Node<'input, 'arena> {
     fn text_content_recursive(&self) -> Option<Atom<'input>> {
         match &self.node_data {
             NodeData::Text(value) | NodeData::Comment(value) | NodeData::PI { value, .. } => {
-                value.borrow().clone()
+                value.read().unwrap().clone()
             }
             NodeData::Style(style) => style
-                .borrow()
+                .read()
+                .unwrap()
                 .0
                 .to_css_string(PrinterOptions::default())
                 .map(Into::into)
@@ -216,13 +217,13 @@ impl<'input, 'arena> Node<'input, 'arena> {
     /// Creates a clean node with the given node data.
     pub(crate) fn new(node_data: NodeData<'input>, id: usize) -> Self {
         Self {
-            parent: Cell::new(None),
-            next_sibling: Cell::new(None),
-            previous_sibling: Cell::new(None),
-            first_child: Cell::new(None),
-            last_child: Cell::new(None),
+            parent: Arc::new(RwLock::new(None)),
+            next_sibling: Arc::new(RwLock::new(None)),
+            previous_sibling: Arc::new(RwLock::new(None)),
+            first_child: Arc::new(RwLock::new(None)),
+            last_child: Arc::new(RwLock::new(None)),
             node_data,
-            id: Cell::new(id),
+            id: Arc::new(RwLock::new(id)),
             #[cfg(feature = "range")]
             range: None,
         }
@@ -238,7 +239,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
 
     /// The allocation id
     pub fn id(&self) -> AllocationID {
-        self.id.get()
+        *self.id.read().unwrap()
     }
 
     /// Returns an node list containing all the children of this node
@@ -274,8 +275,8 @@ impl<'input, 'arena> Node<'input, 'arena> {
 
     /// Removes all child nodes
     pub fn empty(&self) {
-        self.first_child.set(None);
-        self.last_child.set(None);
+        *self.first_child.write().unwrap() = None;
+        *self.last_child.write().unwrap() = None;
     }
 
     /// Does a breadth-first search to find an element from the current node, returning this node
@@ -288,7 +289,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | firstChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/firstChild)
     pub fn first_child(&self) -> Option<Ref<'input, 'arena>> {
-        self.first_child.get()
+        *self.first_child.read().unwrap()
     }
 
     /// Inserts a node before the reference node as a child of the current node.
@@ -300,18 +301,21 @@ impl<'input, 'arena> Node<'input, 'arena> {
         reference_node: Ref<'input, 'arena>,
     ) {
         new_node.remove();
-        new_node.parent.set(Some(self));
-        let Some(prev_child) = reference_node.previous_sibling.replace(Some(new_node)) else {
-            self.first_child.set(Some(new_node));
-            new_node.next_sibling.set(Some(reference_node));
+        *new_node.parent.write().unwrap() = Some(self);
+        let Some(prev_child) = std::mem::replace(
+            &mut *reference_node.previous_sibling.write().unwrap(),
+            Some(new_node),
+        ) else {
+            *self.first_child.write().unwrap() = Some(new_node);
+            *new_node.next_sibling.write().unwrap() = Some(reference_node);
             return;
         };
-        prev_child.next_sibling.set(Some(new_node));
-        new_node.previous_sibling.set(Some(prev_child));
-        new_node.next_sibling.set(Some(reference_node));
-        debug_assert!(new_node.parent.get() == Some(self));
-        debug_assert!(new_node.next_sibling.get() == Some(reference_node));
-        debug_assert!(reference_node.previous_sibling.get() == Some(new_node));
+        *prev_child.next_sibling.write().unwrap() = Some(new_node);
+        *new_node.previous_sibling.write().unwrap() = Some(prev_child);
+        *new_node.next_sibling.write().unwrap() = Some(reference_node);
+        debug_assert!(*new_node.parent.read().unwrap() == Some(self));
+        debug_assert!(*new_node.next_sibling.read().unwrap() == Some(reference_node));
+        debug_assert!(*reference_node.previous_sibling.read().unwrap() == Some(new_node));
     }
 
     /// Inserts a node after the reference node as a child of the current node.
@@ -323,18 +327,21 @@ impl<'input, 'arena> Node<'input, 'arena> {
         reference_node: &Ref<'input, 'arena>,
     ) {
         new_node.remove();
-        new_node.parent.set(Some(self));
-        let Some(next_child) = reference_node.next_sibling.replace(Some(new_node)) else {
-            self.last_child.set(Some(new_node));
-            new_node.previous_sibling.set(Some(reference_node));
+        *new_node.parent.write().unwrap() = Some(self);
+        let Some(next_child) = std::mem::replace(
+            &mut *reference_node.next_sibling.write().unwrap(),
+            Some(new_node),
+        ) else {
+            *self.last_child.write().unwrap() = Some(new_node);
+            *new_node.previous_sibling.write().unwrap() = Some(reference_node);
             return;
         };
-        next_child.previous_sibling.set(Some(new_node));
-        new_node.next_sibling.set(Some(next_child));
-        new_node.previous_sibling.set(Some(reference_node));
-        debug_assert!(new_node.parent.get() == Some(self));
-        debug_assert!(new_node.previous_sibling.get() == Some(*reference_node));
-        debug_assert!(reference_node.next_sibling.get() == Some(new_node));
+        *next_child.previous_sibling.write().unwrap() = Some(new_node);
+        *new_node.next_sibling.write().unwrap() = Some(next_child);
+        *new_node.previous_sibling.write().unwrap() = Some(reference_node);
+        debug_assert!(*new_node.parent.read().unwrap() == Some(self));
+        debug_assert!(*new_node.previous_sibling.read().unwrap() == Some(*reference_node));
+        debug_assert!(*reference_node.next_sibling.read().unwrap() == Some(new_node));
     }
 
     /// Iterates through the children of the node, using the callback to determine which
@@ -343,23 +350,23 @@ impl<'input, 'arena> Node<'input, 'arena> {
     where
         F: FnMut(Ref<'input, 'arena>) -> bool,
     {
-        self.last_child.set(None);
-        let mut current = self.first_child.take();
+        *self.last_child.write().unwrap() = None;
+        let mut current = std::mem::take(&mut *self.first_child.write().unwrap());
         let mut previously_retained = None;
         while let Some(child) = current {
-            current = child.next_sibling.get();
+            current = *child.next_sibling.read().unwrap();
             let retain = f(child);
             if retain {
-                child.previous_sibling.set(previously_retained);
+                *child.previous_sibling.write().unwrap() = previously_retained;
                 if previously_retained.is_none() {
-                    self.first_child.set(Some(child));
+                    *self.first_child.write().unwrap() = Some(child);
                 }
                 previously_retained = Some(child);
-                self.last_child.set(Some(child));
+                *self.last_child.write().unwrap() = Some(child);
             } else {
-                child.parent.set(None);
-                child.previous_sibling.set(None);
-                child.next_sibling.set(None);
+                *child.parent.write().unwrap() = None;
+                *child.previous_sibling.write().unwrap() = None;
+                *child.next_sibling.write().unwrap() = None;
             }
         }
     }
@@ -368,14 +375,14 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | lastChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/lastChild)
     pub fn last_child(&self) -> Option<Ref<'input, 'arena>> {
-        self.last_child.get()
+        *self.last_child.read().unwrap()
     }
 
     /// Returns the node immediately following itself from the parent's list of children
     ///
     /// [MDN | nextSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/nextSibling)
     pub fn next_sibling(&self) -> Option<Ref<'input, 'arena>> {
-        self.next_sibling.get()
+        *self.next_sibling.read().unwrap()
     }
 
     /// Returns an enum that identifies what the node is.
@@ -389,7 +396,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | previousSibling](https://developer.mozilla.org/en-US/docs/Web/API/Node/previousSibling)
     pub fn previous_sibling(&self) -> Option<Ref<'input, 'arena>> {
-        self.previous_sibling.get()
+        *self.previous_sibling.read().unwrap()
     }
 
     /// Returns a [Node] that is the parent of this node. If there is no such node, like if this
@@ -397,7 +404,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | parentNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/parentNode)
     pub fn parent_node(&self) -> Option<Element<'input, 'arena>> {
-        self.parent.get().and_then(Element::new)
+        self.parent.read().unwrap().and_then(Element::new)
     }
 
     /// Changes the return value of [`Node::parent_node`] to the given node
@@ -416,8 +423,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         &'arena self,
         new_parent: &Element<'input, 'arena>,
     ) -> Option<Element<'input, 'arena>> {
-        self.parent
-            .replace(Some(new_parent.0))
+        std::mem::replace(&mut *self.parent.write().unwrap(), Some(new_parent.0))
             .and_then(Element::new)
     }
 
@@ -426,16 +432,18 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | appendChild](https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild)
     pub fn append_child(&'arena self, a_child: Ref<'input, 'arena>) {
-        a_child.parent.set(Some(self));
-        if let Some(child) = self.last_child.replace(Some(a_child)) {
-            child.next_sibling.set(Some(a_child));
-            a_child.previous_sibling.set(Some(child));
+        *a_child.parent.write().unwrap() = Some(self);
+        if let Some(child) =
+            std::mem::replace(&mut *self.last_child.write().unwrap(), Some(a_child))
+        {
+            *child.next_sibling.write().unwrap() = Some(a_child);
+            *a_child.previous_sibling.write().unwrap() = Some(child);
         } else {
-            self.first_child.set(Some(a_child));
+            *self.first_child.write().unwrap() = Some(a_child);
         }
-        debug_assert!(a_child.parent.get() == Some(self));
-        debug_assert!(a_child.next_sibling.get().is_none());
-        debug_assert!(self.last_child.get() == Some(a_child));
+        debug_assert!(*a_child.parent.read().unwrap() == Some(self));
+        debug_assert!(a_child.next_sibling.read().unwrap().is_none());
+        debug_assert!(*self.last_child.read().unwrap() == Some(a_child));
     }
 
     /// Returns a node from the child nodes
@@ -500,10 +508,11 @@ impl<'input, 'arena> Node<'input, 'arena> {
         match &self.node_data {
             NodeData::Document | NodeData::Root => None,
             NodeData::Text(value) | NodeData::Comment(value) | NodeData::PI { value, .. } => {
-                value.borrow().clone()
+                value.read().unwrap().clone()
             }
             NodeData::Style(style) => style
-                .borrow()
+                .read()
+                .unwrap()
                 .0
                 .to_css_string(PrinterOptions::default())
                 .map(Into::into)
@@ -513,7 +522,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     }
 
     /// Returns the text content as a stylesheet, if the element contains one
-    pub fn style(&self) -> Option<&RefCell<CssRuleList<'input>>> {
+    pub fn style(&self) -> Option<&Arc<RwLock<CssRuleList<'input>>>> {
         match &self.node_data {
             NodeData::Style(style) => Some(style),
             NodeData::Element { name, .. } if is_element!(name, Style) => {
@@ -532,7 +541,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ) {
         match self.node_data {
             NodeData::Text(ref value) => {
-                value.replace(Some(content));
+                *(value.write().unwrap()) = Some(content);
             }
             NodeData::Element { .. } => {
                 self.empty();
@@ -554,7 +563,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ) {
         match &self.node_data {
             NodeData::Style(value) => {
-                value.replace(content);
+                *(value.write().unwrap()) = content;
             }
             NodeData::Element { name, .. } => {
                 debug_assert_eq!(
@@ -563,7 +572,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
                     "Node::set_style_content called on non-style element"
                 );
                 self.empty();
-                self.append_child(allocator.alloc(NodeData::Style(RefCell::new(content))));
+                self.append_child(allocator.alloc(NodeData::Style(Arc::new(RwLock::new(content)))));
             }
             #[allow(clippy::assertions_on_constants)]
             _ => {
@@ -581,7 +590,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         content: Atom<'input>,
         allocator: &Allocator<'input, 'arena>,
     ) -> Ref<'input, 'arena> {
-        allocator.alloc(NodeData::Text(RefCell::new(Some(content))))
+        allocator.alloc(NodeData::Text(Arc::new(RwLock::new(Some(content)))))
     }
 
     /// Removes the current node from it's parent and removes the reference to the parent
@@ -591,33 +600,37 @@ impl<'input, 'arena> Node<'input, 'arena> {
     ///
     /// [MDN | remove](https://developer.mozilla.org/en-US/docs/Web/API/Element/remove)
     pub fn remove(&self) {
-        let parent = self.parent.take();
-        let previous_sibling = self.previous_sibling.take();
-        let next_sibling = self.next_sibling.take();
+        let parent = std::mem::take(&mut *self.parent.write().unwrap());
+        let previous_sibling = std::mem::take(&mut *self.previous_sibling.write().unwrap());
+        let next_sibling = std::mem::take(&mut *self.next_sibling.write().unwrap());
         if let Some(previous_sibling) = previous_sibling {
             if let Some(next_sibling) = next_sibling {
                 // prev -> ~self~ -> next
-                next_sibling.previous_sibling.set(Some(previous_sibling));
+                *next_sibling.previous_sibling.write().unwrap() = Some(previous_sibling);
             } else if let Some(parent) = parent {
                 // prev -> ~self~ -> None
-                parent.last_child.set(Some(previous_sibling));
+                *parent.last_child.write().unwrap() = Some(previous_sibling);
             }
-            previous_sibling.next_sibling.set(next_sibling);
+            *previous_sibling.next_sibling.write().unwrap() = next_sibling;
         } else if let Some(next_sibling) = next_sibling {
-            next_sibling.previous_sibling.set(None);
+            *next_sibling.previous_sibling.write().unwrap() = None;
             if let Some(parent) = parent {
                 // None -> ~self~ -> next
-                parent.first_child.set(Some(next_sibling));
+                *parent.first_child.write().unwrap() = Some(next_sibling);
             }
         } else if let Some(parent) = parent {
             // None -> ~self~ -> None
-            parent.first_child.set(None);
-            parent.last_child.set(None);
+            *parent.first_child.write().unwrap() = None;
+            *parent.last_child.write().unwrap() = None;
         }
-        debug_assert!(previous_sibling.is_none_or(|n| n.next_sibling.get() == next_sibling));
-        debug_assert!(next_sibling.is_none_or(|n| n.previous_sibling.get() == previous_sibling));
-        debug_assert!(parent.is_none_or(|n| n.first_child.get() != Some(self)));
-        debug_assert!(parent.is_none_or(|n| n.last_child.get() != Some(self)));
+        debug_assert!(
+            previous_sibling.is_none_or(|n| *n.next_sibling.read().unwrap() == next_sibling)
+        );
+        debug_assert!(
+            next_sibling.is_none_or(|n| *n.previous_sibling.read().unwrap() == previous_sibling)
+        );
+        debug_assert!(parent.is_none_or(|n| *n.first_child.read().unwrap() != Some(self)));
+        debug_assert!(parent.is_none_or(|n| *n.last_child.read().unwrap() != Some(self)));
     }
 
     /// Remove the nth child from this node's child list
@@ -699,26 +712,26 @@ impl<'input, 'arena> Node<'input, 'arena> {
         new_child: Ref<'input, 'arena>,
         old_child: &Ref<'input, 'arena>,
     ) -> Option<Ref<'input, 'arena>> {
-        debug_assert_eq!(old_child.parent.get(), Some(self));
+        debug_assert_eq!(*old_child.parent.read().unwrap(), Some(self));
         debug_assert!(self.child_nodes_iter().contains(old_child));
 
-        let previous_sibling = old_child.previous_sibling.take();
-        let next_sibling = old_child.next_sibling.take();
-        old_child.parent.set(None);
+        let previous_sibling = std::mem::take(&mut *old_child.previous_sibling.write().unwrap());
+        let next_sibling = std::mem::take(&mut *old_child.next_sibling.write().unwrap());
+        *old_child.parent.write().unwrap() = None;
 
-        new_child.previous_sibling.set(previous_sibling);
-        new_child.next_sibling.set(next_sibling);
-        new_child.parent.set(Some(self));
+        *new_child.previous_sibling.write().unwrap() = previous_sibling;
+        *new_child.next_sibling.write().unwrap() = next_sibling;
+        *new_child.parent.write().unwrap() = Some(self);
 
         if let Some(previous_sibling) = previous_sibling {
-            previous_sibling.next_sibling.set(Some(new_child));
+            *previous_sibling.next_sibling.write().unwrap() = Some(new_child);
         } else {
-            self.first_child.set(Some(new_child));
+            *self.first_child.write().unwrap() = Some(new_child);
         }
         if let Some(next_sibling) = next_sibling {
-            next_sibling.previous_sibling.set(Some(new_child));
+            *next_sibling.previous_sibling.write().unwrap() = Some(new_child);
         } else {
-            self.last_child.set(Some(new_child));
+            *self.last_child.write().unwrap() = Some(new_child);
         }
         Some(*old_child)
     }
@@ -728,7 +741,7 @@ impl Eq for Node<'_, '_> {}
 
 impl PartialEq for Node<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        *self.id.read().unwrap() == *other.id.read().unwrap()
     }
 }
 
@@ -738,7 +751,7 @@ impl Debug for Node<'_, '_> {
         let Node {
             last_child, parent, ..
         } = self;
-        let parent = parent.get().is_some();
+        let parent = parent.read().unwrap().is_some();
         f.debug_struct("Node")
             .field("data", data)
             .field("children", &self.child_nodes_iter().collect_vec())
@@ -776,7 +789,7 @@ impl<'input> NodeData<'input> {
     pub fn value(&self) -> Option<Atom<'input>> {
         match &self {
             Self::Comment(value) | Self::Text(value) | Self::PI { value, .. } => {
-                value.borrow().clone()
+                value.read().unwrap().clone()
             }
             _ => None,
         }
@@ -785,9 +798,7 @@ impl<'input> NodeData<'input> {
     /// Returns the target and value as a processing instruction
     pub fn processing_instruction(&self) -> Option<(Atom<'input>, Option<Atom<'input>>)> {
         match self {
-            NodeData::PI { target, value } => {
-                Some((target.clone(), value.borrow().as_ref().cloned()))
-            }
+            NodeData::PI { target, value } => Some((target.clone(), value.read().unwrap().clone())),
             _ => None,
         }
     }
@@ -796,7 +807,7 @@ impl<'input> NodeData<'input> {
     pub fn try_set_node_value(&self, value: Atom<'input>) -> Option<()> {
         match self {
             Self::Text(old_value) => {
-                old_value.replace(Some(value));
+                *(old_value.write().unwrap()) = Some(value);
                 Some(())
             }
             _ => None,

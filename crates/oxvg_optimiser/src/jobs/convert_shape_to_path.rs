@@ -1,4 +1,4 @@
-use std::cell;
+use std::sync::MappedRwLockReadGuard;
 
 use lightningcss::{selector::Component, visit_types, visitor::Visit};
 use oxvg_ast::{
@@ -75,7 +75,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {
             referenced_shapes: ReferencedShapes::empty(),
         };
         for styles in &context.query_has_stylesheet_result {
-            styles.borrow_mut().0.visit(&mut state)?;
+            styles.write().unwrap().0.visit(&mut state)?;
         }
         if !state.referenced_shapes.contains(ReferencedShapes::Path) {
             state.start_with_context(document, context)?;
@@ -187,15 +187,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 }
 
 #[expect(clippy::needless_pass_by_value)]
-fn lp_px(lp: cell::Ref<LengthPercentage>) -> Option<f64> {
+fn lp_px(lp: MappedRwLockReadGuard<LengthPercentage>) -> Option<f64> {
     use lightningcss::values::length::LengthPercentage;
     match &lp.0 {
         LengthPercentage::Dimension(d) => d.to_px().map(|px| px as f64),
         _ => None,
     }
 }
-fn r_px(r: cell::Ref<Radius>) -> Option<f64> {
-    cell::Ref::filter_map(r, |r| match r {
+fn r_px(r: MappedRwLockReadGuard<Radius>) -> Option<f64> {
+    MappedRwLockReadGuard::filter_map(r, |r| match r {
         Radius::LengthPercentage(lp) => Some(lp),
         Radius::Auto => None,
     })

@@ -1,9 +1,12 @@
 //! XML element traits.
+#[cfg(feature = "selectors")]
+use std::sync::{Arc, RwLock};
 use std::{
-    cell::{self, Cell, RefCell, RefMut},
+    cell::Cell,
     collections::VecDeque,
     fmt::Debug,
     ops::Deref,
+    sync::{MappedRwLockReadGuard, MappedRwLockWriteGuard},
 };
 
 use itertools::Itertools as _;
@@ -58,7 +61,7 @@ impl<'input, 'arena> HashableElement<'input, 'arena> {
 /// A reference to an element's data
 pub struct ElementData<'a, 'input> {
     name: &'a ElementId<'input>,
-    attrs: &'a RefCell<Vec<Attr<'input>>>,
+    attrs: &'a Arc<RwLock<Vec<Attr<'input>>>>,
     #[cfg(feature = "range")]
     range: &'a Option<std::ops::Range<usize>>,
     #[cfg(feature = "range")]
@@ -231,7 +234,10 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Returns the value of an attribute of the element specified by it's qualified name.
     ///
     /// [MDN | getAttribute](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttribute)
-    pub fn get_attribute<'a>(&'a self, name: &AttrId) -> Option<cell::Ref<'a, Attr<'input>>> {
+    pub fn get_attribute<'a>(
+        &'a self,
+        name: &AttrId,
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.get_attribute_node(name)
     }
 
@@ -242,7 +248,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     pub fn get_attribute_local<'a>(
         &'a self,
         local_name: &Atom,
-    ) -> Option<cell::Ref<'a, Attr<'input>>> {
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.get_attribute_node_local(local_name)
     }
 
@@ -254,7 +260,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         &'a self,
         namespace: &NS,
         local_name: &Atom,
-    ) -> Option<cell::Ref<'a, Attr<'input>>> {
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.get_attribute_node_ns(namespace, local_name)
     }
 
@@ -263,25 +269,28 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | getAttributeNames](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNames)
     pub fn get_attribute_names<'a, B>(&'a self) -> B
     where
-        B: FromIterator<cell::Ref<'a, AttrId<'input>>>,
+        B: FromIterator<MappedRwLockReadGuard<'a, AttrId<'input>>>,
     {
         self.attributes()
             .into_iter()
-            .map(|attr| cell::Ref::map(attr, |attr: &Attr<'input>| attr.name()))
+            .map(|attr| MappedRwLockReadGuard::map(attr, |attr: &Attr<'input>| attr.name()))
             .collect()
     }
 
     /// Returns the attribute specified by it's qualified name.
     ///
     /// [MDN | getAttributeNode](https://developer.mozilla.org/en-US/docs/Web/API/Element/getAttributeNode)
-    fn get_attribute_node<'a>(&'a self, attr_name: &AttrId) -> Option<cell::Ref<'a, Attr<'input>>> {
+    fn get_attribute_node<'a>(
+        &'a self,
+        attr_name: &AttrId,
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.attributes().get_named_item(attr_name)
     }
 
     fn get_attribute_node_local<'a>(
         &'a self,
         local_name: &Atom,
-    ) -> Option<cell::Ref<'a, Attr<'input>>> {
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.attributes().get_named_item_local(local_name)
     }
 
@@ -289,7 +298,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     pub fn get_attribute_node_mut<'a>(
         &'a self,
         attr_name: &AttrId,
-    ) -> Option<RefMut<'a, Attr<'input>>> {
+    ) -> Option<MappedRwLockWriteGuard<'a, Attr<'input>>> {
         self.attributes().get_named_item_mut(attr_name)
     }
 
@@ -297,7 +306,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         &'a self,
         namespace: &NS,
         local_name: &Atom,
-    ) -> Option<cell::Ref<'a, Attr<'input>>> {
+    ) -> Option<MappedRwLockReadGuard<'a, Attr<'input>>> {
         self.attributes().get_named_item_ns(namespace, local_name)
     }
 
@@ -327,16 +336,16 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// [MDN | prepend](https://developer.mozilla.org/en-US/docs/Web/API/Element/prepend)
     pub fn prepend(&self, node: Ref<'input, 'arena>) {
-        if let Some(first_node) = self.first_child.get() {
-            first_node.previous_sibling.set(Some(node));
-            node.next_sibling.set(Some(first_node));
-            self.first_child.set(Some(node));
+        if let Some(first_node) = *self.first_child.read().unwrap() {
+            *first_node.previous_sibling.write().unwrap() = Some(node);
+            *node.next_sibling.write().unwrap() = Some(first_node);
+            *self.first_child.write().unwrap() = Some(node);
         } else {
-            debug_assert!(self.last_child.get().is_none());
-            self.first_child.set(Some(node));
-            self.last_child.set(Some(node));
+            debug_assert!(self.last_child.read().unwrap().is_none());
+            *self.first_child.write().unwrap() = Some(node);
+            *self.last_child.write().unwrap() = Some(node);
         }
-        node.parent.set(Some(self));
+        *node.parent.write().unwrap() = Some(self);
     }
 
     /// Removes the attribute with the specified name from the element.
@@ -353,23 +362,23 @@ impl<'input, 'arena> Element<'input, 'arena> {
     pub fn replace_children(&self, children: impl std::iter::Iterator<Item = Ref<'input, 'arena>>) {
         let mut children = children.peekable();
         let first = children.peek().copied();
-        self.first_child.set(first);
+        *self.first_child.write().unwrap() = first;
         first.inspect(|first| {
-            first.previous_sibling.set(None);
+            *first.previous_sibling.write().unwrap() = None;
         });
         let mut last = first;
         for (a, b) in children.tuple_windows() {
             // NOTE: This only runs if children >= 2
-            a.parent.set(Some(self));
-            a.next_sibling.set(Some(b));
-            b.previous_sibling.set(Some(a));
+            *a.parent.write().unwrap() = Some(self);
+            *a.next_sibling.write().unwrap() = Some(b);
+            *b.previous_sibling.write().unwrap() = Some(a);
             last = Some(b);
         }
         last.inspect(|last| {
-            last.parent.set(Some(self));
-            last.next_sibling.set(None);
+            *last.parent.write().unwrap() = Some(self);
+            *last.next_sibling.write().unwrap() = None;
         });
-        self.last_child.set(last);
+        *self.last_child.write().unwrap() = last;
     }
 
     /// Replaces this element in the children list of it's parent with another.
@@ -419,7 +428,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
             name: new_name,
             attrs: attrs.clone(),
             #[cfg(feature = "selectors")]
-            selector_flags: Cell::new(None),
+            selector_flags: Arc::new(RwLock::new(None)),
             #[cfg(feature = "range")]
             range: None,
             #[cfg(feature = "range")]
@@ -473,16 +482,16 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// [MDN | append](https://developer.mozilla.org/en-US/docs/Web/API/Element/append)
     pub fn append(&self, node: Ref<'input, 'arena>) {
         node.remove();
-        if let Some(last_node) = self.last_child.get() {
-            last_node.next_sibling.set(Some(node));
-            node.previous_sibling.set(Some(last_node));
-            self.last_child.set(Some(node));
+        if let Some(last_node) = *self.last_child.read().unwrap() {
+            *last_node.next_sibling.write().unwrap() = Some(node);
+            *node.previous_sibling.write().unwrap() = Some(last_node);
+            *self.last_child.write().unwrap() = Some(node);
         } else {
-            debug_assert!(self.first_child.get().is_none());
-            self.first_child.set(Some(node));
-            self.last_child.set(Some(node));
+            debug_assert!(self.first_child.read().unwrap().is_none());
+            *self.first_child.write().unwrap() = Some(node);
+            *self.last_child.write().unwrap() = Some(node);
         }
-        node.parent.set(Some(self));
+        *node.parent.write().unwrap() = Some(self);
     }
 
     /// Inserts a node in the children list of the [Element]'s parent, just before this [Element]
@@ -520,7 +529,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Replaces the element's collection of attributes with a new collection.
     pub fn set_attributes(&self, new_attrs: &Attributes<'_, 'input>) {
         let attrs = self.data().attrs;
-        attrs.replace(new_attrs.0.take());
+        *attrs.write().unwrap() = std::mem::take(&mut *new_attrs.0.write().unwrap());
     }
 
     /// Returns the element's parent element.
@@ -613,42 +622,42 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// Replaces the element in the DOM with each of it's child nodes, removing the element in the
     /// process.
     pub fn flatten(&self) {
-        let parent = self.parent.take();
-        let mut current = self.first_child.get();
-        while let Some(current_child) = current {
-            current_child.parent.set(parent);
-            current = current_child.next_sibling.get();
+        let parent = std::mem::take(&mut *self.parent.write().unwrap());
+        let mut current = self.first_child.read().unwrap();
+        while let Some(current_child) = *current {
+            *current_child.parent.write().unwrap() = parent;
+            current = current_child.next_sibling.read().unwrap();
         }
 
-        let previous_sibling = self.previous_sibling.take();
-        let next_sibling = self.next_sibling.take();
-        let first_child = self.first_child.take();
-        let last_child = self.last_child.take();
+        let previous_sibling = std::mem::take(&mut *self.previous_sibling.write().unwrap());
+        let next_sibling = std::mem::take(&mut *self.next_sibling.write().unwrap());
+        let first_child = std::mem::take(&mut *self.first_child.write().unwrap());
+        let last_child = std::mem::take(&mut *self.last_child.write().unwrap());
 
         if let Some(first_child) = first_child {
             if let Some(previous_sibling) = previous_sibling {
-                previous_sibling.next_sibling.set(Some(first_child));
-                first_child.previous_sibling.set(Some(previous_sibling));
+                *previous_sibling.next_sibling.write().unwrap() = Some(first_child);
+                *first_child.previous_sibling.write().unwrap() = Some(previous_sibling);
             } else if let Some(parent) = parent {
-                parent.first_child.set(Some(first_child));
+                *parent.first_child.write().unwrap() = Some(first_child);
             }
         } else if let Some(previous_sibling) = previous_sibling {
-            previous_sibling.next_sibling.set(next_sibling);
-            next_sibling.inspect(|n| n.previous_sibling.set(Some(previous_sibling)));
+            *previous_sibling.next_sibling.write().unwrap() = next_sibling;
+            next_sibling.inspect(|n| *n.previous_sibling.write().unwrap() = Some(previous_sibling));
         } else if let Some(parent) = parent {
-            parent.first_child.set(next_sibling);
+            *parent.first_child.write().unwrap() = next_sibling;
         }
         if let Some(last_child) = last_child {
             if let Some(next_sibling) = next_sibling {
-                last_child.next_sibling.set(Some(next_sibling));
-                next_sibling.previous_sibling.set(Some(last_child));
+                *last_child.next_sibling.write().unwrap() = Some(next_sibling);
+                *next_sibling.previous_sibling.write().unwrap() = Some(last_child);
             } else if let Some(parent) = parent {
-                parent.last_child.set(Some(last_child));
+                *parent.last_child.write().unwrap() = Some(last_child);
             }
         } else if let Some(next_sibling) = next_sibling {
-            next_sibling.previous_sibling.set(previous_sibling);
+            *next_sibling.previous_sibling.write().unwrap() = previous_sibling;
         } else if let Some(parent) = parent {
-            parent.last_child.set(previous_sibling);
+            *parent.last_child.write().unwrap() = previous_sibling;
         }
     }
 
@@ -693,14 +702,14 @@ impl<'input, 'arena> Element<'input, 'arena> {
             f(a, b)
         });
 
-        self.first_child.set(children.first().copied());
-        self.last_child.set(children.last().copied());
+        *self.first_child.write().unwrap() = children.first().copied();
+        *self.last_child.write().unwrap() = children.last().copied();
         for i in 0..children.len() {
             let child = children[i];
             if i > 0 {
-                child.previous_sibling.set(children.get(i - 1).copied());
+                *child.previous_sibling.write().unwrap() = children.get(i - 1).copied();
             }
-            child.next_sibling.set(children.get(i + 1).copied());
+            *child.next_sibling.write().unwrap() = children.get(i + 1).copied();
         }
     }
 
@@ -741,7 +750,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         else {
             return;
         };
-        selector_flags.set(Some(flags));
+        *selector_flags.write().unwrap() = Some(flags);
     }
 
     /// Returns the data points associated with the element

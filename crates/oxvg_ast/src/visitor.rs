@@ -1,5 +1,8 @@
 //! Visitors for traversing and manipulating nodes of an xml document
-use std::{cell::RefCell, path::PathBuf};
+use std::{
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 use lightningcss::rules::CssRuleList;
 
@@ -43,7 +46,7 @@ impl<'input, 'arena> Info<'input, 'arena> {
 pub struct Context<'input, 'arena, 'i> {
     /// A parsed stylesheet for all `<style>` nodes in the document, as a result of calling
     /// [`Context::query_has_stylesheet`].
-    pub query_has_stylesheet_result: Vec<RefCell<CssRuleList<'input>>>,
+    pub query_has_stylesheet_result: Vec<Arc<RwLock<CssRuleList<'input>>>>,
     /// The root element of the document
     pub root: Element<'input, 'arena>,
     /// A set of boolean flags about the document and the visited node

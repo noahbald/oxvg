@@ -1,6 +1,9 @@
 //! XML DOM token list traits.
 
-use std::cell::{Cell, RefMut};
+use std::{
+    cell::Cell,
+    sync::{MappedRwLockWriteGuard, RwLockWriteGuard},
+};
 
 use oxvg_collections::{
     atom::Atom,
@@ -22,23 +25,23 @@ pub struct ClassList<'a, 'input> {
 }
 
 impl<'a, 'input: 'a> ClassList<'a, 'input> {
-    fn attr(&self) -> Option<RefMut<'a, ListOf<Class<'input>, Space>>> {
+    fn attr(&self) -> Option<MappedRwLockWriteGuard<'a, ListOf<Class<'input>, Space>>> {
         self.attr_by_memo().or_else(|| self.attr_by_search())
     }
 
-    fn attr_by_memo(&self) -> Option<RefMut<'a, ListOf<Class<'input>, Space>>> {
-        let attrs = self.attrs.0.borrow_mut();
+    fn attr_by_memo(&self) -> Option<MappedRwLockWriteGuard<'a, ListOf<Class<'input>, Space>>> {
+        let attrs = self.attrs.0.write().unwrap();
         let index = self.class_index_memo.get();
-        RefMut::filter_map(attrs, |a: &mut Vec<Attr<'input>>| match a.get_mut(index) {
+        RwLockWriteGuard::filter_map(attrs, |a: &mut Vec<Attr<'input>>| match a.get_mut(index) {
             Some(Attr::Class(ref mut class)) => Some(class),
             _ => None,
         })
         .ok()
     }
 
-    fn attr_by_search(&self) -> Option<RefMut<'a, ListOf<Class<'input>, Space>>> {
-        let attrs = self.attrs.0.borrow_mut();
-        RefMut::filter_map(attrs, |a: &mut Vec<Attr<'input>>| {
+    fn attr_by_search(&self) -> Option<MappedRwLockWriteGuard<'a, ListOf<Class<'input>, Space>>> {
+        let attrs = self.attrs.0.write().unwrap();
+        RwLockWriteGuard::filter_map(attrs, |a: &mut Vec<Attr<'input>>| {
             let (i, attr) = a.iter_mut().enumerate().find_map(|(i, attr)| match attr {
                 Attr::Class(ref mut class) => Some((i, class)),
                 _ => None,
@@ -109,9 +112,9 @@ impl<'a, 'input: 'a> ClassList<'a, 'input> {
     /// Returns an item in the list based on it's index.
     ///
     /// [MDN | item](https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList/item)
-    pub fn item(&self, index: usize) -> Option<RefMut<'a, Class<'input>>> {
+    pub fn item(&self, index: usize) -> Option<MappedRwLockWriteGuard<'a, Class<'input>>> {
         self.attr().and_then(|attr| {
-            RefMut::filter_map(attr, |attr: &mut ListOf<Class<'input>, Space>| {
+            MappedRwLockWriteGuard::filter_map(attr, |attr: &mut ListOf<Class<'input>, Space>| {
                 attr.list.get_mut(index)
             })
             .ok()

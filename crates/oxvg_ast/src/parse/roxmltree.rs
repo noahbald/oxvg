@@ -6,7 +6,11 @@
 //!
 //! - Default PI is skipped
 //! - Duplicate namespace uris are merged
-use std::{cell::RefCell, collections::HashMap, fmt::Display};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    sync::{Arc, RwLock},
+};
 
 use lightningcss::{
     rules::CssRuleList,
@@ -174,18 +178,18 @@ fn parse_xml_node_children<'a, 'input: 'a, 'arena>(
 
 fn attach_child<'a, 'arena>(node: Ref<'a, 'arena>, child: Ref<'a, 'arena>) {
     // parent
-    child.parent.set(Some(node));
+    *child.parent.write().unwrap() = Some(node);
 
     // parent children
-    let last_child = node.last_child.replace(Some(child));
-    if node.first_child.get().is_none() {
-        node.first_child.set(Some(child));
+    let last_child = std::mem::replace(&mut *node.last_child.write().unwrap(), Some(child));
+    if node.first_child.read().unwrap().is_none() {
+        *node.first_child.write().unwrap() = Some(child);
     }
 
     // siblings
-    child.previous_sibling.set(last_child);
+    *child.previous_sibling.write().unwrap() = last_child;
     if let Some(last_child) = last_child {
-        last_child.next_sibling.set(Some(child));
+        *last_child.next_sibling.write().unwrap() = Some(child);
     }
 }
 
@@ -256,9 +260,9 @@ fn parse_element<'a, 'input: 'a, 'arena>(
         });
     let element = NodeData::Element {
         name,
-        attrs: RefCell::new(attrs),
+        attrs: Arc::new(RwLock::new(attrs)),
         #[cfg(feature = "selectors")]
-        selector_flags: std::cell::Cell::new(None),
+        selector_flags: Arc::new(RwLock::new(None)),
         #[cfg(feature = "range")]
         range: Some(range),
         #[cfg(feature = "range")]
@@ -295,7 +299,7 @@ fn parse_style<'a, 'input: 'a, 'arena>(
     if rules.0.is_empty() {
         return None;
     }
-    let style = NodeData::Style(RefCell::new(rules));
+    let style = NodeData::Style(Arc::new(RwLock::new(rules)));
     let node = arena.alloc(style);
     attach_child(parent, node);
     Some(node)
@@ -307,7 +311,7 @@ fn parse_pi<'input, 'arena>(
 ) -> &'arena mut Node<'input, 'arena> {
     allocator.alloc(NodeData::PI {
         target: pi.target.into(),
-        value: RefCell::new(pi.value.map(Into::into)),
+        value: Arc::new(RwLock::new(pi.value.map(Into::into))),
     })
 }
 
@@ -315,16 +319,18 @@ fn parse_comment<'a, 'input: 'a, 'arena>(
     allocator: &mut Allocator<'a, 'arena>,
     comment: roxmltree::Node<'a, 'input>,
 ) -> &'arena mut Node<'a, 'arena> {
-    allocator.alloc(NodeData::Comment(RefCell::new(
+    allocator.alloc(NodeData::Comment(Arc::new(RwLock::new(
         comment.text().map(Into::into),
-    )))
+    ))))
 }
 
 fn parse_text<'a, 'input: 'a, 'arena>(
     arena: &mut Allocator<'a, 'arena>,
     text: roxmltree::Node<'a, 'input>,
 ) -> &'arena mut Node<'a, 'arena> {
-    arena.alloc(NodeData::Text(RefCell::new(text.text().map(Into::into))))
+    arena.alloc(NodeData::Text(Arc::new(RwLock::new(
+        text.text().map(Into::into),
+    ))))
 }
 
 fn parse_attr<'a, 'input: 'a>(

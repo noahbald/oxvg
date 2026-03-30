@@ -112,9 +112,9 @@ impl<T: ToValue + Debug + PartialEq> ToValue for Inheritable<T> {
 
 /// Like `Inheritable::option_mut` when contained within `RefMut`.
 pub fn map_ref_mut<T: Debug + PartialEq>(
-    inheritable: std::cell::RefMut<Inheritable<T>>,
-) -> Option<std::cell::RefMut<T>> {
-    std::cell::RefMut::filter_map(inheritable, Inheritable::option_mut).ok()
+    inheritable: std::sync::MappedRwLockWriteGuard<Inheritable<T>>,
+) -> Option<std::sync::MappedRwLockWriteGuard<T>> {
+    std::sync::MappedRwLockWriteGuard::filter_map(inheritable, Inheritable::option_mut).ok()
 }
 
 #[test]

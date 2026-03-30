@@ -108,7 +108,7 @@ fn serialize_node<'arena, W: Write>(
         }
         node::Type::Style => {
             if let Some(style) = node.style() {
-                xml.write_style(&style.borrow())?;
+                xml.write_style(&style.read().unwrap())?;
             }
         }
         node::Type::Comment => xml.write_comment(&node.text_content().unwrap_or_default())?,

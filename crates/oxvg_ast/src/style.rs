@@ -1,6 +1,6 @@
 //! Style and presentation attribute types.
 use lightningcss::rules::CssRuleList;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 use crate::element::Element;
 
@@ -116,7 +116,7 @@ pub struct ComputedStyles<'input> {
 /// Gathers `<style>` declarations from the document
 pub fn root<'input, 'arena>(
     root: &Element<'input, 'arena>,
-) -> impl Iterator<Item = RefCell<CssRuleList<'input>>> + use<'input, 'arena> {
+) -> impl Iterator<Item = Arc<RwLock<CssRuleList<'input>>>> + use<'input, 'arena> {
     root.breadth_first()
         .filter_map(|node| node.first_child())
         .filter_map(|node| node.style().cloned())
@@ -132,7 +132,7 @@ impl<'input> ComputedStyles<'input> {
     pub fn with_all(
         self,
         element: &Element<'input, '_>,
-        styles: &[RefCell<CssRuleList<'input>>],
+        styles: &[Arc<RwLock<CssRuleList<'input>>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         self.with_inline_style(element)
             .with_attribute(element)
@@ -148,7 +148,7 @@ impl<'input> ComputedStyles<'input> {
     pub fn with_inherited(
         mut self,
         element: &Element<'input, '_>,
-        styles: &[RefCell<CssRuleList<'input>>],
+        styles: &[Arc<RwLock<CssRuleList<'input>>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         let Some(parent) = Element::parent_element(element) else {
             return Ok(self);
@@ -206,10 +206,10 @@ impl<'input> ComputedStyles<'input> {
     pub fn with_style(
         mut self,
         element: &Element<'input, '_>,
-        styles: &[RefCell<CssRuleList<'input>>],
+        styles: &[Arc<RwLock<CssRuleList<'input>>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         for css in styles {
-            for s in &css.borrow().0 {
+            for s in &css.read().unwrap().0 {
                 self.with_nested_style(element, s, &mut Vec::new(), 0, &Mode::Static)?;
             }
         }

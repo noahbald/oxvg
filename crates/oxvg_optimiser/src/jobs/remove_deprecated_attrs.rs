@@ -1,4 +1,7 @@
-use std::{cell::RefCell, collections::HashSet};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use lightningcss::{rules::CssRuleList, values::ident::Ident, visit_types, visitor::Visit};
 use oxvg_ast::{
@@ -60,10 +63,10 @@ impl<'input> lightningcss::visitor::Visitor<'input> for AttrStylesheet<'input> {
 }
 
 impl<'input> AttrStylesheet<'input> {
-    fn extract(stylesheet: &[RefCell<CssRuleList<'input>>]) -> Result<Self, JobsError<'input>> {
+    fn extract(stylesheet: &[Arc<RwLock<CssRuleList<'input>>>]) -> Result<Self, JobsError<'input>> {
         let mut result = Self::default();
         for stylesheet in stylesheet {
-            stylesheet.borrow_mut().visit(&mut result)?;
+            stylesheet.write().unwrap().visit(&mut result)?;
         }
         Ok(result)
     }

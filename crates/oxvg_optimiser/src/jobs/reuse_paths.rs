@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashSet};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use lightningcss::{properties::svg::SVGPaint, rules::CssRuleList, visit_types};
 use oxvg_ast::{
@@ -257,13 +261,13 @@ struct HasId<'a> {
 
 impl<'a> HasId<'a> {
     fn has_id<'input>(
-        stylesheet: &[RefCell<CssRuleList<'input>>],
+        stylesheet: &[Arc<RwLock<CssRuleList<'input>>>],
         id: &'a str,
     ) -> Result<bool, JobsError<'input>> {
         use lightningcss::visitor::Visit as _;
         let mut has_id = Self { found: false, id };
         for css_rule_list in stylesheet {
-            css_rule_list.borrow_mut().visit(&mut has_id)?;
+            css_rule_list.write().unwrap().visit(&mut has_id)?;
             if has_id.found {
                 return Ok(true);
             }

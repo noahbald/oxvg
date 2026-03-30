@@ -1,4 +1,4 @@
-use std::cell;
+use std::sync::MappedRwLockReadGuard;
 
 use oxvg_ast::element::Element;
 use oxvg_collections::{
@@ -43,15 +43,15 @@ pub fn assert_oxvg_element<'input>(
 pub fn get_oxvg_attr<'a, 'input>(
     element: &'a Element<'input, '_>,
     local_name: &'static str,
-) -> Result<Option<cell::Ref<'a, Atom<'input>>>, Error<'input>> {
+) -> Result<Option<MappedRwLockReadGuard<'a, Atom<'input>>>, Error<'input>> {
     let attr = element
         .attributes()
         .get_named_item(&AttrId::Unknown(create_oxvg_qual_name(local_name)));
-    let Some(attr) = attr.as_ref() else {
+    let Some(attr) = attr else {
         return Ok(None);
     };
     assert_oxvg_xmlns(attr.prefix())?;
-    let value = cell::Ref::filter_map(cell::Ref::clone(attr), |attr| match attr {
+    let value = MappedRwLockReadGuard::filter_map(attr, |attr| match attr {
         Attr::Unparsed { value, .. } => Some(value),
         _ => unreachable!(),
     })

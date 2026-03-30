@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 /*!
 The OXVG optimiser is library for optimising SVG documents.
 

@@ -202,7 +202,7 @@ impl PrefixIds {
             let Some(css) = child.style() else {
                 return;
             };
-            let mut css = css.borrow_mut();
+            let mut css = css.write().unwrap();
             self.prefix_styles(&mut css, prefix_generator);
         });
         Some(())

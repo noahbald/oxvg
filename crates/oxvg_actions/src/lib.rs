@@ -1,3 +1,4 @@
+#![feature(mapped_lock_guards)]
 /*!
 Similar to Inkscape's actions, can be used to manipulate a document through a CLI.
 
