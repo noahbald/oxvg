@@ -168,5 +168,5 @@ exports[`actor > select 2`] = `
 `;
 
 exports[`actor > select 3`] = `
-"<svg xmlns=\\"http://www.w3.org/2000/svg\\" xmlns:oxvg=\\"https://oxvg.noahwbaldwin.me\\"><!-- Should convert to hex --><g class=\\"different-type different-value\\" color=\\"#000\\"/><g class=\\"different-value\\" color=\\"#00f\\"/><path class=\\"different-type same-value\\" fill=\\"#404040\\"/><path class=\\"same-value\\" fill=\\"#404040\\"/><path fill=\\"#dcddde\\"/><oxvg:state><oxvg:history><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>path</oxvg:arg></oxvg:action><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>.different-value</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids=\\"5, 7\\"/></oxvg:state></svg>"
+"<svg xmlns=\\"http://www.w3.org/2000/svg\\" xmlns:oxvg=\\"https://oxvg.noahwbaldwin.me\\"><!-- Should convert to hex --><g class=\\"different-type different-value\\" color=\\"#000\\"/><g class=\\"different-value\\" color=\\"#00f\\"/><path class=\\"different-type same-value\\" fill=\\"#404040\\"/><path class=\\"same-value\\" fill=\\"#404040\\"/><path fill=\\"#dcddde\\"/><oxvg:state><oxvg:history><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>path</oxvg:arg></oxvg:action><oxvg:action oxvg:id=\\"Select\\"><oxvg:arg>.different-value</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids=\\"5 7\\"/></oxvg:state></svg>"
 `;
