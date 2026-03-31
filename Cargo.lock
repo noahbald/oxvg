@@ -1274,6 +1274,7 @@ dependencies = [
  "log",
  "oxvg_actions",
  "oxvg_ast",
+ "oxvg_collections",
  "oxvg_lint",
  "oxvg_optimiser",
  "roxmltree",

@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/state.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me"><g color="#000"/><g color="#000"/><path fill="#404040"/><path fill="#404040"/><path fill="#dcddde"/><path fill="#0064ff"/><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>path</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids="7 9 11 13"/></oxvg:state></svg>

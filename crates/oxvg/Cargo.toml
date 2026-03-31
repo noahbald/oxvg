@@ -27,6 +27,7 @@ oxvg_ast = { workspace = true, features = [
   "serialize",
   "clap",
 ] }
+oxvg_collections = { workspace = true }
 oxvg_optimiser = { workspace = true, features = ["clap", "serde"] }
 oxvg_lint = { workspace = true, features = ["clap", "serde", "lsp"] }
 

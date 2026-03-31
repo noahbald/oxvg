@@ -184,6 +184,12 @@ impl Actor {
       .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
   }
 
+  /// Removes OXVG state from the document
+  #[napi]
+  pub fn forget(&mut self) {
+    self.actor.forget();
+  }
+
   /// Updates the state of the actor to point to the elements matching the given selector.
   /// Elements can also be selected by a space/comma separated list of allocation-id
   /// integers.
@@ -198,6 +204,29 @@ impl Actor {
       .actor
       .select(&query)
       .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+
+  /// Updates the state of the actor to point to the elements matching the given selector,
+  /// including any previous selections.
+  /// Elements can also be selected by a space/comma separated list of allocation-id
+  /// integers.
+  ///
+  /// # Errors
+  ///
+  /// If the query is invalid
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn select_more(&mut self, query: String) -> napi::Result<()> {
+    self
+      .actor
+      .select_more(&query)
+      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+  }
+
+  /// Updates the state of the actor to deselected any selected nodes.
+  #[napi]
+  pub fn deselect(&mut self) {
+    self.actor.deselect();
   }
 
   /// Returns the actor's updated document as a string

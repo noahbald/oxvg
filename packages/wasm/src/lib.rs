@@ -309,6 +309,12 @@ impl Actor {
         self.actor.dispatch(action)
     }
 
+    /// Removes OXVG state from the document
+    #[wasm_bindgen]
+    pub fn forget(&mut self) {
+        self.actor.forget();
+    }
+
     /// Updates the state of the actor to point to the elements matching the given selector.
     /// Elements can also be selected by a space/comma separated list of allocation-id
     /// integers.
@@ -319,6 +325,26 @@ impl Actor {
     #[wasm_bindgen]
     pub fn select(&mut self, query: &str) -> Result<(), Error> {
         self.actor.select(query)
+    }
+
+    /// Updates the state of the actor to point to the elements matching the given selector,
+    /// including any previous selections.
+    /// Elements can also be selected by a space/comma separated list of allocation-id
+    /// integers.
+    ///
+    /// # Errors
+    ///
+    /// If query is invalid
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = selectMore)]
+    pub fn select_more(&mut self, query: &str) -> Result<(), Error> {
+        self.actor.select_more(query)
+    }
+
+    /// Updates the state of the actor to deselected any selected nodes.
+    #[wasm_bindgen]
+    pub fn deselect(&mut self) {
+        self.actor.deselect();
     }
 
     /// Returns the actor's updated document as a string

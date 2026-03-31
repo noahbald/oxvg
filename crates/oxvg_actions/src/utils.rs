@@ -68,9 +68,13 @@ pub const fn create_oxvg_attr<'input>(
     value: Atom<'input>,
 ) -> Attr<'input> {
     Attr::Unparsed {
-        attr_id: AttrId::Unknown(create_oxvg_qual_name(local_name)),
+        attr_id: create_oxvg_attr_id(local_name),
         value,
     }
+}
+
+pub const fn create_oxvg_attr_id(local_name: &'static str) -> AttrId<'static> {
+    AttrId::Unknown(create_oxvg_qual_name(local_name))
 }
 
 pub const fn create_oxvg_qual_name(local_name: &'static str) -> QualName<'static> {

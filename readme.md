@@ -81,8 +81,8 @@ You can run the project for yourself by doing the following
 ```sh
 git clone git@github.com:noahbald/oxvg.git
 cd oxvg
-cargo build --package oxvg
-./target/debug/oxvg.exe --help
+cargo build --profile release --package oxvg
+./target/release/oxvg.exe --help
 ```
 
 Or you can install it through `cargo`
@@ -110,6 +110,10 @@ Thank you to these high quality, open source projects on SVG tooling
 
 - SVGO
 - InkScape
+
+Thank you to these dependents for helping make OXVG more popular
+
+- Parcel, for choosing us as a [default optimiser](https://parceljs.org/languages/svg/#minification)
 
 ## Licensing
 

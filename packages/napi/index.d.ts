@@ -2,7 +2,10 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
+  | { type: 'Forget' }
   | { type: 'Select', field0: string }
+  | { type: 'SelectMore', field0: string }
+  | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
 export interface AttrModelNapi {
@@ -693,6 +696,8 @@ export declare class Actor {
    * If the action fails
    */
   dispatch(action: ActionNapi): void
+  /** Removes OXVG state from the document */
+  forget(): void
   /**
    * Updates the state of the actor to point to the elements matching the given selector.
    * Elements can also be selected by a space/comma separated list of allocation-id
@@ -703,6 +708,19 @@ export declare class Actor {
    * If the query is invalid
    */
   select(query: string): void
+  /**
+   * Updates the state of the actor to point to the elements matching the given selector,
+   * including any previous selections.
+   * Elements can also be selected by a space/comma separated list of allocation-id
+   * integers.
+   *
+   * # Errors
+   *
+   * If the query is invalid
+   */
+  selectMore(query: string): void
+  /** Updates the state of the actor to deselected any selected nodes. */
+  deselect(): void
   /**
    * Returns the actor's updated document as a string
    *

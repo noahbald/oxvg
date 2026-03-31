@@ -11,6 +11,7 @@ use oxvg_ast::{
     parse::roxmltree::parse_with_options,
     xmlwriter::{Indent, Options, Space},
 };
+use oxvg_collections::atom::Atom;
 use roxmltree::ParsingOptions;
 
 use crate::{
@@ -177,15 +178,38 @@ impl RunCommand for ActionList {
     async fn run(self, _: Config) -> anyhow::Result<()> {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
-        if parts.is_empty() || parts.contains(SELECT) {
+        if parts.is_empty() || parts.contains(FORGET) {
             println!("# Select\n");
-            println!(include_str!("../../../oxvg_actions/src/spec/select.md"));
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/state/forget.md"
+            ));
+        }
+        if parts.is_empty() || parts.contains(SELECT) {
+            println!("# Forget\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/state/select.md"
+            ));
+        }
+        if parts.is_empty() || parts.contains(SELECT_MORE) {
+            println!("# Forget\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/state/select-more.md"
+            ));
+        }
+        if parts.is_empty() || parts.contains(DESELECT) {
+            println!("# Forget\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/state/deselect.md"
+            ));
         }
         Ok(())
     }
 }
 
+const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
+const SELECT_MORE: &str = "-select-more";
+const DESELECT: &str = "-deselect";
 
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
     let mut actions = Vec::with_capacity(
@@ -196,16 +220,20 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
     );
     let mut parts = command_list.into_iter().peekable();
     while let Some(action) = parts.next() {
+        let mut get_part = || {
+            parts
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("`{action}` missing query"))
+                .map(Atom::from)
+        };
         if !action.starts_with('-') {
             return Err(anyhow::anyhow!("Expected command name, found {action}"));
         }
         actions.push(match action.as_str() {
-            SELECT => oxvg_actions::Action::Select(
-                parts
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("`{action}` missing query"))?
-                    .into(),
-            ),
+            FORGET => oxvg_actions::Action::Forget,
+            SELECT => oxvg_actions::Action::Select(get_part()?),
+            SELECT_MORE => oxvg_actions::Action::SelectMore(get_part()?),
+            DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });
     }
