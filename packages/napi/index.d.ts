@@ -2,10 +2,13 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
-  | { type: 'Forget' }
-  | { type: 'Select', field0: string }
-  | { type: 'SelectMore', field0: string }
-  | { type: 'Deselect' }
+  | { type: 'Attr', /** The qualified name of the attribute */
+  name: string, /** The value of the attribute */
+value: string }
+| { type: 'Forget' }
+| { type: 'Select', field0: string }
+| { type: 'SelectMore', field0: string }
+| { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
 export interface AttrModelNapi {
@@ -696,6 +699,14 @@ export declare class Actor {
    * If the action fails
    */
   dispatch(action: ActionNapi): void
+  /**
+   * Sets the attribute to selected elements.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  attr(name: string, value: string): void
   /** Removes OXVG state from the document */
   forget(): void
   /**

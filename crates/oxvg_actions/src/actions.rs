@@ -4,6 +4,7 @@ use oxvg_collections::atom::Atom;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
+mod manipulate;
 mod state;
 
 use crate::{
@@ -28,6 +29,13 @@ pub struct Actor<'input, 'arena> {
 #[derive(Debug, Clone)]
 /// An action is a method that an actor can execute upon a document
 pub enum Action<'input> {
+    /// See [`Actor::attr`]
+    Attr {
+        /// The qualified name of the attribute
+        name: Atom<'input>,
+        /// The value of the attribute
+        value: Atom<'input>,
+    },
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -42,6 +50,13 @@ pub enum Action<'input> {
 #[napi]
 /// An action is a method that an actor can execute upon a document
 pub enum ActionNapi {
+    /// See [`Actor::attr`]
+    Attr {
+        /// The qualified name of the attribute
+        name: String,
+        /// The value of the attribute
+        value: String,
+    },
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -98,9 +113,10 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     /// When the associated action fails
     pub fn dispatch(&mut self, action: Action<'input>) -> Result<(), Error<'input>> {
         match action {
+            Action::Attr { name, value } => return self.attr(&name, &value),
             Action::Forget => self.forget(),
-            Action::Select(query) => return self.select(query.as_str()),
-            Action::SelectMore(query) => return self.select_more(query.as_str()),
+            Action::Select(query) => return self.select(&query),
+            Action::SelectMore(query) => return self.select_more(&query),
             Action::Deselect => self.deselect(),
         }
         Ok(())

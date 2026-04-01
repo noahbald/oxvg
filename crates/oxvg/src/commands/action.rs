@@ -178,6 +178,12 @@ impl RunCommand for ActionList {
     async fn run(self, _: Config) -> anyhow::Result<()> {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
+        if parts.is_empty() || parts.contains(ATTR) {
+            println!("# Select\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/manipulate/attr.md"
+            ));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Select\n");
             println!(include_str!(
@@ -206,6 +212,7 @@ impl RunCommand for ActionList {
     }
 }
 
+const ATTR: &str = "-attr";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -230,6 +237,10 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             return Err(anyhow::anyhow!("Expected command name, found {action}"));
         }
         actions.push(match action.as_str() {
+            ATTR => oxvg_actions::Action::Attr {
+                name: get_part()?,
+                value: get_part()?,
+            },
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part()?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part()?),

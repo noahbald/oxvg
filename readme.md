@@ -27,6 +27,8 @@ Differences for any of the jobs are also documented with each struct/interface's
 
 > [!TIP]
 > You can try out OXVG actions right in your browser using [Vivec](https://oxvg.noahwbaldwin.me/), an integration of actions into a Vi-like web-editor.
+>
+> It's very early alpha and is limited and rough around the edges.
 
 [Actions](https://github.com/noahbald/oxvg/wiki/Actions) are a set of commands that can be invoked by a program to manipulate an SVG document or pull information from it.
 It is comparable to InkScape's actions, but without any dependency on the UI or rendering.

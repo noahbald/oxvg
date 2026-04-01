@@ -309,6 +309,16 @@ impl Actor {
         self.actor.dispatch(action)
     }
 
+    /// Sets the attribute to selected elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn attr(&mut self, name: &str, value: &str) -> Result<(), Error> {
+        self.actor.attr(name, value)
+    }
+
     /// Removes OXVG state from the document
     #[wasm_bindgen]
     pub fn forget(&mut self) {

@@ -168,7 +168,7 @@ impl Actor {
       .derive_state()
       .as_ref()
       .map(DerivedState::to_napi)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+      .map_err(generic_error)
   }
 
   /// Executes the given action and it's arguments upon the document.
@@ -181,7 +181,18 @@ impl Actor {
     self
       .actor
       .dispatch(Action::from_napi(action))
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+      .map_err(generic_error)
+  }
+
+  /// Sets the attribute to selected elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn attr(&mut self, name: String, value: String) -> napi::Result<()> {
+    self.actor.attr(&name, &value).map_err(generic_error)
   }
 
   /// Removes OXVG state from the document
@@ -200,10 +211,7 @@ impl Actor {
   #[napi]
   #[allow(clippy::needless_pass_by_value)]
   pub fn select(&mut self, query: String) -> napi::Result<()> {
-    self
-      .actor
-      .select(&query)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.select(&query).map_err(generic_error)
   }
 
   /// Updates the state of the actor to point to the elements matching the given selector,
@@ -217,10 +225,7 @@ impl Actor {
   #[napi]
   #[allow(clippy::needless_pass_by_value)]
   pub fn select_more(&mut self, query: String) -> napi::Result<()> {
-    self
-      .actor
-      .select_more(&query)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.select_more(&query).map_err(generic_error)
   }
 
   /// Updates the state of the actor to deselected any selected nodes.
@@ -236,11 +241,7 @@ impl Actor {
   /// If serialization fails
   #[napi]
   pub fn document(&self) -> napi::Result<String> {
-    self
-      .actor
-      .root
-      .serialize()
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.root.serialize().map_err(generic_error)
   }
 }
 
