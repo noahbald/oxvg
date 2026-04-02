@@ -195,6 +195,17 @@ impl Actor {
     self.actor.attr(&name, &value).map_err(generic_error)
   }
 
+  /// Toggles the class-name on selected elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn class(&mut self, name: String) -> napi::Result<()> {
+    self.actor.class(&name).map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   #[napi]
   pub fn forget(&mut self) {

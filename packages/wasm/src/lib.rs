@@ -319,6 +319,16 @@ impl Actor {
         self.actor.attr(name, value)
     }
 
+    /// Toggles the class-name on selected elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn class(&mut self, name: &str) -> Result<(), Error> {
+        self.actor.class(name)
+    }
+
     /// Removes OXVG state from the document
     #[wasm_bindgen]
     pub fn forget(&mut self) {

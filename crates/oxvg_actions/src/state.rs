@@ -245,6 +245,7 @@ impl<'input> Action<'input> {
     const ID: &'static str = "id";
     // Members
     const ATTR: &'static str = "Attr";
+    const CLASS: &'static str = "Class";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -288,8 +289,8 @@ impl<'input> Action<'input> {
                 Self::embed_arg(&element, allocator, name.clone());
                 Self::embed_arg(&element, allocator, value.clone());
             }
-            Self::Select(query) | Self::SelectMore(query) => {
-                Self::embed_arg(&element, allocator, query.clone());
+            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
+                Self::embed_arg(&element, allocator, arg.clone());
             }
             Self::Forget | Self::Deselect => {}
         }
@@ -309,6 +310,7 @@ impl<'input> Action<'input> {
     fn name(&self) -> &'static str {
         match self {
             Self::Attr { .. } => Self::ATTR,
+            Self::Class(_) => Self::CLASS,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -324,6 +326,7 @@ impl<'input> Action<'input> {
                 name: name.to_string(),
                 value: value.to_string(),
             },
+            Self::Class(name) => ActionNapi::Class(name.to_string()),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -339,6 +342,7 @@ impl<'input> Action<'input> {
                 name: name.into(),
                 value: value.into(),
             },
+            ActionNapi::Class(name) => Action::Class(name.into()),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

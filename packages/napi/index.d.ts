@@ -5,6 +5,7 @@ export type ActionNapi =
   | { type: 'Attr', /** The qualified name of the attribute */
   name: string, /** The value of the attribute */
 value: string }
+| { type: 'Class', field0: string }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -707,6 +708,14 @@ export declare class Actor {
    * When root element is missing.
    */
   attr(name: string, value: string): void
+  /**
+   * Toggles the class-name on selected elements.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  class(name: string): void
   /** Removes OXVG state from the document */
   forget(): void
   /**

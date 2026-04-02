@@ -36,6 +36,8 @@ pub enum Action<'input> {
         /// The value of the attribute
         value: Atom<'input>,
     },
+    /// See [`Actor::class`]
+    Class(Atom<'input>),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -57,6 +59,8 @@ pub enum ActionNapi {
         /// The value of the attribute
         value: String,
     },
+    /// See [`Actor::class`]
+    Class(String),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -114,6 +118,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn dispatch(&mut self, action: Action<'input>) -> Result<(), Error<'input>> {
         match action {
             Action::Attr { name, value } => return self.attr(&name, &value),
+            Action::Class(name) => return self.class(&name),
             Action::Forget => self.forget(),
             Action::Select(query) => return self.select(&query),
             Action::SelectMore(query) => return self.select_more(&query),

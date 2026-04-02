@@ -179,9 +179,15 @@ impl RunCommand for ActionList {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
         if parts.is_empty() || parts.contains(ATTR) {
-            println!("# Select\n");
+            println!("# Attribute\n");
             println!(include_str!(
                 "../../../oxvg_actions/src/spec/manipulate/attr.md"
+            ));
+        }
+        if parts.is_empty() || parts.contains(CLASS) {
+            println!("# Class\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/manipulate/class.md"
             ));
         }
         if parts.is_empty() || parts.contains(FORGET) {
@@ -191,19 +197,19 @@ impl RunCommand for ActionList {
             ));
         }
         if parts.is_empty() || parts.contains(SELECT) {
-            println!("# Forget\n");
+            println!("# Select\n");
             println!(include_str!(
                 "../../../oxvg_actions/src/spec/state/select.md"
             ));
         }
         if parts.is_empty() || parts.contains(SELECT_MORE) {
-            println!("# Forget\n");
+            println!("# Select More\n");
             println!(include_str!(
                 "../../../oxvg_actions/src/spec/state/select-more.md"
             ));
         }
         if parts.is_empty() || parts.contains(DESELECT) {
-            println!("# Forget\n");
+            println!("# Deselect\n");
             println!(include_str!(
                 "../../../oxvg_actions/src/spec/state/deselect.md"
             ));
@@ -213,6 +219,7 @@ impl RunCommand for ActionList {
 }
 
 const ATTR: &str = "-attr";
+const CLASS: &str = "-class";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -241,6 +248,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 name: get_part()?,
                 value: get_part()?,
             },
+            CLASS => oxvg_actions::Action::Class(get_part()?),
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part()?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part()?),

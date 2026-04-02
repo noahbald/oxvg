@@ -1,7 +1,10 @@
-use oxvg_collections::attribute::{
-    core_attrs::Integer,
-    list_of::{ListOf, SpaceOrComma},
-    Attr, AttrId,
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core_attrs::Integer,
+        list_of::{ListOf, SpaceOrComma},
+        Attr, AttrId,
+    },
 };
 use oxvg_parse::Parse as _;
 
@@ -44,6 +47,36 @@ impl<'input> Actor<'input, '_> {
             let value = self.allocator.alloc_str(value);
             let attr = Attr::new(attr, value);
             element.set_attribute(attr);
+        }
+        Ok(())
+    }
+
+    /// Toggles the class-name on selected elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/manipulate/class.md")]
+    pub fn class(&mut self, name: &str) -> Result<(), Error<'input>> {
+        self.state
+            .record(&Action::Class(name.to_string().into()), &self.allocator);
+        let Some(selections) = self.get_selections()? else {
+            return Ok(());
+        };
+        let name: Atom<'static> = name.to_string().into();
+        for selection in selections {
+            #[allow(clippy::cast_sign_loss)]
+            let Some(node) = self.allocator.get(selection as usize) else {
+                continue;
+            };
+            let Some(element) = node.element() else {
+                continue;
+            };
+            let mut class_list = element.class_list();
+            class_list.toggle(name.clone());
         }
         Ok(())
     }
