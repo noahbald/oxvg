@@ -329,6 +329,17 @@ impl Actor {
         self.actor.class(name)
     }
 
+    /// Appends the style to the selected elements style list.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    /// When the given property and/or value is invalid.
+    #[wasm_bindgen]
+    pub fn style(&mut self, property: &str, value: &str) -> Result<(), Error> {
+        self.actor.style(property, value)
+    }
+
     /// Removes OXVG state from the document
     #[wasm_bindgen]
     pub fn forget(&mut self) {

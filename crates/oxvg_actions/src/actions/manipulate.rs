@@ -1,7 +1,9 @@
+use lightningcss::{declaration::DeclarationBlock, traits::Parse};
+use oxvg_ast::{get_attribute_mut, set_attribute};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core_attrs::Integer,
+        core_attrs::{Integer, Style},
         list_of::{ListOf, SpaceOrComma},
         Attr, AttrId,
     },
@@ -61,12 +63,12 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/class.md")]
     pub fn class(&mut self, name: &str) -> Result<(), Error<'input>> {
+        let name: Atom<'static> = name.to_string().into();
         self.state
-            .record(&Action::Class(name.to_string().into()), &self.allocator);
+            .record(&Action::Class(name.clone()), &self.allocator);
         let Some(selections) = self.get_selections()? else {
             return Ok(());
         };
-        let name: Atom<'static> = name.to_string().into();
         for selection in selections {
             #[allow(clippy::cast_sign_loss)]
             let Some(node) = self.allocator.get(selection as usize) else {
@@ -77,6 +79,76 @@ impl<'input> Actor<'input, '_> {
             };
             let mut class_list = element.class_list();
             class_list.toggle(name.clone());
+        }
+        Ok(())
+    }
+
+    /// Appends the style to the selected elements style list.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    /// When the given property and/or value is invalid.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/manipulate/style.md")]
+    pub fn style(&mut self, property: &str, value: &str) -> Result<(), Error<'input>> {
+        self.state.record(
+            &Action::Style {
+                property: property.to_string().into(),
+                value: value.to_string().into(),
+            },
+            &self.allocator,
+        );
+        let Some(selections) = self.get_selections()? else {
+            return Ok(());
+        };
+        for selection in selections {
+            #[allow(clippy::cast_sign_loss)]
+            let Some(node) = self.allocator.get(selection as usize) else {
+                continue;
+            };
+            let Some(element) = node.element() else {
+                continue;
+            };
+            if !element.qual_name().is_permitted_attribute(&AttrId::Style) {
+                continue;
+            }
+
+            let property = self.allocator.alloc_str(property);
+            let property = lightningcss::properties::PropertyId::parse_string(property)
+                .map_err(|err| Error::ParseError(err.to_string()))?;
+            let (value, is_important) = match value.trim_end().split_once("!important") {
+                Some((value, "")) => (value, true),
+                _ => (value, false),
+            };
+            let value = self.allocator.alloc_str(value);
+            let property = lightningcss::properties::Property::parse_string(
+                property,
+                value,
+                lightningcss::stylesheet::ParserOptions::default(),
+            )
+            .map_err(|err| Error::ParseError(err.to_string()))?;
+
+            if let Some(mut style) = get_attribute_mut!(element, Style) {
+                if is_important {
+                    style.0.important_declarations.push(property);
+                } else {
+                    style.0.declarations.push(property);
+                }
+            } else {
+                let mut style = Style(DeclarationBlock {
+                    important_declarations: vec![],
+                    declarations: vec![],
+                });
+                if is_important {
+                    style.0.important_declarations.push(property);
+                } else {
+                    style.0.declarations.push(property);
+                }
+                set_attribute!(element, Style(style));
+            };
         }
         Ok(())
     }

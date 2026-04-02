@@ -206,6 +206,18 @@ impl Actor {
     self.actor.class(&name).map_err(generic_error)
   }
 
+  /// Appends the style to the selected elements style list.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  /// When the given property and/or value is invalid.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn style(&mut self, property: String, value: String) -> napi::Result<()> {
+    self.actor.style(&property, &value).map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   #[napi]
   pub fn forget(&mut self) {

@@ -246,6 +246,7 @@ impl<'input> Action<'input> {
     // Members
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
+    const STYLE: &'static str = "Style";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -285,9 +286,16 @@ impl<'input> Action<'input> {
         parent.append(*element);
 
         match self {
-            Self::Attr { name, value } => {
-                Self::embed_arg(&element, allocator, name.clone());
-                Self::embed_arg(&element, allocator, value.clone());
+            Self::Attr {
+                name: arg0,
+                value: arg1,
+            }
+            | Self::Style {
+                property: arg0,
+                value: arg1,
+            } => {
+                Self::embed_arg(&element, allocator, arg0.clone());
+                Self::embed_arg(&element, allocator, arg1.clone());
             }
             Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
                 Self::embed_arg(&element, allocator, arg.clone());
@@ -311,6 +319,7 @@ impl<'input> Action<'input> {
         match self {
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
+            Self::Style { .. } => Self::STYLE,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -327,6 +336,10 @@ impl<'input> Action<'input> {
                 value: value.to_string(),
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::Style { property, value } => ActionNapi::Style {
+                property: property.to_string(),
+                value: value.to_string(),
+            },
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -343,6 +356,10 @@ impl<'input> Action<'input> {
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::Style { property, value } => Action::Style {
+                property: property.into(),
+                value: value.into(),
+            },
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

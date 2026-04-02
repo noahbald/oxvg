@@ -31,6 +31,7 @@ oxvg_collections = { workspace = true, features = ["serde"] }
 oxvg_parse = { workspace = true }
 oxvg_serialize = { workspace = true }
 
+lightningcss = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }

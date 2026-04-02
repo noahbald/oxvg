@@ -190,6 +190,12 @@ impl RunCommand for ActionList {
                 "../../../oxvg_actions/src/spec/manipulate/class.md"
             ));
         }
+        if parts.is_empty() || parts.contains(STYLE) {
+            println!("# Style\n");
+            println!(include_str!(
+                "../../../oxvg_actions/src/spec/manipulate/style.md"
+            ));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Select\n");
             println!(include_str!(
@@ -220,6 +226,7 @@ impl RunCommand for ActionList {
 
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
+const STYLE: &str = "-style";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -249,6 +256,10 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 value: get_part()?,
             },
             CLASS => oxvg_actions::Action::Class(get_part()?),
+            STYLE => oxvg_actions::Action::Style {
+                property: get_part()?,
+                value: get_part()?,
+            },
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part()?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part()?),

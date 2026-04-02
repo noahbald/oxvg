@@ -1290,6 +1290,7 @@ name = "oxvg_actions"
 version = "0.0.5"
 dependencies = [
  "insta",
+ "lightningcss",
  "napi",
  "napi-derive",
  "oxvg_ast",

@@ -38,6 +38,13 @@ pub enum Action<'input> {
     },
     /// See [`Actor::class`]
     Class(Atom<'input>),
+    /// See [`Actor::style`]
+    Style {
+        /// The CSS name of the property
+        property: Atom<'input>,
+        /// The CSS value of the property
+        value: Atom<'input>,
+    },
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -61,6 +68,13 @@ pub enum ActionNapi {
     },
     /// See [`Actor::class`]
     Class(String),
+    /// See [`Actor::style`]
+    Style {
+        /// The CSS name of the property
+        property: String,
+        /// The CSS value of the property
+        value: String,
+    },
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -119,6 +133,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         match action {
             Action::Attr { name, value } => return self.attr(&name, &value),
             Action::Class(name) => return self.class(&name),
+            Action::Style { property, value } => return self.style(&property, &value),
             Action::Forget => self.forget(),
             Action::Select(query) => return self.select(&query),
             Action::SelectMore(query) => return self.select_more(&query),
