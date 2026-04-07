@@ -218,6 +218,79 @@ impl Actor {
     self.actor.style(&property, &value).map_err(generic_error)
   }
 
+  #[allow(clippy::many_single_char_names)]
+  /// Appends the `matrix` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn matrix(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) -> napi::Result<()> {
+    self
+      .actor
+      .matrix(a as f32, b as f32, c as f32, d as f32, e as f32, f as f32)
+      .map_err(generic_error)
+  }
+
+  /// Appends the `translate` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn translate(&mut self, x: f64, y: Option<f64>) -> napi::Result<()> {
+    self
+      .actor
+      .translate(x as f32, y.map(|y| y as f32))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `scale` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn scale(&mut self, x: f64, y: Option<f64>) -> napi::Result<()> {
+    self
+      .actor
+      .scale(x as f32, y.map(|y| y as f32))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `rotate` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>) -> napi::Result<()> {
+    self
+      .actor
+      .rotate(angle as f32, origin.map(|(x, y)| (x as f32, y as f32)))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `skewX` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn skew_x(&mut self, angle: f64) -> napi::Result<()> {
+    self.actor.skew_x(angle as f32).map_err(generic_error)
+  }
+
+  /// Appends the `skewY` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn skew_y(&mut self, angle: f64) -> napi::Result<()> {
+    self.actor.skew_y(angle as f32).map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   #[napi]
   pub fn forget(&mut self) {

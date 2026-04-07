@@ -153,7 +153,7 @@ impl<'input> Actor<'input, '_> {
         Ok(())
     }
 
-    fn get_selections(&mut self) -> Result<Option<Vec<Integer>>, Error<'input>> {
+    pub(crate) fn get_selections(&mut self) -> Result<Option<Vec<Integer>>, Error<'input>> {
         Ok(self.get_selections_list()?.map(|s| s.list))
     }
 

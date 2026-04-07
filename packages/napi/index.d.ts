@@ -9,6 +9,12 @@ value: string }
 | { type: 'Style', /** The CSS name of the property */
 property: string, /** The CSS value of the property */
 value: string }
+| { type: 'Matrix', field0: number, field1: number, field2: number, field3: number, field4: number, field5: number }
+| { type: 'Translate', field0: number, field1?: number }
+| { type: 'Scale', field0: number, field1?: number }
+| { type: 'Rotate', field0: number, field1?: [number, number] }
+| { type: 'SkewX', field0: number }
+| { type: 'SkewY', field0: number }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -728,6 +734,54 @@ export declare class Actor {
    * When the given property and/or value is invalid.
    */
   style(property: string, value: string): void
+  /**
+   * Appends the `matrix` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  matrix(a: number, b: number, c: number, d: number, e: number, f: number): void
+  /**
+   * Appends the `translate` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  translate(x: number, y?: number | undefined | null): void
+  /**
+   * Appends the `scale` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  scale(x: number, y?: number | undefined | null): void
+  /**
+   * Appends the `rotate` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  rotate(angle: number, origin?: [number, number] | undefined | null): void
+  /**
+   * Appends the `skewX` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  skewX(angle: number): void
+  /**
+   * Appends the `skewY` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  skewY(angle: number): void
   /** Removes OXVG state from the document */
   forget(): void
   /**

@@ -1,11 +1,12 @@
 use oxvg_ast::{arena::Allocator, node::Ref, serialize::Node};
-use oxvg_collections::atom::Atom;
+use oxvg_collections::{atom::Atom, attribute::core_attrs::Number};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
 mod manipulate;
 mod state;
+mod transform;
 
 use crate::{
     error::Error,
@@ -45,6 +46,18 @@ pub enum Action<'input> {
         /// The CSS value of the property
         value: Atom<'input>,
     },
+    /// See [`Actor::matrix`]
+    Matrix(Number, Number, Number, Number, Number, Number),
+    /// See [`Actor::translate`]
+    Translate(Number, Option<Number>),
+    /// See [`Actor::scale`]
+    Scale(Number, Option<Number>),
+    /// See [`Actor::rotate`]
+    Rotate(Number, Option<(Number, Number)>),
+    /// See [`Actor::skew_x`]
+    SkewX(Number),
+    /// See [`Actor::skew_y`]
+    SkewY(Number),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -75,6 +88,18 @@ pub enum ActionNapi {
         /// The CSS value of the property
         value: String,
     },
+    /// See [`Actor::matrix`]
+    Matrix(f64, f64, f64, f64, f64, f64),
+    /// See [`Actor::translate`]
+    Translate(f64, Option<f64>),
+    /// See [`Actor::scale`]
+    Scale(f64, Option<f64>),
+    /// See [`Actor::rotate`]
+    Rotate(f64, Option<(f64, f64)>),
+    /// See [`Actor::skew_x`]
+    SkewX(f64),
+    /// See [`Actor::skew_y`]
+    SkewY(f64),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -124,6 +149,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         DerivedState::from_state(&self.state, &self.allocator)
     }
 
+    #[allow(clippy::many_single_char_names)]
     /// Executes the given action and it's arguments upon the document.
     ///
     /// # Errors
@@ -134,6 +160,12 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Attr { name, value } => return self.attr(&name, &value),
             Action::Class(name) => return self.class(&name),
             Action::Style { property, value } => return self.style(&property, &value),
+            Action::Matrix(a, b, c, d, e, f) => return self.matrix(a, b, c, d, e, f),
+            Action::Translate(x, y) => return self.translate(x, y),
+            Action::Scale(x, y) => return self.scale(x, y),
+            Action::Rotate(angle, origin) => return self.rotate(angle, origin),
+            Action::SkewX(angle) => return self.skew_x(angle),
+            Action::SkewY(angle) => return self.skew_y(angle),
             Action::Forget => self.forget(),
             Action::Select(query) => return self.select(&query),
             Action::SelectMore(query) => return self.select_more(&query),

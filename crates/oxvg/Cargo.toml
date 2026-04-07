@@ -28,8 +28,9 @@ oxvg_ast = { workspace = true, features = [
   "clap",
 ] }
 oxvg_collections = { workspace = true }
-oxvg_optimiser = { workspace = true, features = ["clap", "serde"] }
 oxvg_lint = { workspace = true, features = ["clap", "serde", "lsp"] }
+oxvg_optimiser = { workspace = true, features = ["clap", "serde"] }
+oxvg_parse = { workspace = true }
 
 anyhow = { workspace = true }
 clap = { workspace = true }

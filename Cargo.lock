@@ -1277,6 +1277,7 @@ dependencies = [
  "oxvg_collections",
  "oxvg_lint",
  "oxvg_optimiser",
+ "oxvg_parse",
  "roxmltree",
  "serde",
  "serde_json",
