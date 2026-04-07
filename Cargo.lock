@@ -1277,6 +1277,7 @@ dependencies = [
  "oxvg_collections",
  "oxvg_lint",
  "oxvg_optimiser",
+ "oxvg_parse",
  "roxmltree",
  "serde",
  "serde_json",
@@ -1290,6 +1291,7 @@ name = "oxvg_actions"
 version = "0.0.5"
 dependencies = [
  "insta",
+ "lightningcss",
  "napi",
  "napi-derive",
  "oxvg_ast",

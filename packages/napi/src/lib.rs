@@ -168,7 +168,7 @@ impl Actor {
       .derive_state()
       .as_ref()
       .map(DerivedState::to_napi)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+      .map_err(generic_error)
   }
 
   /// Executes the given action and it's arguments upon the document.
@@ -181,7 +181,114 @@ impl Actor {
     self
       .actor
       .dispatch(Action::from_napi(action))
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+      .map_err(generic_error)
+  }
+
+  /// Sets the attribute to selected elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn attr(&mut self, name: String, value: String) -> napi::Result<()> {
+    self.actor.attr(&name, &value).map_err(generic_error)
+  }
+
+  /// Toggles the class-name on selected elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn class(&mut self, name: String) -> napi::Result<()> {
+    self.actor.class(&name).map_err(generic_error)
+  }
+
+  /// Appends the style to the selected elements style list.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  /// When the given property and/or value is invalid.
+  #[napi]
+  #[allow(clippy::needless_pass_by_value)]
+  pub fn style(&mut self, property: String, value: String) -> napi::Result<()> {
+    self.actor.style(&property, &value).map_err(generic_error)
+  }
+
+  #[allow(clippy::many_single_char_names)]
+  /// Appends the `matrix` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn matrix(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) -> napi::Result<()> {
+    self
+      .actor
+      .matrix(a as f32, b as f32, c as f32, d as f32, e as f32, f as f32)
+      .map_err(generic_error)
+  }
+
+  /// Appends the `translate` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn translate(&mut self, x: f64, y: Option<f64>) -> napi::Result<()> {
+    self
+      .actor
+      .translate(x as f32, y.map(|y| y as f32))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `scale` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn scale(&mut self, x: f64, y: Option<f64>) -> napi::Result<()> {
+    self
+      .actor
+      .scale(x as f32, y.map(|y| y as f32))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `rotate` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn rotate(&mut self, angle: f64, origin: Option<(f64, f64)>) -> napi::Result<()> {
+    self
+      .actor
+      .rotate(angle as f32, origin.map(|(x, y)| (x as f32, y as f32)))
+      .map_err(generic_error)
+  }
+
+  /// Appends the `skewX` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn skew_x(&mut self, angle: f64) -> napi::Result<()> {
+    self.actor.skew_x(angle as f32).map_err(generic_error)
+  }
+
+  /// Appends the `skewY` function to the element's `transform` attribute.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn skew_y(&mut self, angle: f64) -> napi::Result<()> {
+    self.actor.skew_y(angle as f32).map_err(generic_error)
   }
 
   /// Removes OXVG state from the document
@@ -200,10 +307,7 @@ impl Actor {
   #[napi]
   #[allow(clippy::needless_pass_by_value)]
   pub fn select(&mut self, query: String) -> napi::Result<()> {
-    self
-      .actor
-      .select(&query)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.select(&query).map_err(generic_error)
   }
 
   /// Updates the state of the actor to point to the elements matching the given selector,
@@ -217,10 +321,7 @@ impl Actor {
   #[napi]
   #[allow(clippy::needless_pass_by_value)]
   pub fn select_more(&mut self, query: String) -> napi::Result<()> {
-    self
-      .actor
-      .select_more(&query)
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.select_more(&query).map_err(generic_error)
   }
 
   /// Updates the state of the actor to deselected any selected nodes.
@@ -236,11 +337,7 @@ impl Actor {
   /// If serialization fails
   #[napi]
   pub fn document(&self) -> napi::Result<String> {
-    self
-      .actor
-      .root
-      .serialize()
-      .map_err(|err| Error::new(Status::GenericFailure, err.to_string()))
+    self.actor.root.serialize().map_err(generic_error)
   }
 }
 

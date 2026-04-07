@@ -1,7 +1,10 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{arena::Allocator, serialize::Node as _, visitor::Info, xmlwriter::Options};
-use oxvg_collections::{attribute::AttributeGroup, element::ElementCategory};
+use oxvg_collections::{
+    attribute::{core_attrs::Number, AttributeGroup},
+    element::ElementCategory,
+};
 use oxvg_optimiser::{Extends, Jobs};
 
 use wasm_bindgen::prelude::*;
@@ -307,6 +310,118 @@ impl Actor {
     #[wasm_bindgen]
     pub fn dispatch(&mut self, action: Action) -> Result<(), Error> {
         self.actor.dispatch(action)
+    }
+
+    /// Sets the attribute to selected elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn attr(&mut self, name: &str, value: &str) -> Result<(), Error> {
+        self.actor.attr(name, value)
+    }
+
+    /// Toggles the class-name on selected elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn class(&mut self, name: &str) -> Result<(), Error> {
+        self.actor.class(name)
+    }
+
+    /// Appends the style to the selected elements style list.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    /// When the given property and/or value is invalid.
+    #[wasm_bindgen]
+    pub fn style(&mut self, property: &str, value: &str) -> Result<(), Error> {
+        self.actor.style(property, value)
+    }
+
+    #[allow(clippy::many_single_char_names)]
+    /// Appends the `matrix` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn matrix(
+        &mut self,
+        a: Number,
+        b: Number,
+        c: Number,
+        d: Number,
+        e: Number,
+        f: Number,
+    ) -> Result<(), Error> {
+        self.actor.matrix(a, b, c, d, e, f)
+    }
+
+    /// Appends the `translate` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn translate(&mut self, x: Number, y: Option<Number>) -> Result<(), Error> {
+        self.actor.translate(x, y)
+    }
+
+    /// Appends the `scale` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn scale(&mut self, x: Number, y: Option<Number>) -> Result<(), Error> {
+        self.actor.scale(x, y)
+    }
+
+    /// Appends the `rotate` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn rotate(
+        &mut self,
+        angle: Number,
+        #[wasm_bindgen(unchecked_param_type = "[number, number] | undefined")] origin: Option<
+            Vec<Number>,
+        >,
+    ) -> Result<(), Error> {
+        self.actor.rotate(
+            angle,
+            origin.and_then(|v| {
+                let mut v = v.into_iter();
+                Some((v.next()?, v.next()?))
+            }),
+        )
+    }
+
+    /// Appends the `skewX` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn skew_x(&mut self, angle: Number) -> Result<(), Error> {
+        self.actor.skew_x(angle)
+    }
+
+    /// Appends the `skewY` function to the element's `transform` attribute.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn skew_y(&mut self, angle: Number) -> Result<(), Error> {
+        self.actor.skew_y(angle)
     }
 
     /// Removes OXVG state from the document

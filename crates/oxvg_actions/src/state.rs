@@ -244,6 +244,15 @@ impl<'input> Action<'input> {
     const ARG: &'static str = "arg";
     const ID: &'static str = "id";
     // Members
+    const ATTR: &'static str = "Attr";
+    const CLASS: &'static str = "Class";
+    const STYLE: &'static str = "Style";
+    const MATRIX: &'static str = "Matrix";
+    const TRANSLATE: &'static str = "Translate";
+    const SCALE: &'static str = "Scale";
+    const ROTATE: &'static str = "Rotate";
+    const SKEW_X: &'static str = "SkewX";
+    const SKEW_Y: &'static str = "SkewY";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -271,6 +280,7 @@ impl<'input> Action<'input> {
         }
     }
 
+    #[allow(clippy::many_single_char_names)]
     fn embed<'arena>(
         &self,
         parent: &Element<'input, 'arena>,
@@ -283,8 +293,43 @@ impl<'input> Action<'input> {
         parent.append(*element);
 
         match self {
-            Self::Select(query) | Self::SelectMore(query) => {
-                Self::embed_arg(&element, allocator, query.clone());
+            Self::Attr {
+                name: arg0,
+                value: arg1,
+            }
+            | Self::Style {
+                property: arg0,
+                value: arg1,
+            } => {
+                Self::embed_arg(&element, allocator, arg0.clone());
+                Self::embed_arg(&element, allocator, arg1.clone());
+            }
+            Self::Matrix(a, b, c, d, e, f) => {
+                Self::embed_arg(&element, allocator, a.to_string().into());
+                Self::embed_arg(&element, allocator, b.to_string().into());
+                Self::embed_arg(&element, allocator, c.to_string().into());
+                Self::embed_arg(&element, allocator, d.to_string().into());
+                Self::embed_arg(&element, allocator, e.to_string().into());
+                Self::embed_arg(&element, allocator, f.to_string().into());
+            }
+            Self::Translate(x, y) | Self::Scale(x, y) => {
+                Self::embed_arg(&element, allocator, x.to_string().into());
+                if let Some(y) = y {
+                    Self::embed_arg(&element, allocator, y.to_string().into());
+                }
+            }
+            Self::Rotate(angle, origin) => {
+                Self::embed_arg(&element, allocator, angle.to_string().into());
+                if let Some((x, y)) = origin {
+                    Self::embed_arg(&element, allocator, x.to_string().into());
+                    Self::embed_arg(&element, allocator, y.to_string().into());
+                }
+            }
+            Self::SkewX(arg) | Self::SkewY(arg) => {
+                Self::embed_arg(&element, allocator, arg.to_string().into());
+            }
+            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
+                Self::embed_arg(&element, allocator, arg.clone());
             }
             Self::Forget | Self::Deselect => {}
         }
@@ -303,6 +348,15 @@ impl<'input> Action<'input> {
 
     fn name(&self) -> &'static str {
         match self {
+            Self::Attr { .. } => Self::ATTR,
+            Self::Class(_) => Self::CLASS,
+            Self::Style { .. } => Self::STYLE,
+            Self::Matrix(..) => Self::MATRIX,
+            Self::Translate(..) => Self::TRANSLATE,
+            Self::Scale(..) => Self::SCALE,
+            Self::Rotate(..) => Self::ROTATE,
+            Self::SkewX(_) => Self::SKEW_X,
+            Self::SkewY(_) => Self::SKEW_Y,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -311,9 +365,29 @@ impl<'input> Action<'input> {
     }
 
     #[cfg(feature = "napi")]
+    #[allow(clippy::many_single_char_names)]
     /// Converts to a napi-compatible type
     pub fn to_napi(&self) -> ActionNapi {
         match self {
+            Self::Attr { name, value } => ActionNapi::Attr {
+                name: name.to_string(),
+                value: value.to_string(),
+            },
+            Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::Style { property, value } => ActionNapi::Style {
+                property: property.to_string(),
+                value: value.to_string(),
+            },
+            Self::Matrix(a, b, c, d, e, f) => ActionNapi::Matrix(
+                *a as f64, *b as f64, *c as f64, *d as f64, *e as f64, *f as f64,
+            ),
+            Self::Translate(x, y) => ActionNapi::Translate(*x as f64, y.map(|y| y as f64)),
+            Self::Scale(x, y) => ActionNapi::Scale(*x as f64, y.map(|y| y as f64)),
+            Self::Rotate(angle, origin) => {
+                ActionNapi::Rotate(*angle as f64, origin.map(|(x, y)| (x as f64, y as f64)))
+            }
+            Self::SkewX(x) => ActionNapi::SkewX(*x as f64),
+            Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -322,9 +396,29 @@ impl<'input> Action<'input> {
     }
 
     #[cfg(feature = "napi")]
+    #[allow(clippy::many_single_char_names)]
     /// Converts to a napi-compatible type
     pub fn from_napi(other: ActionNapi) -> Action<'static> {
         match other {
+            ActionNapi::Attr { name, value } => Action::Attr {
+                name: name.into(),
+                value: value.into(),
+            },
+            ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::Style { property, value } => Action::Style {
+                property: property.into(),
+                value: value.into(),
+            },
+            ActionNapi::Matrix(a, b, c, d, e, f) => {
+                Action::Matrix(a as f32, b as f32, c as f32, d as f32, e as f32, f as f32)
+            }
+            ActionNapi::Translate(x, y) => Action::Translate(x as f32, y.map(|y| y as f32)),
+            ActionNapi::Scale(x, y) => Action::Scale(x as f32, y.map(|y| y as f32)),
+            ActionNapi::Rotate(angle, origin) => {
+                Action::Rotate(angle as f32, origin.map(|(x, y)| (x as f32, y as f32)))
+            }
+            ActionNapi::SkewX(x) => Action::SkewX(x as f32),
+            ActionNapi::SkewY(y) => Action::SkewY(y as f32),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

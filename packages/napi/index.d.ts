@@ -2,10 +2,23 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
-  | { type: 'Forget' }
-  | { type: 'Select', field0: string }
-  | { type: 'SelectMore', field0: string }
-  | { type: 'Deselect' }
+  | { type: 'Attr', /** The qualified name of the attribute */
+  name: string, /** The value of the attribute */
+value: string }
+| { type: 'Class', field0: string }
+| { type: 'Style', /** The CSS name of the property */
+property: string, /** The CSS value of the property */
+value: string }
+| { type: 'Matrix', field0: number, field1: number, field2: number, field3: number, field4: number, field5: number }
+| { type: 'Translate', field0: number, field1?: number }
+| { type: 'Scale', field0: number, field1?: number }
+| { type: 'Rotate', field0: number, field1?: [number, number] }
+| { type: 'SkewX', field0: number }
+| { type: 'SkewY', field0: number }
+| { type: 'Forget' }
+| { type: 'Select', field0: string }
+| { type: 'SelectMore', field0: string }
+| { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
 export interface AttrModelNapi {
@@ -696,6 +709,79 @@ export declare class Actor {
    * If the action fails
    */
   dispatch(action: ActionNapi): void
+  /**
+   * Sets the attribute to selected elements.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  attr(name: string, value: string): void
+  /**
+   * Toggles the class-name on selected elements.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  class(name: string): void
+  /**
+   * Appends the style to the selected elements style list.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   * When the given property and/or value is invalid.
+   */
+  style(property: string, value: string): void
+  /**
+   * Appends the `matrix` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  matrix(a: number, b: number, c: number, d: number, e: number, f: number): void
+  /**
+   * Appends the `translate` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  translate(x: number, y?: number | undefined | null): void
+  /**
+   * Appends the `scale` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  scale(x: number, y?: number | undefined | null): void
+  /**
+   * Appends the `rotate` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  rotate(angle: number, origin?: [number, number] | undefined | null): void
+  /**
+   * Appends the `skewX` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  skewX(angle: number): void
+  /**
+   * Appends the `skewY` function to the element's `transform` attribute.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  skewY(angle: number): void
   /** Removes OXVG state from the document */
   forget(): void
   /**
