@@ -14,7 +14,8 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["geometry", "parse", "format", "optimise"]
+default = ["geometry", "parse", "format", "boolean", "optimise"]
+boolean = ["geometry"]
 format = ["ryu", "itertools"]
 geometry = []
 jsonschema = ["schemars", "serde"]

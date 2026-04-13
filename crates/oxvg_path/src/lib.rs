@@ -37,6 +37,8 @@ pub mod geometry;
 mod gjk_intersection;
 #[cfg(feature = "geometry")]
 pub(crate) mod math;
+#[cfg(feature = "optimise")]
+pub mod optimize;
 #[cfg(feature = "parse")]
 pub mod parser;
 pub mod paths;
