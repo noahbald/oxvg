@@ -1,5 +1,5 @@
-//! Path representations with positional information
-use crate::command::Position;
+//! Path representations with positional information, used for optimisations
+use crate::position::Position;
 
 #[derive(Debug, Clone)]
 /// Equivalent of a [Path], with positional information

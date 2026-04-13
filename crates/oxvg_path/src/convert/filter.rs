@@ -5,10 +5,10 @@ mod remove;
 mod round;
 
 use crate::{
-    command::{self, Position},
-    convert,
+    command, convert,
     geometry::{Curve, Point},
-    positioned::Path,
+    paths::positioned::Path,
+    position::Position,
 };
 
 use super::StyleInfo;

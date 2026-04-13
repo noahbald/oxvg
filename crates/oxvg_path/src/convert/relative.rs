@@ -1,4 +1,4 @@
-use crate::{command, geometry::Point, positioned, Path};
+use crate::{command, geometry::Point, paths::positioned, position::Position, Path};
 
 /// Convert absolute path data coordinates to relative coordinates.
 pub fn relative(path: Path) -> positioned::Path {
@@ -31,7 +31,7 @@ fn convert_command_to_relative(
     start: &mut Point,
     cursor: &mut Point,
     is_first: bool,
-) -> command::Position {
+) -> Position {
     let base = *cursor;
     match command {
         command::Data::MoveBy(a) => {
@@ -154,7 +154,7 @@ fn convert_command_to_relative(
             return convert_command_to_relative(*command, start, cursor, is_first);
         }
     }
-    command::Position {
+    Position {
         command,
         start: base,
         end: *cursor,

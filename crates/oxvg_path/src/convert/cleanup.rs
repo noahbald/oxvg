@@ -1,8 +1,4 @@
-use crate::{
-    command::{self, Position},
-    geometry::Point,
-    positioned::Path,
-};
+use crate::{command, geometry::Point, paths::positioned::Path, position::Position};
 
 /// Cleans redundancy from unpositioned paths.
 pub fn cleanup_unpositioned(path: &mut crate::Path) {

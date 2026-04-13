@@ -1,9 +1,7 @@
-//! Definitions for the commands of path data.
-use crate::{
-    geometry::{Curve, Point},
-    math,
-};
-use std::fmt::Write;
+//! Path data representations for SVG paths
+use std::fmt::Write as _;
+
+use crate::math;
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -102,19 +100,6 @@ pub enum ID {
     None,
     /// An implicit command, which should match the previous command
     Implicit(Box<ID>),
-}
-
-#[derive(Debug, Clone)]
-/// The equivalent of a [Path](crate::Path), but with additional positional information
-pub struct Position {
-    /// The path command.
-    pub command: Data,
-    /// The base point of the command
-    pub start: Point,
-    /// The coords the the command goes to
-    pub end: Point,
-    /// If available, the equivalent [`SmoothBezierBy`](crate::command::Data::SmoothBezierBy) args
-    pub s_data: Option<Curve>,
 }
 
 impl Data {
@@ -293,6 +278,34 @@ impl Data {
     }
 }
 
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.id().fmt(f)?;
+        let mut previous_option = None;
+        self.args()
+            .iter()
+            .try_for_each(|current| -> std::fmt::Result {
+                let current = *current;
+                let s = short_number(current);
+                #[allow(clippy::float_cmp)] // This is fine for formatting
+                if let Some(previous) = previous_option {
+                    if current >= 1.0
+                        || (current == 0.0)
+                        || (previous == 0.0 && current >= 0.0)
+                        || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
+                        || (current > 0.0 && current < 1e-4)
+                    {
+                        f.write_char(' ')?;
+                    }
+                }
+                s.fmt(f)?;
+                previous_option = Some(current);
+                Ok(())
+            })?;
+        Ok(())
+    }
+}
+
 impl From<(&ID, [f64; 7])> for Data {
     fn from(value: (&ID, [f64; 7])) -> Self {
         let (command_id, args) = value;
@@ -328,62 +341,6 @@ impl From<(&ID, [f64; 7])> for Data {
             ID::Implicit(command) => Data::Implicit(Box::new(Data::from((command.as_ref(), args)))),
         }
     }
-}
-
-impl std::fmt::Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.id().fmt(f)?;
-        let mut previous_option = None;
-        self.args()
-            .iter()
-            .try_for_each(|current| -> std::fmt::Result {
-                let current = *current;
-                let s = short_number(current);
-                #[allow(clippy::float_cmp)] // This is fine for formatting
-                if let Some(previous) = previous_option {
-                    if current >= 1.0
-                        || (current == 0.0)
-                        || (previous == 0.0 && current >= 0.0)
-                        || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
-                        || (current > 0.0 && current < 1e-4)
-                    {
-                        f.write_char(' ')?;
-                    }
-                }
-                s.fmt(f)?;
-                previous_option = Some(current);
-                Ok(())
-            })?;
-        Ok(())
-    }
-}
-
-/// Formats a command's argument into it's shortest possible form
-pub fn short_number<F>(n: F) -> String
-where
-    F: ryu::Float,
-{
-    let mut s = ryu::Buffer::new().format(n).to_owned();
-    // Remove trailing zeros
-    if s.contains('.') {
-        s = match s.strip_suffix('0') {
-            Some(s) => s.into(),
-            None => s,
-        };
-    }
-    if s == "0." || s == "-0." {
-        return String::from("0");
-    }
-    if s.ends_with('.') {
-        s.pop();
-    }
-    // Remove leading zero
-    if s.starts_with("0.") {
-        s.remove(0);
-    } else if s.starts_with("-0.") {
-        s.remove(1);
-    }
-    s
 }
 
 impl ID {
@@ -514,4 +471,32 @@ impl std::fmt::Display for ID {
         f.write_char(self.into())?;
         Ok(())
     }
+}
+
+/// Formats a command's argument into it's shortest possible form
+pub fn short_number<F>(n: F) -> String
+where
+    F: ryu::Float,
+{
+    let mut s = ryu::Buffer::new().format(n).to_owned();
+    // Remove trailing zeros
+    if s.contains('.') {
+        s = match s.strip_suffix('0') {
+            Some(s) => s.into(),
+            None => s,
+        };
+    }
+    if s == "0." || s == "-0." {
+        return String::from("0");
+    }
+    if s.ends_with('.') {
+        s.pop();
+    }
+    // Remove leading zero
+    if s.starts_with("0.") {
+        s.remove(0);
+    } else if s.starts_with("-0.") {
+        s.remove(1);
+    }
+    s
 }

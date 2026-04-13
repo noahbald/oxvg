@@ -1,8 +1,4 @@
-use crate::{
-    command::{self, Position},
-    convert,
-    positioned::Path,
-};
+use crate::{command, convert, paths::positioned::Path, position::Position};
 
 /// Writes data in the shortest form using absolute or relative coordinates.
 ///

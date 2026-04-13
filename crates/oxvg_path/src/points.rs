@@ -4,7 +4,9 @@ use core::f64;
 use crate::{
     command::{Data, ID},
     convert::{self, filter, to_absolute},
-    geometry, positioned, Path,
+    geometry,
+    paths::positioned,
+    Path,
 };
 
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -270,7 +272,7 @@ impl Point {
 
         for (i, point) in list.iter().enumerate() {
             while lower.len() >= 2
-                && geometry::Point::cross(lower[lower.len() - 2], lower[lower.len() - 1], point)
+                && geometry::Point::cross(lower[lower.len() - 2], lower[lower.len() - 1], *point)
                     <= 0.0
             {
                 lower.pop();
@@ -288,7 +290,7 @@ impl Point {
 
         for (i, point) in list.iter().enumerate().rev() {
             while upper.len() >= 2
-                && geometry::Point::cross(upper[upper.len() - 2], upper[upper.len() - 1], point)
+                && geometry::Point::cross(upper[upper.len() - 2], upper[upper.len() - 1], *point)
                     <= 0.0
             {
                 upper.pop();
@@ -322,8 +324,7 @@ impl Point {
 
     /// Gets the support point of the Minowski difference of two shapes.
     pub fn get_support(&self, other: &Point, direction: geometry::Point) -> geometry::Point {
-        self.support_point(direction)
-            .sub(other.support_point(direction.minus()))
+        self.support_point(direction) - (other.support_point(direction.minus()))
     }
 
     /// Get the supporting point of a polygon, the furthest point in a given direction.

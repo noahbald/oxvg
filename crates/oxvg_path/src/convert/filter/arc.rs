@@ -1,6 +1,7 @@
 //! Methods for filtering arc commands
 use crate::{
-    command::{self, Position},
+    command,
+    position::Position,
     convert::{self, filter},
     geometry::{Circle, Curve, MakeArcs, Point},
     Path,

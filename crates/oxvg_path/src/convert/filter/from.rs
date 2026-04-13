@@ -1,5 +1,6 @@
 use crate::{
-    command::{self, Position},
+    command,
+    position::Position,
     convert::{self, filter, StyleInfo},
     geometry::Curve,
 };
