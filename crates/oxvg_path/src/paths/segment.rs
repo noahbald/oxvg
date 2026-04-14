@@ -7,11 +7,13 @@
 //! - Translations of paths and segments
 use crate::geometry::{Arc, Curve, Point};
 
+#[cfg(feature = "boolean")]
 mod boolean;
 mod convert;
 mod simplify;
 
-/// Use `CurveError` for tolerance
+/// Tolerance for converting curves to polygons
+#[deprecated = "Use [`CurveError`] for tolerance"]
 pub const DEFAULT_TOLERANCE: f64 = 1e-6;
 
 #[derive(Debug, PartialEq)]
@@ -20,7 +22,7 @@ pub enum Data {
     /// A line commend
     LineTo(Point),
     /// A bezier command
-    QuadTo(Curve),
+    CurveTo(Curve),
     /// An arc command
     ArcTo(Arc),
 }
@@ -40,7 +42,7 @@ impl Data {
     pub fn end_point(&self) -> Point {
         match self {
             Self::LineTo(point) => *point,
-            Self::QuadTo(curve) => curve.end_point(),
+            Self::CurveTo(curve) => curve.end_point(),
             Self::ArcTo(arc) => arc.end_point(),
         }
     }
