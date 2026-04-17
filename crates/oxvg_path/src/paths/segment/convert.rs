@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use crate::{
     command,
     geometry::{Arc, Curve, Point, Polygon},
-    paths::segment::{Data, Path, Segment, DEFAULT_TOLERANCE},
+    paths::segment::{Data, Path, Segment, Tolerance},
 };
 
 impl Data {
@@ -170,6 +170,7 @@ impl Segment {
         iterator: &mut impl Iterator<Item = &'a command::Data>,
         start: &mut Point,
         cursor: &mut Point,
+        tolerance: &Tolerance,
     ) -> Option<Self> {
         let mut result = Segment {
             start: *start,
@@ -195,22 +196,25 @@ impl Segment {
             return Some(result);
         }
 
-        result.closed = *start == result.data().last().unwrap().end_point();
+        let tolerance_squared = tolerance.positional * tolerance.positional;
+        result.closed =
+            start.distance_squared(&result.data().last().unwrap().end_point()) < tolerance_squared;
         Some(result)
     }
 
     /// Coverts the segment to a polygon, dividing curves and arcs up to some tolerance.
-    pub fn to_polygon(&self, tolerance: f64) -> Polygon {
+    pub fn to_polygon(&self, tolerance: &Tolerance) -> Polygon {
         let mut points = vec![*self.start()];
         for item in self.data() {
             match item {
                 Data::LineTo(point) => points.push(*point),
                 Data::CurveTo(curve) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_curve(&mut points, start, *curve, tolerance)
+                    Polygon::from_curve(&mut points, start, *curve, &tolerance.square())
                 }
                 Data::ArcTo(arc) => {
-                    todo!("{arc:?}")
+                    let start = points.last().copied().unwrap();
+                    Polygon::from_arc(&mut points, start, *arc, &tolerance.square())
                 }
             }
         }
@@ -221,21 +225,15 @@ impl Segment {
     }
 }
 
-impl From<Segment> for Polygon {
-    fn from(value: Segment) -> Self {
-        value.to_polygon(DEFAULT_TOLERANCE)
-    }
-}
-
-impl From<&crate::Path> for Path {
-    fn from(value: &crate::Path) -> Self {
+impl Path {
+    pub fn from_svg(value: &crate::Path, tolerance: &Tolerance) -> Self {
         let start = &mut Point::default();
         let cursor = &mut Point::default();
 
         let mut result = Path(vec![]);
         let mut iterator = value.0.iter().peekable();
         while iterator.peek().is_some() {
-            if let Some(component) = Segment::take(&mut iterator, start, cursor) {
+            if let Some(component) = Segment::take(&mut iterator, start, cursor, tolerance) {
                 result.0.push(component);
             }
         }
@@ -243,9 +241,10 @@ impl From<&crate::Path> for Path {
     }
 }
 
-impl Into<crate::Path> for &Path {
-    fn into(self) -> crate::Path {
+impl Path {
+    pub fn to_svg(&self, tolerance: &Tolerance) -> crate::Path {
         let mut commands = vec![];
+        let tolerance_squared = tolerance.positional * tolerance.positional;
 
         let mut end = Point::default();
         for segment in &self.0 {
@@ -283,11 +282,12 @@ impl Into<crate::Path> for &Path {
                         let start_control = curve.start_control();
                         let end_control = curve.end_control();
                         last_control = Some(end_control);
-                        let is_quadratic = start_control.distance(&end_control) < DEFAULT_TOLERANCE;
+                        let is_quadratic =
+                            start_control.distance_squared(&end_control) < tolerance_squared;
 
                         if is_quadratic {
                             let is_smooth = control.is_some_and(|c| {
-                                c.reflect(end).distance(&start_control) < DEFAULT_TOLERANCE
+                                c.reflect(end).distance_squared(&start_control) < tolerance_squared
                             });
 
                             if is_smooth {
@@ -313,7 +313,8 @@ impl Into<crate::Path> for &Path {
                         } else {
                             let end_control_by = end_control - start;
                             let is_smooth = control.is_some_and(|c| {
-                                c.reflect(start).distance(&start_control) < DEFAULT_TOLERANCE
+                                c.reflect(start).distance_squared(&start_control)
+                                    < tolerance_squared
                             });
 
                             if is_smooth {

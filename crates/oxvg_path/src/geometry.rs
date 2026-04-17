@@ -29,7 +29,7 @@ pub struct ErrorOptions {
 }
 
 /// When running calculations against curves and arcs, the level of error tolerated
-#[deprecated = "Use `[CurveError]`"]
+#[deprecated = "Use [`oxvg_path::Tolerance`]"]
 pub type MakeArcs = ErrorOptions;
 
 impl Default for ErrorOptions {

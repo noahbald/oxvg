@@ -1,6 +1,7 @@
 use crate::{
     command,
     geometry::{Circle, ErrorOptions, Line, Point},
+    paths::segment::ToleranceSquared,
     position::Position,
 };
 
@@ -101,12 +102,12 @@ impl Curve {
     }
 
     /// Returns whether the arc fits on a straight line.
-    pub fn is_straight(&self, error: f64) -> bool {
-        Self::is_data_straight(&self.0, error)
+    pub fn is_straight(&self, tolerance: &ToleranceSquared) -> bool {
+        Self::is_data_straight(&self.0, tolerance)
     }
 
     /// Returns whether the arc fits on a straight line
-    pub fn is_data_straight(args: &[f64], error: f64) -> bool {
+    pub fn is_data_straight(args: &[f64], tolerance: &ToleranceSquared) -> bool {
         // Get line equation a·x + b·y + c = 0 coefficients a, b (c = 0) by start and end points.
         let i = args.len() - 2;
         let a = -args[i + 1]; // y1 − y2 (y1 = 0)
@@ -120,7 +121,7 @@ impl Curve {
 
         // Distance from point `(x0, y0)` to the line is `sqrt((c − a·x0 − b·y0)² / (a² + b²))`
         for i in (0..=(i - 2)).rev().step_by(2) {
-            if f64::sqrt(f64::powi(a * args[i] + b * args[i + 1], 2) * d) > error {
+            if (f64::powi(a * args[i] + b * args[i + 1], 2) * d) > **tolerance {
                 return false;
             }
         }
@@ -133,17 +134,17 @@ impl Curve {
     }
 
     /// Returns the distance of the start and end control points.
-    pub fn control_point_distance(&self, start: Point) -> (f64, f64) {
+    pub fn control_point_distance_squared(&self, start: Point) -> (f64, f64) {
         let end = self.end_point();
         (
-            control_point_distance(self.start_control(), start, end),
-            control_point_distance(self.end_control(), start, end),
+            control_point_distance_squared(self.start_control(), start, end),
+            control_point_distance_squared(self.end_control(), start, end),
         )
     }
 
     /// Divides the curve into two halves drawn from some start point. Returns
     /// the left half and the right half with their starting points.
-    pub fn subdivide(self, start: Point) -> ((Point, Curve), (Point, Curve)) {
+    pub fn subdivide(&self, start: Point) -> ((Point, Curve), (Point, Curve)) {
         let curve = self.0;
         let left = [
             start.x().midpoint(curve[0]),
@@ -192,16 +193,16 @@ impl Curve {
     }
 }
 
-fn control_point_distance(control: Point, start: Point, end: Point) -> f64 {
+fn control_point_distance_squared(control: Point, start: Point, end: Point) -> f64 {
     let vector = end - start;
     let dot = vector.dot(&vector);
     if dot == 0.0 {
-        return control.distance(&start);
+        return control.distance_squared(&start);
     }
 
     let t = ((control.0[0] - start.0[0]) * vector.0[0] + (control.0[1] - start.0[1]) * vector.0[1])
         / dot;
     let t = t.clamp(0.0, 1.0);
     let projection = Point([start.0[0] + t * vector.0[0], start.0[1] + t * vector.0[1]]);
-    control.distance(&projection)
+    control.distance_squared(&projection)
 }

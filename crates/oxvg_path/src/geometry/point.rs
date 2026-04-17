@@ -3,10 +3,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::{
-    geometry::{Curve, Line},
-    math,
-};
+use crate::geometry::{Curve, Line};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 /// A point is an `[x, y]` coordinate. Points are the atomic unit of geometry.
@@ -139,8 +136,15 @@ impl Point {
     }
 
     /// Returns the distance of the point from `[0, 0]`.
+    #[inline]
     pub fn len(&self) -> f64 {
-        math::hypot(self.x(), self.y())
+        self.len_squared().sqrt()
+    }
+
+    /// Returns the squared distance of the point from `[0, 0]`.
+    /// Cheaper than [`Self::len`] by avoiding square-root operation.
+    pub fn len_squared(&self) -> f64 {
+        self.dot(self)
     }
 
     /// Returns the andle of the point from `[0, 0]` in degrees.
@@ -171,8 +175,15 @@ impl Point {
     }
 
     /// Returns the distance between two points.
+    #[inline]
     pub fn distance(&self, other: &Self) -> f64 {
-        (self - other).len()
+        self.distance_squared(other).sqrt()
+    }
+
+    /// Returns the distance between two points.
+    /// Cheaper than [`Self::distance`] by avoiding sqrt operation.
+    pub fn distance_squared(&self, other: &Self) -> f64 {
+        (self - other).len_squared()
     }
 
     pub fn midpoint(&self, other: &Self) -> Self {

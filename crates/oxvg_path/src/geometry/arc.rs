@@ -36,12 +36,20 @@ impl Arc {
         self.0[6]
     }
 
-    pub fn end_point(&self) -> Point {
-        let end_angle = self.start_angle() + self.sweep_angle();
+    pub fn point_at_angle(&self, angle_radians: f64) -> Point {
+        let end_angle = self.start_angle() + angle_radians;
         let radii = self.radii();
         let start = Point([radii.x() * end_angle.cos(), radii.y() * end_angle.sin()]);
 
         self.center() + start.rotate(self.x_rotation())
+    }
+
+    pub fn mid_point(&self) -> Point {
+        self.point_at_angle(self.start_angle().midpoint(self.sweep_angle()))
+    }
+
+    pub fn end_point(&self) -> Point {
+        self.point_at_angle(self.sweep_angle())
     }
 
     /// Converts `a` command parameters to [`Arc`].
@@ -120,6 +128,19 @@ impl Arc {
             sweep_angle,
             arc_to[2],
         ]))
+    }
+
+    pub fn subdivide(&self, start: Point) -> ((Point, Arc), (Point, Arc)) {
+        let mut left = *self;
+        left.0[5] /= 2.0;
+
+        let mut right = left;
+        right.0[4] += right.0[5];
+        ((start, left), (self.mid_point(), right))
+    }
+
+    pub fn is_straight(&self, error: f64) -> bool {
+        self.radii().x() < error || self.radii().y() < error
     }
 }
 

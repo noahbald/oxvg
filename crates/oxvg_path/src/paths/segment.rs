@@ -5,6 +5,8 @@
 //! - Simplification of paths and segments
 //! - Boolean operations of paths and segments
 //! - Translations of paths and segments
+use std::ops::Deref;
+
 use crate::geometry::{Arc, Curve, Point};
 
 #[cfg(feature = "boolean")]
@@ -12,9 +14,29 @@ mod boolean;
 mod convert;
 mod simplify;
 
-/// Tolerance for converting curves to polygons
-#[deprecated = "Use [`CurveError`] for tolerance"]
-pub const DEFAULT_TOLERANCE: f64 = 1e-6;
+/// Tolerance for converting between SVG, Segments, and Polygons
+pub struct Tolerance {
+    /// The level of tolerance when comparing the error between distances
+    pub positional: f64,
+    /// The level of tolerance when comparing the error between angles
+    pub angular: f64,
+}
+
+impl Tolerance {
+    pub fn square(&self) -> ToleranceSquared {
+        ToleranceSquared(self.positional * self.positional)
+    }
+}
+
+pub struct ToleranceSquared(pub f64);
+
+impl Deref for ToleranceSquared {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, PartialEq)]
 /// A reduced representation of an SVG path command
@@ -32,7 +54,7 @@ pub enum Data {
 pub struct Segment {
     start: Point,
     pub(crate) data: Vec<Data>,
-    closed: bool,
+    pub(crate) closed: bool,
 }
 
 /// A segment path is a set of disjointed shaped, each composed of a set of commands

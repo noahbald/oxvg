@@ -1,8 +1,9 @@
 use crate::{
     command,
-    position::Position,
     convert::{self, filter, StyleInfo},
     geometry::Curve,
+    paths::segment::ToleranceSquared,
+    position::Position,
 };
 
 pub fn straight_curve_to_line(
@@ -18,19 +19,25 @@ pub fn straight_curve_to_line(
     }
     let filter::State { error, saggita, .. } = state;
     match item.command {
-        command::Data::CubicBezierBy(ref a) if Curve::is_data_straight(a, *error) => {
+        command::Data::CubicBezierBy(ref a)
+            if Curve::is_data_straight(a, &ToleranceSquared(error * error)) =>
+        {
             make_specific_longhand(next, &command::ID::SmoothBezierBy, a);
             item.command = command::Data::LineBy([a[4], a[5]]);
             item.s_data = None;
         }
         command::Data::SmoothBezierBy(ref a)
-            if s_data.as_ref().is_some_and(|s| s.is_straight(*error)) =>
+            if s_data
+                .as_ref()
+                .is_some_and(|s| s.is_straight(&ToleranceSquared(error * error))) =>
         {
             make_specific_longhand(next, &command::ID::SmoothBezierBy, a);
             item.command = command::Data::LineBy([a[2], a[3]]);
             item.s_data = None;
         }
-        command::Data::QuadraticBezierBy(ref a) if Curve::is_data_straight(a, *error) => {
+        command::Data::QuadraticBezierBy(ref a)
+            if Curve::is_data_straight(a, &ToleranceSquared(error * error)) =>
+        {
             make_specific_longhand(next, &command::ID::SmoothQuadraticBezierBy, a);
             item.command = command::Data::LineBy([a[2], a[3]]);
             item.s_data = None;
