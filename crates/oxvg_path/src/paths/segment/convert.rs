@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use crate::{
     command,
     geometry::{Arc, Curve, Point, Polygon},
@@ -210,11 +208,11 @@ impl Segment {
                 Data::LineTo(point) => points.push(*point),
                 Data::CurveTo(curve) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_curve(&mut points, start, *curve, &tolerance.square())
+                    Polygon::from_curve(&mut points, start, curve, &tolerance.square())
                 }
                 Data::ArcTo(arc) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_arc(&mut points, start, *arc, &tolerance.square())
+                    Polygon::from_arc(&mut points, start, arc, &tolerance.square())
                 }
             }
         }
@@ -282,8 +280,10 @@ impl Path {
                         let start_control = curve.start_control();
                         let end_control = curve.end_control();
                         last_control = Some(end_control);
+                        let implied_q = start + (start_control - start) * 1.5;
+                        let expected_cp2 = end + (implied_q - end) * (2.0 / 3.0);
                         let is_quadratic =
-                            start_control.distance_squared(&end_control) < tolerance_squared;
+                            expected_cp2.distance_squared(&end_control) < tolerance_squared;
 
                         if is_quadratic {
                             let is_smooth = control.is_some_and(|c| {
@@ -354,24 +354,12 @@ impl Path {
                         }
                     }
                     Data::ArcTo(arc) => {
-                        let a_to = [
-                            arc.radii().x(),
-                            arc.radii().y(),
-                            arc.x_rotation(),
-                            if arc.sweep_angle().abs() > PI {
-                                1.0
-                            } else {
-                                0.0
-                            },
-                            if arc.sweep_angle() > 0.0 { 1.0 } else { 0.0 },
-                            end.x(),
-                            end.y(),
-                        ];
-                        let mut a_by = a_to;
+                        let arc_to = arc.to_arc_to();
+                        let mut a_by = arc_to;
                         a_by[5] = by.x();
                         a_by[6] = by.y();
                         let a_by = command::Data::ArcBy(a_by);
-                        let a_to = command::Data::ArcTo(a_to);
+                        let a_to = command::Data::ArcTo(arc_to);
                         compactest(a_by, a_to)
                     }
                 };

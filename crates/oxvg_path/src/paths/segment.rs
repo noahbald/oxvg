@@ -38,7 +38,7 @@ impl Deref for ToleranceSquared {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A reduced representation of an SVG path command
 pub enum Data {
     /// A line commend
@@ -49,14 +49,15 @@ pub enum Data {
     ArcTo(Arc),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A segment represents some contiguous shape made from a set of commands
 pub struct Segment {
-    start: Point,
+    pub(crate) start: Point,
     pub(crate) data: Vec<Data>,
     pub(crate) closed: bool,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 /// A segment path is a set of disjointed shaped, each composed of a set of commands
 pub struct Path(pub Vec<Segment>);
 

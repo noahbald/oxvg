@@ -65,6 +65,7 @@ precomputed-hash = "0.1"
 rayon = "1.11"
 rcdom = { package = "markup5ever_rcdom", version = "0.36.0" }
 regex = "1.11"
+robust = "1.2"
 roxmltree = "0.20"
 schemars = { version = "1.2.1" }
 selectors = "0.36"
@@ -73,6 +74,7 @@ serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
 smallvec = "1.13.2"
+splay_tree = { git = "https://github.com/noahbald/splay_tree.git", branch = "feat/inverse-find-bound-methods" }
 string_cache = "0.9"
 tendril = "0.5"
 tokio = "1.48"

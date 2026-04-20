@@ -1,4 +1,4 @@
-use crate::geometry::{Curve, ErrorOptions, Line, Point};
+use crate::geometry::{line::Intersection, Curve, ErrorOptions, Line, Point};
 
 #[derive(Debug, Clone)]
 /// A circle shape
@@ -21,7 +21,9 @@ impl Circle {
             m2 + Point([m2.y() - mid_point.y(), -(m2.x() - mid_point.x())]),
         ]);
 
-        let center = l1.intersection(&l2)?;
+        let Intersection::Intersection(center) = l1.intersection(&l2) else {
+            return None;
+        };
         let radius = center.distance(&Point([0.0; 2]));
         let tolerance = (make_arcs.threshold * error).min((make_arcs.tolerance * radius) / 100.0);
 

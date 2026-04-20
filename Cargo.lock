@@ -1449,10 +1449,12 @@ dependencies = [
  "napi-derive",
  "oxvg_parse",
  "pretty_assertions",
+ "robust",
  "ryu",
  "schemars 1.2.1",
  "serde",
  "serde-wasm-bindgen",
+ "splay_tree",
  "tsify",
  "wasm-bindgen",
 ]
@@ -1867,6 +1869,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
+
+[[package]]
 name = "roxmltree"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2134,6 +2142,11 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+
+[[package]]
+name = "splay_tree"
+version = "0.4.0"
+source = "git+https://github.com/noahbald/splay_tree.git?branch=feat%2Finverse-find-bound-methods#753a50f172b63df945c92bba63bc249b4371e350"
 
 [[package]]
 name = "stable_deref_trait"

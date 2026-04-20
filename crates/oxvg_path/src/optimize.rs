@@ -1,7 +1,7 @@
 //! Methods for optimizing SVG paths
 
 use crate::{
-    paths::segment::{self, Tolerance},
+    paths::segment::{self, Data, Tolerance},
     Path,
 };
 
@@ -59,6 +59,12 @@ bitflags! {
     }
 }
 
+impl Default for Options {
+    fn default() -> Self {
+        Options::empty()
+    }
+}
+
 impl Path {
     // TODO: Optimisation options based on `StyleInfo`
     /// Returns an optimised version of the input path
@@ -75,24 +81,25 @@ impl Path {
     /// use oxvg_path::optimize::{optimize, Options}
     /// use oxvg_path::parser::Parse as _;
     ///
-    /// let mut path = Path::parse_string("M 10,50 L 10,50").unwrap();
-    /// let options = Options::empty();
+    /// let mut path = Path::parse_string("M 10,30 L 10,50 L 30 30 H 10").unwrap();
+    /// let options = Options::default();
     ///
-    /// run(&mut path, &options, &style_info);
-    /// assert_eq!(&path.to_string(), "M10 50h0");
+    /// path = path.optimize(options, &Tolerance::default());
+    /// assert_eq!(&path.to_string(), "M10 30V50l20-20H10");
     /// ```
     pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
         let mut segments = segment::Path::from_svg(self, &tolerance);
 
         if options.contains(Options::CloseSegments) {
-            for segment in segments.0.iter_mut() {
+            for segment in segments.0.iter_mut().filter(|s| !s.closed) {
+                segment.data.push(Data::LineTo(segment.start));
                 segment.closed = true
             }
         }
 
         if options.contains(Options::UnionSegments) {
             // TODO: Boolean union each closed segment
-            //       - Skip when markers are present
+            segments = segments.non_zero(tolerance);
         }
 
         segments.simplify(options, &tolerance);
