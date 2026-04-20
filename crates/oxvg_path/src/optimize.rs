@@ -1,7 +1,7 @@
 //! Methods for optimizing SVG paths
 
 use crate::{
-    paths::segment::{self, Tolerance},
+    paths::segment::{self, Data, Tolerance},
     Path,
 };
 
@@ -85,14 +85,15 @@ impl Path {
         let mut segments = segment::Path::from_svg(self, &tolerance);
 
         if options.contains(Options::CloseSegments) {
-            for segment in segments.0.iter_mut() {
+            for segment in segments.0.iter_mut().filter(|s| !s.closed) {
+                segment.data.push(Data::LineTo(segment.start));
                 segment.closed = true
             }
         }
 
         if options.contains(Options::UnionSegments) {
             // TODO: Boolean union each closed segment
-            //       - Skip when markers are present
+            segments = segments.unite_self(tolerance);
         }
 
         segments.simplify(options, &tolerance);

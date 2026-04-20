@@ -38,7 +38,7 @@ impl Line {
         let other_constant = other.constant();
         let cross = Point([
             (self_normal.y() * other_constant - other_normal.y() * self_constant) / denom,
-            (self_normal.x() * other_constant - other_normal.x() * self_constant) / -denom,
+            (other_normal.x() * self_constant - self_normal.x() * other_constant) / denom,
         ]);
         if cross.is_nan() || !cross.is_finite() {
             None

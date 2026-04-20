@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::geometry::Point;
+use crate::{geometry::Point, paths::segment::ToleranceSquared};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// An arc curve to some point.
@@ -130,17 +130,63 @@ impl Arc {
         ]))
     }
 
-    pub fn subdivide(&self, start: Point) -> ((Point, Arc), (Point, Arc)) {
-        let mut left = *self;
-        left.0[5] /= 2.0;
-
-        let mut right = left;
-        right.0[4] += right.0[5];
-        ((start, left), (self.mid_point(), right))
+    pub fn subdivide(&self) -> (Arc, Arc) {
+        self.subdivide_t(0.5)
     }
 
     pub fn is_straight(&self, error: f64) -> bool {
         self.radii().x() < error || self.radii().y() < error
+    }
+
+    pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+        let local = at - self.center();
+        let unrotated = local.rotate(-self.x_rotation());
+        let angle = unrotated
+            .y()
+            .atan2(unrotated.x() / self.radii().x() * self.radii().y());
+        let mut delta = angle - self.start_angle();
+        if self.sweep_angle() > 0.0 {
+            delta = delta.rem_euclid(2.0 * PI);
+        } else {
+            delta = -((-delta).rem_euclid(2.0 * PI));
+        }
+        let t = (delta / self.sweep_angle()).clamp(0.0, 1.0);
+        if self
+            .point_at_angle(self.start_angle() + t * self.sweep_angle())
+            .distance_squared(&at)
+            <= **tolerance
+        {
+            Some(t)
+        } else {
+            None
+        }
+    }
+
+    pub fn subdivide_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<(Arc, Arc)> {
+        Some(self.subdivide_t(self.t_at(at, tolerance)?))
+    }
+
+    pub fn subdivide_t(&self, t: f64) -> (Arc, Arc) {
+        let split_angle = self.start_angle() + t * self.sweep_angle();
+
+        let mut left = *self;
+        left.0[5] *= t;
+
+        let mut right = *self;
+        right.0[4] = split_angle;
+        right.0[5] *= 1.0 - t;
+
+        (left, right)
+    }
+
+    pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
+        debug_assert!(t1 >= 0.0 && t1 <= 1.0);
+        debug_assert!(t2 >= 0.0 && t2 <= 1.0);
+        debug_assert!(t1 <= t2);
+        let mut middle = *self;
+        middle.0[4] = self.start_angle() + t1 * self.sweep_angle();
+        middle.0[5] = (t2 - t1) * self.sweep_angle();
+        middle
     }
 }
 

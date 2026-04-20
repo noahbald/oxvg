@@ -1,4 +1,6 @@
 //! Different path representations
+#[cfg(feature = "geometry")]
+pub mod events;
 #[cfg(feature = "optimise")]
 #[deprecated]
 pub mod positioned;

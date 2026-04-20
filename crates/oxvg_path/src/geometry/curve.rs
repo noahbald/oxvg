@@ -144,31 +144,36 @@ impl Curve {
 
     /// Divides the curve into two halves drawn from some start point. Returns
     /// the left half and the right half with their starting points.
-    pub fn subdivide(&self, start: Point) -> ((Point, Curve), (Point, Curve)) {
-        let curve = self.0;
-        let left = [
-            start.x().midpoint(curve[0]),
-            start.y().midpoint(curve[1]),
-            curve[0].midpoint(curve[2]),
-            curve[1].midpoint(curve[3]),
-            curve[2].midpoint(curve[4]),
-            curve[3].midpoint(curve[5]),
-        ];
+    pub fn subdivide(&self, start: Point) -> (Curve, Point, Curve) {
+        self.subdivide_t(start, 0.5)
+    }
 
-        let right = [
-            left[2].midpoint(left[4]),
-            left[3].midpoint(left[5]),
-            left[4],
-            left[5],
-            curve[4],
-            curve[5],
-        ];
-        let middle = Point([
-            (((left[0] + left[2]) / 2.0) + right[0]) / 2.0,
-            (((left[1] + left[3]) / 2.0) + right[1]) / 2.0,
-        ]);
+    pub fn subdivide_at(
+        &self,
+        start: Point,
+        at: Point,
+        tolerance: &ToleranceSquared,
+    ) -> Option<(Curve, Curve)> {
+        let result = self.subdivide_t(start, self.t_at(start, at, tolerance)?);
+        Some((result.0, result.2))
+    }
 
-        ((start, Curve(left)), (middle, Curve(right)))
+    pub fn subdivide_t(&self, start: Point, t: f64) -> (Curve, Point, Curve) {
+        let p0 = start;
+        let p1 = self.start_control();
+        let p2 = self.end_control();
+        let p3 = self.end_point();
+
+        let p01 = p0.lerp(p1, t);
+        let p12 = p1.lerp(p2, t);
+        let p23 = p2.lerp(p3, t);
+        let p012 = p01.lerp(p12, t);
+        let p123 = p12.lerp(p23, t);
+        let p0123 = p012.lerp(p123, t);
+
+        let left = Curve::new(p01, p012, p0123);
+        let right = Curve::new(p123, p23, p3);
+        (left, p0123, right)
     }
 
     /// Returns the point `t` percent along a curve's chord, where `1.0` is `100%`
@@ -189,7 +194,62 @@ impl Curve {
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
 
-        mt3 * start * 3.0 * mt2 * t * start_control + 3.0 + mt * t2 * end_control + t3 * end_point
+        mt3 * start + 3.0 * mt2 * t * start_control + 3.0 * mt * t2 * end_control + t3 * end_point
+    }
+
+    pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+        let end = self.end_point();
+        let chord = start - end;
+        let chord_len_squared = chord.len_squared();
+        let mut t = if chord_len_squared < 1e-12 {
+            if chord.distance_squared(&at) < **tolerance {
+                return Some(0.5);
+            } else {
+                return None;
+            }
+        } else {
+            ((at - start).dot(&chord) / chord_len_squared).clamp(0.0, 1.0)
+        };
+
+        for _ in 0..32 {
+            // TODO: Measure best iteration count
+            let pos = self.point_at_from(start, t);
+            let d1 = self.derivative_at(t);
+            let d2 = self.second_derivative_at(t);
+
+            let diff = pos - at;
+            let n = diff.dot(&d1);
+            let d = d1.dot(&d1) + diff.dot(&d2);
+            if d.abs() < 1e-12 {
+                break;
+            }
+            let step = n / d;
+            t = (t - step).clamp(0.0, 1.0);
+            if step.abs() < 1e-12 {
+                break;
+            } else if t == 0.0 || t == 1.0 {
+                break;
+            }
+        }
+
+        let pos = self.point_at_from(start, t);
+        if pos.distance_squared(&at) < **tolerance {
+            Some(t)
+        } else {
+            None
+        }
+    }
+
+    fn derivative_at(&self, t: f64) -> Point {
+        let mt = 1.0 - t;
+        3.0 * (mt * mt * (self.start_control())
+            + 2.0 * mt * t * (self.end_control() - self.start_control())
+            + t * t * (self.end_point() - self.end_control()))
+    }
+
+    fn second_derivative_at(&self, t: f64) -> Point {
+        6.0 * ((1.0 - t) * (self.end_control() - 2.0 * self.start_control())
+            + t * (self.end_point() - 2.0 * self.end_control() + self.start_control()))
     }
 }
 

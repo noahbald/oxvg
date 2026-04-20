@@ -125,6 +125,12 @@ impl Div<f64> for &Point {
 }
 
 impl Point {
+    pub const ZERO: Self = Self::splat(0.0);
+
+    pub const fn splat(n: f64) -> Self {
+        Self([n, n])
+    }
+
     /// Returns the `x` coordinate of the point.
     pub const fn x(&self) -> f64 {
         self.0[0]
@@ -269,6 +275,10 @@ impl Point {
             start + (control - start) * (2.0 / 3.0),
             end + (control - end) * (2.0 / 3.0),
         )
+    }
+
+    pub fn lerp(self, other: Self, t: f64) -> Self {
+        self + (other - self) * t
     }
 }
 

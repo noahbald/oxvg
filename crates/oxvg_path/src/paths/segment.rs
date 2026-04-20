@@ -38,7 +38,7 @@ impl Deref for ToleranceSquared {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A reduced representation of an SVG path command
 pub enum Data {
     /// A line commend
@@ -52,7 +52,7 @@ pub enum Data {
 #[derive(Debug, PartialEq)]
 /// A segment represents some contiguous shape made from a set of commands
 pub struct Segment {
-    start: Point,
+    pub(crate) start: Point,
     pub(crate) data: Vec<Data>,
     pub(crate) closed: bool,
 }

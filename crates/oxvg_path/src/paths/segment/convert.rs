@@ -210,11 +210,11 @@ impl Segment {
                 Data::LineTo(point) => points.push(*point),
                 Data::CurveTo(curve) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_curve(&mut points, start, *curve, &tolerance.square())
+                    Polygon::from_curve(&mut points, start, curve, &tolerance.square())
                 }
                 Data::ArcTo(arc) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_arc(&mut points, start, *arc, &tolerance.square())
+                    Polygon::from_arc(&mut points, start, arc, &tolerance.square())
                 }
             }
         }
