@@ -7,6 +7,24 @@ use crate::{geometry::Point, paths::segment::ToleranceSquared};
 pub struct Arc(pub [f64; 7]);
 
 impl Arc {
+    pub fn new(
+        center: Point,
+        radii: Point,
+        start_angle: f64,
+        sweep_angle: f64,
+        x_rotation: f64,
+    ) -> Self {
+        Arc([
+            center.x(),
+            center.y(),
+            radii.x(),
+            radii.y(),
+            start_angle,
+            sweep_angle,
+            x_rotation,
+        ])
+    }
+
     /// The center point of the ellipse
     pub const fn center(&self) -> Point {
         Point([self.0[0], self.0[1]])
@@ -42,6 +60,10 @@ impl Arc {
         let start = Point([radii.x() * end_angle.cos(), radii.y() * end_angle.sin()]);
 
         self.center() + start.rotate(self.x_rotation())
+    }
+
+    pub fn start_point(&self) -> Point {
+        self.point_at_angle(self.start_angle())
     }
 
     pub fn mid_point(&self) -> Point {
@@ -135,7 +157,9 @@ impl Arc {
     }
 
     pub fn is_straight(&self, error: f64) -> bool {
-        self.radii().x() < error || self.radii().y() < error
+        self.radii().x() < error
+            || self.radii().y() < error
+            || Point::cross(self.start_point(), self.end_point(), self.mid_point()).abs() < error
     }
 
     pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {

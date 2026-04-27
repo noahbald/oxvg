@@ -102,12 +102,14 @@ impl Curve {
     }
 
     /// Returns whether the arc fits on a straight line.
-    pub fn is_straight(&self, tolerance: &ToleranceSquared) -> bool {
-        Self::is_data_straight(&self.0, tolerance)
+    pub fn is_straight(&self, start: Point, tolerance: f64) -> bool {
+        Point::cross(start, self.end_point(), self.start_control()).abs() < tolerance
+            && Point::cross(start, self.end_point(), self.end_control()).abs() < tolerance
     }
 
     /// Returns whether the arc fits on a straight line
-    pub fn is_data_straight(args: &[f64], tolerance: &ToleranceSquared) -> bool {
+    #[deprecated = "For deprecated use on arc-by commands"]
+    pub fn is_data_straight(args: &[f64], tolerance: f64) -> bool {
         // Get line equation a·x + b·y + c = 0 coefficients a, b (c = 0) by start and end points.
         let i = args.len() - 2;
         let a = -args[i + 1]; // y1 − y2 (y1 = 0)
@@ -121,7 +123,7 @@ impl Curve {
 
         // Distance from point `(x0, y0)` to the line is `sqrt((c − a·x0 − b·y0)² / (a² + b²))`
         for i in (0..=(i - 2)).rev().step_by(2) {
-            if (f64::powi(a * args[i] + b * args[i + 1], 2) * d) > **tolerance {
+            if (f64::powi(a * args[i] + b * args[i + 1], 2) * d) > (tolerance * tolerance) {
                 return false;
             }
         }

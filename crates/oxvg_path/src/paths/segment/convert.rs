@@ -19,10 +19,12 @@ impl Data {
         match command {
             command::Data::MoveBy(a) => {
                 *cursor = *cursor + Point(*a);
+                *start = *cursor;
                 None
             }
             command::Data::MoveTo(a) => {
                 *cursor = Point(*a);
+                *start = *cursor;
                 None
             }
             command::Data::LineBy(a) => {
@@ -387,5 +389,36 @@ fn compactest(left: command::Data, right: command::Data) -> command::Data {
         left
     } else {
         right
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use oxvg_parse::Parse as _;
+
+    use crate::{
+        geometry::Point,
+        optimize::Tolerance,
+        paths::segment::{Data, Path, Segment},
+    };
+
+    #[test]
+    fn lines_from_svg() {
+        let path = crate::Path::parse_string("M5,5 L5,15 L15,15 L15,5 L5,5").unwrap();
+        let path = Path::from_svg(&path, &Tolerance::default());
+
+        assert_eq!(
+            path,
+            Path(vec![Segment {
+                start: Point::splat(5.0),
+                data: vec![
+                    Data::LineTo(Point([5.0, 15.0])),
+                    Data::LineTo(Point([15.0, 15.0])),
+                    Data::LineTo(Point([15.0, 5.0])),
+                    Data::LineTo(Point([5.0, 5.0]))
+                ],
+                closed: true
+            }])
+        )
     }
 }

@@ -168,6 +168,11 @@ impl Path {
         self.boolean(Operation::Union, other, tolerance)
     }
 
+    pub fn unite_self(mut self, tolerance: &Tolerance) -> Path {
+        let foreground = Self(self.0.drain(0..self.0.len() / 2).collect());
+        self.unite(&foreground, tolerance)
+    }
+
     pub fn intersect(&self, other: &Self, tolerance: &Tolerance) -> Path {
         self.boolean(Operation::Intersection, other, tolerance)
     }
@@ -277,10 +282,8 @@ impl events::Path {
                 }
             } else {
                 match events[event].edge_type {
-                    // TODO: Does each branch need separate handling
-                    EdgeType::Normal | EdgeType::SameTransition => results.push(event),
-                    EdgeType::DifferentTransition => results.push(event),
                     EdgeType::NonContributing => {}
+                    _ => results.push(event),
                 }
                 let key = ActiveKey::new(event, &events, event_ref.point.x());
                 let below = active.range(..key).next_back().map(|(_, e)| *e);
@@ -371,7 +374,6 @@ fn compute_intersect(
     }
 }
 
-// TODO: Move to `geometry::line`?
 fn segment_intersect(p1: &Point, p2: &Point, p3: &Point, p4: &Point) -> Option<(f64, f64)> {
     let d1 = p2 - p1;
     let d2 = p4 - p3;
@@ -458,11 +460,16 @@ fn chain_edges(
     tolerance_squared: &ToleranceSquared,
 ) -> Vec<Vec<usize>> {
     let mut by_start: HashMap<(i64, i64), Vec<usize>> = HashMap::with_capacity(results.len());
-    for event in &results {
+    for &event in &results {
+        let effective_start = if matches!(events[event].edge_type, EdgeType::DifferentTransition) {
+            events[event].line.end()
+        } else {
+            events[event].line.start()
+        };
         by_start
-            .entry(quantise(events[*event].line.start(), tolerance))
+            .entry(quantise(effective_start, tolerance))
             .or_default()
-            .push(*event);
+            .push(event);
     }
     let mut used = vec![false; events.len()];
     let mut rings = vec![];
@@ -473,8 +480,12 @@ fn chain_edges(
         }
         let mut ring = vec![first];
         used[first] = true;
-        let start = events[first].line.start();
-        let mut end = events[first].line.end();
+        let reversed = matches!(events[first].edge_type, EdgeType::DifferentTransition);
+        let (start, mut end) = if reversed {
+            (events[first].line.end(), events[first].line.start())
+        } else {
+            (events[first].line.start(), events[first].line.end())
+        };
 
         loop {
             if end.distance_squared(&start) <= **tolerance_squared {
@@ -489,7 +500,11 @@ fn chain_edges(
             };
             let next = candidates[pos];
             used[next] = true;
-            end = events[next].line.end();
+            end = if reversed {
+                events[next].line.start()
+            } else {
+                events[next].line.end()
+            };
             ring.push(next)
         }
         debug_assert!(ring.len() >= 3);
@@ -507,14 +522,21 @@ fn ring_to_segment(
 ) -> Segment {
     let mut start = ring[0];
     let mut segment = Segment {
-        start: *events[start].line.start(),
+        start: if matches!(events[start].edge_type, EdgeType::DifferentTransition) {
+            *events[start].line.end()
+        } else {
+            *events[start].line.start()
+        },
         data: vec![],
         closed: true,
     };
     for i in 0..ring.len() {
         let current = &events[ring[i]];
         let next = &events[ring[(i + 1) % ring.len()]];
+        let current_reversed = matches!(current.edge_type, EdgeType::DifferentTransition);
+        let next_reversed = matches!(next.edge_type, EdgeType::DifferentTransition);
         let extends = i + 1 < ring.len()
+            && current_reversed == next_reversed
             && current.is_background == next.is_background
             && current.segment == next.segment
             && current.command == next.command;
@@ -523,6 +545,10 @@ fn ring_to_segment(
         }
 
         let begin = &events[ring[start]];
+        debug_assert_eq!(
+            current_reversed,
+            matches!(begin.edge_type, EdgeType::DifferentTransition)
+        );
         let source = if current.is_background {
             background
         } else {
@@ -531,8 +557,17 @@ fn ring_to_segment(
         let command = &source.0[current.segment].data[current.command];
         segment.data.push(slice_command(
             command,
-            begin.line.start(),
-            current.line.end(),
+            if current_reversed {
+                current.line.end()
+            } else {
+                begin.line.start()
+            },
+            if current_reversed {
+                begin.line.start()
+            } else {
+                current.line.end()
+            },
+            current_reversed,
             tolerance,
         ));
         start = i + 1;
@@ -544,11 +579,12 @@ fn slice_command(
     command: &events::Data,
     start: &Point,
     end: &Point,
+    reversed: bool,
     tolerance: &ToleranceSquared,
 ) -> Data {
     // NOTE: Exact equality ok, because event points are derived from
     //       path points.
-    match command {
+    let command = match command {
         events::Data::Line(_) => Data::LineTo(*end),
         events::Data::Curve(curve, p) => {
             if start == p[0].start() && p.last().unwrap().end() == end {
@@ -587,5 +623,50 @@ fn slice_command(
             };
             Data::ArcTo(arc.clamp_t(t1, t2))
         }
+    };
+    if reversed {
+        command.reverse(*start)
+    } else {
+        command
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use oxvg_parse::Parse;
+
+    use crate::{
+        paths::segment::{self, Tolerance},
+        Path,
+    };
+
+    #[test]
+    fn unite_squares() {
+        let background = Path::parse_string("M0,0 L0,10 L10,10 L10,0 L0,0").unwrap();
+        let foreground = Path::parse_string("M5,5 L5,15 L15,15 L15,5 L5,5").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "");
+    }
+
+    #[test]
+    fn unite_squares_opposite_winding() {
+        let background = Path::parse_string("M0,0 L10,0 L10,10 L0,10 L0,0").unwrap();
+        let foreground = Path::parse_string("M5,5 L5,15 L15,15 L15,5 L5,5").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "");
     }
 }

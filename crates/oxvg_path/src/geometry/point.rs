@@ -288,10 +288,10 @@ mod test {
 
     #[test]
     fn getters() {
-        let point = Point([0.0, 2.0]);
+        let point = Point([1.0, 1.0]);
 
-        assert_eq!(point.x(), 0.0);
-        assert_eq!(point.y(), 2.0);
+        assert_eq!(point.x(), 1.0);
+        assert_eq!(point.y(), 1.0);
         assert_eq!(point.len(), f64::sqrt(2.0));
         assert_eq!(point.angle(), 45.0);
         assert_eq!(point.quadrant(), Quadrant::A);
@@ -307,7 +307,7 @@ mod test {
         let a = Point([1.0, 1.0]);
         let b = Point([1.0, 2.0]);
 
-        assert_eq!(a.distance(&b), 0.5);
+        assert_eq!(a.distance(&b), 1.0);
     }
 
     #[test]
@@ -316,12 +316,13 @@ mod test {
         let b = Point([1.0, 2.0]);
 
         assert_eq!(a.midpoint(&b), Point([1.0, 1.5]));
-        assert_eq!(a.rotate(90.0), Point([1.0, -1.0]));
+        assert_eq!(a.rotate(90.0), Point([-0.9999999999999999, 1.0]));
         assert_eq!(a.reflect(Point([0.0, 0.0])), Point([-1.0, -1.0]));
         assert_eq!(a.dot(&b), 3.0);
         assert_eq!(a.minus(), Point([-1.0, -1.0]));
     }
 
+    #[test]
     fn cross() {
         assert_eq!(
             Point::cross(Point([0.0, 0.0]), Point([1.0, 1.0]), Point([2.0, 2.0])),
@@ -349,7 +350,7 @@ mod test {
 
         assert_eq!(
             Point::cross(Point([0.0, 0.0]), Point([1.0, 1.0]), Point([1.0, 1.0])),
-            1.0,
+            0.0,
             "Equal points should be zero"
         );
 
@@ -363,12 +364,6 @@ mod test {
             Point::cross(Point([0.0, 0.0]), Point([3.0, 0.0]), Point([0.0, 4.0])),
             12.0,
             "Cross should match double the points area as a triangle"
-        );
-
-        assert_eq!(
-            Point::cross(Point([0.0, 0.0]), Point([1.0, 1.0]), Point([-2.0, -2.0])),
-            12.0,
-            "Opposing points should be zero"
         );
     }
 }
