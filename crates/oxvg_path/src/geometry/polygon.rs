@@ -13,19 +13,19 @@ pub struct Polygon {
 impl Polygon {
     pub fn from_curve(
         points: &mut Vec<Point>,
-        start_point: Point,
+        start: Point,
         curve: &Curve,
         tolerance_squared: &ToleranceSquared,
     ) {
         let (start_control_distance, end_control_distance) =
-            curve.control_point_distance_squared(start_point);
+            curve.control_point_distance_squared(start);
 
         if start_control_distance <= **tolerance_squared
             && end_control_distance <= **tolerance_squared
         {
             points.push(curve.end_point());
         } else {
-            let ((start, left), (middle, right)) = curve.subdivide(start_point);
+            let (left, middle, right) = curve.subdivide(start);
             Self::from_curve(points, start, &left, tolerance_squared);
             Self::from_curve(points, middle, &right, tolerance_squared);
         }
@@ -33,16 +33,16 @@ impl Polygon {
 
     pub fn from_arc(
         points: &mut Vec<Point>,
-        start_point: Point,
+        start: Point,
         arc: &Arc,
         tolerance: &ToleranceSquared,
     ) {
-        if start_point.distance_squared(&arc.mid_point()) <= **tolerance {
+        if start.distance_squared(&arc.mid_point()) <= **tolerance {
             points.push(arc.end_point())
         } else {
-            let ((start, left), (middle, right)) = arc.subdivide(start_point);
+            let (left, right) = arc.subdivide();
             Self::from_arc(points, start, &left, tolerance);
-            Self::from_arc(points, middle, &right, tolerance);
+            Self::from_arc(points, arc.mid_point(), &right, tolerance);
         }
     }
 }
