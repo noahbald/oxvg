@@ -1,6 +1,6 @@
 use crate::{
     command,
-    geometry::{Circle, ErrorOptions, Line, Point},
+    geometry::{line::Intersection, Circle, ErrorOptions, Line, Point},
     paths::segment::ToleranceSquared,
     position::Position,
 };
@@ -66,10 +66,11 @@ impl Curve {
     /// Returns whether a curve is convex
     ///
     /// A curve is convex when the middle of the curve's line is below the curve's midpoint
-    pub const fn is_convex(&self) -> bool {
+    pub fn is_convex(&self) -> bool {
         let end_control_line = Line([Point([0.0, 0.0]), self.end_control()]);
         let start_control_line = Line([self.start_control(), self.end_point()]);
-        let Some(center) = end_control_line.intersection(&start_control_line) else {
+        let Intersection::Intersection(center) = end_control_line.intersection(&start_control_line)
+        else {
             return false;
         };
         (self.end_control().x() < center.x()) == (center.x() < 0.0)

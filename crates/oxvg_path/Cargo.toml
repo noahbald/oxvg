@@ -15,7 +15,7 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["geometry", "parse", "format", "boolean", "optimise"]
-boolean = ["geometry"]
+boolean = ["geometry", "dep:splay_tree"]
 format = ["ryu", "itertools"]
 geometry = []
 jsonschema = ["schemars", "serde"]
@@ -32,9 +32,11 @@ itertools = { workspace = true, optional = true }
 log = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
+robust = { workspace = true }
 serde = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
+splay_tree = { workspace = true, optional = true }
 tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 ryu = { version = "1.0.18", optional = true }

@@ -68,6 +68,12 @@ bitflags! {
     }
 }
 
+impl Default for Options {
+    fn default() -> Self {
+        Options::empty()
+    }
+}
+
 impl Path {
     // TODO: Optimisation options based on `StyleInfo`
     /// Returns an optimised version of the input path
@@ -85,10 +91,10 @@ impl Path {
     /// use oxvg_path::parser::Parse as _;
     ///
     /// let mut path = Path::parse_string("M 10,30 L 10,50 L 30 30 H 10").unwrap();
-    /// let options = Options::all();
+    /// let options = Options::default();
     ///
     /// path = path.optimize(options, &Tolerance::default());
-    /// assert_eq!(&path.to_string(), "M10 50h0");
+    /// assert_eq!(&path.to_string(), "M10 30V50l20-20H10");
     /// ```
     pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
         let mut segments = segment::Path::from_svg(self, &tolerance);
@@ -99,7 +105,7 @@ impl Path {
 
         if options.contains(Options::UnionSegments) {
             // TODO: Boolean union each closed segment
-            segments = segments.unite_self(tolerance);
+            segments = segments.non_zero(tolerance);
         }
 
         segments.simplify(options, &tolerance);

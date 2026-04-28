@@ -12,7 +12,7 @@ mod polygon;
 pub use arc::Arc;
 pub use circle::Circle;
 pub use curve::Curve;
-pub use line::Line;
+pub use line::{Intersection, Line};
 pub use point::{Point, Quadrant};
 pub use polygon::Polygon;
 

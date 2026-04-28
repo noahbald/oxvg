@@ -59,7 +59,7 @@ pub enum Data {
     ArcTo(Arc),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A segment represents some contiguous shape made from a set of commands
 pub struct Segment {
     pub(crate) start: Point,
@@ -67,7 +67,7 @@ pub struct Segment {
     pub(crate) closed: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A segment path is a set of disjointed shaped, each composed of a set of commands
 pub struct Path(pub Vec<Segment>);
 

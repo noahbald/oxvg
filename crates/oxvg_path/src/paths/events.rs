@@ -5,6 +5,7 @@ use crate::{
     paths::segment::ToleranceSquared,
 };
 
+#[derive(Debug, Clone)]
 pub enum Data {
     Line(Line),
     Curve(Curve, Vec<Line>),
@@ -30,11 +31,15 @@ impl Data {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Ring {
     pub start: Point,
     pub data: Vec<Data>,
+    // TODO: holes when fill-rule is evenodd
+    //       NOTE: We may never support this
 }
 
+#[derive(Debug, Clone)]
 pub struct Path(pub Vec<Ring>);
 
 impl Ring {

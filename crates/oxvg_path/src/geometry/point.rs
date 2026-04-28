@@ -3,11 +3,17 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::geometry::{Curve, Line};
+use crate::geometry::{line::Intersection, Curve, Line};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq)]
 /// A point is an `[x, y]` coordinate. Points are the atomic unit of geometry.
 pub struct Point(pub [f64; 2]);
+
+impl std::fmt::Debug for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("COORD({:?} {:?})", self.x(), self.y()))
+    }
+}
 
 #[derive(Debug, PartialEq)]
 /// The quadrant of a unit circle.
@@ -126,6 +132,14 @@ impl Div<f64> for &Point {
 
 impl Point {
     pub const ZERO: Self = Self::splat(0.0);
+    pub const UNIT: Self = Self::splat(1.0);
+    pub const NEG_UNIT: Self = Self::splat(-1.0);
+    pub const X: Self = Self([1.0, 0.0]);
+    pub const NEG_X: Self = Self([-1.0, 0.0]);
+    pub const Y: Self = Self([0.0, 1.0]);
+    pub const NEG_Y: Self = Self([0.0, -1.0]);
+    pub const INFINITY: Self = Self::splat(f64::INFINITY);
+    pub const NEG_INFINITY: Self = Self::splat(f64::NEG_INFINITY);
 
     pub const fn splat(n: f64) -> Self {
         Self([n, n])
@@ -136,9 +150,17 @@ impl Point {
         self.0[0]
     }
 
+    pub const fn x_mut(&mut self) -> &mut f64 {
+        &mut self.0[0]
+    }
+
     /// Returns the `y` coordinate of the point.
     pub const fn y(&self) -> f64 {
         self.0[1]
+    }
+
+    pub const fn y_mut(&mut self) -> &mut f64 {
+        &mut self.0[1]
     }
 
     /// Returns the distance of the point from `[0, 0]`.
@@ -177,6 +199,22 @@ impl Point {
             } else {
                 Quadrant::C
             }
+        }
+    }
+
+    pub const fn leftmost<'a>(&'a self, other: &'a Self) -> &'a Self {
+        if self.x() <= other.x() {
+            self
+        } else {
+            other
+        }
+    }
+
+    pub const fn rightmost<'a>(&'a self, other: &'a Self) -> &'a Self {
+        if self.x() > other.x() {
+            self
+        } else {
+            other
         }
     }
 
@@ -224,7 +262,10 @@ impl Point {
     pub fn intersection(coords: [f64; 8]) -> Option<Self> {
         let a = Line([Point([coords[0], coords[1]]), Point([coords[2], coords[3]])]);
         let b = Line([Point([coords[4], coords[5]]), Point([coords[6], coords[7]])]);
-        a.intersection(&b)
+        match a.intersection(&b) {
+            Intersection::None | Intersection::Parallel(_, _) => None,
+            Intersection::Intersection(p) => Some(p),
+        }
     }
 
     /// Returns the point `t` percent along a curve's chord
