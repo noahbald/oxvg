@@ -1,13 +1,18 @@
 use std::f64::consts::PI;
 
-use crate::{geometry::Point, paths::segment::ToleranceSquared};
+use crate::{
+    geometry::{ellipses::Ellipses, Curve, Point},
+    optimize::Tolerance,
+    paths::segment::ToleranceSquared,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// An arc curve to some point.
 pub struct Arc(pub [f64; 7]);
 
 impl Arc {
-    pub fn new(
+    /// Creates an arc
+    pub const fn new(
         center: Point,
         radii: Point,
         start_angle: f64,
@@ -23,6 +28,11 @@ impl Arc {
             sweep_angle,
             x_rotation,
         ])
+    }
+
+    /// Returns the ellipsess the arc sweeps across.
+    pub const fn ellipses(&self) -> Ellipses {
+        Ellipses::new(self.center(), self.radii(), self.x_rotation())
     }
 
     /// The center point of the ellipse
@@ -54,24 +64,22 @@ impl Arc {
         self.0[6]
     }
 
+    /// Returns the point on the ellipses at the given angle.
     pub fn point_at_angle(&self, angle_radians: f64) -> Point {
-        let radii = self.radii();
-        let start = Point([
-            radii.x() * angle_radians.cos(),
-            radii.y() * angle_radians.sin(),
-        ]);
-
-        self.center() + start.rotate_radian(self.x_rotation())
+        self.ellipses().point_at_angle(angle_radians)
     }
 
+    /// Returns the point on the ellipses of the arc's start point.
     pub fn start_point(&self) -> Point {
         self.point_at_angle(self.start_angle())
     }
 
+    /// Returns the point on the ellipses halfway between the arc's start and end point.
     pub fn mid_point(&self) -> Point {
         self.point_at_angle(self.start_angle() + (self.sweep_angle() / 2.0))
     }
 
+    /// Returns the point on the ellipses of the arc's end point.
     pub fn end_point(&self) -> Point {
         self.point_at_angle(self.start_angle() + self.sweep_angle())
     }
@@ -195,22 +203,45 @@ impl Arc {
         ]
     }
 
+    /// For a curve that fits an arc with some tolerance, returns the equivalent arc.
+    pub fn fit_curve(
+        curve: &Curve,
+        start: Point,
+        tolerance: &Tolerance,
+        tolerance_squared: &ToleranceSquared,
+    ) -> Option<Self> {
+        let ellipses = Ellipses::fit_curve(curve, start, tolerance)?;
+        let start_angle = ellipses.angle_at_point(start, tolerance_squared)?;
+        let end_angle = ellipses.angle_at_point(curve.end_point(), tolerance_squared)?;
+        let mut sweep_angle = end_angle - start_angle;
+
+        if sweep_angle > PI {
+            sweep_angle -= 2.0 * PI;
+        } else if sweep_angle < PI {
+            sweep_angle += 2.0 * PI;
+        }
+
+        Some(ellipses.arc(start_angle, sweep_angle))
+    }
+
+    /// Returns two halves of the arc, with the left being the first half and the right being the second half.
     pub fn subdivide(&self) -> (Arc, Arc) {
         self.subdivide_t(0.5)
     }
 
-    pub fn is_straight(&self, error: f64) -> bool {
-        self.radii().x() < error
-            || self.radii().y() < error
-            || Point::cross(self.start_point(), self.end_point(), self.mid_point()).abs() < error
+    /// Returns whether the arc is equivalent to a straight line within some tolerance.
+    pub fn is_straight(&self, tolerance: &Tolerance) -> bool {
+        self.radii().x() < tolerance.positional
+            || self.radii().y() < tolerance.positional
+            || Point::cross(self.start_point(), self.end_point(), self.mid_point()).abs()
+                < tolerance.positional
     }
 
+    /// Returns the percentage as a number between `0.0` and `1.0` that the given point
+    /// is between the arc's start and end point, when that point is on the arc within
+    /// some tolerance.
     pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
-        let local = at - self.center();
-        let unrotated = local.rotate(-self.x_rotation());
-        let angle = unrotated
-            .y()
-            .atan2(unrotated.x() / self.radii().x() * self.radii().y());
+        let angle = self.ellipses().angle_at_point(at, tolerance)?;
         let mut delta = angle - self.start_angle();
         if self.sweep_angle() > 0.0 {
             delta = delta.rem_euclid(2.0 * PI);
@@ -229,10 +260,15 @@ impl Arc {
         }
     }
 
+    /// Returns two divisions of the arc by some point between the arc's start and end, with the left
+    /// being the first division and the right being the second division.
     pub fn subdivide_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<(Arc, Arc)> {
         Some(self.subdivide_t(self.t_at(at, tolerance)?))
     }
 
+    /// Returns two divisions of the arc by some percentage between the arc's start and end as a number
+    /// between `0.0` and `1.0`, with the left being the first division and the right being
+    /// the second division.
     pub fn subdivide_t(&self, t: f64) -> (Arc, Arc) {
         let split_angle = self.start_angle() + t * self.sweep_angle();
 
@@ -246,6 +282,7 @@ impl Arc {
         (left, right)
     }
 
+    /// Returns the sub-arc of this arc between the two percentages.
     pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
         debug_assert!(t1 >= 0.0 && t1 <= 1.0);
         debug_assert!(t2 >= 0.0 && t2 <= 1.0);

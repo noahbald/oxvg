@@ -1,5 +1,5 @@
 use crate::{
-    command,
+    command::{self, ID},
     geometry::{Arc, Curve, Point, Polygon},
     paths::segment::{Data, Path, Segment, Tolerance},
 };
@@ -12,8 +12,7 @@ impl Data {
         control: &mut Option<Point>,
         z_end: &mut bool,
     ) -> Option<Self> {
-        let last_control = *control;
-        *control = None;
+        let last_control = control.take();
         match command {
             command::Data::MoveBy(a) => {
                 *cursor = *cursor + Point(*a);
@@ -160,7 +159,10 @@ impl Data {
                 *z_end = true;
                 None
             }
-            command::Data::Implicit(command) => Self::take(command, start, cursor, control, z_end),
+            command::Data::Implicit(command) => {
+                *control = last_control;
+                Self::take(command, start, cursor, control, z_end)
+            }
         }
     }
 }
@@ -226,6 +228,7 @@ impl Segment {
 }
 
 impl Path {
+    /// Returns the segment path from a parsed svg path.
     pub fn from_svg(value: &crate::Path, tolerance: &Tolerance) -> Self {
         let start = &mut Point::default();
         let cursor = &mut Point::default();
@@ -242,16 +245,20 @@ impl Path {
 }
 
 impl Path {
+    /// Returns an svg equivalent path from a segmented path.
     pub fn to_svg(&self, tolerance: &Tolerance) -> crate::Path {
+        // NOTE: When comparing compactness, order of precendence is given by order of TO/BY commands.
+        //       We should order it so that BY is preferenced for readability.
         let mut commands = vec![];
-        let tolerance_squared = tolerance.positional * tolerance.positional;
+        let tolerance_squared = tolerance.square();
+        let precision = tolerance.precision;
 
         let mut end = Point::default();
         for segment in &self.0 {
             // Pick between `M` or `m` depending on serialized length
             let m_by = command::Data::MoveBy((segment.start - end).0);
             let m_to = command::Data::MoveTo(segment.start.0);
-            commands.push(compactest(m_by, m_to));
+            commands.push(compactest(m_by, m_to, precision));
             end = segment.start;
 
             let mut last_control: Option<Point> = None;
@@ -260,109 +267,132 @@ impl Path {
                 let start = end;
                 end = command.end_point();
                 let by = end - start;
-                let command = match command {
-                    Data::LineTo(to) => {
-                        if to.x() == start.x() {
-                            let v_to = command::Data::VerticalLineTo([to.y()]);
-                            let v_by = command::Data::VerticalLineBy([by.y()]);
-                            compactest(v_by, v_to)
-                        } else if to.y() == start.y() {
-                            let h_to = command::Data::HorizontalLineTo([to.x()]);
-                            let h_by = command::Data::HorizontalLineBy([by.x()]);
-                            compactest(h_to, h_by)
-                        } else if *to == segment.start {
-                            command::Data::ClosePath
-                        } else {
-                            let l_to = command::Data::LineTo(to.0);
-                            let l_by = command::Data::LineBy(by.0);
-                            compactest(l_to, l_by)
-                        }
+
+                let line_to = |to: &Point| {
+                    if to.x() == start.x() {
+                        let v_to = command::Data::VerticalLineTo([to.y()]);
+                        let v_by = command::Data::VerticalLineBy([by.y()]);
+                        compactest(v_by, v_to, precision)
+                    } else if to.y() == start.y() {
+                        let h_to = command::Data::HorizontalLineTo([to.x()]);
+                        let h_by = command::Data::HorizontalLineBy([by.x()]);
+                        compactest(h_by, h_to, precision)
+                    } else if *to == segment.start {
+                        command::Data::ClosePath
+                    } else {
+                        let l_to = command::Data::LineTo(to.0);
+                        let l_by = command::Data::LineBy(by.0);
+                        compactest(l_by, l_to, precision)
                     }
-                    Data::CurveTo(curve) => {
-                        let start_control = curve.start_control();
-                        let end_control = curve.end_control();
-                        last_control = Some(end_control);
-                        let implied_q = start + (start_control - start) * 1.5;
-                        let expected_cp2 = end + (implied_q - end) * (2.0 / 3.0);
-                        let is_quadratic =
-                            expected_cp2.distance_squared(&end_control) < tolerance_squared;
-
-                        if is_quadratic {
-                            let is_smooth = control.is_some_and(|c| {
-                                c.reflect(end).distance_squared(&start_control) < tolerance_squared
-                            });
-
-                            if is_smooth {
-                                let t_to = command::Data::SmoothQuadraticBezierTo(end.0);
-                                let t_by = command::Data::SmoothQuadraticBezierBy(by.0);
-                                compactest(t_to, t_by)
-                            } else {
-                                let start_control_by = start_control - start;
-                                let q_to = command::Data::QuadraticBezierTo([
-                                    start_control.x(),
-                                    start_control.y(),
-                                    end.x(),
-                                    end.y(),
-                                ]);
-                                let q_by = command::Data::QuadraticBezierBy([
-                                    start_control_by.x(),
-                                    start_control_by.y(),
-                                    end.x(),
-                                    end.y(),
-                                ]);
-                                compactest(q_to, q_by)
-                            }
-                        } else {
-                            let end_control_by = end_control - start;
-                            let is_smooth = control.is_some_and(|c| {
-                                c.reflect(start).distance_squared(&start_control)
-                                    < tolerance_squared
-                            });
-
-                            if is_smooth {
-                                let s_to = command::Data::SmoothBezierTo([
-                                    end_control.x(),
-                                    end_control.y(),
-                                    end.x(),
-                                    end.y(),
-                                ]);
-                                let s_by = command::Data::SmoothBezierBy([
-                                    end_control_by.x(),
-                                    end_control_by.y(),
-                                    by.x(),
-                                    by.y(),
-                                ]);
-                                compactest(s_to, s_by)
-                            } else {
-                                let start_control_by = start_control - start;
-                                let c_to = command::Data::CubicBezierTo([
-                                    start_control.x(),
-                                    start_control.y(),
-                                    end_control.x(),
-                                    end_control.y(),
-                                    end.x(),
-                                    end.y(),
-                                ]);
-                                let c_by = command::Data::CubicBezierBy([
-                                    start_control_by.x(),
-                                    start_control_by.y(),
-                                    end_control_by.x(),
-                                    end_control_by.y(),
-                                    by.x(),
-                                    by.y(),
-                                ]);
-                                compactest(c_to, c_by)
-                            }
-                        }
-                    }
-                    Data::ArcTo(arc) => {
+                };
+                let arc_to = |arc: &Arc| {
+                    if arc.is_straight(&tolerance) {
+                        line_to(&arc.end_point())
+                    } else {
                         let arc_to = arc.to_arc_to();
                         let mut a_by = arc_to;
                         a_by[5] = by.x();
                         a_by[6] = by.y();
                         let a_by = command::Data::ArcBy(a_by);
                         let a_to = command::Data::ArcTo(arc_to);
-                        compactest(a_by, a_to)
+                        compactest(a_by, a_to, precision)
+                    }
+                };
+
+                let command = match command {
+                    Data::LineTo(to) => line_to(to),
+                    Data::ArcTo(arc) => arc_to(arc),
+                    Data::CurveTo(curve) => {
+                        let start_control = curve.start_control();
+                        let end_control = curve.end_control();
+                        let to = curve.end_point();
+                        last_control = Some(end_control);
+
+                        if curve.is_straight(start, &tolerance_squared) {
+                            line_to(&to)
+                        } else {
+                            let mut candidates = Vec::with_capacity(2);
+
+                            if control.is_some_and(|cp| {
+                                start_control.distance_squared(&cp.reflect(start))
+                                    < *tolerance_squared
+                            }) {
+                                candidates.push(command::Data::SmoothBezierBy([
+                                    end_control.x() - start.x(),
+                                    end_control.y() - start.y(),
+                                    by.x(),
+                                    by.y(),
+                                ]));
+                                candidates.push(command::Data::SmoothBezierTo([
+                                    end_control.x(),
+                                    end_control.y(),
+                                    to.x(),
+                                    to.y(),
+                                ]));
+                            } else {
+                                candidates.push(command::Data::CubicBezierBy([
+                                    start_control.x() - start.x(),
+                                    start_control.y() - start.y(),
+                                    end_control.x() - start.x(),
+                                    end_control.y() - start.y(),
+                                    by.x(),
+                                    by.y(),
+                                ]));
+                                candidates.push(command::Data::CubicBezierTo([
+                                    start_control.x(),
+                                    start_control.y(),
+                                    end_control.x(),
+                                    end_control.y(),
+                                    to.x(),
+                                    to.y(),
+                                ]));
+                            }
+
+                            let quad_control = start + (start_control - start) * 1.5;
+                            if quad_control.distance_squared(&(end + (end_control - end) * 1.5))
+                                < *tolerance_squared
+                            {
+                                if control.is_some_and(|cp| {
+                                    quad_control.distance_squared(&cp.reflect(start))
+                                        < *tolerance_squared
+                                }) {
+                                    candidates.push(command::Data::SmoothQuadraticBezierBy(by.0));
+                                    candidates.push(command::Data::SmoothQuadraticBezierTo(end.0));
+                                } else {
+                                    candidates.push(command::Data::QuadraticBezierBy([
+                                        quad_control.x() - start.x(),
+                                        quad_control.y() - start.y(),
+                                        by.x(),
+                                        by.y(),
+                                    ]));
+                                    candidates.push(command::Data::QuadraticBezierTo([
+                                        quad_control.x(),
+                                        quad_control.y(),
+                                        end.x(),
+                                        end.y(),
+                                    ]));
+                                }
+                            }
+
+                            if let Some(arc) =
+                                Arc::fit_curve(curve, start, tolerance, &tolerance_squared)
+                            {
+                                candidates.push(arc_to(&arc));
+                            }
+
+                            let result = compactest_vec(candidates, precision);
+                            match result.id() {
+                                ID::QuadraticBezierTo
+                                | ID::QuadraticBezierBy
+                                | ID::SmoothQuadraticBezierTo
+                                | ID::SmoothQuadraticBezierBy => last_control = Some(quad_control),
+
+                                ID::ArcTo | ID::ArcBy => {}
+                                _ => last_control = Some(end_control),
+                            }
+                            println!("");
+                            result
+                        }
                     }
                 };
                 commands.push(command);
@@ -372,12 +402,20 @@ impl Path {
     }
 }
 
-fn compactest(left: command::Data, right: command::Data) -> command::Data {
-    if left.to_string().len() < right.to_string().len() {
-        left
-    } else {
-        right
-    }
+fn compactest_vec(data: Vec<command::Data>, precision: i32) -> command::Data {
+    data.into_iter()
+        .map(|mut d| {
+            d.round(precision);
+            d
+        })
+        .map(|d| (d.to_string().len(), d))
+        .min_by(|a, b| a.0.cmp(&b.0))
+        .map(|d| d.1)
+        .unwrap()
+}
+
+fn compactest(left: command::Data, right: command::Data, precision: i32) -> command::Data {
+    compactest_vec(vec![left, right], precision)
 }
 
 #[cfg(test)]
@@ -391,9 +429,11 @@ mod test {
     };
 
     #[test]
-    fn lines_from_svg() {
-        let path = crate::Path::parse_string("M5,5 L5,15 L15,15 L15,5 L5,5").unwrap();
-        let path = Path::from_svg(&path, &Tolerance::default());
+    fn lines() {
+        let source = "M5,5 L5,15 L15,15 L15,5 L5,5";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
 
         assert_eq!(
             path,
@@ -407,6 +447,52 @@ mod test {
                 ],
                 closed: true
             }])
-        )
+        );
+
+        let path = path.to_svg(&tolerance);
+        assert_eq!(path.to_string().as_str(), "m5 5v10h10V5H5");
+    }
+
+    #[test]
+    fn cubic_curves() {
+        let source = "m10 90c20 0 15-80 40-80s20 80 40 80";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance);
+        assert_eq!(path.to_string().as_str(), source);
+    }
+
+    #[test]
+    fn quadratic_curves() {
+        let source = "M10 50Q25 25 40 50t30 0 30 0 30 0 30 0 30 0";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance);
+        assert_eq!(
+            path.to_string().as_str(),
+            "m10 50q15-25 30 0t30 0t30 0t30 0t30 0t30 0"
+        );
+    }
+
+    #[test]
+    fn arc() {
+        let source = "M6 10A6 4 10 1 0 14 10";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance);
+        assert_eq!(path.to_string().as_str(), "m6 10a6 4 10 1 0 8 0");
+    }
+
+    #[test]
+    fn curve_to_arc() {
+        let source = "M0 0L0 0c2.761 0 5 2.239 5 5";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance);
+        assert_eq!(path.to_string().as_str(), "m0 0v0a5 5 0 1 1 5 5");
     }
 }

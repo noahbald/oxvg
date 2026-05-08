@@ -6,13 +6,19 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+/// A reduced representation of an SVG path command with equivalent polygons fitting along
+/// the data up to some tolerance.
 pub enum Data {
+    /// A line command
     Line(Line),
+    /// A bezier command
     Curve(Curve, Vec<Line>),
+    /// A arc command
     Arc(Arc, Vec<Line>),
 }
 
 impl Data {
+    /// Iterates along each point of the data's polygon.
     pub fn for_each<'a, F>(&'a self, mut f: F)
     where
         F: FnMut(&'a Line),
@@ -23,23 +29,36 @@ impl Data {
         }
     }
 
+    /// Returns the number of point for the data's polygon
     pub fn len(&self) -> usize {
         match self {
             Self::Line(_) => 1,
             Self::Curve(_, p) | Self::Arc(_, p) => p.len(),
         }
     }
+
+    pub fn end_point(&self) -> Point {
+        match self {
+            Self::Line(p) => *p.end(),
+            Self::Curve(p, _) => p.end_point(),
+            Self::Arc(p, _) => p.end_point(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
+/// A ring is a closed polygon.
 pub struct Ring {
+    /// The start point of the ring.
     pub start: Point,
+    /// The data and polygons of the ring.
     pub data: Vec<Data>,
     // TODO: holes when fill-rule is evenodd
     //       NOTE: We may never support this
 }
 
 #[derive(Debug, Clone)]
+/// An event path is a set of closed polygons, each composed of a set of command-polygon pairs
 pub struct Path(pub Vec<Ring>);
 
 impl Ring {
@@ -97,6 +116,7 @@ impl Ring {
 }
 
 impl Path {
+    /// Returns an event path from a segmented path, assuming all segments are closed.
     pub fn from_segments(
         value: &crate::paths::segment::Path,
         tolerance_squared: &ToleranceSquared,

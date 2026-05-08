@@ -7,16 +7,16 @@ use crate::paths::{
 };
 
 mod contour;
-mod event_queue;
+pub(crate) mod event_queue;
 mod splay;
-mod sweep_event;
-mod utils;
+pub(crate) mod sweep_event;
+pub(crate) mod utils;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Operation {
-    Union,
     Intersection,
     Difference,
+    Union,
     Xor,
 }
 
@@ -127,7 +127,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(&output.to_string(), "M0 0h10V0V5h5V15H5V10H0V0");
+        assert_eq!(&output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 
     #[test]
@@ -142,6 +142,97 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(output.to_string(), "M0 0h10V0V5h5V15H5V10H0V0");
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+    }
+
+    #[test]
+    fn unite_curves_aligned_winding() {
+        let background = Path::parse_string("m10 50Q25 25 40 50T50 90 T 10 50").unwrap();
+        let foreground = Path::parse_string("m20 60Q35 35 50 60T60 100 T 20 60").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m10 50q14.5-24.17 29-1.61c3.81 1.78 7.41 5.62 11 11.61c10.1 17.08 13.28 30.16 10 40c-2.16 6.21-8.13 3.31-17.97-8.59C34.99 86.37 24.4 72.63 10 50");
+    }
+
+    #[test]
+    fn unite_curves_opposite_winding() {
+        let background = Path::parse_string("m10 50Q25 25 40 50T50 90 T 10 50").unwrap();
+        let foreground = Path::parse_string("m60 70Q40 20 10 70T60 70").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+    }
+
+    #[test]
+    fn unite_arc_aligned_winding() {
+        let background = Path::parse_string("M10 5a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
+        let foreground = Path::parse_string("M10 10a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+    }
+
+    #[test]
+    fn unite_arc_opposite_winding() {
+        let background = Path::parse_string("M0 5a5 5 0 1 0 10 0a5 5 0 1 0 -10 0").unwrap();
+        let foreground = Path::parse_string("M10 10a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+    }
+
+    #[test]
+    fn unite_various_aligned_winding() {
+        let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
+        let foreground =
+            Path::parse_string("M5 10L10 0C20 10 10 10 13 13a5 5 0 0 1 -5 -5Z").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+    }
+
+    #[test]
+    fn unite_various_opposite_winding() {
+        let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
+        let foreground = Path::parse_string("M10 10C15 10 10 5 15 7.5a5 5 0 1 0 -5 0h-5Z").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .unite(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 }

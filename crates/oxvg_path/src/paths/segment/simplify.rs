@@ -5,18 +5,21 @@ use crate::{
 };
 
 impl Path {
+    /// Simplifies a path by cleaning up and minifying it's data.
+    ///
+    /// See [`Options`] for controls over the simplification operations.
     pub fn simplify(&mut self, options: Options, tolerance: &Tolerance) {
         let tolerance_squared = tolerance.square();
         let mut segments = self.iter_start_cursor_mut();
         while let Some((start, command)) = segments.next() {
             match command {
                 Data::CurveTo(curve) => {
-                    if curve.is_straight(start, tolerance.positional) {
+                    if curve.is_straight(start, &tolerance_squared) {
                         *command = Data::LineTo(curve.end_point())
                     }
                 }
                 Data::ArcTo(arc) => {
-                    if arc.is_straight(tolerance.positional) {
+                    if arc.is_straight(tolerance) {
                         *command = Data::LineTo(arc.end_point())
                     }
                 }
@@ -138,6 +141,7 @@ mod test {
             &crate::paths::segment::Tolerance {
                 positional: 0.01,
                 angular: 0.01,
+                precision: 2,
             },
         );
         assert_eq!(

@@ -1,26 +1,18 @@
-use crate::geometry::Point;
+use crate::geometry::{Point, Rectangle};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 /// A line is a set of two terminal points.
 pub struct Line(pub [Point; 2]);
 
 #[derive(Debug, PartialEq)]
+/// A result for an intersection between two lines.
 pub enum Intersection {
+    /// The line does not intersect.
     None,
+    /// The line intersects at a single point.
     Intersection(Point),
-    Parallel(Point, Point),
-}
-
-impl std::fmt::Debug for Line {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "LINE({:?} {:?},{:?} {:?})",
-            self.start().x(),
-            self.start().y(),
-            self.end().x(),
-            self.end().y()
-        ))
-    }
+    /// The lines are parallel and intersect at infitite points between two terminals.
+    Parallel(Rectangle),
 }
 
 impl Line {
@@ -44,57 +36,94 @@ impl Line {
         self.vector().len()
     }
 
+    /// Returns the leftmost point of the line
     pub const fn left(&self) -> &Point {
         self.start().leftmost(self.end())
     }
 
+    /// Returns the rightmost point of the line
     pub const fn right(&self) -> &Point {
         self.start().rightmost(self.end())
     }
 
+    /// Returns whether the line's ends are lie on the same x coordinate
     pub fn is_vertical(&self) -> bool {
         self.start().x() == self.end().x()
     }
 
+    /// Returns whether the line's ends are lie on the same y coordinate
     pub fn is_horizontal(&self) -> bool {
         self.start().y() == self.end().y()
     }
 
+    /// Returns a bounding box for the given line
+    pub fn bounds(&self) -> Rectangle {
+        Rectangle::new(*self.start(), *self.end())
+    }
+
     /// Gets the point at which two lines cross.
-    pub const fn intersection(&self, other: &Self) -> Intersection {
-        let denom = self.denom(other);
-        if denom == 0.0 {
-            let cross = Point::cross(*self.start(), *self.end(), *other.start());
-            if cross != 0.0 {
+    pub fn intersection(&self, other: &Self) -> Intersection {
+        let Some(bounds) = self.bounds().intersection(&other.bounds()) else {
+            return Intersection::None;
+        };
+
+        let va = self.vector();
+        let vb = other.vector();
+        let e = other.start() - self.start();
+
+        let mut cross = Point::cross(Point::ZERO, va, vb);
+        if cross != 0.0 {
+            let s = Point::cross(Point::ZERO, e, vb) / cross;
+            if s < 0.0 || s > 1.0 {
                 return Intersection::None;
             }
-            let overlap_left = self.left().rightmost(other.left());
-            let overlap_right = self.right().leftmost(other.right());
-            if overlap_left.x() > overlap_right.x() {
+            let t = Point::cross(Point::ZERO, e, va) / cross;
+            if t < 0.0 || t > 1.0 {
                 return Intersection::None;
             }
-            return Intersection::Parallel(*overlap_left, *overlap_right);
+            let p = if s == 0.0 || s == 1.0 {
+                self.start().lerp(*self.end(), s)
+            } else if t == 0.0 || t == 1.0 {
+                other.start().lerp(*other.end(), t)
+            } else {
+                self.start().lerp(*self.end(), s)
+            };
+            return Intersection::Intersection(bounds.clamp(&p));
         }
 
-        let self_normal = self.normal();
-        let other_normal = other.normal();
-        let self_constant = self.constant();
-        let other_constant = other.constant();
-        let cross = Point([
-            (self_normal.y() * other_constant - other_normal.y() * self_constant) / denom,
-            (other_normal.x() * self_constant - self_normal.x() * other_constant) / denom,
-        ]);
-        if cross.is_nan() || !cross.is_finite() {
-            Intersection::None
+        cross = Point::cross(Point::ZERO, e, va);
+        if cross != 0.0 {
+            return Intersection::None;
+        }
+
+        let sqr_len_a = va.dot(&va);
+        let sa = va.dot(&e) / sqr_len_a;
+        let sb = sa + va.dot(&vb) / sqr_len_a;
+        let smin = sa.min(sb);
+        let smax = sa.max(sb);
+
+        if smin <= 1.0 && smax >= 0.0 {
+            if smin == 1.0 {
+                Intersection::Intersection(bounds.clamp(&self.start().lerp(*self.end(), smin)))
+            } else if smax == 0.0 {
+                Intersection::Intersection(bounds.clamp(&self.start().lerp(*self.end(), smax)))
+            } else {
+                Intersection::Parallel(Rectangle::new(
+                    bounds.clamp(&self.start().lerp(*self.end(), smin.max(0.0))),
+                    bounds.clamp(&self.start().lerp(*self.end(), smax.min(1.0))),
+                ))
+            }
         } else {
-            Intersection::Intersection(cross)
+            Intersection::None
         }
     }
 
+    /// Returns the gradient constant of the line
     pub const fn constant(&self) -> f64 {
         self.start().x() * self.end().y() - self.end().x() * self.start().y()
     }
 
+    /// Returns the normal vector of the line
     pub const fn normal(&self) -> Point {
         Point([
             self.start().y() - self.end().y(),
@@ -102,12 +131,14 @@ impl Line {
         ])
     }
 
+    /// Returns the denominator of two lines
     pub const fn denom(&self, other: &Self) -> f64 {
         let a = self.normal();
         let b = other.normal();
         a.0[0] * b.0[1] - a.0[1] * b.0[0]
     }
 
+    /// Returns the midpoint between the two ends of the line
     pub fn midpoint(&self) -> Point {
         self.start().midpoint(&self.end())
     }
@@ -115,7 +146,7 @@ impl Line {
 
 #[cfg(test)]
 mod test {
-    use crate::geometry::{line::Intersection, Line, Point};
+    use crate::geometry::{line::Intersection, Line, Point, Rectangle};
 
     #[test]
     fn intersection_some() {
@@ -146,7 +177,7 @@ mod test {
         assert_eq!(
             Line([Point::splat(-2.0), Point::splat(1.0)])
                 .intersection(&Line([Point::splat(-1.0), Point::splat(2.0)])),
-            Intersection::Parallel(Point::splat(-1.0), Point::splat(1.0))
+            Intersection::Parallel(Rectangle::new(Point::splat(-1.0), Point::splat(1.0)))
         );
     }
     #[test]
@@ -154,7 +185,118 @@ mod test {
         assert_eq!(
             Line([Point::splat(1.0), Point::splat(-2.0)])
                 .intersection(&Line([Point::splat(-1.0), Point::splat(2.0)])),
-            Intersection::Parallel(Point::splat(-1.0), Point::splat(1.0))
+            Intersection::Parallel(Rectangle::new(Point::splat(-1.0), Point::splat(1.0)))
+        );
+    }
+
+    #[test]
+    fn intersection_variety() {
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([1.0, 0.0]), Point([2.0, 2.0])])),
+            Intersection::None
+        );
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([1.0, 0.0]), Point([10.0, 2.0])])),
+            Intersection::None
+        );
+        assert_eq!(
+            Line([Point([2.0, 2.0]), Point([3.0, 3.0]),])
+                .intersection(&Line([Point([0.0, 6.0]), Point([2.0, 4.0])])),
+            Intersection::None
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([1.0, 0.0]), Point([0.0, 1.0])])),
+            Intersection::Intersection(Point([0.5, 0.5]))
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([0.0, 1.0]), Point([0.0, 0.0])])),
+            Intersection::Intersection(Point([0.0, 0.0]))
+        );
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([0.0, 1.0]), Point([1.0, 1.0])])),
+            Intersection::Intersection(Point([1.0, 1.0]))
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([0.5, 0.5]), Point([1.0, 0.0])])),
+            Intersection::Intersection(Point([0.5, 0.5]))
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([10.0, 10.0]),])
+                .intersection(&Line([Point([1.0, 1.0]), Point([5.0, 5.0])])),
+            Intersection::Parallel(Rectangle::new(Point([1.0, 1.0]), Point([5.0, 5.0])))
+        );
+        assert_eq!(
+            Line([Point([1.0, 1.0]), Point([10.0, 10.0]),])
+                .intersection(&Line([Point([1.0, 1.0]), Point([5.0, 5.0])])),
+            Intersection::Parallel(Rectangle::new(Point([1.0, 1.0]), Point([5.0, 5.0])))
+        );
+        assert_eq!(
+            Line([Point([3.0, 3.0]), Point([10.0, 10.0]),])
+                .intersection(&Line([Point([0.0, 0.0]), Point([5.0, 5.0])])),
+            Intersection::Parallel(Rectangle::new(Point([3.0, 3.0]), Point([5.0, 5.0])))
+        );
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([0.0, 0.0]), Point([1.0, 1.0])])),
+            Intersection::Parallel(Rectangle::new(Point([0.0, 0.0]), Point([1.0, 1.0])))
+        );
+        assert_eq!(
+            Line([Point([1.0, 1.0]), Point([0.0, 0.0]),])
+                .intersection(&Line([Point([0.0, 0.0]), Point([1.0, 1.0])])),
+            Intersection::Parallel(Rectangle::new(Point([1.0, 1.0]), Point([0.0, 0.0])))
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([1.0, 1.0]), Point([2.0, 2.0])])),
+            Intersection::Intersection(Point([1.0, 1.0]))
+        );
+        assert_eq!(
+            Line([Point([1.0, 1.0]), Point([0.0, 0.0]),])
+                .intersection(&Line([Point([1.0, 1.0]), Point([2.0, 2.0])])),
+            Intersection::Intersection(Point([1.0, 1.0]))
+        );
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([2.0, 2.0]), Point([4.0, 4.0])])),
+            Intersection::None
+        );
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 1.0]),])
+                .intersection(&Line([Point([0.0, -1.0]), Point([1.0, 0.0])])),
+            Intersection::None
+        );
+        assert_eq!(
+            Line([Point([1.0, 1.0]), Point([0.0, 0.0]),])
+                .intersection(&Line([Point([0.0, -1.0]), Point([1.0, 0.0])])),
+            Intersection::None
+        );
+        assert_eq!(
+            Line([Point([0.0, -1.0]), Point([1.0, 0.0]),])
+                .intersection(&Line([Point([0.0, 0.0]), Point([1.0, 1.0])])),
+            Intersection::None
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.5]), Point([1.0, 1.5]),])
+                .intersection(&Line([Point([0.0, 1.0]), Point([1.0, 0.0])])),
+            Intersection::Intersection(Point([0.25, 0.75]))
+        );
+
+        assert_eq!(
+            Line([Point([0.0, 0.0]), Point([1.0, 0.0]),])
+                .intersection(&Line([Point([1.0, -1.0]), Point([2.0, 1.0])])),
+            Intersection::None
         );
     }
 }

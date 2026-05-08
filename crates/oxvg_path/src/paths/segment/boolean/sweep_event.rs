@@ -4,12 +4,11 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use crate::{
-    geometry::{Line, Point},
-    paths::segment::boolean::utils::{less_if, signed_area},
-};
+use crate::geometry::{Line, Point};
 
-#[derive(Debug)]
+use super::utils::{less_if, signed_area};
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EdgeType {
     Normal,
     NonContributing,
@@ -17,24 +16,24 @@ pub enum EdgeType {
     DifferentTransition,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResultTransition {
     None,
     InOut,
     OutIn,
 }
 
-#[derive(Debug)]
-pub struct Mutable {
-    pub left: bool,
-    pub other: Weak<SweepEvent>,
-    pub in_out: bool,
-    pub other_in_out: bool,
-    pub result_transition: ResultTransition,
-    pub prev_in_result: Weak<SweepEvent>,
-    pub edge_type: EdgeType,
-    pub other_pos: usize,
-    pub output_contour_id: usize,
+#[derive(Clone, Debug)]
+struct Mutable {
+    left: bool,
+    other: Weak<SweepEvent>,
+    in_out: bool,
+    other_in_out: bool,
+    result_transition: ResultTransition,
+    prev_in_result: Weak<SweepEvent>,
+    edge_type: EdgeType,
+    other_pos: usize,
+    output_contour_id: usize,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -44,9 +43,9 @@ pub struct Source {
     pub command: usize,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SweepEvent {
-    pub mutable: RefCell<Mutable>,
+    mutable: RefCell<Mutable>,
     pub source: Source,
     pub contour_id: usize,
     pub point: Point,
@@ -62,8 +61,8 @@ impl SweepEvent {
         left: bool,
         other: Weak<Self>,
         is_exterior: bool,
-    ) -> Self {
-        Self {
+    ) -> Rc<Self> {
+        Rc::new(Self {
             mutable: RefCell::new(Mutable {
                 left,
                 other,
@@ -79,7 +78,7 @@ impl SweepEvent {
             contour_id,
             point,
             is_exterior,
-        }
+        })
     }
 
     pub fn left(&self) -> bool {
@@ -135,11 +134,11 @@ impl SweepEvent {
         *self.result_transition() != ResultTransition::None
     }
 
-    pub fn prev_in_result(&'_ self) -> Ref<'_, Weak<SweepEvent>> {
+    pub fn prev_in_result(&'_ self) -> Ref<'_, Weak<Self>> {
         Ref::map(self.mutable.borrow(), |m| &m.prev_in_result)
     }
 
-    pub fn prev_in_result_mut(&'_ self) -> RefMut<'_, Weak<SweepEvent>> {
+    pub fn prev_in_result_mut(&'_ self) -> RefMut<'_, Weak<Self>> {
         RefMut::map(self.mutable.borrow_mut(), |m| &mut m.prev_in_result)
     }
 
@@ -166,6 +165,18 @@ impl SweepEvent {
     pub fn output_contour_id_mut(&'_ self) -> RefMut<'_, usize> {
         RefMut::map(self.mutable.borrow_mut(), |m| &mut m.output_contour_id)
     }
+
+    pub fn is_below(&self, p: Point) -> bool {
+        if let Some(other) = self.other() {
+            if self.left() {
+                signed_area(self.point, other.point, p) > 0.0
+            } else {
+                signed_area(other.point, self.point, p) > 0.0
+            }
+        } else {
+            false
+        }
+    }
 }
 
 impl PartialEq for SweepEvent {
@@ -179,12 +190,13 @@ impl PartialEq for SweepEvent {
 impl Eq for SweepEvent {}
 
 impl PartialOrd for SweepEvent {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 impl Ord for SweepEvent {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
         if self.point.x() > other.point.x() {
             return Ordering::Less;
         } else if self.point.x() < other.point.x() {
@@ -204,20 +216,6 @@ impl Ord for SweepEvent {
     }
 }
 
-impl SweepEvent {
-    pub fn is_below(&self, p: Point) -> bool {
-        if let Some(other) = self.other() {
-            if self.left() {
-                signed_area(self.point, other.point, p) > 0.0
-            } else {
-                signed_area(other.point, self.point, p) > 0.0
-            }
-        } else {
-            false
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -230,7 +228,7 @@ mod test {
         other_y: f64,
         background: bool,
     ) -> (Rc<SweepEvent>, Rc<SweepEvent>) {
-        let other = Rc::new(SweepEvent::new(
+        let other = SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -241,8 +239,8 @@ mod test {
             false,
             Weak::new(),
             true,
-        ));
-        let event = Rc::new(SweepEvent::new(
+        );
+        let event = SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -253,7 +251,7 @@ mod test {
             true,
             Rc::downgrade(&other),
             true,
-        ));
+        );
         // Make sure test cases fulfill the invariant of left/right relationship.
         assert!(event.is_before(&other));
 

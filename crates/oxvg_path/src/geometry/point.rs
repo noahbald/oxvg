@@ -131,16 +131,26 @@ impl Div<f64> for &Point {
 }
 
 impl Point {
+    /// A zero vector point at (0, 0)
     pub const ZERO: Self = Self::splat(0.0);
+    /// A unit vector point at (1, 1)
     pub const UNIT: Self = Self::splat(1.0);
+    /// A negative unit vector point at (-1, -1)
     pub const NEG_UNIT: Self = Self::splat(-1.0);
+    /// A 1 length vector point in the positive x direction (1, 0)
     pub const X: Self = Self([1.0, 0.0]);
+    /// A 1 length vector point in the negative x direction (-1, 0)
     pub const NEG_X: Self = Self([-1.0, 0.0]);
+    /// A 1 length vector point in the positive y direction (0, 1)
     pub const Y: Self = Self([0.0, 1.0]);
+    /// A 1 length vector point in the negative y direction (0, 1)
     pub const NEG_Y: Self = Self([0.0, -1.0]);
+    /// A infinite length unit point at (inf, inf)
     pub const INFINITY: Self = Self::splat(f64::INFINITY);
+    /// A negative infinite length unit point at (-inf, -inf)
     pub const NEG_INFINITY: Self = Self::splat(f64::NEG_INFINITY);
 
+    /// Creates a point with the same x/y values
     pub const fn splat(n: f64) -> Self {
         Self([n, n])
     }
@@ -150,6 +160,7 @@ impl Point {
         self.0[0]
     }
 
+    /// Returns `x` as a mutable reference
     pub const fn x_mut(&mut self) -> &mut f64 {
         &mut self.0[0]
     }
@@ -159,6 +170,7 @@ impl Point {
         self.0[1]
     }
 
+    /// Returns `y` as a mutable reference
     pub const fn y_mut(&mut self) -> &mut f64 {
         &mut self.0[1]
     }
@@ -202,6 +214,7 @@ impl Point {
         }
     }
 
+    /// Returns the point farthest to the left
     pub const fn leftmost<'a>(&'a self, other: &'a Self) -> &'a Self {
         if self.x() <= other.x() {
             self
@@ -210,6 +223,7 @@ impl Point {
         }
     }
 
+    /// Returns the point farthest to the right
     pub const fn rightmost<'a>(&'a self, other: &'a Self) -> &'a Self {
         if self.x() > other.x() {
             self
@@ -230,14 +244,17 @@ impl Point {
         (self - other).len_squared()
     }
 
+    /// Returns the point halfway between the two points
     pub fn midpoint(&self, other: &Self) -> Self {
         (self + other) / 2.0
     }
 
+    /// Returns the point rotated around the origin by some degrees
     pub fn rotate(&self, angle: f64) -> Self {
         self.rotate_radian(angle.to_radians())
     }
 
+    /// Returns the point rotated around the origin by some radians
     pub fn rotate_radian(&self, angle: f64) -> Self {
         let cos = angle.cos();
         let sin = angle.sin();
@@ -263,7 +280,7 @@ impl Point {
         let a = Line([Point([coords[0], coords[1]]), Point([coords[2], coords[3]])]);
         let b = Line([Point([coords[4], coords[5]]), Point([coords[6], coords[7]])]);
         match a.intersection(&b) {
-            Intersection::None | Intersection::Parallel(_, _) => None,
+            Intersection::None | Intersection::Parallel(_) => None,
             Intersection::Intersection(p) => Some(p),
         }
     }
@@ -318,6 +335,8 @@ impl Point {
         )
     }
 
+    /// Returns the point `t` percentage between this point and the other, as a number
+    /// between `0.0` and `1.0`.
     pub fn lerp(self, other: Self, t: f64) -> Self {
         self + (other - self) * t
     }

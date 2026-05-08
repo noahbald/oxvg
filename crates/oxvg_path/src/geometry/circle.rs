@@ -11,6 +11,7 @@ pub struct Circle {
 
 impl Circle {
     /// From a curve, which is potentially an arc, find the corresponding circle
+    #[deprecated]
     pub fn find(curve: &Curve, make_arcs: &ErrorOptions, error: f64) -> Option<Self> {
         let mid_point = Point::cubic_bezier(curve, 0.5);
         let m1 = mid_point / 2.0;
@@ -39,6 +40,7 @@ impl Circle {
     }
 
     /// Returns the angle of a curve fitting the circle
+    #[deprecated]
     pub fn arc_angle(&self, curve: &Curve) -> f64 {
         let v1 = self.center * -1.0;
         let v2 = curve.end_point() - self.center;

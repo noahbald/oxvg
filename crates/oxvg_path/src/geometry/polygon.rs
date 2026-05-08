@@ -6,11 +6,14 @@ use crate::{
 /// A polygon is a list of points
 #[derive(Debug, Clone, PartialEq)]
 pub struct Polygon {
+    /// The points making up the polygon
     pub points: Vec<Point>,
+    /// Whether the polygon is closed
     pub closed: bool,
 }
 
 impl Polygon {
+    /// Creates a polygon fitting the curve up to some tolerance
     pub fn from_curve(
         points: &mut Vec<Point>,
         start: Point,
@@ -23,6 +26,9 @@ impl Polygon {
         if start_control_distance <= **tolerance_squared
             && end_control_distance <= **tolerance_squared
         {
+            if points.is_empty() {
+                points.push(start);
+            }
             points.push(curve.end_point());
         } else {
             let (left, middle, right) = curve.subdivide(start);
@@ -31,6 +37,7 @@ impl Polygon {
         }
     }
 
+    /// Creates a polygon fitting the arc up to some tolerance
     pub fn from_arc(
         points: &mut Vec<Point>,
         start: Point,
@@ -38,6 +45,9 @@ impl Polygon {
         tolerance: &ToleranceSquared,
     ) {
         if start.distance_squared(&arc.mid_point()) <= **tolerance {
+            if points.is_empty() {
+                points.push(start);
+            }
             points.push(arc.end_point())
         } else {
             let (left, right) = arc.subdivide();

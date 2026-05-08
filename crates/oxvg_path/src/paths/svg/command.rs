@@ -177,6 +177,18 @@ impl Data {
         }
     }
 
+    /// Rounds the arguments of the comand data up to some precision
+    pub fn round(&mut self, precision: i32) {
+        self.args_mut().into_iter().enumerate().for_each(|(i, d)| {
+            let result = math::to_fixed(*d, precision);
+            if i > 4 && result == 0.0 {
+                // Don't accidentally null arcs
+                return;
+            }
+            *d = result;
+        });
+    }
+
     /// Set the arg of the command at given index
     ///
     /// # Panics

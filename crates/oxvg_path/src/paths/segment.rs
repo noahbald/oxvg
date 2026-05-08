@@ -20,6 +20,8 @@ pub struct Tolerance {
     pub positional: f64,
     /// The level of tolerance when comparing the error between angles
     pub angular: f64,
+    /// The number of decimal places to round numbers to during processing
+    pub precision: i32,
 }
 
 impl Default for Tolerance {
@@ -28,16 +30,19 @@ impl Default for Tolerance {
         Self {
             positional: 1e-3,
             angular: 1e-3,
+            precision: 2,
         }
     }
 }
 
 impl Tolerance {
+    /// Returns the square of the positional tolerance.
     pub fn square(&self) -> ToleranceSquared {
         ToleranceSquared(self.positional * self.positional)
     }
 }
 
+/// A monad representing a squared positional tolerance.
 pub struct ToleranceSquared(pub f64);
 
 impl Deref for ToleranceSquared {
@@ -51,7 +56,7 @@ impl Deref for ToleranceSquared {
 #[derive(Debug, PartialEq, Clone)]
 /// A reduced representation of an SVG path command
 pub enum Data {
-    /// A line commend
+    /// A line command
     LineTo(Point),
     /// A bezier command
     CurveTo(Curve),
@@ -68,10 +73,11 @@ pub struct Segment {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-/// A segment path is a set of disjointed shaped, each composed of a set of commands
+/// A segment path is a set of disjointed shapes, each composed of a set of commands
 pub struct Path(pub Vec<Segment>);
 
 impl Data {
+    /// Returns the end point of the data item.
     pub fn end_point(&self) -> Point {
         match self {
             Self::LineTo(point) => *point,
@@ -80,6 +86,7 @@ impl Data {
         }
     }
 
+    /// Returns the equivalent data item going from the end to the start.
     pub fn reverse(&self, start: Point) -> Self {
         match self {
             Data::LineTo(_) => Data::LineTo(start),
@@ -100,20 +107,24 @@ impl Data {
 }
 
 impl Segment {
+    /// Returns the start point of the segment.
     pub fn start(&self) -> &Point {
         &self.start
     }
 
+    /// Returns the data of the segment.
     pub fn data(&self) -> &[Data] {
         &self.data
     }
 
+    /// Returns whether the segment is closed.
     pub fn closed(&self) -> bool {
         self.closed
     }
 }
 
 impl Path {
+    /// Closes unclosed segments within the path.
     pub fn close_segments(&mut self) {
         for segment in self.0.iter_mut().filter(|s| !s.closed) {
             segment.data.push(Data::LineTo(segment.start));
@@ -121,7 +132,8 @@ impl Path {
         }
     }
 
-    pub fn iter_start_cursor(&self) -> IterStartCursor {
+    /// Returns an iterator for all the data within the path with the star point of each data item with it.
+    pub fn iter_start_cursor(&self) -> IterStartCursor<'_> {
         IterStartCursor {
             path: self,
             segment: 0,
@@ -130,7 +142,9 @@ impl Path {
         }
     }
 
-    pub fn iter_start_cursor_mut(&mut self) -> IterStartCursorMut {
+    /// Returns a mutable iterator for all the data within the path with the star point of each data item
+    /// with it.
+    pub fn iter_start_cursor_mut(&mut self) -> IterStartCursorMut<'_> {
         IterStartCursorMut {
             path: self,
             segment: 0,
@@ -140,13 +154,15 @@ impl Path {
     }
 }
 
-struct IterStartCursor<'a> {
+/// An iterator for all the data within the path with the star point of each data item with it.
+pub struct IterStartCursor<'a> {
     path: &'a Path,
     segment: usize,
     command: usize,
     cursor: Point,
 }
-struct IterStartCursorMut<'a> {
+/// A mutable iterator for all the data within the path with the star point of each data item with it.
+pub struct IterStartCursorMut<'a> {
     path: &'a mut Path,
     segment: usize,
     command: usize,

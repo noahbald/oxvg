@@ -1,17 +1,14 @@
 use std::{collections::HashSet, rc::Rc};
 
+use super::sweep_event::{ResultTransition, Source, SweepEvent};
 use crate::{
     geometry::Point,
     paths::{
         events,
-        segment::{
-            boolean::sweep_event::{ResultTransition, Source, SweepEvent},
-            Data, Segment, ToleranceSquared,
-        },
+        segment::{Data, Segment, ToleranceSquared},
     },
 };
 
-#[derive(Clone, Debug)]
 pub struct Contour {
     pub points: Vec<Point>,
     pub sources: Vec<Source>,
@@ -100,6 +97,18 @@ impl Contour {
             let start = self.points[i];
             let end = self.points[j];
 
+            match source {
+                events::Data::Line(p) => {
+                    dbg!(p);
+                }
+                events::Data::Curve(c, _) => {
+                    dbg!(c);
+                }
+                events::Data::Arc(a, _) => {
+                    dbg!(a);
+                }
+            }
+
             segment.data.push(match source {
                 events::Data::Line(_) => Data::LineTo(end),
                 events::Data::Curve(curve, p) => {
@@ -141,8 +150,8 @@ impl Contour {
                 }
             });
 
-            if i + 1 < self.sources.len() {
-                i += 1;
+            if j + 1 < self.sources.len() {
+                i = j + 1;
             } else {
                 break;
             }
@@ -242,6 +251,7 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
 
         let l_from = i;
         while i < data.len() && x.point == data[i].point {
+            debug_assert!(data[i].left());
             i += 1;
         }
         let l_to = i;

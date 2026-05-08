@@ -2145,8 +2145,8 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "splay_tree"
-version = "0.4.0"
-source = "git+https://github.com/noahbald/splay_tree.git?branch=feat%2Finverse-find-bound-methods#753a50f172b63df945c92bba63bc249b4371e350"
+version = "0.5.0"
+source = "git+https://github.com/sile/splay_tree.git?rev=b5f5532c98307dc87be88d534c299c73548057e8#b5f5532c98307dc87be88d534c299c73548057e8"
 
 [[package]]
 name = "stable_deref_trait"

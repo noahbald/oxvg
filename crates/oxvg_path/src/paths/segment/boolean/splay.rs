@@ -1,12 +1,10 @@
 use std::{cmp::Ordering, ops::Deref, rc::Rc};
 
-use crate::{
-    geometry::{Intersection, Line},
-    paths::segment::boolean::{
-        sweep_event::SweepEvent,
-        utils::{inverse_less_if, less_if, signed_area},
-    },
+use super::{
+    sweep_event::SweepEvent,
+    utils::{inverse_less_if, less_if, signed_area},
 };
+use crate::geometry::{Intersection, Line};
 
 #[derive(Debug, Clone)]
 pub struct Entry(pub Rc<SweepEvent>);
@@ -32,16 +30,32 @@ impl PartialOrd for Entry {
     }
 }
 impl Ord for Entry {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        debug_assert!(self.left());
-        debug_assert!(other.left());
-        debug_assert!(self.other().is_some());
-        debug_assert!(other.other().is_some());
+    fn cmp(&self, other: &Self) -> Ordering {
+        debug_assert!(
+            self.left(),
+            "compare_segments requires left-events, got a right-event."
+        );
+        debug_assert!(
+            other.left(),
+            "compare_segments requires left-events, got a right-event."
+        );
+        debug_assert!(
+            self.other().is_some(),
+            "missing right-event in compare_segments"
+        );
+        debug_assert!(
+            other.other().is_some(),
+            "missing right-event in compare_segments"
+        );
 
-        if Rc::ptr_eq(self, other) {
+        if self == other {
             return Ordering::Equal;
         }
 
+        // The main logic of compare segments is to check the orientation of the later/older
+        // SweepEvent w.r.t. the segment of the earlier/newer one. The logic is easier to
+        // express by swapping them here according to their temporal order. In case we have
+        // to swap, the result function must be inverted accordingly.
         let (old_left, new_left, less_if): (
             &Rc<SweepEvent>,
             &Rc<SweepEvent>,
@@ -57,15 +71,24 @@ impl Ord for Entry {
         let left_area = signed_area(old_left.point, old_right.point, new_left.point);
         let right_area = signed_area(old_left.point, old_right.point, new_right.point);
         if left_area != 0.0 || right_area != 0.0 {
+            // Segments are not collinear
             if old_left.point == new_left.point {
+                // Left endpoints exactly identical? Use the right endpoint to sort
                 return less_if(old_left.is_below(new_right.point));
             } else if old_left.point.x() == new_left.point.x() {
+                // Left endpoints identical in x, but different in y? Sort by y
                 return less_if(old_left.point.y() < new_left.point.y());
             } else if (left_area > 0.0) == (right_area > 0.0) {
+                // If `l` and `r` lie on the same side of the reference segment,
+                // no intersection check is necessary.
                 return less_if(left_area > 0.0);
             } else if left_area == 0.0 {
+                // If `l` lies on the reference segment, compare based on `r`.
                 return less_if(right_area > 0.0);
             }
+
+            // According to the signed-area values the segments cross. Verify if
+            // we can get an intersection point whic is truely different from `l`.
             match Line([old_left.point, old_right.point])
                 .intersection(&Line([new_left.point, new_right.point]))
             {
@@ -81,6 +104,7 @@ impl Ord for Entry {
             }
         }
 
+        // Segments are collinear
         if old_left.source.background == new_left.source.background {
             if old_left.point == new_left.point {
                 less_if(old_left.contour_id < new_left.contour_id)
@@ -102,11 +126,10 @@ mod test {
         rc::{Rc, Weak},
     };
 
+    use super::super::sweep_event::*;
     use super::*;
-    use crate::{
-        geometry::Point,
-        paths::segment::boolean::sweep_event::{Source, SweepEvent},
-    };
+
+    use crate::geometry::Point;
 
     macro_rules! assert_ordering {
         ($se1:expr, $se2:expr, $ordering:expr) => {
@@ -116,7 +139,7 @@ mod test {
                 _ => Ordering::Equal,
             };
             assert_eq!(
-                $se1.cmp($se2),
+                $se1.cmp(&$se2),
                 $ordering,
                 "Comparing se1/se2 with expected value {:?}",
                 $ordering
@@ -138,7 +161,7 @@ mod test {
         other_y: f64,
         background: bool,
     ) -> (Entry, Entry) {
-        let other = Rc::new(SweepEvent::new(
+        let other = Entry(SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -150,7 +173,7 @@ mod test {
             Weak::new(),
             true,
         ));
-        let event = Rc::new(SweepEvent::new(
+        let event = Entry(SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -165,7 +188,7 @@ mod test {
         // Make sure test cases fulfill the invariant of left/right relationship.
         assert!(event.is_before(&other));
 
-        (Entry(event), Entry(other))
+        (event, other)
     }
 
     #[test]
@@ -212,9 +235,9 @@ mod test {
         assert_eq!(se1.0.cmp(&*se2), Ordering::Less);
         assert!(!se2.is_below(se1.point));
 
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
 
-        assert_eq!(se3.0.cmp(&*se4), Ordering::Less);
+        assert_eq!(se3.0.cmp(&se4.0), Ordering::Less);
         assert!(se4.is_below(se3.point));
     }
 
@@ -224,7 +247,7 @@ mod test {
         let (se1, _other1) = make_simple(0, -1.0, 0.0, 2.0, 3.0, false);
 
         assert!(!se1.is_below(se2.point));
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
     }
 
     #[test]
@@ -233,7 +256,7 @@ mod test {
         let (se2, _other2) = make_simple(0, 2.0, 01.0, 3.0, 1.0, false);
 
         assert_ne!(se1.source.background, se2.source.background);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
     }
 
     #[test]
@@ -245,13 +268,13 @@ mod test {
             assert_eq!(se1.source.background, se2.source.background);
             assert_eq!(se1.point, se2.point);
 
-            assert_ordering!(se1, &se2, Ordering::Less);
+            assert_ordering!(se1, se2, Ordering::Less);
         }
         {
             let (se1, _other2) = make_simple(2, 0.0, 1.0, 5.0, 1.0, false);
             let (se2, _other1) = make_simple(1, 0.0, 1.0, 3.0, 1.0, false);
 
-            assert_ordering!(se1, &se2, Ordering::Greater);
+            assert_ordering!(se1, se2, Ordering::Greater);
         }
     }
 
@@ -262,7 +285,7 @@ mod test {
 
         assert_eq!(se1.source.background, se2.source.background);
         assert_ne!(se1.point, se2.point);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
     }
 
     #[test]
@@ -271,23 +294,23 @@ mod test {
         //        /\
         let (se1, _other1) = make_simple(0, 0.0, 0.0, 1.0, 1.0, true);
         let (se2, _other2) = make_simple(0, 0.5, 0.5, 1.0, 0.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
 
         // shape: \/
         //         \
         let (se1, _other1) = make_simple(0, 0.0, 1.0, 1.0, 0.0, true);
         let (se2, _other2) = make_simple(0, 0.5, 0.5, 1.0, 1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
 
         // shape: T
         let (se1, _other1) = make_simple(0, 0.0, 1.0, 1.0, 1.0, true);
         let (se2, _other2) = make_simple(0, 0.5, 0.0, 0.5, 1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
 
         // shape: T upside down
         let (se1, _other1) = make_simple(0, 0.0, 0.0, 1.0, 0.0, true);
         let (se2, _other2) = make_simple(0, 0.5, 0.0, 0.5, 1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
     }
 
     #[test]
@@ -297,31 +320,31 @@ mod test {
 
         // "above" cases
         let (se2, _other2) = make_simple(0, -1.0, 1.0, 0.0, 1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
         let (se2, _other2) = make_simple(0, 0.0, 1.0, 1.0, 1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
         let (se2, _other2) = make_simple(0, -1.0, 2.0, 0.0, 2.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
         let (se2, _other2) = make_simple(0, 0.0, 2.0, 1.0, 2.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
         let (se2, _other2) = make_simple(0, 0.0, 1.0, 0.0, 2.0, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
 
         // "below" cases
         let (se2, _other2) = make_simple(0, -1.0, -1.0, 0.0, -1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
         let (se2, _other2) = make_simple(0, 0.0, -1.0, 1.0, -1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
         let (se2, _other2) = make_simple(0, -1.0, -2.0, 0.0, -2.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
         let (se2, _other2) = make_simple(0, 0.0, -2.0, 1.0, -2.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
         let (se2, _other2) = make_simple(0, 0.0, -2.0, 0.0, -1.0, true);
-        assert_ordering!(se1, &se2, Ordering::Greater);
+        assert_ordering!(se1, se2, Ordering::Greater);
 
         // overlaps
         let (se2, _other2) = make_simple(0, 0.0, -0.5, 0.0, 0.5, true);
-        assert_ordering!(se1, &se2, Ordering::Less);
+        assert_ordering!(se1, se2, Ordering::Less);
         // When left endpoints are identical, the ordering is no longer anti-symmetric.
         // TODO: Decide if this is a problem.
         // let (se2, _other2) = make_simple(0, 0.0, -1.0, 0.0, 0.0, true);

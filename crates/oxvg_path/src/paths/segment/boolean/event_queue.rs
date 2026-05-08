@@ -3,19 +3,16 @@ use std::{
     rc::{Rc, Weak},
 };
 
+use super::{
+    splay::{Entry, Set},
+    sweep_event::{EdgeType, ResultTransition, Source, SweepEvent},
+    Operation,
+};
 use crate::{
     geometry::{Intersection, Line, Point},
-    paths::{
-        events,
-        segment::boolean::{
-            splay::{Entry, Set},
-            sweep_event::{EdgeType, ResultTransition, Source, SweepEvent},
-            Operation,
-        },
-    },
+    paths::events,
 };
 
-#[derive(Debug)]
 pub struct EventQueue {
     heap: BinaryHeap<Rc<SweepEvent>>,
     bbbox: (Point, Point),
@@ -31,10 +28,11 @@ impl EventQueue {
     ) -> Self {
         let mut contour_id = 0;
 
+        let bbox = (Point::INFINITY, Point::NEG_INFINITY);
         let mut result = Self {
             heap: BinaryHeap::new(),
-            bbbox: (Point::INFINITY, Point::NEG_INFINITY),
-            fbbox: (Point::INFINITY, Point::NEG_INFINITY),
+            bbbox: bbox,
+            fbbox: bbox,
             operation,
         };
         for (i, polygon) in background.0.iter().enumerate() {
@@ -79,12 +77,10 @@ impl EventQueue {
     }
 
     pub fn is_trivial(&self) -> bool {
-        let bbbox = self.bbbox;
-        let fbbox = self.fbbox;
-        bbbox.0.x() > fbbox.1.x()
-            || fbbox.0.x() > bbbox.1.x()
-            || bbbox.0.y() > fbbox.1.y()
-            || fbbox.0.y() > bbbox.1.y()
+        self.bbbox.0.x() > self.fbbox.1.x()
+            || self.fbbox.0.x() > self.bbbox.1.x()
+            || self.bbbox.0.y() > self.fbbox.1.y()
+            || self.fbbox.0.y() > self.bbbox.1.y()
     }
 
     pub fn subdivide(&mut self) -> Vec<Rc<SweepEvent>> {
@@ -105,7 +101,7 @@ impl EventQueue {
             if event.left() {
                 sweep_line.insert(entry.clone());
 
-                let maybe_prev = sweep_line.find_upper_bound_inv(&entry).cloned();
+                let maybe_prev = sweep_line.find_upper_bound_rev(&entry).cloned();
                 let maybe_next = sweep_line.find_upper_bound(&entry).cloned();
 
                 compute_fields(&event, maybe_prev.as_deref(), self.operation);
@@ -120,7 +116,7 @@ impl EventQueue {
 
                 if let Some(prev) = maybe_prev {
                     if self.possible_intersection(&prev, &event) == 2 {
-                        let maybe_prev_prev = sweep_line.find_upper_bound_inv(&prev);
+                        let maybe_prev_prev = sweep_line.find_upper_bound_rev(&prev);
                         // Recompute fields for current segment and the one below (in bottom to top order)
                         compute_fields(&prev, maybe_prev_prev.map(|e| &e.0), self.operation);
                         compute_fields(&event, Some(&prev), self.operation);
@@ -128,14 +124,8 @@ impl EventQueue {
                 }
             } else if let Some(other_event) = event.other() {
                 let entry = Entry(other_event.clone());
-                // This debug assert is only true, if we compare segments in the sweep line
-                // based on identity (curently), and not by value (done previously).
-                debug_assert!(
-                    sweep_line.contains(&entry),
-                    "Sweep line misses event to be removed"
-                );
                 if sweep_line.contains(&entry) {
-                    let maybe_prev = sweep_line.find_upper_bound_inv(&entry).cloned();
+                    let maybe_prev = sweep_line.find_upper_bound_rev(&entry).cloned();
                     let maybe_next = sweep_line.find_upper_bound(&entry).cloned();
 
                     if let (Some(prev), Some(next)) = (maybe_prev, maybe_next) {
@@ -169,22 +159,22 @@ impl EventQueue {
                     return;
                 }
 
-                let e1 = Rc::new(SweepEvent::new(
+                let e1 = SweepEvent::new(
                     source.clone(),
                     contour_id,
                     *line.start(),
                     false,
                     Weak::new(),
                     is_exterior,
-                ));
-                let e2 = Rc::new(SweepEvent::new(
+                );
+                let e2 = SweepEvent::new(
                     source.clone(),
                     contour_id,
                     *line.end(),
                     false,
                     Rc::downgrade(&e1),
                     is_exterior,
-                ));
+                );
                 *e1.other_mut() = Rc::downgrade(&e2);
 
                 if e1 < e2 {
@@ -193,14 +183,10 @@ impl EventQueue {
                     *e1.left_mut() = true
                 }
 
-                bbox.0 = Point([
-                    bbox.0.x().min(line.start().x()),
-                    bbox.0.y().min(line.start().y()),
-                ]);
-                bbox.1 = Point([
-                    bbox.1.x().max(line.start().x()),
-                    bbox.1.y().max(line.start().y()),
-                ]);
+                *bbox.0.x_mut() = bbox.0.x().min(line.start().x());
+                *bbox.0.y_mut() = bbox.0.y().min(line.start().y());
+                *bbox.1.x_mut() = bbox.1.x().max(line.start().x());
+                *bbox.1.y_mut() = bbox.1.y().max(line.start().y());
 
                 self.heap.push(e1);
                 self.heap.push(e2);
@@ -223,12 +209,12 @@ impl EventQueue {
                         self.divide_segment(a1, p);
                     }
                     if b1.point != p && b2.point != p {
-                        self.divide_segment(&b1, p);
+                        self.divide_segment(b1, p);
                     }
                     1
                 }
             }
-            Intersection::Parallel(..) => {
+            Intersection::Parallel(_) => {
                 if a1.source.background == b1.source.background {
                     0
                 } else {
@@ -249,11 +235,11 @@ impl EventQueue {
                     if a2.point == b2.point {
                         right_coincide = true;
                     } else if a2 < b2 {
-                        events.push((b2.clone(), b1.clone()));
-                        events.push((a2.clone(), a1.clone()));
+                        events.push((b2, b1.clone()));
+                        events.push((a2, a1.clone()));
                     } else {
-                        events.push((a2.clone(), a1.clone()));
-                        events.push((b2.clone(), b1.clone()));
+                        events.push((a2, a1.clone()));
+                        events.push((b2, b1.clone()));
                     }
 
                     if left_coincide {
@@ -296,25 +282,25 @@ impl EventQueue {
             *intersection.x_mut() = intersection.x().next_up();
         }
 
-        let r = Rc::new(SweepEvent::new(
+        let r = SweepEvent::new(
             left.source.clone(),
             left.contour_id,
             intersection,
             false,
             Rc::downgrade(left),
             true,
-        ));
-        let l = Rc::new(SweepEvent::new(
+        );
+        let l = SweepEvent::new(
             left.source.clone(),
             left.contour_id,
             intersection,
             true,
             Rc::downgrade(&right),
             true,
-        ));
+        );
 
-        debug_assert!(left.is_before(&right));
-        if !left.is_before(&right) {
+        debug_assert!(left.is_before(&r));
+        if !l.is_before(&right) {
             *right.left_mut() = true;
             *l.left_mut() = false;
         }
@@ -334,11 +320,11 @@ fn compute_fields(
 ) {
     if let Some(prev) = maybe_prev {
         if event.source.background == prev.source.background {
-            event.set_in_out(!prev.in_out(), prev.other_in_out())
+            event.set_in_out(!prev.in_out(), prev.other_in_out());
         } else if prev.is_vertical() {
-            event.set_in_out(!prev.other_in_out(), !prev.in_out())
+            event.set_in_out(!prev.other_in_out(), !prev.in_out());
         } else {
-            event.set_in_out(!prev.other_in_out(), prev.in_out())
+            event.set_in_out(!prev.other_in_out(), prev.in_out());
         }
 
         if prev.is_in_result() && !prev.is_vertical() {
@@ -362,8 +348,8 @@ fn compute_fields(
     *event.result_transition_mut() = result_transition;
 }
 
-fn in_result(event: &Rc<SweepEvent>, operation: Operation) -> bool {
-    match &*event.edge_type() {
+fn in_result(event: &SweepEvent, operation: Operation) -> bool {
+    match *event.edge_type() {
         EdgeType::Normal => match operation {
             Operation::Intersection => !event.other_in_out(),
             Operation::Union => event.other_in_out(),
@@ -379,7 +365,7 @@ fn in_result(event: &Rc<SweepEvent>, operation: Operation) -> bool {
     }
 }
 
-fn determine_result_transition(event: &Rc<SweepEvent>, operation: Operation) -> ResultTransition {
+fn determine_result_transition(event: &SweepEvent, operation: Operation) -> ResultTransition {
     let this_in = !event.in_out();
     let that_in = !event.other_in_out();
     let is_in = match operation {
@@ -413,7 +399,7 @@ mod divide_segments {
         other_y: f64,
         background: bool,
     ) -> (Rc<SweepEvent>, Rc<SweepEvent>) {
-        let other = Rc::new(SweepEvent::new(
+        let other = SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -424,8 +410,8 @@ mod divide_segments {
             false,
             Weak::new(),
             true,
-        ));
-        let event = Rc::new(SweepEvent::new(
+        );
+        let event = SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -436,7 +422,7 @@ mod divide_segments {
             true,
             Rc::downgrade(&other),
             true,
-        ));
+        );
 
         (event, other)
     }
@@ -476,7 +462,7 @@ mod fill_queue {
     };
 
     fn make_simple(x: f64, y: f64, background: bool) -> Rc<SweepEvent> {
-        Rc::new(SweepEvent::new(
+        SweepEvent::new(
             Source {
                 background,
                 polygon: 0,
@@ -487,7 +473,7 @@ mod fill_queue {
             false,
             Weak::new(),
             true,
-        ))
+        )
     }
 
     fn check_order_in_queue(first: Rc<SweepEvent>, second: Rc<SweepEvent>) {

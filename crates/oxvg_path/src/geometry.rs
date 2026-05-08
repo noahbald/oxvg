@@ -5,9 +5,11 @@ use tsify::Tsify;
 mod arc;
 mod circle;
 mod curve;
+mod ellipses;
 mod line;
 mod point;
 mod polygon;
+mod rectangle;
 
 pub use arc::Arc;
 pub use circle::Circle;
@@ -15,6 +17,7 @@ pub use curve::Curve;
 pub use line::{Intersection, Line};
 pub use point::{Point, Quadrant};
 pub use polygon::Polygon;
+pub use rectangle::Rectangle;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]

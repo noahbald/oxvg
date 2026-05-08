@@ -94,7 +94,7 @@ impl Path {
     /// let options = Options::default();
     ///
     /// path = path.optimize(options, &Tolerance::default());
-    /// assert_eq!(&path.to_string(), "M10 30V50l20-20H10");
+    /// assert_eq!(&path.to_string(), "m10 30v20l20-20H10");
     /// ```
     pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
         let mut segments = segment::Path::from_svg(self, &tolerance);

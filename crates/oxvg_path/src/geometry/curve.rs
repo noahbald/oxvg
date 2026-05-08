@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{
     command,
     geometry::{line::Intersection, Circle, ErrorOptions, Line, Point},
@@ -14,6 +16,7 @@ pub struct Curve(
 );
 
 impl Curve {
+    /// Returns a new curve.
     pub fn new(start_control: Point, end_control: Point, end_point: Point) -> Self {
         Self([
             start_control.x(),
@@ -103,9 +106,9 @@ impl Curve {
     }
 
     /// Returns whether the arc fits on a straight line.
-    pub fn is_straight(&self, start: Point, tolerance: f64) -> bool {
-        Point::cross(start, self.end_point(), self.start_control()).abs() < tolerance
-            && Point::cross(start, self.end_point(), self.end_control()).abs() < tolerance
+    pub fn is_straight(&self, start: Point, tolerance: &ToleranceSquared) -> bool {
+        Point::cross(start, self.end_point(), self.start_control()).abs() < **tolerance
+            && Point::cross(start, self.end_point(), self.end_control()).abs() < **tolerance
     }
 
     /// Returns whether the arc fits on a straight line
@@ -151,6 +154,7 @@ impl Curve {
         self.subdivide_t(start, 0.5)
     }
 
+    /// Returns two halves of the curve by a point that lies on the curve, up to some tolerance.
     pub fn subdivide_at(
         &self,
         start: Point,
@@ -161,6 +165,8 @@ impl Curve {
         Some((result.0, result.2))
     }
 
+    /// Returns two divisions of the curve by the percentage along the curve, as a number
+    /// between `0.0` and `1.0`.
     pub fn subdivide_t(&self, start: Point, t: f64) -> (Curve, Point, Curve) {
         let p0 = start;
         let p1 = self.start_control();
@@ -181,8 +187,9 @@ impl Curve {
 
     /// Returns the point `t` percent along a curve's chord, where `1.0` is `100%`
     #[must_use]
+    #[deprecated]
     pub fn point_at(&self, t: f64) -> Point {
-        self.point_at_from(Point::default(), t)
+        self.point_at_from(Point::ZERO, t)
     }
 
     /// Returns the point `t` percent along a curve's chord from some
@@ -200,59 +207,98 @@ impl Curve {
         mt3 * start + 3.0 * mt2 * t * start_control + 3.0 * mt * t2 * end_control + t3 * end_point
     }
 
+    /// Returns the percent along the curve a point lies, to some tolerance.
     pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
-        let end = self.end_point();
-        let chord = start - end;
-        let chord_len_squared = chord.len_squared();
-        let mut t = if chord_len_squared < 1e-12 {
-            if chord.distance_squared(&at) < **tolerance {
-                return Some(0.5);
-            } else {
-                return None;
-            }
-        } else {
-            ((at - start).dot(&chord) / chord_len_squared).clamp(0.0, 1.0)
+        // We minimise f(t) = |B(t) - at|²
+        // f'(t)  = 2 · (B(t) - at) · B'(t)          ← dot product
+        // f''(t) = 2 · (|B'(t)|² + (B(t) - at) · B''(t))
+        //
+        // Newton step: t ← t - f'(t) / f''(t)
+        //
+        // B'(t)  = 3(-p0 + 3p1 - 3p2 + p3)t² + 6(p0 - 2p1 + p2)t + 3(-p0 + p1)
+        // B''(t) = 6(-p0 + 3p1 - 3p2 + p3)t  + 6(p0 - 2p1 + p2)
+        // where p0=start, p1=start_control, p2=end_control, p3=end_point
+
+        let p0 = start;
+        let p1 = self.start_control();
+        let p2 = self.end_control();
+        let p3 = self.end_point();
+        dbg!(p0, p3, at);
+
+        // Cubic derivative coefficients  B'(t) = a·t² + b·t + c
+        let d_a = (p1 - p0) * 3.0 - (p2 - p1) * 3.0 + (p3 - p2) * 3.0 - (p1 - p0) * 3.0 * 3.0
+            + (p1 - p0) * 3.0;
+        // Re-derive cleanly to avoid mistakes:
+        let c0 = p1 - p0; // 1/3 of B'(0)
+        let c1 = p0 - p1 * 2.0 + p2; // 1/6 of B''(0)
+        let c2 = p1 * (-1.0) + p2 * 3.0 - p3 * 3.0 + p0 * (-1.0) + p1 * 2.0;
+        // simplify via standard form:
+        //   B'(t)  = 3[(p1-p0)(1-t)² + 2(p2-p1)(1-t)t + (p3-p2)t²]
+        //   … expand to at² + bt + c:
+        let da = (p3 - p0) + (p1 - p2) * 3.0; // coefficient of t² in B'(t)/3
+        let db = (p0 - p1 * 2.0 + p2) * 2.0; // coefficient of t   in B'(t)/3
+        let dc = p1 - p0; // constant            in B'(t)/3
+
+        // Evaluates B'(t)
+        let bprime = |t: f64| -> Point {
+            let t2 = t * t;
+            (da * t2 + db * t + dc) * 3.0
         };
 
-        for _ in 0..32 {
-            // TODO: Measure best iteration count
-            let pos = self.point_at_from(start, t);
-            let d1 = self.derivative_at(t);
-            let d2 = self.second_derivative_at(t);
+        // Evaluates B''(t)  = 6(da·t + db/2) … but let's be explicit:
+        // B''(t) = 3[2·da·t + db]·3  -- no, B' = 3(da t² + db t + dc)
+        // so B'' = 3(2·da·t + db)
+        let bdprime = |t: f64| -> Point { (da * (2.0 * t) + db) * 3.0 };
 
-            let diff = pos - at;
-            let n = diff.dot(&d1);
-            let d = d1.dot(&d1) + diff.dot(&d2);
-            if d.abs() < 1e-12 {
-                break;
+        const MAX_ITER: usize = 8;
+        let tol_sq = **tolerance;
+
+        // Try several seeds spread across [0,1] and keep the best converged result.
+        let seeds: [f64; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
+        let mut best_t: Option<f64> = None;
+        let mut best_dist_sq = f64::INFINITY;
+
+        for &seed in &seeds {
+            let mut t = seed;
+
+            for _ in 0..MAX_ITER {
+                let bt = self.point_at_from(start, t);
+                let diff = bt - at;
+
+                let bp = bprime(t);
+                let bp2 = bdprime(t);
+
+                // f'(t)  = 2 · diff · B'(t)
+                let f1 = diff.dot(&bp);
+                // f''(t) = 2 · (|B'(t)|² + diff · B''(t))
+                let f2 = bp.dot(&bp) + diff.dot(&bp2);
+
+                if f2.abs() < 1e-12 {
+                    break;
+                }
+
+                let step = f1 / f2;
+                t -= step;
+                t = t.clamp(0.0, 1.0);
+
+                if step.abs() < 1e-7 {
+                    break;
+                }
             }
-            let step = n / d;
-            t = (t - step).clamp(0.0, 1.0);
-            if step.abs() < 1e-12 {
-                break;
-            } else if t == 0.0 || t == 1.0 {
-                break;
+
+            dbg!(t);
+            let dist_sq = dbg!(self.point_at_from(start, t).distance_squared(&at));
+            if dist_sq < best_dist_sq {
+                best_dist_sq = dist_sq;
+                best_t = Some(t);
             }
         }
 
-        let pos = self.point_at_from(start, t);
-        if pos.distance_squared(&at) < **tolerance {
-            Some(t)
+        if best_dist_sq <= tol_sq {
+            best_t
         } else {
             None
         }
-    }
-
-    fn derivative_at(&self, t: f64) -> Point {
-        let mt = 1.0 - t;
-        3.0 * (mt * mt * (self.start_control())
-            + 2.0 * mt * t * (self.end_control() - self.start_control())
-            + t * t * (self.end_point() - self.end_control()))
-    }
-
-    fn second_derivative_at(&self, t: f64) -> Point {
-        6.0 * ((1.0 - t) * (self.end_control() - 2.0 * self.start_control())
-            + t * (self.end_point() - 2.0 * self.end_control() + self.start_control()))
     }
 }
 
