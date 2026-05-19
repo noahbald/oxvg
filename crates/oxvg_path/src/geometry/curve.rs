@@ -209,44 +209,19 @@ impl Curve {
 
     /// Returns the percent along the curve a point lies, to some tolerance.
     pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
-        // We minimise f(t) = |B(t) - at|²
-        // f'(t)  = 2 · (B(t) - at) · B'(t)          ← dot product
-        // f''(t) = 2 · (|B'(t)|² + (B(t) - at) · B''(t))
-        //
-        // Newton step: t ← t - f'(t) / f''(t)
-        //
-        // B'(t)  = 3(-p0 + 3p1 - 3p2 + p3)t² + 6(p0 - 2p1 + p2)t + 3(-p0 + p1)
-        // B''(t) = 6(-p0 + 3p1 - 3p2 + p3)t  + 6(p0 - 2p1 + p2)
-        // where p0=start, p1=start_control, p2=end_control, p3=end_point
-
         let p0 = start;
         let p1 = self.start_control();
         let p2 = self.end_control();
         let p3 = self.end_point();
 
-        // Cubic derivative coefficients  B'(t) = a·t² + b·t + c
-        let d_a = (p1 - p0) * 3.0 - (p2 - p1) * 3.0 + (p3 - p2) * 3.0 - (p1 - p0) * 3.0 * 3.0
-            + (p1 - p0) * 3.0;
-        // Re-derive cleanly to avoid mistakes:
-        let c0 = p1 - p0; // 1/3 of B'(0)
-        let c1 = p0 - p1 * 2.0 + p2; // 1/6 of B''(0)
-        let c2 = p1 * (-1.0) + p2 * 3.0 - p3 * 3.0 + p0 * (-1.0) + p1 * 2.0;
-        // simplify via standard form:
-        //   B'(t)  = 3[(p1-p0)(1-t)² + 2(p2-p1)(1-t)t + (p3-p2)t²]
-        //   … expand to at² + bt + c:
-        let da = (p3 - p0) + (p1 - p2) * 3.0; // coefficient of t² in B'(t)/3
-        let db = (p0 - p1 * 2.0 + p2) * 2.0; // coefficient of t   in B'(t)/3
-        let dc = p1 - p0; // constant            in B'(t)/3
+        let da = (p3 - p0) + (p1 - p2) * 3.0;
+        let db = (p0 - p1 * 2.0 + p2) * 2.0;
+        let dc = p1 - p0;
 
-        // Evaluates B'(t)
         let bprime = |t: f64| -> Point {
             let t2 = t * t;
             (da * t2 + db * t + dc) * 3.0
         };
-
-        // Evaluates B''(t)  = 6(da·t + db/2) … but let's be explicit:
-        // B''(t) = 3[2·da·t + db]·3  -- no, B' = 3(da t² + db t + dc)
-        // so B'' = 3(2·da·t + db)
         let bdprime = |t: f64| -> Point { (da * (2.0 * t) + db) * 3.0 };
 
         const MAX_ITER: usize = 8;
@@ -267,9 +242,7 @@ impl Curve {
                 let bp = bprime(t);
                 let bp2 = bdprime(t);
 
-                // f'(t)  = 2 · diff · B'(t)
                 let f1 = diff.dot(&bp);
-                // f''(t) = 2 · (|B'(t)|² + diff · B''(t))
                 let f2 = bp.dot(&bp) + diff.dot(&bp2);
 
                 if f2.abs() < 1e-12 {
@@ -308,7 +281,7 @@ impl Curve {
         debug_assert!(t2 >= 0.0 && t2 <= 1.0);
         debug_assert!(t1 <= t2);
         let (_, start, right) = self.subdivide_t(start, t1);
-        let t2 = if t1 == 0.0 {
+        let t2 = if (1.0 - t1).abs() < 1e-10 {
             1.0
         } else {
             (t2 - t1) / (1.0 - t1)

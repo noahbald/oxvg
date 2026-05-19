@@ -211,8 +211,9 @@ impl Arc {
         tolerance_squared: &ToleranceSquared,
     ) -> Option<Self> {
         let ellipses = Ellipses::fit_curve(curve, start, tolerance)?;
-        let start_angle = ellipses.angle_at_point(start, tolerance_squared)?;
-        let end_angle = ellipses.angle_at_point(curve.end_point(), tolerance_squared)?;
+        let tolerance = ellipses.ellipse_tolerance(tolerance_squared);
+        let start_angle = ellipses.angle_at_point(start, &tolerance)?;
+        let end_angle = ellipses.angle_at_point(curve.end_point(), &tolerance)?;
         let mut sweep_angle = end_angle - start_angle;
 
         if sweep_angle > PI {
@@ -241,7 +242,9 @@ impl Arc {
     /// is between the arc's start and end point, when that point is on the arc within
     /// some tolerance.
     pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
-        let angle = self.ellipses().angle_at_point(at, tolerance)?;
+        let ellipses = self.ellipses();
+        let tolerance = ellipses.ellipse_tolerance(tolerance);
+        let angle = self.ellipses().angle_at_point(at, &tolerance)?;
         let mut delta = angle - self.start_angle();
         if self.sweep_angle() > 0.0 {
             delta = delta.rem_euclid(2.0 * PI);
@@ -252,7 +255,7 @@ impl Arc {
         if self
             .point_at_angle(self.start_angle() + t * self.sweep_angle())
             .distance_squared(&at)
-            <= **tolerance
+            <= *tolerance
         {
             Some(t)
         } else {

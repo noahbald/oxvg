@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     geometry::{Arc, Circle, Curve, Intersection, Line, Point},
     optimize::Tolerance,
@@ -6,6 +8,17 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Ellipses([f64; 5]);
+
+/// A monad representing a squared positional tolerance relative to an ellipse radius.
+pub struct EllipsesTolerance(pub f64);
+
+impl Deref for EllipsesTolerance {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl Ellipses {
     pub const fn new(center: Point, radii: Point, x_rotation: f64) -> Self {
@@ -55,7 +68,11 @@ impl Ellipses {
         self.center() + start.rotate_radian(self.x_rotation())
     }
 
-    pub fn angle_at_point(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+    pub fn ellipse_tolerance(&self, tolerance: &ToleranceSquared) -> EllipsesTolerance {
+        EllipsesTolerance((**tolerance) * (1.0 + self.radii().x().max(self.radii().y()).powi(2)))
+    }
+
+    pub fn angle_at_point(&self, at: Point, tolerance: &EllipsesTolerance) -> Option<f64> {
         let local = at - self.center();
         let unrotated = local.rotate_radian(-self.x_rotation());
         let angle = (unrotated.y() / self.radii().y()).atan2(unrotated.x() / self.radii().x());

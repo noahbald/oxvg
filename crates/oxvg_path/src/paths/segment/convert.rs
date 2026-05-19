@@ -212,11 +212,11 @@ impl Segment {
                 Data::LineTo(point) => points.push(*point),
                 Data::CurveTo(curve) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_curve(&mut points, start, curve, &tolerance.square())
+                    Polygon::from_curve(&mut points, start, curve, &tolerance.square());
                 }
                 Data::ArcTo(arc) => {
                     let start = points.last().copied().unwrap();
-                    Polygon::from_arc(&mut points, start, arc, &tolerance.square())
+                    Polygon::from_arc(&mut points, start, arc, &tolerance.square(), 0);
                 }
             }
         }
@@ -414,7 +414,7 @@ fn compactest_vec(data: Vec<command::Data>, precision: i32) -> command::Data {
             d.round(precision);
             d
         })
-        .map(|d| (dbg!(d.to_string()).len(), d))
+        .map(|d| (d.to_string().len(), d))
         .min_by(|a, b| a.0.cmp(&b.0))
         .map(|d| d.1)
         .unwrap()

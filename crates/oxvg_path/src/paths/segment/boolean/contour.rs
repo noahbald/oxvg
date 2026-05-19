@@ -9,6 +9,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 pub struct Contour {
     pub edges: Vec<(Point, Point, Source)>,
     pub holes: Vec<usize>,
@@ -77,7 +78,6 @@ impl Contour {
             data: vec![],
             closed: true,
         };
-        dbg!(&self.edges);
         for (start, end, source_ref) in &self.edges {
             let source = if source_ref.background {
                 background
@@ -87,62 +87,61 @@ impl Contour {
             let source = &source.0[source_ref.polygon];
             let source = &source.data[source_ref.command];
 
-            match source {
-                events::Data::Line(p) => {
-                    dbg!(p);
-                }
-                events::Data::Curve(c, _) => {
-                    dbg!(c);
-                }
-                events::Data::Arc(a, _) => {
-                    dbg!(a);
-                }
-            }
-
             segment.data.push(match source {
                 events::Data::Line(_) => Data::LineTo(*end),
                 events::Data::Curve(curve, p) => {
                     let curve_start = *p[0].start();
                     let curve_end = *p.last().unwrap().end();
-                    dbg!(start, curve_start, curve_end, end);
                     if *start == curve_start && curve_end == *end {
                         Data::CurveTo(*curve)
+                    } else if *start == curve_end && curve_start == *end {
+                        Data::CurveTo(curve.reverse(curve_start))
                     } else {
                         let t1 = if *start == *p[0].start() {
                             0.0
+                        } else if *start == curve_end {
+                            1.0
                         } else {
                             curve.t_at(curve_start, *start, tolerance).unwrap()
                         };
                         let t2 = if *end == curve_end {
                             1.0
+                        } else if *end == curve_start {
+                            0.0
                         } else {
                             curve.t_at(curve_start, *end, tolerance).unwrap()
                         };
-                        Data::CurveTo(if dbg!(t1) <= dbg!(t2) {
+                        Data::CurveTo(if t1 <= t2 {
                             curve.clamp_t(curve_start, t1, t2)
                         } else {
-                            curve.clamp_t(curve_start, t2, t1).reverse(curve_start)
+                            curve.clamp_t(curve_start, t2, t1).reverse(*end)
                         })
                     }
                 }
                 events::Data::Arc(arc, p) => {
                     let arc_start = *p[0].start();
                     let arc_end = *p.last().unwrap().end();
-                    dbg!(start, arc_start, arc_end, end);
                     if *start == arc_start && arc_end == *end {
                         Data::ArcTo(*arc)
+                    } else if *start == arc_end && arc_start == *end {
+                        // Edge runs opposite to arc's natural direction: full arc reversed
+                        Data::ArcTo(arc.reverse())
                     } else {
                         let t1 = if *start == arc_start {
                             0.0
+                        } else if *start == arc_end {
+                            1.0
                         } else {
                             arc.t_at(*start, tolerance).unwrap()
                         };
                         let t2 = if *end == arc_end {
                             1.0
+                        } else if *end == arc_start {
+                            0.0
                         } else {
                             arc.t_at(*end, tolerance).unwrap()
                         };
-                        Data::ArcTo(if dbg!(t1) <= dbg!(t2) {
+                        Data::ArcTo(if t1 <= t2 {
                             arc.clamp_t(t1, t2)
                         } else {
                             arc.clamp_t(t2, t1).reverse()
@@ -184,20 +183,20 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
             processed.insert(pos);
             *result_events[pos].output_contour_id_mut() = contour_id;
 
+            let left_point = result_events[pos].point;
             pos = result_events[pos].other_pos();
 
             processed.insert(pos);
             *result_events[pos].output_contour_id_mut() = contour_id;
 
-            let new_point = result_events[pos].point;
+            let right_point = result_events[pos].point;
             if contour.edges.last().map(|e| &e.2) != Some(&result_events[pos].source.clone()) {
                 contour
                     .edges
-                    .push((new_point, new_point, result_events[pos].source.clone()));
+                    .push((left_point, right_point, result_events[pos].source.clone()));
             } else {
-                contour.edges.last_mut().unwrap().1 = new_point;
+                contour.edges.last_mut().unwrap().1 = right_point;
             }
-
             let next_pos_opt = get_next_pos(pos, &processed, &iteration_map);
             match next_pos_opt {
                 Some(npos) => pos = npos,
@@ -244,7 +243,6 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
 
     let mut i = 0;
     while i < data.len() {
-        dbg!(i, &data[i].point, data[i].left());
         let x = &data[i];
 
         let r_from = i;
@@ -297,8 +295,6 @@ fn get_next_pos(
     let start_pos = pos;
 
     loop {
-        let next = iteration_map[pos];
-        dbg!(pos, next, processed.contains(&next));
         pos = iteration_map[pos];
         if pos == start_pos {
             return None;

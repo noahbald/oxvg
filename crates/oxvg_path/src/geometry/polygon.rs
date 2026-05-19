@@ -43,16 +43,17 @@ impl Polygon {
         start: Point,
         arc: &Arc,
         tolerance: &ToleranceSquared,
+        depth: usize,
     ) {
-        if start.distance_squared(&arc.mid_point()) <= **tolerance {
+        if start.distance_squared(&arc.mid_point()) <= **tolerance || depth >= 7 {
             if points.is_empty() {
                 points.push(start);
             }
             points.push(arc.end_point())
         } else {
             let (left, right) = arc.subdivide();
-            Self::from_arc(points, start, &left, tolerance);
-            Self::from_arc(points, arc.mid_point(), &right, tolerance);
+            Self::from_arc(points, start, &left, tolerance, depth + 1);
+            Self::from_arc(points, arc.mid_point(), &right, tolerance, depth + 1);
         }
     }
 }

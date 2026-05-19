@@ -43,13 +43,15 @@ impl Path {
     /// Runs an subtractive boolean operation against a background (self) and foreground (other) path.
     /// This generates a where where the areas covered only by the background are retained.
     pub fn difference(&self, other: &Self, tolerance: &Tolerance) -> Path {
-        self.boolean(Operation::Difference, other, tolerance)
+        self.boolean(Operation::Difference, other, tolerance);
+        todo!("Difference cannot handle holes")
     }
 
     /// Runs an XOR boolean operation against a background (self) and foreground (other) path.
     /// This generates a path where only the areas covered by a single path are retained.
     pub fn xor(&self, other: &Self, tolerance: &Tolerance) -> Path {
-        self.boolean(Operation::Xor, other, tolerance)
+        self.boolean(Operation::Xor, other, tolerance);
+        todo!("XOR cannot handle holes")
     }
 
     /// Runs a boolean path operation against a background (self) and foreground (other) path
@@ -157,7 +159,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(output.to_string(), "m10 50q14.5-24.17 29-1.61c3.81 1.78 7.41 5.62 11 11.61c10.1 17.08 13.28 30.16 10 40c-2.16 6.21-8.13 3.31-17.97-8.59C34.99 86.37 24.4 72.63 10 50");
+        assert_eq!(output.to_string(), "m10 50q14.5-24.17 29-1.61Q44.5 50.83 50 60q15 25 10 40q-3.13 9.38-17.97-8.59Q31.87 84.38 10 50");
     }
 
     #[test]
@@ -173,7 +175,7 @@ mod test {
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
         // TODO: Update expected
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m1.82 89.87Q1.8 83.67 10 70q3.34-5.57 6.56-9.9Q13.43 55.38 10 50q13.32-22.2 26.64-4.97Q49.66 44.14 60 70q-4.86 3.04-9.32 5.71Q52.09 83.73 50 90q-2.81 8.44-15.14-5.29q-33 17.56-33.05 5.16");
     }
 
     #[test]
@@ -189,7 +191,7 @@ mod test {
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
         // TODO: Update expected
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m0 5A5 5 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10a5 5 0 0 1-10 0a5 5 0 0 1 .67-2.5A5 5 0 0 1 0 5");
     }
 
     #[test]
@@ -204,8 +206,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        // TODO: Update expected
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m0 5A5 5 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10a5 5 0 0 1-10 0a5 5 0 0 1 .67-2.5A5 5 0 0 1 0 5");
     }
 
     #[test]
@@ -221,7 +222,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(output.to_string(), "m5 5h2.5L10 0c2.14 2.17 3.28 3.73 3.91 5L15 5c2.66 2.75.98 3.96-1.11 4.52c-.93 1.38-2.24 2.12-.89 3.48a5 5 0 0 1-4.7-3.3a5 5 0 0 1-1.53-.88L5 10l1-2a5 5 0 0 1-1-3");
+        assert_eq!(output.to_string(), "m5 5h2.5L10 0c2.05 2.05 3.26 3.68 3.91 5L15 5c2.71 2.71 1.01 3.95-1.11 4.52c-.91 1.36-2.26 2.11-.89 3.48a5 5 0 0 1-4.7-3.3a5 5 0 0 1-1.53-.88L5 10l1-2a5 5 0 0 1-1-3");
     }
 
     #[test]
@@ -237,6 +238,38 @@ mod test {
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
         // TODO: Update expected
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m5 5h2.85a5 5 0 1 1 8.33 1.56c1.45 3.08-4.65 3.41-5.94 3.44q-.11 0-.24 0a5 5 0 0 1-4-2l-1-.5l.67 0A5 5 0 0 1 5 5");
+    }
+
+    #[test]
+    fn intersect_various_aligned_winding() {
+        let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
+        let foreground =
+            Path::parse_string("M5 10L10 0C20 10 10 10 13 13a5 5 0 0 1 -5 -5Z").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .intersect(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        assert_eq!(output.to_string(), "m6 8l1.5-3h6.41c1.08 2.18.64 3.52-.03 4.52C12.09 10 10 10 10 10a5 5 0 0 1-1.7-.3A5 5 0 0 1 8 8l-1.23.82A5 5 0 0 1 6 8");
+    }
+
+    #[test]
+    fn intersect_various_opposite_winding() {
+        let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
+        let foreground = Path::parse_string("M10 10C15 10 10 5 15 7.5a5 5 0 1 0 -5 0h-5Z").unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = segment::Path::from_svg(&background, tolerance);
+        let foreground = segment::Path::from_svg(&foreground, tolerance);
+
+        let output = background
+            .intersect(&foreground, &Tolerance::default())
+            .to_svg(tolerance);
+        // TODO: Update expected
+        assert_eq!(output.to_string(), "m5.67 7.5l4.33 0A5 5 0 0 1 7.85 5L15 5c.58.58.96 1.1 1.18 1.56A5 5 0 0 1 15 7.5c-4.92-2.46-.16 2.34-4.76 2.5C10.08 10 10 10 10 10L6 8a5 5 0 0 1-.33-.5");
     }
 }

@@ -53,8 +53,8 @@ pub struct Ring {
     pub start: Point,
     /// The data and polygons of the ring.
     pub data: Vec<Data>,
-    // TODO: holes when fill-rule is evenodd
-    //       NOTE: We may never support this
+    /// The interior rings of the polygon.
+    pub interiors: Vec<Vec<Data>>,
 }
 
 #[derive(Debug, Clone)]
@@ -85,7 +85,7 @@ impl Ring {
                         segment::Data::CurveTo(curve) => {
                             let mut points = vec![];
                             Polygon::from_curve(&mut points, cursor, curve, tolerance_squared);
-                            cursor = curve.end_point();
+                            cursor = *points.last().unwrap_or(&cursor);
                             Data::Curve(
                                 *curve,
                                 points
@@ -97,8 +97,8 @@ impl Ring {
                         }
                         segment::Data::ArcTo(arc) => {
                             let mut points = vec![];
-                            Polygon::from_arc(&mut points, cursor, arc, tolerance_squared);
-                            cursor = arc.end_point();
+                            Polygon::from_arc(&mut points, cursor, arc, tolerance_squared, 0);
+                            cursor = *points.last().unwrap_or(&cursor);
                             Data::Arc(
                                 *arc,
                                 points
@@ -111,6 +111,7 @@ impl Ring {
                     }
                 })
                 .collect(),
+            interiors: vec![],
         }
     }
 }

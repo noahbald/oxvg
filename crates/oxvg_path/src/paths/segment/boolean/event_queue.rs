@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct EventQueue {
-    heap: BinaryHeap<Rc<SweepEvent>>,
+    pub heap: BinaryHeap<Rc<SweepEvent>>,
     bbbox: (Point, Point),
     fbbox: (Point, Point),
     operation: Operation,
@@ -35,6 +35,7 @@ impl EventQueue {
             fbbox: bbox,
             operation,
         };
+
         for (i, polygon) in background.0.iter().enumerate() {
             contour_id += 1;
             result.process_polygon(
@@ -47,10 +48,18 @@ impl EventQueue {
                 contour_id,
                 true,
             );
-            // TODO: holes when fill-rule is evenodd
-            // for interior in polygon.interiors() {
-            //     process_polygon(interior, true, contour_id, &mut event_queue, self.bbbox, false);
-            // }
+            for interior in &polygon.interiors {
+                result.process_polygon(
+                    interior,
+                    Source {
+                        background: true,
+                        polygon: i,
+                        command: 0,
+                    },
+                    contour_id,
+                    false,
+                );
+            }
         }
 
         for (i, polygon) in foreground.0.iter().enumerate() {
@@ -67,11 +76,19 @@ impl EventQueue {
                 },
                 contour_id,
                 exterior,
-            )
-            // TODO: holes when fill-rule is evenodd
-            // for interior in polygon.interiors() {
-            //     process_polygon(interior, false, contour_id, &mut event_queue, cbbox, false);
-            // }
+            );
+            for interior in &polygon.interiors {
+                result.process_polygon(
+                    interior,
+                    Source {
+                        background: false,
+                        polygon: i,
+                        command: 0,
+                    },
+                    contour_id,
+                    false,
+                );
+            }
         }
         result
     }
