@@ -127,7 +127,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(&output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(&output.to_string(), "m0 0h10v5h5v10H5v-5H0V0");
     }
 
     #[test]
@@ -142,7 +142,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m0 0h10v5h5v10H5v-5H0V0");
     }
 
     #[test]
@@ -172,6 +172,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
+        // TODO: Update expected
         assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 
@@ -187,6 +188,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
+        // TODO: Update expected
         assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 
@@ -202,6 +204,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
+        // TODO: Update expected
         assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 
@@ -218,7 +221,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
-        assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
+        assert_eq!(output.to_string(), "m5 5h2.5L10 0c2.14 2.17 3.28 3.73 3.91 5L15 5c2.66 2.75.98 3.96-1.11 4.52c-.93 1.38-2.24 2.12-.89 3.48a5 5 0 0 1-4.7-3.3a5 5 0 0 1-1.53-.88L5 10l1-2a5 5 0 0 1-1-3");
     }
 
     #[test]
@@ -233,6 +236,7 @@ mod test {
         let output = background
             .unite(&foreground, &Tolerance::default())
             .to_svg(tolerance);
+        // TODO: Update expected
         assert_eq!(output.to_string(), "m0 0h10v0v5h5v10H5v-5H0V0");
     }
 }

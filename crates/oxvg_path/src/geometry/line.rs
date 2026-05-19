@@ -16,6 +16,23 @@ pub enum Intersection {
 }
 
 impl Line {
+    /// A zero length line at (0, 0)
+    pub const ZERO: Self = Self::splat(0.0);
+    /// A line equivalent to the unit vector
+    pub const UNIT: Self = Self([Point::ZERO, Point::UNIT]);
+    /// A line spanning from (-INF, INF)
+    pub const INFINITY: Self = Self([Point::NEG_INFINITY, Point::INFINITY]);
+    /// A line spanning from (NAN, NAN)
+    pub const NAN: Self = Self([Point::NAN, Point::NAN]);
+
+    pub const fn new(start: Point, end: Point) -> Self {
+        Line([start, end])
+    }
+
+    pub const fn splat(n: f64) -> Self {
+        Line([Point::splat(n), Point::splat(n)])
+    }
+
     /// Returns the starting point.
     pub const fn start(&self) -> &Point {
         &self.0[0]

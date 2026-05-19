@@ -149,6 +149,8 @@ impl Point {
     pub const INFINITY: Self = Self::splat(f64::INFINITY);
     /// A negative infinite length unit point at (-inf, -inf)
     pub const NEG_INFINITY: Self = Self::splat(f64::NEG_INFINITY);
+    /// A point at (NAN, NAN)
+    pub const NAN: Self = Self::splat(f64::NAN);
 
     /// Creates a point with the same x/y values
     pub const fn splat(n: f64) -> Self {

@@ -10,8 +10,7 @@ use crate::{
 };
 
 pub struct Contour {
-    pub points: Vec<Point>,
-    pub sources: Vec<Source>,
+    pub edges: Vec<(Point, Point, Source)>,
     pub holes: Vec<usize>,
     pub hole_of: Option<usize>,
     pub depth: usize,
@@ -20,8 +19,7 @@ pub struct Contour {
 impl Contour {
     fn new(hole_of: Option<usize>, depth: usize) -> Self {
         Self {
-            points: vec![],
-            sources: vec![],
+            edges: vec![],
             holes: vec![],
             hole_of,
             depth,
@@ -74,28 +72,20 @@ impl Contour {
         if !self.is_exterior() {
             return None;
         }
-        debug_assert_eq!(self.points.len(), self.sources.len());
         let mut segment = Segment {
-            start: self.points[0],
+            start: self.edges[0].0,
             data: vec![],
             closed: true,
         };
-        let mut i = 0;
-        loop {
-            let mut j = i;
-            while j + 1 < self.sources.len() && self.sources[i] == self.sources[j + 1] {
-                j += 1;
-            }
-
-            let source = if self.sources[i].background {
+        dbg!(&self.edges);
+        for (start, end, source_ref) in &self.edges {
+            let source = if source_ref.background {
                 background
             } else {
                 foreground
             };
-            let source = &source.0[self.sources[i].polygon];
-            let source = &source.data[self.sources[i].command];
-            let start = self.points[i];
-            let end = self.points[j];
+            let source = &source.0[source_ref.polygon];
+            let source = &source.data[source_ref.command];
 
             match source {
                 events::Data::Line(p) => {
@@ -110,51 +100,56 @@ impl Contour {
             }
 
             segment.data.push(match source {
-                events::Data::Line(_) => Data::LineTo(end),
+                events::Data::Line(_) => Data::LineTo(*end),
                 events::Data::Curve(curve, p) => {
-                    if start == *p[0].start() && *p.last().unwrap().end() == end {
+                    let curve_start = *p[0].start();
+                    let curve_end = *p.last().unwrap().end();
+                    dbg!(start, curve_start, curve_end, end);
+                    if *start == curve_start && curve_end == *end {
                         Data::CurveTo(*curve)
                     } else {
-                        let right = if start == *p[0].start() {
-                            *curve
+                        let t1 = if *start == *p[0].start() {
+                            0.0
                         } else {
-                            curve
-                                .subdivide_at(*p[0].start(), start, tolerance)
-                                .unwrap()
-                                .1
+                            curve.t_at(curve_start, *start, tolerance).unwrap()
                         };
-                        let middle = if end == *p.last().unwrap().end() {
-                            right
+                        let t2 = if *end == curve_end {
+                            1.0
                         } else {
-                            right.subdivide_at(start, end, tolerance).unwrap().0
+                            curve.t_at(curve_start, *end, tolerance).unwrap()
                         };
-                        Data::CurveTo(middle)
+                        Data::CurveTo(if dbg!(t1) <= dbg!(t2) {
+                            curve.clamp_t(curve_start, t1, t2)
+                        } else {
+                            curve.clamp_t(curve_start, t2, t1).reverse(curve_start)
+                        })
                     }
                 }
                 events::Data::Arc(arc, p) => {
-                    if start == *p[0].start() && *p.last().unwrap().end() == end {
+                    let arc_start = *p[0].start();
+                    let arc_end = *p.last().unwrap().end();
+                    dbg!(start, arc_start, arc_end, end);
+                    if *start == arc_start && arc_end == *end {
                         Data::ArcTo(*arc)
                     } else {
-                        let t1 = if start == *p[0].start() {
+                        let t1 = if *start == arc_start {
                             0.0
                         } else {
-                            arc.t_at(start, tolerance).unwrap()
+                            arc.t_at(*start, tolerance).unwrap()
                         };
-                        let t2 = if end == *p.last().unwrap().end() {
+                        let t2 = if *end == arc_end {
                             1.0
                         } else {
-                            arc.t_at(end, tolerance).unwrap()
+                            arc.t_at(*end, tolerance).unwrap()
                         };
-                        Data::ArcTo(arc.clamp_t(t1, t2))
+                        Data::ArcTo(if dbg!(t1) <= dbg!(t2) {
+                            arc.clamp_t(t1, t2)
+                        } else {
+                            arc.clamp_t(t2, t1).reverse()
+                        })
                     }
                 }
             });
-
-            if j + 1 < self.sources.len() {
-                i = j + 1;
-            } else {
-                break;
-            }
         }
 
         Some(segment)
@@ -181,8 +176,9 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
         let mut pos = i;
 
         let initial = result_events[i].point;
-        contour.points.push(initial);
-        contour.sources.push(result_events[i].source.clone());
+        contour
+            .edges
+            .push((initial, initial, result_events[i].source.clone()));
 
         loop {
             processed.insert(pos);
@@ -192,8 +188,15 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
 
             processed.insert(pos);
             *result_events[pos].output_contour_id_mut() = contour_id;
-            contour.points.push(result_events[pos].point);
-            contour.sources.push(result_events[pos].source.clone());
+
+            let new_point = result_events[pos].point;
+            if contour.edges.last().map(|e| &e.2) != Some(&result_events[pos].source.clone()) {
+                contour
+                    .edges
+                    .push((new_point, new_point, result_events[pos].source.clone()));
+            } else {
+                contour.edges.last_mut().unwrap().1 = new_point;
+            }
 
             let next_pos_opt = get_next_pos(pos, &processed, &iteration_map);
             match next_pos_opt {
@@ -201,7 +204,7 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
                 None => break,
             }
 
-            if result_events[pos].point == initial {
+            if pos == i {
                 break;
             }
         }
@@ -241,6 +244,7 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
 
     let mut i = 0;
     while i < data.len() {
+        dbg!(i, &data[i].point, data[i].left());
         let x = &data[i];
 
         let r_from = i;
@@ -293,6 +297,8 @@ fn get_next_pos(
     let start_pos = pos;
 
     loop {
+        let next = iteration_map[pos];
+        dbg!(pos, next, processed.contains(&next));
         pos = iteration_map[pos];
         if pos == start_pos {
             return None;

@@ -269,7 +269,10 @@ impl Path {
                 let by = end - start;
 
                 let line_to = |to: &Point| {
-                    if to.x() == start.x() {
+                    if start == *to {
+                        return None;
+                    }
+                    Some(if to.x() == start.x() {
                         let v_to = command::Data::VerticalLineTo([to.y()]);
                         let v_by = command::Data::VerticalLineBy([by.y()]);
                         compactest(v_by, v_to, precision)
@@ -283,7 +286,7 @@ impl Path {
                         let l_to = command::Data::LineTo(to.0);
                         let l_by = command::Data::LineBy(by.0);
                         compactest(l_by, l_to, precision)
-                    }
+                    })
                 };
                 let arc_to = |arc: &Arc| {
                     if arc.is_straight(&tolerance) {
@@ -295,7 +298,7 @@ impl Path {
                         a_by[6] = by.y();
                         let a_by = command::Data::ArcBy(a_by);
                         let a_to = command::Data::ArcTo(arc_to);
-                        compactest(a_by, a_to, precision)
+                        Some(compactest(a_by, a_to, precision))
                     }
                 };
 
@@ -377,7 +380,9 @@ impl Path {
                             if let Some(arc) =
                                 Arc::fit_curve(curve, start, tolerance, &tolerance_squared)
                             {
-                                candidates.push(arc_to(&arc));
+                                if let Some(arc) = arc_to(&arc) {
+                                    candidates.push(arc);
+                                }
                             }
 
                             let result = compactest_vec(candidates, precision);
@@ -390,12 +395,13 @@ impl Path {
                                 ID::ArcTo | ID::ArcBy => {}
                                 _ => last_control = Some(end_control),
                             }
-                            println!("");
-                            result
+                            Some(result)
                         }
                     }
                 };
-                commands.push(command);
+                if let Some(command) = command {
+                    commands.push(command);
+                }
             }
         }
         crate::Path(commands)
@@ -408,7 +414,7 @@ fn compactest_vec(data: Vec<command::Data>, precision: i32) -> command::Data {
             d.round(precision);
             d
         })
-        .map(|d| (d.to_string().len(), d))
+        .map(|d| (dbg!(d.to_string()).len(), d))
         .min_by(|a, b| a.0.cmp(&b.0))
         .map(|d| d.1)
         .unwrap()
@@ -493,6 +499,6 @@ mod test {
         let tolerance = Tolerance::default();
         let path = Path::from_svg(&path, &tolerance);
         let path = path.to_svg(&tolerance);
-        assert_eq!(path.to_string().as_str(), "m0 0v0a5 5 0 1 1 5 5");
+        assert_eq!(path.to_string().as_str(), "m0 0a5 5 0 1 1 5 5");
     }
 }

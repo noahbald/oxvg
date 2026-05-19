@@ -292,6 +292,17 @@ impl Arc {
         middle.0[5] = (t2 - t1) * self.sweep_angle();
         middle
     }
+
+    /// Returns an arc spanning from the end to start of this arc
+    pub fn reverse(&self) -> Self {
+        Arc::new(
+            self.center(),
+            self.radii(),
+            self.start_angle() + self.sweep_angle(),
+            -self.sweep_angle(),
+            self.x_rotation(),
+        )
+    }
 }
 
 fn is_arc_to_line(arc_to: &[f64; 7], cursor: &Point) -> bool {

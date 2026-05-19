@@ -223,7 +223,6 @@ impl Curve {
         let p1 = self.start_control();
         let p2 = self.end_control();
         let p3 = self.end_point();
-        dbg!(p0, p3, at);
 
         // Cubic derivative coefficients  B'(t) = a·t² + b·t + c
         let d_a = (p1 - p0) * 3.0 - (p2 - p1) * 3.0 + (p3 - p2) * 3.0 - (p1 - p0) * 3.0 * 3.0
@@ -286,8 +285,7 @@ impl Curve {
                 }
             }
 
-            dbg!(t);
-            let dist_sq = dbg!(self.point_at_from(start, t).distance_squared(&at));
+            let dist_sq = self.point_at_from(start, t).distance_squared(&at);
             if dist_sq < best_dist_sq {
                 best_dist_sq = dist_sq;
                 best_t = Some(t);
@@ -299,6 +297,23 @@ impl Curve {
         } else {
             None
         }
+    }
+
+    pub fn reverse(&self, start: Point) -> Self {
+        Curve::new(self.end_control(), self.start_control(), start)
+    }
+
+    pub fn clamp_t(&self, start: Point, t1: f64, t2: f64) -> Self {
+        debug_assert!(t1 >= 0.0 && t1 <= 1.0);
+        debug_assert!(t2 >= 0.0 && t2 <= 1.0);
+        debug_assert!(t1 <= t2);
+        let (_, start, right) = self.subdivide_t(start, t1);
+        let t2 = if t1 == 0.0 {
+            1.0
+        } else {
+            (t2 - t1) / (1.0 - t1)
+        };
+        right.subdivide_t(start, t2).0
     }
 }
 

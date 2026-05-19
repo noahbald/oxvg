@@ -71,14 +71,21 @@ impl Ellipses {
         // Find circumcircle
         let middle = curve.point_at_from(start, 0.5);
         let end = curve.end_point();
+        let scale = (start.distance_squared(&end)).max(1.0);
 
         let m1 = start.midpoint(&middle);
         let d1 = middle - start;
-        let l1 = Line([m1, m1 + Point([d1.y(), -d1.x()])]);
+        let l1 = Line([
+            m1 - Point([d1.y(), -d1.x()]) * scale,
+            m1 + Point([d1.y(), -d1.x()]) * scale,
+        ]);
 
         let m2 = middle.midpoint(&end);
         let d2 = end - middle;
-        let l2 = Line([m2, m2 + Point([d2.y(), -d2.x()])]);
+        let l2 = Line([
+            m2 - Point([d2.y(), -d2.x()]) * scale,
+            m2 + Point([d2.y(), -d2.x()]) * scale,
+        ]);
 
         let Intersection::Intersection(center) = l1.intersection(&l2) else {
             return None;
