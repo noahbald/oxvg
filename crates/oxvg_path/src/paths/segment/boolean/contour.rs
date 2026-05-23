@@ -125,7 +125,7 @@ impl Contour {
                         Data::ArcTo(*arc)
                     } else if *start == arc_end && arc_start == *end {
                         // Edge runs opposite to arc's natural direction: full arc reversed
-                        Data::ArcTo(arc.reverse())
+                        Data::ArcTo(arc.reverse(Some(*start)))
                     } else {
                         let t1 = if *start == arc_start {
                             0.0
@@ -144,7 +144,7 @@ impl Contour {
                         Data::ArcTo(if t1 <= t2 {
                             arc.clamp_t(t1, t2)
                         } else {
-                            arc.clamp_t(t2, t1).reverse()
+                            arc.clamp_t(t2, t1).reverse(None)
                         })
                     }
                 }

@@ -10,13 +10,11 @@ use oxvg_collections::{
     attribute::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
     element::ElementId,
 };
-use oxvg_path::{command::Data, convert, Path};
+use oxvg_path::{command::Data, optimize::Tolerance, paths::segment::TolerancePrecision, Path};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::error::JobsError;
-
-use super::convert_path_data::ConvertPrecision;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
@@ -48,17 +46,21 @@ pub struct ConvertShapeToPath {
     pub convert_arcs: bool,
     /// The number of decimal places to round to
     #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
-    #[cfg_attr(feature = "serde", serde(default = "ConvertPrecision::default"))]
-    pub float_precision: ConvertPrecision,
+    #[cfg_attr(feature = "serde", serde(default = "precision_default"))]
+    pub float_precision: i32,
 }
 
 impl Default for ConvertShapeToPath {
     fn default() -> Self {
         Self {
             convert_arcs: default_convert_arcs(),
-            float_precision: ConvertPrecision::default(),
+            float_precision: precision_default(),
         }
     }
+}
+
+pub fn precision_default() -> i32 {
+    Tolerance::default().precision
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {
@@ -148,36 +150,36 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
     ) -> Result<(), Self::Error> {
         let name = element.qual_name();
 
-        let options = &self.options;
-        let path_options = &convert::Options {
-            precision: options.float_precision.0,
-            ..convert::Options::default()
-        };
-        let convert_arcs = options.convert_arcs;
+        let precision = Tolerance {
+            precision: self.options.float_precision,
+            ..Tolerance::default()
+        }
+        .precision();
+        let convert_arcs = self.options.convert_arcs;
 
         match name {
             ElementId::Rect if !self.referenced_shapes.contains(ReferencedShapes::Rect) => {
-                ConvertShapeToPath::rect_to_path(element, path_options, context.info);
+                ConvertShapeToPath::rect_to_path(element, &precision, context.info);
             }
             ElementId::Line if !self.referenced_shapes.contains(ReferencedShapes::Line) => {
-                ConvertShapeToPath::line_to_path(element, path_options, context.info);
+                ConvertShapeToPath::line_to_path(element, &precision, context.info);
             }
             ElementId::Polyline if !self.referenced_shapes.contains(ReferencedShapes::Polyline) => {
-                ConvertShapeToPath::poly_to_path(element, path_options, false, context.info);
+                ConvertShapeToPath::poly_to_path(element, &precision, false, context.info);
             }
             ElementId::Polygon if !self.referenced_shapes.contains(ReferencedShapes::Polygon) => {
-                ConvertShapeToPath::poly_to_path(element, path_options, true, context.info);
+                ConvertShapeToPath::poly_to_path(element, &precision, true, context.info);
             }
             ElementId::Circle
                 if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Circle) =>
             {
-                ConvertShapeToPath::circle_to_path(element, path_options, context.info);
+                ConvertShapeToPath::circle_to_path(element, &precision, context.info);
             }
 
             ElementId::Ellipse
                 if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Circle) =>
             {
-                ConvertShapeToPath::ellipse_to_path(element, path_options, context.info);
+                ConvertShapeToPath::ellipse_to_path(element, &precision, context.info);
             }
 
             _ => {}
@@ -205,7 +207,7 @@ fn r_px(r: cell::Ref<Radius>) -> Option<f64> {
 impl ConvertShapeToPath {
     fn rect_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        options: &convert::Options,
+        precision: &TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         if has_attribute!(element, RX | RY) {
@@ -238,7 +240,7 @@ impl ConvertShapeToPath {
             Data::HorizontalLineTo([x]),
             Data::ClosePath,
         ]);
-        options.round_path(&mut path, options.error());
+        path.round(precision);
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::XGeometry);
@@ -250,7 +252,7 @@ impl ConvertShapeToPath {
 
     fn line_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        options: &convert::Options,
+        precision: &TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(x1) = (match get_attribute!(element, X1Line) {
@@ -282,7 +284,7 @@ impl ConvertShapeToPath {
             Data::MoveTo([x1, y1]),
             Data::Implicit(Box::new(Data::LineTo([x2, y2]))),
         ]);
-        options.round_path(&mut path, options.error());
+        path.round(precision);
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::X1Line);
@@ -294,7 +296,7 @@ impl ConvertShapeToPath {
 
     fn poly_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        options: &convert::Options,
+        precision: &TolerancePrecision,
         is_polygon: bool,
         info: &Info<'input, 'arena>,
     ) {
@@ -313,7 +315,7 @@ impl ConvertShapeToPath {
             data.push(Data::ClosePath);
         }
         let mut path = Path(data);
-        options.round_path(&mut path, options.error());
+        path.round(precision);
 
         set_attribute!(element, D(path::Path(path, None)));
         let _ = element.set_local_name(ElementId::Path, &info.allocator);
@@ -322,7 +324,7 @@ impl ConvertShapeToPath {
     #[allow(clippy::similar_names)]
     fn circle_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        options: &convert::Options,
+        precision: &TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(cx) = (match get_attribute!(element, CXGeometry) {
@@ -350,7 +352,7 @@ impl ConvertShapeToPath {
             Data::Implicit(Box::new(Data::ArcTo([r, r, 0.0, 1.0, 0.0, cx, cy - r]))),
             Data::ClosePath,
         ]);
-        options.round_path(&mut path, options.error());
+        path.round(precision);
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);
@@ -362,7 +364,7 @@ impl ConvertShapeToPath {
     #[allow(clippy::similar_names)]
     fn ellipse_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        options: &convert::Options,
+        precision: &TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(cx) = (match get_attribute!(element, CXGeometry) {
@@ -396,7 +398,7 @@ impl ConvertShapeToPath {
             Data::Implicit(Box::new(Data::ArcTo([rx, ry, 0.0, 1.0, 0.0, cx, cy - ry]))),
             Data::ClosePath,
         ]);
-        options.round_path(&mut path, options.error());
+        path.round(precision);
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);

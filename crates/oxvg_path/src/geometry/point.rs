@@ -3,7 +3,10 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::geometry::{line::Intersection, Curve, Line};
+use crate::{
+    geometry::{line::Intersection, Curve, Line},
+    optimize::Tolerance,
+};
 
 #[derive(Default, Clone, Copy, PartialEq)]
 /// A point is an `[x, y]` coordinate. Points are the atomic unit of geometry.
@@ -309,6 +312,22 @@ impl Point {
     /// The cross product of two points around some origin
     pub const fn cross(o: Self, a: Self, b: Self) -> f64 {
         (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x())
+    }
+
+    /// Returns whether the three unordered points lie on a line; i.e. a parallel
+    pub const fn is_parallel(a: Point, b: Point, c: Point, tolerance: &Tolerance) -> bool {
+        Point::cross(a, b, c).abs() < tolerance.positional
+    }
+
+    /// Returns whether the three ordered points make up a line; i.e. a parallel
+    pub fn is_continuous_parallel(
+        start: Point,
+        middle: Point,
+        end: Point,
+        tolerance: &Tolerance,
+    ) -> bool {
+        Self::is_parallel(start, middle, end, tolerance)
+            && (start - middle).dot(&(middle - end)) >= 0.0
     }
 
     /// The inverse of a point, by multiplying by `-1`

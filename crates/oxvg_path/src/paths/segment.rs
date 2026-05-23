@@ -5,6 +5,9 @@
 //! - Simplification of paths and segments
 //! - Boolean operations of paths and segments
 //! - Translations of paths and segments
+#[cfg(feature = "wasm")]
+use tsify::Tsify;
+
 use std::ops::Deref;
 
 use crate::geometry::{Arc, Curve, Point};
@@ -14,23 +17,40 @@ mod boolean;
 mod convert;
 mod simplify;
 
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 /// Tolerance for converting between SVG, Segments, and Polygons
 pub struct Tolerance {
     /// The level of tolerance when comparing the error between distances
+    #[cfg_attr(feature = "serde", serde(default = "positional_default"))]
     pub positional: f64,
     /// The level of tolerance when comparing the error between angles
+    #[cfg_attr(feature = "serde", serde(default = "angular_default"))]
     pub angular: f64,
     /// The number of decimal places to round numbers to during processing
+    #[cfg_attr(feature = "serde", serde(default = "precision_default"))]
     pub precision: i32,
+}
+
+const fn positional_default() -> f64 {
+    1e-3
+}
+const fn angular_default() -> f64 {
+    1e-3
+}
+const fn precision_default() -> i32 {
+    3
 }
 
 impl Default for Tolerance {
     fn default() -> Self {
         // TODO: Experiment for best defaults
         Self {
-            positional: 1e-3,
-            angular: 1e-3,
-            precision: 2,
+            positional: positional_default(),
+            angular: angular_default(),
+            precision: precision_default(),
         }
     }
 }
@@ -40,16 +60,37 @@ impl Tolerance {
     pub fn square(&self) -> ToleranceSquared {
         ToleranceSquared(self.positional * self.positional)
     }
+
+    pub fn precision(&self) -> TolerancePrecision {
+        TolerancePrecision(10.0_f64.powi(self.precision))
+    }
 }
 
 /// A monad representing a squared positional tolerance.
 pub struct ToleranceSquared(pub f64);
+
+#[derive(Debug)]
+pub struct TolerancePrecision(pub f64);
 
 impl Deref for ToleranceSquared {
     type Target = f64;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl TolerancePrecision {
+    pub const fn scale(&self, value: f64) -> f64 {
+        (value * self.0).round()
+    }
+
+    pub const fn descale(&self, value: f64) -> f64 {
+        value / self.0
+    }
+
+    pub const fn round(&self, value: f64) -> f64 {
+        self.descale(self.scale(value))
     }
 }
 
@@ -101,6 +142,7 @@ impl Data {
                 arc.start_angle() + arc.sweep_angle(),
                 -arc.sweep_angle(),
                 arc.x_rotation(),
+                Some(start),
             )),
         }
     }
@@ -120,6 +162,16 @@ impl Segment {
     /// Returns whether the segment is closed.
     pub fn closed(&self) -> bool {
         self.closed
+    }
+
+    pub fn end_point(&self) -> Point {
+        if self.closed {
+            *self.start()
+        } else if let Some(last) = self.data.last() {
+            last.end_point()
+        } else {
+            *self.start()
+        }
     }
 }
 
@@ -154,6 +206,16 @@ impl Path {
     }
 }
 
+pub struct IterStartCursorItem<T> {
+    segment_start: Point,
+    segment_start_by: Point,
+    cursor: Point,
+    data: Option<T>,
+    next: Option<T>,
+    command: usize,
+    close: bool,
+}
+
 /// An iterator for all the data within the path with the star point of each data item with it.
 pub struct IterStartCursor<'a> {
     path: &'a Path,
@@ -169,19 +231,45 @@ pub struct IterStartCursorMut<'a> {
     cursor: Point,
 }
 impl<'a> Iterator for IterStartCursor<'a> {
-    type Item = (Point, &'a Data);
+    type Item = IterStartCursorItem<&'a Data>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let segment = self.path.0.get(self.segment)?;
+            let segment_start = segment.start;
+            let segment_start_by = if self.segment > 0 {
+                segment.start - self.path.0[self.segment - 1].end_point()
+            } else {
+                segment.start
+            };
             if self.command == 0 {
                 self.cursor = segment.start;
             }
             if let Some(data) = segment.data.get(self.command) {
+                let command = self.command;
                 self.command += 1;
                 let cursor = self.cursor;
                 self.cursor = data.end_point();
-                return Some((cursor, data));
+                return Some(IterStartCursorItem {
+                    segment_start,
+                    segment_start_by,
+                    cursor,
+                    data: Some(data),
+                    next: segment.data.get(self.command),
+                    command,
+                    close: segment.closed && command == segment.data.len() - 1,
+                });
+            } else if self.command == 0 {
+                self.segment += 1;
+                return Some(IterStartCursorItem {
+                    segment_start,
+                    segment_start_by,
+                    cursor: segment_start,
+                    data: None,
+                    next: None,
+                    command: 0,
+                    close: false,
+                });
             } else {
                 self.segment += 1;
                 self.command = 0;
@@ -190,16 +278,47 @@ impl<'a> Iterator for IterStartCursor<'a> {
     }
 }
 impl<'a> IterStartCursorMut<'a> {
-    fn next(&mut self) -> Option<(Point, &mut Data)> {
+    fn next(&mut self) -> Option<IterStartCursorItem<&mut Data>> {
+        let mut last_segment_end = if self.segment > 0 {
+            Some(self.path.0[self.segment - 1].end_point())
+        } else {
+            None
+        };
         for segment in self.path.0.iter_mut().skip(self.segment) {
             if self.command == 0 {
                 self.cursor = segment.start;
             }
-            if let Some(data) = segment.data.get_mut(self.command) {
+            let segment_start = segment.start;
+            let segment_start_by = segment_start - last_segment_end.unwrap_or_default();
+            last_segment_end = Some(segment.end_point());
+            let close = segment.closed && self.command == segment.data.len() - 1;
+            if self.command < segment.data.len() {
+                let (left, right) = segment.data.split_at_mut(self.command + 1);
+                let data = left.last_mut().unwrap();
+                let command = self.command;
                 self.command += 1;
                 let cursor = self.cursor;
                 self.cursor = data.end_point();
-                return Some((cursor, data));
+                return Some(IterStartCursorItem {
+                    segment_start,
+                    segment_start_by,
+                    cursor,
+                    data: Some(data),
+                    next: right.first_mut(),
+                    command,
+                    close,
+                });
+            } else if self.command == 0 {
+                self.segment += 1;
+                return Some(IterStartCursorItem {
+                    segment_start,
+                    segment_start_by,
+                    cursor: segment_start,
+                    data: None,
+                    next: None,
+                    command: 0,
+                    close: false,
+                });
             } else {
                 self.segment += 1;
                 self.command = 0;

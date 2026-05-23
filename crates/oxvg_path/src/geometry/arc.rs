@@ -1,14 +1,19 @@
 use std::f64::consts::PI;
 
 use crate::{
-    geometry::{ellipses::Ellipses, Curve, Point},
+    geometry::{ellipses::Ellipses, Curve, Point, Quadrant},
+    math::{self, radius_factor},
     optimize::Tolerance,
-    paths::segment::ToleranceSquared,
+    paths::segment::{TolerancePrecision, ToleranceSquared},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 /// An arc curve to some point.
-pub struct Arc(pub [f64; 7]);
+pub struct Arc(
+    pub [f64; 7],
+    // TODO: private internals; invalid memo on mutation; debug_assert memo
+    pub Option<Point>,
+);
 
 impl Arc {
     /// Creates an arc
@@ -18,16 +23,20 @@ impl Arc {
         start_angle: f64,
         sweep_angle: f64,
         x_rotation: f64,
+        end_point_memo: Option<Point>,
     ) -> Self {
-        Arc([
-            center.x(),
-            center.y(),
-            radii.x(),
-            radii.y(),
-            start_angle,
-            sweep_angle,
-            x_rotation,
-        ])
+        Arc(
+            [
+                center.x(),
+                center.y(),
+                radii.x(),
+                radii.y(),
+                start_angle,
+                sweep_angle,
+                x_rotation,
+            ],
+            end_point_memo,
+        )
     }
 
     /// Returns the ellipsess the arc sweeps across.
@@ -81,7 +90,39 @@ impl Arc {
 
     /// Returns the point on the ellipses of the arc's end point.
     pub fn end_point(&self) -> Point {
-        self.point_at_angle(self.start_angle() + self.sweep_angle())
+        self.1
+            .unwrap_or_else(|| self.point_at_angle(self.start_angle() + self.sweep_angle()))
+    }
+
+    pub fn len(&self, iterations: usize) -> f64 {
+        if self.radii().x() == 0.0 || self.radii().y() == 0.0 {
+            return self.start_point().distance(&self.end_point());
+        }
+        if self.sweep_angle() == 0.0 {
+            return 0.0;
+        }
+
+        let iterations = if iterations % 2 == 0 {
+            iterations.max(2)
+        } else {
+            iterations + 1
+        };
+
+        let mut sum = 0.0;
+        let h = self.sweep_angle() / (iterations as f64);
+        for i in 0..iterations {
+            let theta = self.start_angle() + (i as f64 * h);
+            let integrand = ((self.radii().x().powi(2) * theta.sin().powi(2))
+                + (self.radii().y().powi(2) * theta.cos().powi(2)))
+            .sqrt();
+            if i % 2 == 0 {
+                sum += 2.0 * integrand
+            } else {
+                sum += 4.0 * integrand
+            }
+        }
+
+        ((sum * h) / 3.0).abs()
     }
 
     /// Converts `a` command parameters to [`Arc`].
@@ -182,15 +223,99 @@ impl Arc {
             start_angle,
             sweep_angle,
             x_rotation,
+            Some(Point([arc_to[5], arc_to[6]])),
         ))
     }
 
-    /// Converts the arc to `A` command parameters.
-    pub fn to_arc_to(&self) -> [f64; 7] {
+    pub fn is_circle(&self, tolerance: &Tolerance) -> bool {
+        self.ellipses().is_circle(tolerance)
+    }
+
+    pub(crate) fn is_connected(
+        &self,
+        other: &Self,
+        tolerance: &Tolerance,
+        tolerance_squared: &ToleranceSquared,
+    ) -> bool {
+        let min_sweep = self.sweep_angle().abs().min(other.sweep_angle().abs());
+        if self.radii().x() == self.radii().y()
+            && other.radii().x() == other.radii().y()
+            && self.sweep_angle().signum() == other.sweep_angle().signum()
+        {
+            let max_radius = self.radii().x().max(other.radii().x());
+            let straight_threshold = 0.1 * max_radius;
+            if min_sweep < straight_threshold {
+                // Relatively small, relatively round arcs can be regarded as continuous
+                return true;
+            }
+        };
+
+        let scale = (min_sweep.powi(-1)).max(40.0 * self.radii().len());
+        let tolerance_scaled = **tolerance_squared * scale;
+        self.center().distance_squared(&other.center()) < tolerance_scaled
+            && self.radii().distance_squared(&other.radii()) < tolerance_scaled
+            && (
+                // TODO: Check x_rotation affects start_angle
+                (self.radii().x() - self.radii().y()).abs() < **tolerance_squared
+                    || (self.x_rotation() - other.x_rotation()).abs() < tolerance.angular
+            )
+    }
+
+    pub fn to_curve_to(&self) -> Option<Curve> {
+        if self.sweep_angle().abs() < std::f64::consts::FRAC_PI_2 + 1e-6 {
+            return None;
+        }
+
+        let sweep = self.sweep_angle();
+        let k = (4.0 / 3.0) * (sweep / 4.0).tan();
+
+        let (sin_start, cos_start) = self.start_angle().sin_cos();
+        let (sin_end, cos_end) = (self.start_angle() + sweep).sin_cos();
+
+        let rx = self.radii().x();
+        let ry = self.radii().y();
+        let (sin_rot, cos_rot) = self.x_rotation().sin_cos();
+
+        let d_start = Point([
+            k * (-rx * sin_start * cos_rot - ry * cos_start * sin_rot),
+            k * (-rx * sin_start * sin_rot + ry * cos_start * cos_rot),
+        ]);
+        let d_end = Point([
+            k * (-rx * sin_end * cos_rot - ry * cos_end * sin_rot),
+            k * (-rx * sin_end * sin_rot + ry * cos_end * cos_rot),
+        ]);
+
+        let start = self.start_point();
         let end = self.end_point();
+
+        Some(Curve::new(start + d_start, end - d_end, end))
+    }
+
+    /// Converts the arc to `A` command parameters.
+    pub fn to_arc_to(
+        &self,
+        tolerance: &Tolerance,
+        tolerance_squared: &ToleranceSquared,
+        precision: &TolerancePrecision,
+    ) -> [f64; 7] {
+        let end = self.end_point();
+        let mut radii = self.radii();
+        let lambda = self.radius_factor();
+        let limit = lambda.sqrt() * self.radii();
+        if (self.radius_factor() > 1.0)
+            || ((lambda.sqrt() * self.radii()).distance_squared(&self.radii())
+                < **tolerance_squared)
+        {
+            let denom = math::euclid_gcd_lossy(radii.x(), radii.y(), tolerance, precision);
+            let mut simple = radii / denom;
+            while (simple - limit).quadrant() == Quadrant::A {
+                simple = simple / 2.0;
+            }
+            radii = simple;
+        }
         [
-            self.radii().x(),
-            self.radii().y(),
+            radii.x(),
+            radii.y(),
             self.x_rotation().to_degrees(),
             if self.sweep_angle().abs() > PI {
                 1.0
@@ -218,11 +343,11 @@ impl Arc {
 
         if sweep_angle > PI {
             sweep_angle -= 2.0 * PI;
-        } else if sweep_angle < PI {
+        } else if sweep_angle < -PI {
             sweep_angle += 2.0 * PI;
         }
 
-        Some(ellipses.arc(start_angle, sweep_angle))
+        Some(ellipses.arc(start_angle, sweep_angle, Some(curve.end_point())))
     }
 
     /// Returns two halves of the arc, with the left being the first half and the right being the second half.
@@ -235,6 +360,7 @@ impl Arc {
         self.radii().x() < tolerance.positional
             || self.radii().y() < tolerance.positional
             || Point::cross(self.start_point(), self.end_point(), self.mid_point()).abs()
+                / self.start_point().distance(&self.end_point()).max(1.0)
                 < tolerance.positional
     }
 
@@ -297,14 +423,40 @@ impl Arc {
     }
 
     /// Returns an arc spanning from the end to start of this arc
-    pub fn reverse(&self) -> Self {
+    pub fn reverse(&self, start_point_memo: Option<Point>) -> Self {
         Arc::new(
             self.center(),
             self.radii(),
             self.start_angle() + self.sweep_angle(),
             -self.sweep_angle(),
             self.x_rotation(),
+            start_point_memo,
         )
+    }
+
+    /// Returns the radius factor as defined by the SVG spec (F6.6.2)
+    pub fn radius_factor(&self) -> f64 {
+        radius_factor(
+            self.radii().x(),
+            self.radii().y(),
+            self.x_rotation(),
+            self.start_point(),
+            self.end_point(),
+        )
+    }
+}
+
+impl std::fmt::Debug for Arc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Arc")
+            .field("center", &self.center())
+            .field("radii", &self.radii())
+            .field("start_angle", &self.start_angle())
+            .field("sweep_angle", &self.sweep_angle())
+            .field("x_rotation", &self.x_rotation())
+            .field("start_point (computed)", &self.start_point())
+            .field("end_point (computed)", &self.end_point())
+            .finish()
     }
 }
 

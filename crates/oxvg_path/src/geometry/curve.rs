@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use crate::{
     command,
     geometry::{line::Intersection, Circle, ErrorOptions, Line, Point},
+    optimize::Tolerance,
     paths::segment::ToleranceSquared,
     position::Position,
 };
@@ -14,6 +15,30 @@ pub struct Curve(
     /// [MDN](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/d#cubic_b%C3%A9zier_curve)
     pub [f64; 6],
 );
+
+#[derive(Debug)]
+pub struct CubicBezierTo {
+    pub start_control: Point,
+    pub end_control: Point,
+    pub end_point: Point,
+}
+
+#[derive(Debug)]
+pub struct SmoothBezierTo {
+    pub end_control: Point,
+    pub end_point: Point,
+}
+
+#[derive(Debug)]
+pub struct QuadraticBezierTo {
+    pub quad_control: Point,
+    pub end_point: Point,
+}
+
+#[derive(Debug)]
+pub struct SmoothQuadraticBezierTo {
+    pub end_point: Point,
+}
 
 impl Curve {
     /// Returns a new curve.
@@ -43,6 +68,22 @@ impl Curve {
         Point([self.0[4], self.0[5]])
     }
 
+    pub fn quad_control(&self, start: Point, tolerance: &ToleranceSquared) -> Option<Point> {
+        let quad = self.quad_control_unchecked(start);
+        if quad
+            .distance_squared(&(self.end_point() + (self.end_control() - self.end_point()) * 1.5))
+            < **tolerance
+        {
+            Some(quad)
+        } else {
+            None
+        }
+    }
+
+    pub fn quad_control_unchecked(&self, start: Point) -> Point {
+        start + (self.start_control() - start) * 1.5
+    }
+
     /// Returns a curve based on a bezier commands
     pub fn smooth_bezier_by_args<'a>(prev: &'a Position, item: &'a Position) -> Option<Self> {
         match item.command {
@@ -66,6 +107,89 @@ impl Curve {
         }
     }
 
+    pub fn cubic_bezier(&self) -> CubicBezierTo {
+        CubicBezierTo {
+            start_control: self.start_control(),
+            end_control: self.end_control(),
+            end_point: self.end_point(),
+        }
+    }
+
+    pub fn smooth_bezier(
+        &self,
+        start: Point,
+        control: Option<Point>,
+        tolerance: &ToleranceSquared,
+    ) -> Option<SmoothBezierTo> {
+        if self.is_smooth(start, control, tolerance) {
+            Some(self.smooth_bezier_unchecked())
+        } else {
+            None
+        }
+    }
+
+    pub fn smooth_bezier_unchecked(&self) -> SmoothBezierTo {
+        SmoothBezierTo {
+            end_control: self.end_control(),
+            end_point: self.end_point(),
+        }
+    }
+
+    pub fn quadratic_bezier(
+        &self,
+        start: Point,
+        tolerance: &ToleranceSquared,
+    ) -> Option<QuadraticBezierTo> {
+        if let Some(quad_control) = self.quad_control(start, tolerance) {
+            Some(self.quadratic_bezier_unchecked(quad_control))
+        } else {
+            None
+        }
+    }
+
+    pub fn quadratic_bezier_unchecked(&self, quad_control: Point) -> QuadraticBezierTo {
+        QuadraticBezierTo {
+            quad_control,
+            end_point: self.end_point(),
+        }
+    }
+
+    pub fn smooth_quadratic_bezier_unchecked(&self) -> SmoothQuadraticBezierTo {
+        SmoothQuadraticBezierTo {
+            end_point: self.end_point(),
+        }
+    }
+
+    pub fn smooth_quadratic_bezier_unchecked_quad(
+        &self,
+        start: Point,
+        control: Option<Point>,
+        quad_control: Point,
+        tolerance: &ToleranceSquared,
+    ) -> Option<SmoothQuadraticBezierTo> {
+        if control.is_some_and(|cp| quad_control.distance_squared(&cp.reflect(start)) < **tolerance)
+        {
+            Some(self.smooth_quadratic_bezier_unchecked())
+        } else {
+            None
+        }
+    }
+
+    pub fn smooth_quadratic_bezier(
+        &self,
+        start: Point,
+        control: Option<Point>,
+        quad_control: Point,
+        tolerance: &ToleranceSquared,
+    ) -> Option<SmoothQuadraticBezierTo> {
+        self.smooth_quadratic_bezier_unchecked_quad(
+            start,
+            control,
+            self.quad_control(start, tolerance)?,
+            tolerance,
+        )
+    }
+
     /// Returns whether a curve is convex
     ///
     /// A curve is convex when the middle of the curve's line is below the curve's midpoint
@@ -83,6 +207,7 @@ impl Curve {
     }
 
     /// Returns whether a curve is an arc of a circle
+    #[deprecated]
     pub fn is_arc(&self, circle: &Circle, make_arcs: &ErrorOptions, error: f64) -> bool {
         let tolerance = f64::min(
             make_arcs.threshold * error,
@@ -94,6 +219,7 @@ impl Curve {
     }
 
     /// Returns whether a curve from a previous command is an arc of a circle
+    #[deprecated]
     pub fn is_arc_prev(&self, circle: &Circle, make_arcs: &ErrorOptions, error: f64) -> bool {
         self.is_arc(
             &Circle {
@@ -106,9 +232,60 @@ impl Curve {
     }
 
     /// Returns whether the arc fits on a straight line.
-    pub fn is_straight(&self, start: Point, tolerance: &ToleranceSquared) -> bool {
-        Point::cross(start, self.end_point(), self.start_control()).abs() < **tolerance
-            && Point::cross(start, self.end_point(), self.end_control()).abs() < **tolerance
+    pub fn is_straight(&self, start: Point, tolerance: &Tolerance) -> bool {
+        let chord = start.distance(&self.end_point());
+        if chord < tolerance.positional {
+            return true;
+        }
+        let tolerance_scaled = tolerance.positional * chord;
+        Point::cross(start, self.end_point(), self.start_control()).abs() < tolerance_scaled
+            && Point::cross(start, self.end_point(), self.end_control()).abs() < tolerance_scaled
+    }
+
+    pub fn types(
+        &self,
+        start: Point,
+        control: Option<Point>,
+        tolerance: &ToleranceSquared,
+    ) -> (
+        CubicBezierTo,
+        Option<SmoothBezierTo>,
+        Option<QuadraticBezierTo>,
+        Option<SmoothQuadraticBezierTo>,
+    ) {
+        let cubic_bezier = self.cubic_bezier();
+        let smooth_bezier = self.smooth_bezier(start, control, tolerance);
+        let (quadratic_bezier, smooth_quadratic_bezier) =
+            if let Some(quad_control) = self.quad_control(start, tolerance) {
+                (
+                    Some(self.quadratic_bezier_unchecked(quad_control)),
+                    self.smooth_quadratic_bezier_unchecked_quad(
+                        start,
+                        control,
+                        quad_control,
+                        tolerance,
+                    ),
+                )
+            } else {
+                (None, None)
+            };
+        (
+            cubic_bezier,
+            smooth_bezier,
+            quadratic_bezier,
+            smooth_quadratic_bezier,
+        )
+    }
+
+    pub fn is_smooth(
+        &self,
+        start: Point,
+        control: Option<Point>,
+        tolerance: &ToleranceSquared,
+    ) -> bool {
+        self.start_control()
+            .distance_squared(&control.map(|c| c.reflect(start)).unwrap_or(start))
+            < **tolerance
     }
 
     /// Returns whether the arc fits on a straight line

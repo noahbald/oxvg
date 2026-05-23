@@ -13,7 +13,7 @@ mod rectangle;
 
 pub use arc::Arc;
 pub use circle::Circle;
-pub use curve::Curve;
+pub use curve::{CubicBezierTo, Curve, QuadraticBezierTo, SmoothBezierTo, SmoothQuadraticBezierTo};
 pub use line::{Intersection, Line};
 pub use point::{Point, Quadrant};
 pub use polygon::Polygon;
@@ -24,6 +24,7 @@ pub use rectangle::Rectangle;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
 /// When running calculations against curves and arcs, the level of error tolerated
+#[deprecated = "Use [`oxvg_path::Tolerance`]"]
 pub struct ErrorOptions {
     /// When calculating tolerance, controls the bound compared to error
     pub threshold: f64,

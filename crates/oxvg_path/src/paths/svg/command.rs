@@ -1,7 +1,7 @@
 //! Path data representations for SVG paths
 use std::fmt::Write as _;
 
-use crate::math;
+use crate::{math, paths::segment::TolerancePrecision};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -178,12 +178,17 @@ impl Data {
     }
 
     /// Rounds the arguments of the comand data up to some precision
-    pub fn round(&mut self, precision: i32) {
+    pub fn round(&mut self, precision: &TolerancePrecision) {
+        let mut nulled = false;
         self.args_mut().into_iter().enumerate().for_each(|(i, d)| {
-            let result = math::to_fixed(*d, precision);
-            if i > 4 && result == 0.0 {
-                // Don't accidentally null arcs
-                return;
+            let mut result = precision.round(*d);
+            if result == 0.0 {
+                match i {
+                    7 if nulled => result = precision.descale(1.0),
+                    6 => nulled = true,
+                    4 | 5 => {}
+                    _ => {}
+                }
             }
             *d = result;
         });

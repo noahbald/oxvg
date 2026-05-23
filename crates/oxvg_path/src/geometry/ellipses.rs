@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{f64::consts::PI, ops::Deref};
 
 use crate::{
     geometry::{Arc, Circle, Curve, Intersection, Line, Point},
@@ -37,13 +37,19 @@ impl Ellipses {
         self.0[4]
     }
 
-    pub const fn arc(&self, start_angle: f64, sweep_angle: f64) -> Arc {
+    pub const fn arc(
+        &self,
+        start_angle: f64,
+        sweep_angle: f64,
+        end_point_memo: Option<Point>,
+    ) -> Arc {
         Arc::new(
             self.center(),
             self.radii(),
             start_angle,
             sweep_angle,
             self.x_rotation(),
+            end_point_memo,
         )
     }
 
@@ -56,6 +62,16 @@ impl Ellipses {
         } else {
             None
         }
+    }
+
+    pub fn circumference(&self) -> f64 {
+        let sum = self.radii().x() + self.radii().y();
+        let factor = (3.0 + sum) * (self.radii().x() + 3.0 * self.radii().y());
+        PI * (3.0 * sum - factor.sqrt())
+    }
+
+    pub const fn is_circle(&self, tolerance: &Tolerance) -> bool {
+        (self.radii().x() - self.radii().y()).abs() < tolerance.positional
     }
 
     pub fn point_at_angle(&self, angle_radians: f64) -> Point {
@@ -88,7 +104,7 @@ impl Ellipses {
         // Find circumcircle
         let middle = curve.point_at_from(start, 0.5);
         let end = curve.end_point();
-        let scale = (start.distance_squared(&end)).max(1.0);
+        let scale = (start.distance_squared(&end) * 1.2).max(start.distance_squared(&end).powi(-1));
 
         let m1 = start.midpoint(&middle);
         let d1 = middle - start;

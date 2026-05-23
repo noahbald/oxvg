@@ -9,13 +9,17 @@ pub use crate::paths::segment::Tolerance;
 
 bitflags! {
     /// Options for which operations should be applied during optimisation
-    #[derive(Copy, Clone)]
-    pub struct Options: u8 {
+    #[derive(Copy, Clone, Debug)]
+    pub struct Options: u16 {
         /// Convert all segments to closed segments.
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonezero"`: Safe
         /// - `stroke`: Unsafe
+        /// - `stroke`
+        ///      + `stroke-linecap: "round"/"square"`
+        ///      + `stroke-linejoin: "round"`: Safe
         /// - `marker-start`: Safe
         /// - `marker-mid`: Unsafe
         /// - `marker-end`: Unsafe
@@ -24,47 +28,84 @@ bitflags! {
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Unsafe
+        /// - `fill-rule: "nonzero"`: Safe
         /// - `stroke`: Unsafe
         /// - `marker-*`: Unsafe
-        const UnionSegments = 1 << 1;
+        const XORSegments = 1 << 1;
+        /// XOR overlapping closed segments.
+        ///
+        /// - `fill`: Safe
+        /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonzero"`: Unsafe
+        /// - `stroke`: Unsafe
+        /// - `marker-*`: Unsafe
+        const UniteSegments = 1 << 2;
         /// Join commands that fit within the path of the previous and next command.
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonzero"`: Safe
         /// - `stroke`: Safe
         /// - `marker-start`: Safe
         /// - `marker-mid`: Unsafe
         /// - `marker-end`: Safe
-        const JoinNodes = 1 << 2;
+        const JoinNodes = 1 << 3;
         /// Remove move commands immediately followed by another move command.
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonzero"`: Safe
         /// - `stroke`: Safe
         /// - `marker-*`: Unsafe
-        const RemoveEmptySegments = 1 << 3;
-        /// Remove final line commands of segments that return to the start.
+        const RemoveEmptySegments = 1 << 4;
+        /// Remove commands where all command args are effectively zero.
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonzero"`: Safe
+        /// - `stroke` + `stroke-linecap`: Unsafe
+        /// - `marker-*`: Safe
+        const RemoveNoopCommands = 1 << 5;
+        /// Replace final line commands of segments that return to the start with `Z`.
+        /// Remove `Z` when retained final commands of segments return to the start.
+        ///
+        /// - `fill`: Safe
+        /// - `fill-rule: "evenodd"`: Safe
+        /// - `fill-rule: "nonzero"`: Safe
         /// - `stroke`: Unsafe
         /// - `marker-start`: Safe
         /// - `marker-mid`: Unsafe
         /// - `marker-end`: Unsafe
-        const RemoveCloseLine = 1 << 4;
+        const RemoveCloseLine = 1 << 6;
+        /// Convert effectively straight curves and arcs into lines.
+        ///
+        /// - `*`: Safe
+        const StraightCurves = 1 << 7;
+        /// Converts effectively arced curves into arcs.
+        ///
+        /// - `*`: Safe
+        const ArcCurves = 1 << 8;
+        /// Rounds the radius of the arc weighted by the chord distance.
+        ///
+        /// - `*`: Safe
+        const SmartArcRounding = 1 << 9;
 
         /// A set of flags that should be excluded when `stroke` is present
-        const UnsafeStroke = Self::CloseSegments.union(Self::UnionSegments).union(Self::RemoveCloseLine).bits();
+        const UnsafeStroke = Self::CloseSegments.union(Self::UniteSegments).union(Self::RemoveCloseLine).bits();
         /// A set of flags that should be excluded when `fill: evenodd` is present
-        const UnsafeEvenOdd = Self::UnionSegments.bits();
+        const UnsafeEvenOdd = Self::UniteSegments.bits();
+        /// A set of flags that should be excluded when `fill: nonzero` is present
+        const UnsafeNonZero = Self::XORSegments.bits();
         /// A set of flags that should be excluded when `marker-*` is present
-        const UnsafeMarker = Self::UnionSegments.union(Self::RemoveEmptySegments).bits();
+        const UnsafeMarker = Self::UniteSegments.union(Self::RemoveEmptySegments).bits();
         /// A set of flags that should be excluded when `marker-start` is present
         const UnsafeMarkerStart = Self::UnsafeMarker.bits();
         /// A set of flags that should be excluded when `marker-mid` is present
         const UnsafeMarkerMid = Self::UnsafeMarker.union(Self::CloseSegments).union(Self::JoinNodes).union(Self::RemoveCloseLine).bits();
         /// A set of flags that should be excluded when `marker-end` is present
-        const unsafeMarkerEnd = Self::UnsafeMarker.union(Self::CloseSegments).union(Self::RemoveCloseLine).bits();
+        const UnsafeMarkerEnd = Self::UnsafeMarker.union(Self::CloseSegments).union(Self::RemoveCloseLine).bits();
+        /// A set of flags that should be excluded when `stroke` + `stroke-linecap` is present
+        const UnsafeStrokeLinecap = Self::RemoveNoopCommands.bits();
     }
 }
 
@@ -94,7 +135,7 @@ impl Path {
     /// let options = Options::default();
     ///
     /// path = path.optimize(options, &Tolerance::default());
-    /// assert_eq!(&path.to_string(), "m10 30v20l20-20H10");
+    /// assert_eq!(&path.to_string(), "M10 30v20l20-20H10Z");
     /// ```
     pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
         let mut segments = segment::Path::from_svg(self, &tolerance);
@@ -103,13 +144,16 @@ impl Path {
             segments.close_segments();
         }
 
-        if options.contains(Options::UnionSegments) {
-            // TODO: Boolean union each closed segment
+        if options.contains(Options::UniteSegments) {
             segments = segments.non_zero(tolerance);
+        }
+        if options.contains(Options::XORSegments) {
+            segments = segments.even_odd(tolerance);
         }
 
         segments.simplify(options, &tolerance);
 
-        segments.to_svg(&tolerance)
+        let result = segments.to_svg(&tolerance, options.contains(Options::SmartArcRounding));
+        result
     }
 }

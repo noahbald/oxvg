@@ -897,6 +897,7 @@ define_attrs! {
     },
     D(Path<'input>) {
         name: "d",
+        default: Path(oxvg_path::Path(vec![]), None),
     },
     Descent(Number) {
         name: "descent",
