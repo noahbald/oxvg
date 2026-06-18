@@ -1,14 +1,15 @@
 use crate::{
     command::{self, ID},
     geometry::{Arc, Curve, Point, Polygon, QuadraticBezierTo, SmoothBezierTo},
-    math::{self, radius_factor},
+    math::{self},
     paths::segment::{
         Data, IterStartCursorItem, Path, Segment, Tolerance, TolerancePrecision, ToleranceSquared,
     },
 };
 
 impl Data {
-    pub(crate) fn take<'a>(
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn take(
         command: &command::Data,
         start: &mut Point,
         cursor: &mut Point,
@@ -184,7 +185,7 @@ impl Segment {
         };
         let mut z_end = false;
         let mut control = None;
-        while let Some(command) = iterator.next() {
+        for command in iterator {
             if let Some(data) = Data::take(command, start, cursor, &mut control, &mut z_end) {
                 result.data.push(data);
             } else {
@@ -207,6 +208,10 @@ impl Segment {
     }
 
     /// Coverts the segment to a polygon, dividing curves and arcs up to some tolerance.
+    ///
+    /// # Panics
+    ///
+    /// If the generated polygons have to points.
     pub fn to_polygon(&self, tolerance: &Tolerance) -> Polygon {
         let mut points = vec![*self.start()];
         for item in self.data() {
@@ -288,14 +293,19 @@ impl Path {
             let implicit = previous.map(|d| d.id().next_implicit());
 
             let mut command = match data {
-                Data::LineTo(to) => {
-                    Self::to_svg_line(previous, segment_start, start, *to, &implicit, &precision)
-                }
+                Data::LineTo(to) => Self::to_svg_line(
+                    previous,
+                    segment_start,
+                    start,
+                    *to,
+                    implicit.as_ref(),
+                    &precision,
+                ),
                 Data::ArcTo(arc) => Self::to_svg_arc(
                     previous,
                     arc,
                     start,
-                    &implicit,
+                    implicit.as_ref(),
                     tolerance,
                     &tolerance_squared,
                     &precision,
@@ -308,7 +318,7 @@ impl Path {
                         start,
                         curve,
                         next,
-                        &implicit,
+                        implicit.as_ref(),
                         &tolerance_squared,
                         &precision,
                     );
@@ -347,7 +357,7 @@ impl Path {
         segment_start: Point,
         start: Point,
         to: Point,
-        implicit: &Option<ID>,
+        implicit: Option<&ID>,
         precision: &TolerancePrecision,
     ) -> command::Data {
         let by = to - start;
@@ -370,13 +380,14 @@ impl Path {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn to_svg_curve(
         previous: Option<&command::Data>,
         control: Option<Point>,
         start: Point,
         curve: &Curve,
         next: Option<&Data>,
-        implicit: &Option<ID>,
+        implicit: Option<&ID>,
         tolerance_squared: &ToleranceSquared,
         precision: &TolerancePrecision,
     ) -> (command::Data, Option<Point>) {
@@ -388,7 +399,7 @@ impl Path {
         let mut candidates = Vec::with_capacity(4);
 
         let (_, smooth_bezier, quadratic_bezier, smooth_quadratic_bezier) =
-            curve.types(start, control, &tolerance_squared);
+            curve.types(start, control, tolerance_squared);
         if let Some(SmoothBezierTo {
             end_control,
             end_point: _,
@@ -445,7 +456,7 @@ impl Path {
                 candidates.clear();
             }
         }
-        if let Some(_) = smooth_quadratic_bezier {
+        if smooth_quadratic_bezier.is_some() {
             candidates.push(command::Data::SmoothQuadraticBezierBy(by.0));
             candidates.push(command::Data::SmoothQuadraticBezierTo(to.0));
         } else if let Some(QuadraticBezierTo {
@@ -467,7 +478,7 @@ impl Path {
             ]));
         }
 
-        let result = compactest_vec(previous, candidates, &implicit, &precision);
+        let result = compactest_vec(previous, candidates, implicit, precision);
         let control = match result.id().as_explicit() {
             ID::QuadraticBezierTo | ID::QuadraticBezierBy => {
                 quadratic_bezier.map(|q| q.quad_control)
@@ -476,22 +487,19 @@ impl Path {
                 control.map(|c| c.reflect(start))
             }
             ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierBy | ID::SmoothBezierTo => {
-                Some(
-                    quadratic_bezier
-                        .map(|q| q.quad_control)
-                        .unwrap_or(end_control),
-                )
+                Some(quadratic_bezier.map_or(end_control, |q| q.quad_control))
             }
             _ => None,
         };
         (result, control)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn to_svg_arc(
         previous: Option<&command::Data>,
         arc: &Arc,
         start: Point,
-        implicit: &Option<ID>,
+        implicit: Option<&ID>,
         tolerance: &Tolerance,
         tolerance_squared: &ToleranceSquared,
         precision: &TolerancePrecision,
@@ -527,19 +535,19 @@ impl Path {
 
         let a_by = command::Data::ArcBy(arc_by);
         let a_to = command::Data::ArcTo(arc_to);
-        compactest(previous, a_by, a_to, &implicit, &precision)
+        compactest(previous, a_by, a_to, implicit, precision)
     }
 }
 
 fn compactest_vec(
     previous: Option<&command::Data>,
     data: Vec<command::Data>,
-    implicit: &Option<ID>,
+    implicit: Option<&ID>,
     precision: &TolerancePrecision,
 ) -> command::Data {
     data.into_iter()
         .map(|d| {
-            if implicit.as_ref().is_some_and(|i| *i == d.id()) {
+            if implicit.is_some_and(|i| *i == d.id()) {
                 command::Data::Implicit(Box::new(d))
             } else {
                 d
@@ -553,7 +561,7 @@ fn compactest_vec(
         .map(|d| {
             if previous
                 .as_ref()
-                .is_some_and(|p| d.1.is_space_needed(&p) && !d.0.starts_with('-'))
+                .is_some_and(|p| d.1.is_space_needed(p) && !d.0.starts_with('-'))
             {
                 (d.0.len() + 1, d.1)
             } else {
@@ -572,7 +580,7 @@ pub(crate) fn compactest(
     previous: Option<&command::Data>,
     left: command::Data,
     right: command::Data,
-    implicit: &Option<ID>,
+    implicit: Option<&ID>,
     precision: &TolerancePrecision,
 ) -> command::Data {
     compactest_vec(previous, vec![left, right], implicit, precision)

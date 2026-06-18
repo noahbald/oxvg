@@ -2,7 +2,6 @@ use crate::{
     command,
     convert::{self, filter, StyleInfo},
     geometry::Curve,
-    paths::segment::ToleranceSquared,
     position::Position,
 };
 

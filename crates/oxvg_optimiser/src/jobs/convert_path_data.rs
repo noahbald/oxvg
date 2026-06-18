@@ -121,7 +121,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
         let computed_styles = ComputedStyles::default()
             .with_all(element, &context.query_has_stylesheet_result)
             .map_err(JobsError::ComputedStylesError)?;
-        let options = gather_optimize_options(element, &computed_styles) & self.into();
+        let options = gather_optimize_options(&computed_styles) & self.into();
         log::debug!("ConvertPathData::run: gained style info {options:?}");
 
         let Some(mut path) = get_attribute_mut!(element, D) else {

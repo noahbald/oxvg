@@ -1,5 +1,4 @@
 use oxvg_ast::{
-    element::Element,
     get_computed_style,
     style::{ComputedStyles, Mode},
 };
@@ -11,10 +10,7 @@ use lightningcss::{
     values::shape::FillRule,
 };
 
-pub fn gather_optimize_options(
-    element: &Element,
-    computed_styles: &ComputedStyles,
-) -> optimize::Options {
+pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> optimize::Options {
     let mut options = optimize::Options::all();
 
     let stroke = get_computed_style!(computed_styles, Stroke);

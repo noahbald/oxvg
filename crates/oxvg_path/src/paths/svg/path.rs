@@ -22,6 +22,6 @@ pub struct Path(pub Vec<command::Data>);
 impl Path {
     /// Rounds the arguments of the comand data up to some precision
     pub fn round(&mut self, precision: &TolerancePrecision) {
-        self.0.iter_mut().for_each(|d| d.round(precision))
+        self.0.iter_mut().for_each(|d| d.round(precision));
     }
 }

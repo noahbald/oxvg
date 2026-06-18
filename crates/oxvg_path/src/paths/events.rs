@@ -1,3 +1,4 @@
+//! Path types for polygonal representations of SVG path data.
 use itertools::Itertools as _;
 
 use crate::{
@@ -29,7 +30,7 @@ impl Data {
         }
     }
 
-    /// Returns the number of point for the data's polygon
+    /// Returns the number of point for the data's polygon.
     pub fn len(&self) -> usize {
         match self {
             Self::Line(_) => 1,
@@ -37,6 +38,13 @@ impl Data {
         }
     }
 
+    /// Returns whether the polygon has no points. Always `false`.
+    pub fn is_empty(&self) -> bool {
+        debug_assert!(self.len() > 0);
+        false
+    }
+
+    /// Returns the end point.
     pub fn end_point(&self) -> Point {
         match self {
             Self::Line(p) => *p.end(),

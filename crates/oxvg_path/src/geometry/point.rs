@@ -250,16 +250,19 @@ impl Point {
     }
 
     /// Returns the point halfway between the two points
+    #[must_use]
     pub fn midpoint(&self, other: &Self) -> Self {
         (self + other) / 2.0
     }
 
     /// Returns the point rotated around the origin by some degrees
+    #[must_use]
     pub fn rotate(&self, angle: f64) -> Self {
         self.rotate_radian(angle.to_radians())
     }
 
     /// Returns the point rotated around the origin by some radians
+    #[must_use]
     pub fn rotate_radian(&self, angle: f64) -> Self {
         let cos = angle.cos();
         let sin = angle.sin();
@@ -358,6 +361,7 @@ impl Point {
 
     /// Returns the point `t` percentage between this point and the other, as a number
     /// between `0.0` and `1.0`.
+    #[must_use]
     pub fn lerp(self, other: Self, t: f64) -> Self {
         self + (other - self) * t
     }
@@ -397,7 +401,7 @@ mod test {
         let b = Point([1.0, 2.0]);
 
         assert_eq!(a.midpoint(&b), Point([1.0, 1.5]));
-        assert_eq!(a.rotate(90.0), Point([-0.9999999999999999, 1.0]));
+        assert_eq!(a.rotate(90.0), Point([-0.999_999_999_999_999_9, 1.0]));
         assert_eq!(a.reflect(Point([0.0, 0.0])), Point([-1.0, -1.0]));
         assert_eq!(a.dot(&b), 3.0);
         assert_eq!(a.minus(), Point([-1.0, -1.0]));

@@ -195,9 +195,9 @@ impl EventQueue {
                 *e1.other_mut() = Rc::downgrade(&e2);
 
                 if e1 < e2 {
-                    *e2.left_mut() = true
+                    *e2.left_mut() = true;
                 } else {
-                    *e1.left_mut() = true
+                    *e1.left_mut() = true;
                 }
 
                 *bbox.0.x_mut() = bbox.0.x().min(line.start().x());
@@ -357,10 +357,10 @@ fn compute_fields(
     }
 
     let in_result = in_result(event, operation);
-    let result_transition = if !in_result {
-        ResultTransition::None
-    } else {
+    let result_transition = if in_result {
         determine_result_transition(event, operation)
+    } else {
+        ResultTransition::None
     };
     *event.result_transition_mut() = result_transition;
 }
@@ -458,9 +458,10 @@ mod divide_segments {
         queue.heap.push(a1.clone());
         queue.heap.push(b1.clone());
 
-        let inter = match Line([a1.point, a2.point]).intersection(&Line([b1.point, b2.point])) {
-            Intersection::Intersection(p) => p,
-            _ => panic!("Not a point intersection"),
+        let Intersection::Intersection(inter) =
+            Line([a1.point, a2.point]).intersection(&Line([b1.point, b2.point]))
+        else {
+            panic!("Not a point intersection");
         };
 
         queue.divide_segment(&a1, inter);
@@ -493,11 +494,11 @@ mod fill_queue {
         )
     }
 
-    fn check_order_in_queue(first: Rc<SweepEvent>, second: Rc<SweepEvent>) {
+    fn check_order_in_queue(first: &Rc<SweepEvent>, second: &Rc<SweepEvent>) {
         let mut queue: BinaryHeap<Rc<SweepEvent>> = BinaryHeap::new();
 
-        assert_eq!(first.cmp(&second), Ordering::Greater);
-        assert_eq!(second.cmp(&first), Ordering::Less);
+        assert_eq!(first.cmp(second), Ordering::Greater);
+        assert_eq!(second.cmp(first), Ordering::Less);
         {
             queue.push(first.clone());
             queue.push(second.clone());
@@ -505,8 +506,8 @@ mod fill_queue {
             let p1 = queue.pop().unwrap();
             let p2 = queue.pop().unwrap();
 
-            assert!(Rc::ptr_eq(&first, &p1));
-            assert!(Rc::ptr_eq(&second, &p2));
+            assert!(Rc::ptr_eq(first, &p1));
+            assert!(Rc::ptr_eq(second, &p2));
         }
         {
             queue.push(second.clone());
@@ -515,19 +516,19 @@ mod fill_queue {
             let p1 = queue.pop().unwrap();
             let p2 = queue.pop().unwrap();
 
-            assert!(Rc::ptr_eq(&first, &p1));
-            assert!(Rc::ptr_eq(&second, &p2));
+            assert!(Rc::ptr_eq(first, &p1));
+            assert!(Rc::ptr_eq(second, &p2));
         }
     }
 
     #[test]
     fn test_least_by_x() {
-        check_order_in_queue(make_simple(0.0, 0.0, false), make_simple(0.5, 0.5, false))
+        check_order_in_queue(&make_simple(0.0, 0.0, false), &make_simple(0.5, 0.5, false));
     }
 
     #[test]
     fn test_least_by_y() {
-        check_order_in_queue(make_simple(0.0, 0.0, false), make_simple(0.0, 0.5, false))
+        check_order_in_queue(&make_simple(0.0, 0.0, false), &make_simple(0.0, 0.5, false));
     }
 
     #[test]
@@ -537,7 +538,7 @@ mod fill_queue {
         let e2 = make_simple(0.0, 0.0, false);
         *e2.left_mut() = false;
 
-        check_order_in_queue(e2, e1)
+        check_order_in_queue(&e2, &e1);
     }
 
     #[test]
@@ -551,7 +552,7 @@ mod fill_queue {
         *e2.other_mut() = Rc::downgrade(&other_e2);
         *e2.left_mut() = true;
 
-        check_order_in_queue(e1, e2)
+        check_order_in_queue(&e1, &e2);
     }
 
     #[test]
@@ -565,6 +566,6 @@ mod fill_queue {
         *e2.other_mut() = Rc::downgrade(&other_e2);
         *e2.left_mut() = true;
 
-        check_order_in_queue(e1, e2)
+        check_order_in_queue(&e1, &e2);
     }
 }

@@ -1,9 +1,9 @@
 //! Methods for filtering arc commands
 use crate::{
     command,
-    position::Position,
     convert::{self, filter},
     geometry::{Circle, Curve, MakeArcs, Point},
+    position::Position,
     Path,
 };
 use std::f64::consts::PI;
@@ -129,7 +129,7 @@ impl Convert {
             } => Curve(*p),
             Position {
                 s_data: Some(p), ..
-            } => p.clone(),
+            } => *p,
             _ => return,
         };
         if prev_s_data.is_convex() && prev_s_data.is_arc_prev(&self.circle, make_arcs, error) {
@@ -305,7 +305,7 @@ impl Convert {
         // Update item to arc
         let removable_arcs = arc_curves.len() - 1 - has_prev;
         if arc_curves.len() == 1 {
-            item.s_data = Some(s_data.clone());
+            item.s_data = Some(*s_data);
         } else if removable_arcs > 0 {
             next_paths
                 .iter_mut()

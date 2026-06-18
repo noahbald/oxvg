@@ -48,7 +48,6 @@ impl Rectangle {
             && self.min_unchecked().y() <= self.max_unchecked().y()
     }
 
-    #[inline(always)]
     /// Returns the minimum point of the rectangle
     ///
     /// No debug assertions

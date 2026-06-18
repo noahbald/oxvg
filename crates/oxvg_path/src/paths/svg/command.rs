@@ -180,13 +180,12 @@ impl Data {
     /// Rounds the arguments of the comand data up to some precision
     pub fn round(&mut self, precision: &TolerancePrecision) {
         let mut nulled = false;
-        self.args_mut().into_iter().enumerate().for_each(|(i, d)| {
+        self.args_mut().iter_mut().enumerate().for_each(|(i, d)| {
             let mut result = precision.round(*d);
             if result == 0.0 {
                 match i {
                     7 if nulled => result = precision.descale(1.0),
                     6 => nulled = true,
-                    4 | 5 => {}
                     _ => {}
                 }
             }

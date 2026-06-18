@@ -137,8 +137,9 @@ impl Path {
     /// path = path.optimize(options, &Tolerance::default());
     /// assert_eq!(&path.to_string(), "M10 30v20l20-20H10Z");
     /// ```
+    #[must_use]
     pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
-        let mut segments = segment::Path::from_svg(self, &tolerance);
+        let mut segments = segment::Path::from_svg(self, tolerance);
 
         if options.contains(Options::CloseSegments) {
             segments.close_segments();
@@ -151,9 +152,8 @@ impl Path {
             segments = segments.even_odd(tolerance);
         }
 
-        segments.simplify(options, &tolerance);
+        segments.simplify(options, tolerance);
 
-        let result = segments.to_svg(&tolerance, options.contains(Options::SmartArcRounding));
-        result
+        segments.to_svg(tolerance, options.contains(Options::SmartArcRounding))
     }
 }

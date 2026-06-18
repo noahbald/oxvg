@@ -61,6 +61,7 @@ impl Tolerance {
         ToleranceSquared(self.positional * self.positional)
     }
 
+    /// Returns the scale for the precision.
     pub fn precision(&self) -> TolerancePrecision {
         TolerancePrecision(10.0_f64.powi(self.precision))
     }
@@ -70,6 +71,7 @@ impl Tolerance {
 pub struct ToleranceSquared(pub f64);
 
 #[derive(Debug)]
+/// A monad representing a scale for rounding a number to some precision
 pub struct TolerancePrecision(pub f64);
 
 impl Deref for ToleranceSquared {
@@ -81,14 +83,17 @@ impl Deref for ToleranceSquared {
 }
 
 impl TolerancePrecision {
+    /// Expands the number to a rounded number
     pub const fn scale(&self, value: f64) -> f64 {
         (value * self.0).round()
     }
 
+    /// Shrink the number to a decimal number
     pub const fn descale(&self, value: f64) -> f64 {
         value / self.0
     }
 
+    /// Rounds a number to the given precision
     pub const fn round(&self, value: f64) -> f64 {
         self.descale(self.scale(value))
     }
@@ -128,6 +133,7 @@ impl Data {
     }
 
     /// Returns the equivalent data item going from the end to the start.
+    #[must_use]
     pub fn reverse(&self, start: Point) -> Self {
         match self {
             Data::LineTo(_) => Data::LineTo(start),
@@ -164,6 +170,7 @@ impl Segment {
         self.closed
     }
 
+    /// The end point of the segment's last command
     pub fn end_point(&self) -> Point {
         if self.closed {
             *self.start()
@@ -180,7 +187,7 @@ impl Path {
     pub fn close_segments(&mut self) {
         for segment in self.0.iter_mut().filter(|s| !s.closed) {
             segment.data.push(Data::LineTo(segment.start));
-            segment.closed = true
+            segment.closed = true;
         }
     }
 
@@ -206,14 +213,22 @@ impl Path {
     }
 }
 
+/// The data item of the path and it's context.
 pub struct IterStartCursorItem<T> {
-    segment_start: Point,
-    segment_start_by: Point,
-    cursor: Point,
-    data: Option<T>,
-    next: Option<T>,
-    command: usize,
-    close: bool,
+    /// The start point of the data item's segment
+    pub segment_start: Point,
+    /// The relative start point of the data item's segment
+    pub segment_start_by: Point,
+    /// The start point for the current data item
+    pub cursor: Point,
+    /// The data item. If the item is `None` then this item represents a standalone `M` segment
+    pub data: Option<T>,
+    /// The proceeding data item.
+    pub next: Option<T>,
+    /// The index of the data within the segment
+    pub command: usize,
+    /// Whether the segment is closed by a `Z` command
+    pub close: bool,
 }
 
 /// An iterator for all the data within the path with the star point of each data item with it.
@@ -270,14 +285,13 @@ impl<'a> Iterator for IterStartCursor<'a> {
                     command: 0,
                     close: false,
                 });
-            } else {
-                self.segment += 1;
-                self.command = 0;
             }
+            self.segment += 1;
+            self.command = 0;
         }
     }
 }
-impl<'a> IterStartCursorMut<'a> {
+impl IterStartCursorMut<'_> {
     fn next(&mut self) -> Option<IterStartCursorItem<&mut Data>> {
         let mut last_segment_end = if self.segment > 0 {
             Some(self.path.0[self.segment - 1].end_point())
@@ -319,10 +333,9 @@ impl<'a> IterStartCursorMut<'a> {
                     command: 0,
                     close: false,
                 });
-            } else {
-                self.segment += 1;
-                self.command = 0;
             }
+            self.segment += 1;
+            self.command = 0;
         }
         None
     }

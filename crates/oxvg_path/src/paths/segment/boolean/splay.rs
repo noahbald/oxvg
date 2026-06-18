@@ -56,6 +56,7 @@ impl Ord for Entry {
         // SweepEvent w.r.t. the segment of the earlier/newer one. The logic is easier to
         // express by swapping them here according to their temporal order. In case we have
         // to swap, the result function must be inverted accordingly.
+        #[allow(clippy::type_complexity)]
         let (old_left, new_left, less_if): (
             &Rc<SweepEvent>,
             &Rc<SweepEvent>,
@@ -94,10 +95,10 @@ impl Ord for Entry {
             {
                 Intersection::None => return less_if(left_area > 0.0),
                 Intersection::Intersection(p) => {
-                    if p == new_left.point {
-                        return less_if(right_area > 0.0);
+                    return if p == new_left.point {
+                        less_if(right_area > 0.0)
                     } else {
-                        return less_if(left_area > 0.0);
+                        less_if(left_area > 0.0)
                     }
                 }
                 Intersection::Parallel(..) => {}

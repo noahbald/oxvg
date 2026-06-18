@@ -1,3 +1,4 @@
+//! Types for representing elliptical arcs.
 use std::f64::consts::PI;
 
 use crate::{
@@ -94,6 +95,8 @@ impl Arc {
             .unwrap_or_else(|| self.point_at_angle(self.start_angle() + self.sweep_angle()))
     }
 
+    /// Returns the approximate perimeter of the arc, using Ramanujan's algorithm.
+    #[allow(clippy::cast_precision_loss)]
     pub fn len(&self, iterations: usize) -> f64 {
         if self.radii().x() == 0.0 || self.radii().y() == 0.0 {
             return self.start_point().distance(&self.end_point());
@@ -102,7 +105,7 @@ impl Arc {
             return 0.0;
         }
 
-        let iterations = if iterations % 2 == 0 {
+        let iterations = if iterations.is_multiple_of(2) {
             iterations.max(2)
         } else {
             iterations + 1
@@ -116,9 +119,9 @@ impl Arc {
                 + (self.radii().y().powi(2) * theta.cos().powi(2)))
             .sqrt();
             if i % 2 == 0 {
-                sum += 2.0 * integrand
+                sum += 2.0 * integrand;
             } else {
-                sum += 4.0 * integrand
+                sum += 4.0 * integrand;
             }
         }
 
@@ -139,6 +142,7 @@ impl Arc {
     /// Returns `None` if the command can be replaced with [`Line`].
     ///
     /// Cursor is updated when `Some` is returned.
+    #[allow(clippy::similar_names)]
     pub fn from_arc_to(arc_to: [f64; 7], from: &mut Point) -> Option<Self> {
         if is_arc_to_line(&arc_to, from) {
             return None;
@@ -227,6 +231,7 @@ impl Arc {
         ))
     }
 
+    /// Returns whether the arc approximately fits on a circle.
     pub fn is_circle(&self, tolerance: &Tolerance) -> bool {
         self.ellipses().is_circle(tolerance)
     }
@@ -248,7 +253,7 @@ impl Arc {
                 // Relatively small, relatively round arcs can be regarded as continuous
                 return true;
             }
-        };
+        }
 
         let scale = (min_sweep.powi(-1)).max(40.0 * self.radii().len());
         let tolerance_scaled = **tolerance_squared * scale;
@@ -261,6 +266,7 @@ impl Arc {
             )
     }
 
+    /// Returns an approximate equivalent of the arc as a bezier curve, if possible.
     pub fn to_curve_to(&self) -> Option<Curve> {
         if self.sweep_angle().abs() < std::f64::consts::FRAC_PI_2 + 1e-6 {
             return None;
@@ -412,9 +418,10 @@ impl Arc {
     }
 
     /// Returns the sub-arc of this arc between the two percentages.
+    #[must_use]
     pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
-        debug_assert!(t1 >= 0.0 && t1 <= 1.0);
-        debug_assert!(t2 >= 0.0 && t2 <= 1.0);
+        debug_assert!((0.0..=1.0).contains(&t1));
+        debug_assert!((0.0..=1.0).contains(&t2));
         debug_assert!(t1 <= t2);
         let mut middle = *self;
         middle.0[4] = self.start_angle() + t1 * self.sweep_angle();
@@ -423,6 +430,7 @@ impl Arc {
     }
 
     /// Returns an arc spanning from the end to start of this arc
+    #[must_use]
     pub fn reverse(&self, start_point_memo: Option<Point>) -> Self {
         Arc::new(
             self.center(),

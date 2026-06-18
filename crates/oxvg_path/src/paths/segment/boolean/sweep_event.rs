@@ -414,6 +414,7 @@ mod test {
     }
 
     #[rustfmt::skip]
+    #[allow(clippy::similar_names)]
     #[test]
     fn test_order_star_pattern() {
         // This test verifies the assumption underlying the `precompute_iteration_order` logic:

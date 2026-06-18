@@ -190,12 +190,12 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
             *result_events[pos].output_contour_id_mut() = contour_id;
 
             let right_point = result_events[pos].point;
-            if contour.edges.last().map(|e| &e.2) != Some(&result_events[pos].source.clone()) {
+            if contour.edges.last().map(|e| &e.2) == Some(&result_events[pos].source.clone()) {
+                contour.edges.last_mut().unwrap().1 = right_point;
+            } else {
                 contour
                     .edges
                     .push((left_point, right_point, result_events[pos].source.clone()));
-            } else {
-                contour.edges.last_mut().unwrap().1 = right_point;
             }
             let next_pos_opt = get_next_pos(pos, &processed, &iteration_map);
             match next_pos_opt {
@@ -218,7 +218,7 @@ fn order_events(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Rc<SweepEvent>> {
         .into_iter()
         .filter(|event| {
             (event.left() && event.is_in_result())
-                || (!event.left() && event.other().map(|o| o.is_in_result()).unwrap_or(false))
+                || (!event.left() && event.other().is_some_and(|o| o.is_in_result()))
         })
         .collect();
 
@@ -263,8 +263,8 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
 
         if has_r {
             let to = r_to - 1;
-            for j in r_from..to {
-                map[j] = j + 1;
+            for (j, item) in map.iter_mut().enumerate().take(to).skip(r_from) {
+                *item = j + 1;
             }
             if has_l {
                 map[to] = l_to - 1;
@@ -274,8 +274,8 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
         }
         if has_l {
             let to = l_to - 1;
-            for j in (l_from + 1)..=to {
-                map[j] = j - 1;
+            for (j, item) in map.iter_mut().enumerate().take(to + 1).skip(l_from + 1) {
+                *item = j - 1;
             }
             if has_r {
                 map[l_from] = r_from;

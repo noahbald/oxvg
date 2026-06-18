@@ -1,8 +1,8 @@
 use crate::{
     command,
-    position::Position,
     convert::{self, filter},
     math,
+    position::Position,
 };
 
 pub fn relative_coordinates(
@@ -85,7 +85,7 @@ fn update_relative_subpoint(
                 command: *c.clone(),
                 start: item.start,
                 end: item.end,
-                s_data: item.s_data.clone(),
+                s_data: item.s_data,
             };
             update_relative_subpoint(&mut new_position, options, state, index);
             new_position.command = command::Data::Implicit(Box::new(new_position.command));

@@ -1,3 +1,4 @@
+//! Types for representing finite lines.
 use crate::geometry::{Point, Rectangle};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -25,10 +26,12 @@ impl Line {
     /// A line spanning from (NAN, NAN)
     pub const NAN: Self = Self([Point::NAN, Point::NAN]);
 
+    /// Returns a line with the given start and end points.
     pub const fn new(start: Point, end: Point) -> Self {
         Line([start, end])
     }
 
+    /// Returns a zero-length line with the same x/y value.
     pub const fn splat(n: f64) -> Self {
         Line([Point::splat(n), Point::splat(n)])
     }
@@ -91,11 +94,11 @@ impl Line {
         let mut cross = Point::cross(Point::ZERO, va, vb);
         if cross != 0.0 {
             let s = Point::cross(Point::ZERO, e, vb) / cross;
-            if s < 0.0 || s > 1.0 {
+            if !(0.0..=1.0).contains(&s) {
                 return Intersection::None;
             }
             let t = Point::cross(Point::ZERO, e, va) / cross;
-            if t < 0.0 || t > 1.0 {
+            if !(0.0..=1.0).contains(&t) {
                 return Intersection::None;
             }
             let p = if s == 0.0 || s == 1.0 {
@@ -157,7 +160,7 @@ impl Line {
 
     /// Returns the midpoint between the two ends of the line
     pub fn midpoint(&self) -> Point {
-        self.start().midpoint(&self.end())
+        self.start().midpoint(self.end())
     }
 }
 

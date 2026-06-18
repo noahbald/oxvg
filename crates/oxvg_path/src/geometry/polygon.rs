@@ -49,7 +49,7 @@ impl Polygon {
             if points.is_empty() {
                 points.push(start);
             }
-            points.push(arc.end_point())
+            points.push(arc.end_point());
         } else {
             let (left, right) = arc.subdivide();
             Self::from_arc(points, start, &left, tolerance, depth + 1);

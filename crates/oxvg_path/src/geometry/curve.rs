@@ -1,5 +1,4 @@
-use std::cmp::Ordering;
-
+//! Types for representing bezier curves.
 use crate::{
     command,
     geometry::{line::Intersection, Circle, ErrorOptions, Line, Point},
@@ -17,26 +16,38 @@ pub struct Curve(
 );
 
 #[derive(Debug)]
+/// A smooth cubic bezier curve.
 pub struct CubicBezierTo {
+    /// The start control of the curve.
     pub start_control: Point,
+    /// The end control of the curve.
     pub end_control: Point,
+    /// The end point.
     pub end_point: Point,
 }
 
 #[derive(Debug)]
+/// A smooth cubic bezier curve.
 pub struct SmoothBezierTo {
+    /// The end control of the curve.
     pub end_control: Point,
+    /// The end point.
     pub end_point: Point,
 }
 
 #[derive(Debug)]
+/// A quadratic bezier curve.
 pub struct QuadraticBezierTo {
+    /// The start/end control of the curve.
     pub quad_control: Point,
+    /// The end point.
     pub end_point: Point,
 }
 
 #[derive(Debug)]
+/// A smooth quadratic bezier curve.
 pub struct SmoothQuadraticBezierTo {
+    /// The end point.
     pub end_point: Point,
 }
 
@@ -68,6 +79,7 @@ impl Curve {
         Point([self.0[4], self.0[5]])
     }
 
+    /// Returns the quad control of the curve, if the curve is quadratic.
     pub fn quad_control(&self, start: Point, tolerance: &ToleranceSquared) -> Option<Point> {
         let quad = self.quad_control_unchecked(start);
         if quad
@@ -80,6 +92,12 @@ impl Curve {
         }
     }
 
+    /// Returns the quad control of the curve, without checking if the curve is quadratic.
+    ///
+    /// # Correctness
+    ///
+    /// If the source curve is not quadratic, then the returned
+    /// quad control is not on the same curve.
     pub fn quad_control_unchecked(&self, start: Point) -> Point {
         start + (self.start_control() - start) * 1.5
     }
@@ -107,6 +125,7 @@ impl Curve {
         }
     }
 
+    /// Returns the cubic bezier form of the curve.
     pub fn cubic_bezier(&self) -> CubicBezierTo {
         CubicBezierTo {
             start_control: self.start_control(),
@@ -115,6 +134,7 @@ impl Curve {
         }
     }
 
+    /// Returns the smooth cubic bezier form of the curve, if possible.
     pub fn smooth_bezier(
         &self,
         start: Point,
@@ -128,6 +148,13 @@ impl Curve {
         }
     }
 
+    /// Returns the smooth cubic bezier form of the curve, without checking if
+    /// it's smooth.
+    ///
+    /// # Correctness
+    ///
+    /// If the source curve is not smooth, then the returned
+    /// smooth cubic bezier is not the same curve.
     pub fn smooth_bezier_unchecked(&self) -> SmoothBezierTo {
         SmoothBezierTo {
             end_control: self.end_control(),
@@ -135,18 +162,23 @@ impl Curve {
         }
     }
 
+    /// Returns the smooth quadratic bezier form of the curve, if possible
     pub fn quadratic_bezier(
         &self,
         start: Point,
         tolerance: &ToleranceSquared,
     ) -> Option<QuadraticBezierTo> {
-        if let Some(quad_control) = self.quad_control(start, tolerance) {
-            Some(self.quadratic_bezier_unchecked(quad_control))
-        } else {
-            None
-        }
+        self.quad_control(start, tolerance)
+            .map(|quad_control| self.quadratic_bezier_unchecked(quad_control))
     }
 
+    /// Returns the smooth quadratic bezier form of the curve, without
+    /// checking whether the quad control is correct.
+    ///
+    /// # Correctness
+    ///
+    /// If the quad control is not corect, then the returned
+    /// smooth quadratic bezier is not the same curve.
     pub fn quadratic_bezier_unchecked(&self, quad_control: Point) -> QuadraticBezierTo {
         QuadraticBezierTo {
             quad_control,
@@ -154,12 +186,26 @@ impl Curve {
         }
     }
 
+    /// Returns the smooth quadratic bezier form of the curve, without
+    /// checking whether the source curve is smooth with some quad control.
+    ///
+    /// # Correctness
+    ///
+    /// If the source curve is not a smooth quadratic bezier, then the returned
+    /// smooth quadratic bezier is not the same curve.
     pub fn smooth_quadratic_bezier_unchecked(&self) -> SmoothQuadraticBezierTo {
         SmoothQuadraticBezierTo {
             end_point: self.end_point(),
         }
     }
 
+    /// Returns the smooth quadratic bezier form of the curve, without
+    /// checking whether the quad control is correct.
+    ///
+    /// # Correctness
+    ///
+    /// If the quad control is not correct, then the returned
+    /// smooth quadratic bezier is not the same curve.
     pub fn smooth_quadratic_bezier_unchecked_quad(
         &self,
         start: Point,
@@ -175,11 +221,11 @@ impl Curve {
         }
     }
 
+    /// Returns the smooth quadratic bezier form of the curve, if possible.
     pub fn smooth_quadratic_bezier(
         &self,
         start: Point,
         control: Option<Point>,
-        quad_control: Point,
         tolerance: &ToleranceSquared,
     ) -> Option<SmoothQuadraticBezierTo> {
         self.smooth_quadratic_bezier_unchecked_quad(
@@ -242,6 +288,7 @@ impl Curve {
             && Point::cross(start, self.end_point(), self.end_control()).abs() < tolerance_scaled
     }
 
+    /// Returns various bezier forms of the curve.
     pub fn types(
         &self,
         start: Point,
@@ -277,6 +324,7 @@ impl Curve {
         )
     }
 
+    /// Returns whether the curve is representable as a smooth bezier curve.
     pub fn is_smooth(
         &self,
         start: Point,
@@ -284,7 +332,7 @@ impl Curve {
         tolerance: &ToleranceSquared,
     ) -> bool {
         self.start_control()
-            .distance_squared(&control.map(|c| c.reflect(start)).unwrap_or(start))
+            .distance_squared(&control.map_or(start, |c| c.reflect(start)))
             < **tolerance
     }
 
@@ -344,6 +392,7 @@ impl Curve {
 
     /// Returns two divisions of the curve by the percentage along the curve, as a number
     /// between `0.0` and `1.0`.
+    #[allow(clippy::similar_names)]
     pub fn subdivide_t(&self, start: Point, t: f64) -> (Curve, Point, Curve) {
         let p0 = start;
         let p1 = self.start_control();
@@ -385,7 +434,9 @@ impl Curve {
     }
 
     /// Returns the percent along the curve a point lies, to some tolerance.
+    #[allow(clippy::similar_names)]
     pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+        const MAX_ITER: usize = 8;
         let p0 = start;
         let p1 = self.start_control();
         let p2 = self.end_control();
@@ -395,13 +446,12 @@ impl Curve {
         let db = (p0 - p1 * 2.0 + p2) * 2.0;
         let dc = p1 - p0;
 
-        let bprime = |t: f64| -> Point {
+        let b_prime = |t: f64| -> Point {
             let t2 = t * t;
             (da * t2 + db * t + dc) * 3.0
         };
-        let bdprime = |t: f64| -> Point { (da * (2.0 * t) + db) * 3.0 };
+        let bd_prime = |t: f64| -> Point { (da * (2.0 * t) + db) * 3.0 };
 
-        const MAX_ITER: usize = 8;
         let tol_sq = **tolerance;
 
         // Try several seeds spread across [0,1] and keep the best converged result.
@@ -416,8 +466,8 @@ impl Curve {
                 let bt = self.point_at_from(start, t);
                 let diff = bt - at;
 
-                let bp = bprime(t);
-                let bp2 = bdprime(t);
+                let bp = b_prime(t);
+                let bp2 = bd_prime(t);
 
                 let f1 = diff.dot(&bp);
                 let f2 = bp.dot(&bp) + diff.dot(&bp2);
@@ -449,13 +499,17 @@ impl Curve {
         }
     }
 
+    /// Returns an equivalent curve spanning from the end point to the start.
+    #[must_use]
     pub fn reverse(&self, start: Point) -> Self {
         Curve::new(self.end_control(), self.start_control(), start)
     }
 
+    /// Creates a subcurve between the percentage `t1` and `t2`, as numbers between `0.0` and `1.0`.
+    #[must_use]
     pub fn clamp_t(&self, start: Point, t1: f64, t2: f64) -> Self {
-        debug_assert!(t1 >= 0.0 && t1 <= 1.0);
-        debug_assert!(t2 >= 0.0 && t2 <= 1.0);
+        debug_assert!((0.0..=1.0).contains(&t1));
+        debug_assert!((0.0..=1.0).contains(&t2));
         debug_assert!(t1 <= t2);
         let (_, start, right) = self.subdivide_t(start, t1);
         let t2 = if (1.0 - t1).abs() < 1e-10 {

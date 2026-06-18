@@ -35,13 +35,16 @@ pub(crate) fn saggita(arc_by: &[f64; 7], error: f64) -> Option<f64> {
 
 /// A greatest common denominator algorithm that exits early when the denominator is within some
 /// tolerance truncated by some precision
+#[allow(clippy::many_single_char_names)]
 pub fn euclid_gcd_lossy(
     a: f64,
     b: f64,
     tolerance: &Tolerance,
     precision: &TolerancePrecision,
 ) -> f64 {
+    #[allow(clippy::cast_sign_loss)]
     let u = precision.scale(a).abs() as u32;
+    #[allow(clippy::cast_sign_loss)]
     let v = precision.scale(b).abs() as u32;
     let (mut u, mut v) = if u > v { (u, v) } else { (v, u) };
 
@@ -88,6 +91,5 @@ pub fn radius_factor(rx: f64, ry: f64, xr: f64, start: Point, end: Point) -> f64
     let x_prime = cos_phi * x_mid + sin_phi * y_mid;
     let y_prime = -sin_phi * x_mid + cos_phi * y_mid;
 
-    let lambda = x_prime.powi(2) / rx.powi(2) + y_prime.powi(2) / ry.powi(2);
-    lambda
+    x_prime.powi(2) / rx.powi(2) + y_prime.powi(2) / ry.powi(2)
 }

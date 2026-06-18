@@ -64,7 +64,7 @@ impl Path {
                 Data::CurveTo(curve) => {
                     // NOTE: 1: Don't straighten `t`/`T` continuing a chain.
                     //       See (2)
-                    let quad_control = curve.quad_control(start, &tolerance_squared);
+                    let quad_control = curve.quad_control(start, tolerance_squared);
                     let is_optimal = !previous_quadratic
                         || quad_control.is_none_or(|quad_control| {
                             curve
@@ -72,12 +72,12 @@ impl Path {
                                     start,
                                     control,
                                     quad_control,
-                                    &tolerance_squared,
+                                    tolerance_squared,
                                 )
                                 .is_none()
                         });
-                    if is_optimal && curve.is_straight(start, &tolerance) {
-                        *data = Data::LineTo(curve.end_point())
+                    if is_optimal && curve.is_straight(start, tolerance) {
+                        *data = Data::LineTo(curve.end_point());
                     } else {
                         // NOTE: 2: When quadratic is not straightened, it it
                         //       part of a chain
@@ -87,10 +87,10 @@ impl Path {
                 }
                 Data::ArcTo(arc) => {
                     if arc.is_straight(tolerance) {
-                        *data = Data::LineTo(arc.end_point())
+                        *data = Data::LineTo(arc.end_point());
                     }
                 }
-                _ => {}
+                Data::LineTo(_) => {}
             }
         }
     }
@@ -110,18 +110,9 @@ impl Path {
                      data,
                      ..
                  }| {
-                    let Some(data) = data else {
-                        return None;
-                    };
-                    match data {
+                    match data? {
                         Data::CurveTo(curve) => {
-                            if let Some(arc) =
-                                Arc::fit_curve(curve, start, tolerance, tolerance_squared)
-                            {
-                                Some(arc)
-                            } else {
-                                None
-                            }
+                            Arc::fit_curve(curve, start, tolerance, tolerance_squared)
                         }
                         Data::ArcTo(arc) => Some(*arc),
                         Data::LineTo(_) => None,
@@ -154,7 +145,7 @@ impl Path {
                     start,
                     curve,
                     next.as_deref(),
-                    &implicit,
+                    implicit.as_ref(),
                     tolerance_squared,
                     precision,
                 );
@@ -163,7 +154,7 @@ impl Path {
                         previous.as_ref(),
                         &arc,
                         start,
-                        &implicit,
+                        implicit.as_ref(),
                         tolerance,
                         tolerance_squared,
                         precision,
@@ -197,13 +188,13 @@ impl Path {
                         previous.as_ref(),
                         &arc,
                         start,
-                        &implicit,
+                        implicit.as_ref(),
                         tolerance,
                         tolerance_squared,
                         precision,
                         smart_arc_rounding,
                     );
-                    let c = compactest(previous.as_ref(), c, a, &implicit, precision);
+                    let c = compactest(previous.as_ref(), c, a, implicit.as_ref(), precision);
                     if matches!(c.id(), ID::ArcBy | ID::ArcTo) {
                         *data = Data::ArcTo(arc);
                         continue;
@@ -219,7 +210,7 @@ impl Path {
     }
 
     fn remove_noop_commands(&mut self, tolerance_squared: &ToleranceSquared) {
-        for segment in self.0.iter_mut() {
+        for segment in &mut self.0 {
             let mut start = segment.start;
             segment.data.retain(|command| {
                 let is_zero = match command {
@@ -248,8 +239,9 @@ impl Path {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn join_nodes(&mut self, tolerance: &Tolerance, tolerance_squared: &ToleranceSquared) {
-        for segment in self.0.iter_mut() {
+        for segment in &mut self.0 {
             let mut new_data = vec![];
             let mut start = segment.start;
             let mut previous_start = segment.start;
@@ -328,10 +320,10 @@ impl Path {
                                 // todo!("weight average by sweep lengths");
                                 let r1 = previous.center().distance(&start);
                                 let r2 = previous.center().distance(&current.end_point());
-                                let avg_r = (r1 + r2) / 2.0;
+                                let avg_r = r1.midpoint(r2);
                                 previous.0[2] = avg_r;
                                 previous.0[3] = avg_r;
-                                previous.1 = current.1
+                                previous.1 = current.1;
                             }
                         } else {
                             let mut current = *current;
@@ -388,15 +380,10 @@ impl Path {
                 Data::ArcTo(arc) => arc.end_point(),
             }) {
                 if segment.start().distance_squared(&end) < **tolerance_squared {
-                    if segment
+                    segment.closed = segment
                         .data
                         .pop_if(|command| matches!(command, Data::LineTo(_)))
-                        .is_some()
-                    {
-                        segment.closed = true;
-                    } else {
-                        segment.closed = false;
-                    }
+                        .is_some();
                 } else {
                     // Line end outside of tolerance; segment must have
                     // been coerced to `closed` in `Path::optimize`.
@@ -487,7 +474,7 @@ mod test {
         assert_eq!(
             path.to_svg(&Tolerance::default(), true).to_string(),
             "M0 0a1 1 0 0 1 2.207 1C2 .75 2 .563 2.031.438 2.125.063 2.5.25 4 1h2"
-        )
+        );
     }
 
     #[test]
@@ -498,7 +485,7 @@ mod test {
             closed: false,
         }]);
         path.simplify(Options::RemoveEmptySegments, &Tolerance::default());
-        assert_eq!(path, Path(vec![]))
+        assert_eq!(path, Path(vec![]));
     }
 
     #[test]
@@ -523,6 +510,6 @@ mod test {
                 ],
                 closed: true,
             }])
-        )
+        );
     }
 }

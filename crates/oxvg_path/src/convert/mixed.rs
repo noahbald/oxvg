@@ -106,7 +106,7 @@ pub fn to_absolute(item: &Position) -> command::Data {
             command: *c.clone(),
             start: item.start,
             end: item.end,
-            s_data: item.s_data.clone(),
+            s_data: item.s_data,
         }),
         _ => item.command.clone(),
     }
