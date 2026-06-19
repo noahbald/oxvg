@@ -1,3 +1,4 @@
+//! Trace output contours from classified sweep events.
 use std::{collections::HashSet, rc::Rc};
 
 use super::sweep_event::{ResultTransition, Source, SweepEvent};
@@ -10,10 +11,15 @@ use crate::{
 };
 
 #[derive(Debug)]
+/// A closed ring forming the output polygon.
 pub struct Contour {
+    /// Ordered edges of the ring.
     pub edges: Vec<(Point, Point, Source)>,
+    /// Contours that make up the holes of this contour.
     pub holes: Vec<usize>,
+    /// Index this contour is a hole of, `None` if an exterior contour.
     pub hole_of: Option<usize>,
+    /// Nesting depth of contour.
     pub depth: usize,
 }
 
@@ -27,27 +33,33 @@ impl Contour {
         }
     }
 
+    /// Determines nesting context for a new contour starting at the given event.
     fn initialise_from_context(
         event: &Rc<SweepEvent>,
         contours: &mut [Contour],
         contour_id: usize,
     ) -> Self {
         if let Some(prev_in_result) = event.prev_in_result().upgrade() {
+            // Determine placement of contour
             let lower_contour_id = prev_in_result.output_contour_id();
             if *prev_in_result.result_transition() == ResultTransition::OutIn {
+                // Edge is start of out-in; start of a hole
                 let lower_contour = &contours[lower_contour_id];
                 if let Some(parent_contour_id) = lower_contour.hole_of {
+                    // Edge is adjacent to another hole
                     contours[parent_contour_id].holes.push(contour_id);
                     let hole_of = Some(parent_contour_id);
                     let depth = contours[lower_contour_id].depth;
                     Contour::new(hole_of, depth)
                 } else {
+                    // Edge is within another hole
                     contours[lower_contour_id].holes.push(contour_id);
                     let hole_of = Some(lower_contour_id);
                     let depth = contours[lower_contour_id].depth + 1;
                     Contour::new(hole_of, depth)
                 }
             } else {
+                // Edge is adjacent to anther contour
                 let depth = if lower_contour_id >= contours.len() {
                     panic!("invalid lower-contour id");
                 } else {
@@ -56,14 +68,17 @@ impl Contour {
                 Contour::new(None, depth)
             }
         } else {
+            // This is the first contour.
             Contour::new(None, 0)
         }
     }
 
+    /// Returns whether this contour is an outermost contour.
     pub fn is_exterior(&self) -> bool {
         self.hole_of.is_none()
     }
 
+    /// Reconstruct the curved geometry for this contour.
     pub fn slice(
         &self,
         background: &events::Path,
@@ -71,6 +86,7 @@ impl Contour {
         tolerance: &ToleranceSquared,
     ) -> Option<Segment> {
         if !self.is_exterior() {
+            // TODO: support holes, ensure correct fill-rule
             return None;
         }
         let mut segment = Segment {
@@ -87,9 +103,14 @@ impl Contour {
             let source = &source.0[source_ref.polygon];
             let source = &source.data[source_ref.command];
 
+            // Reconstruct SVG lines, curves, and arc.
             segment.data.push(match source {
-                events::Data::Line(_) => Data::LineTo(*end),
+                events::Data::Line(_) => {
+                    // Lines reconstructed as-is
+                    Data::LineTo(*end)
+                }
                 events::Data::Curve(curve, p) => {
+                    // Curve reconstructed by slicing and reversing as needed
                     let curve_start = *p[0].start();
                     let curve_end = *p.last().unwrap().end();
                     if *start == curve_start && curve_end == *end {
@@ -119,6 +140,7 @@ impl Contour {
                     }
                 }
                 events::Data::Arc(arc, p) => {
+                    // Arcs reconstructed by slicing and reversing as needed
                     let arc_start = *p[0].start();
                     let arc_end = *p.last().unwrap().end();
                     if *start == arc_start && arc_end == *end {
@@ -155,19 +177,25 @@ impl Contour {
     }
 }
 
+/// Assemble events into contours.
 pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
+    // Filter events to in-result events
     let result_events = order_events(sorted_events);
 
+    // Chain group of events together
     let iteration_map = precompute_iteration_order(&result_events);
 
     let mut contours: Vec<Contour> = vec![];
     let mut processed: HashSet<usize> = HashSet::new();
 
+    // Trace each group in to contours
     for i in 0..result_events.len() {
         if processed.contains(&i) {
+            // Event is part of an already processed group
             continue;
         }
 
+        // Initialise this group
         let contour_id = contours.len();
         let mut contour =
             Contour::initialise_from_context(&result_events[i], &mut contours, contour_id);
@@ -179,7 +207,9 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
             .edges
             .push((initial, initial, result_events[i].source.clone()));
 
+        // Trace the group
         loop {
+            // Add left and right event to `processed`
             processed.insert(pos);
             *result_events[pos].output_contour_id_mut() = contour_id;
 
@@ -190,19 +220,27 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
             *result_events[pos].output_contour_id_mut() = contour_id;
 
             let right_point = result_events[pos].point;
+
+            // Add left and right event to contour
             if contour.edges.last().map(|e| &e.2) == Some(&result_events[pos].source.clone()) {
+                // Event continues source of previous event, so extend the event.
+                // This is because many events may lie on a single arc/curve that will be reconstructed.
                 contour.edges.last_mut().unwrap().1 = right_point;
             } else {
+                // Event is start of a new source, so push the event.
                 contour
                     .edges
                     .push((left_point, right_point, result_events[pos].source.clone()));
             }
+
+            // get `pos` for next event
             let next_pos_opt = get_next_pos(pos, &processed, &iteration_map);
             match next_pos_opt {
                 Some(npos) => pos = npos,
-                None => break,
+                None => break, // no next pos, end contour
             }
 
+            // `pos` hasn't progressed/returned to start, so the contour has ended
             if pos == i {
                 break;
             }
@@ -213,7 +251,9 @@ pub fn connect_edges(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Contour> {
     contours
 }
 
+/// Filter events and set up `other_pos` links.
 fn order_events(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Rc<SweepEvent>> {
+    // Keeps only left/right events that are in results
     let mut result_events: Vec<_> = sorted_events
         .into_iter()
         .filter(|event| {
@@ -222,6 +262,7 @@ fn order_events(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Rc<SweepEvent>> {
         })
         .collect();
 
+    // Update `other_pos`
     result_events.sort_by(|a, b| b.cmp(a));
     for (pos, event) in result_events.iter().enumerate() {
         *event.other_pos_mut() = pos;
@@ -238,6 +279,10 @@ fn order_events(sorted_events: Vec<Rc<SweepEvent>>) -> Vec<Rc<SweepEvent>> {
     result_events
 }
 
+/// Build an iteration map over events to control visit order.
+///
+/// Each group will be chained together.
+/// Each group will be iterated from right to left.
 pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
     let mut map = vec![0; data.len()];
 
@@ -287,6 +332,9 @@ pub fn precompute_iteration_order(data: &[Rc<SweepEvent>]) -> Vec<usize> {
     map
 }
 
+// Update `pos` to the next event that leads from the current pos.
+//
+// Returns `None` if this is the last pos.
 fn get_next_pos(
     mut pos: usize,
     processed: &HashSet<usize>,

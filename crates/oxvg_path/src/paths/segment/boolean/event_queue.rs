@@ -1,3 +1,4 @@
+//! Implementation of the event-queue phase of the Martinez-Rueda algorithm.
 use std::{
     collections::BinaryHeap,
     rc::{Rc, Weak},
@@ -13,14 +14,28 @@ use crate::{
     paths::events,
 };
 
+/// Creates a left-to-right queue of events (i.e. polygon edges) of the resulting
+/// polygons.
+///
+/// This is done in two phases
+/// 1. Using `EventQueue::fill` to construct the queue of events
+/// 2. Using `EventQueue::subdivide` to pull events, creating new events at
+///    intersections via subdivision.
 pub struct EventQueue {
+    /// Ordered heap of events.
     pub heap: BinaryHeap<Rc<SweepEvent>>,
+    /// Background bounding-box.
     bbbox: (Point, Point),
+    /// Foreground bounding-box.
     fbbox: (Point, Point),
+    /// The boolean operation.
     operation: Operation,
 }
 
 impl EventQueue {
+    /// Creates an event queue from two polygons.
+    ///
+    /// Each edge of the polygons are converted to a left/right `SweepEevent` pair.
     pub fn fill(
         background: &events::Path,
         foreground: &events::Path,
@@ -36,6 +51,7 @@ impl EventQueue {
             operation,
         };
 
+        // 1. Gather background events and add them to the queue
         for (i, polygon) in background.0.iter().enumerate() {
             contour_id += 1;
             result.process_polygon(
@@ -62,6 +78,7 @@ impl EventQueue {
             }
         }
 
+        // 1. Gather foreground events an add them to the queue
         for (i, polygon) in foreground.0.iter().enumerate() {
             let exterior = operation != Operation::Difference;
             if exterior {
@@ -93,6 +110,7 @@ impl EventQueue {
         result
     }
 
+    /// Returns true when the two shapes trivially do not overlap each other.
     pub fn is_trivial(&self) -> bool {
         self.bbbox.0.x() > self.fbbox.1.x()
             || self.fbbox.0.x() > self.bbbox.1.x()
@@ -100,6 +118,7 @@ impl EventQueue {
             || self.fbbox.0.y() > self.bbbox.1.y()
     }
 
+    /// Iterate through sorted events. Intersecting events will be subdivided.
     pub fn subdivide(&mut self) -> Vec<Rc<SweepEvent>> {
         let mut sweep_line = Set::new();
         let mut sorted_events: Vec<Rc<SweepEvent>> = vec![];
@@ -108,22 +127,26 @@ impl EventQueue {
         while let Some(event) = self.heap.pop() {
             sorted_events.push(Rc::clone(&event));
 
+            // For such operations, halts once the events no longer overlap
             if self.operation == Operation::Intersection && event.point.x() > rightbound
                 || self.operation == Operation::Difference && event.point.x() > self.bbbox.1.x()
             {
                 break;
             }
 
+            // For the event, either inserts it or discards it from the result
             let entry = Entry(event.clone());
             if event.left() {
                 sweep_line.insert(entry.clone());
 
+                // 1. Get adjacent events and set transitions
                 let maybe_prev = sweep_line.find_upper_bound_rev(&entry).cloned();
                 let maybe_next = sweep_line.find_upper_bound(&entry).cloned();
 
                 compute_fields(&event, maybe_prev.as_deref(), self.operation);
 
                 if let Some(next) = maybe_next {
+                    // 2. T-Intersecting `event -> next` transition is set
                     if self.possible_intersection(&event, &next) == 2 {
                         // Recompute fields for current segment and the one above (in bottom to top order)
                         compute_fields(&event, maybe_prev.as_deref(), self.operation);
@@ -132,6 +155,7 @@ impl EventQueue {
                 }
 
                 if let Some(prev) = maybe_prev {
+                    // 3. T-intersecting `prev -> event` transition is set
                     if self.possible_intersection(&prev, &event) == 2 {
                         let maybe_prev_prev = sweep_line.find_upper_bound_rev(&prev);
                         // Recompute fields for current segment and the one below (in bottom to top order)
@@ -140,6 +164,7 @@ impl EventQueue {
                     }
                 }
             } else if let Some(other_event) = event.other() {
+                // Replace this event with subdivision and handle it in next iteration
                 let entry = Entry(other_event.clone());
                 if sweep_line.contains(&entry) {
                     let maybe_prev = sweep_line.find_upper_bound_rev(&entry).cloned();
@@ -157,6 +182,7 @@ impl EventQueue {
         sorted_events
     }
 
+    /// Convert a polygon ring into events and push to the heap.
     fn process_polygon(
         &mut self,
         data: &[events::Data],
@@ -211,6 +237,12 @@ impl EventQueue {
         }
     }
 
+    /// Return the type of event intersections
+    ///
+    /// 0. No intersection, or same source
+    /// 1. Basic intersection
+    /// 2. Coincidental left intersection
+    /// 3. Partial/full parallel intersection
     fn possible_intersection(&mut self, a1: &Rc<SweepEvent>, b1: &Rc<SweepEvent>) -> u8 {
         let (Some(a2), Some(b2)) = (a1.other(), b1.other()) else {
             return 0;
@@ -288,6 +320,8 @@ impl EventQueue {
         }
     }
 
+    /// Subdivide the event at the intersection point and add the resulting events
+    /// to the heap.
     pub fn divide_segment(&mut self, left: &Rc<SweepEvent>, mut intersection: Point) {
         debug_assert!(left.left());
 
@@ -330,6 +364,7 @@ impl EventQueue {
     }
 }
 
+/// Set the `in_out`, `other_in_out`, and `prev_in_result` fields of the event.
 fn compute_fields(
     event: &Rc<SweepEvent>,
     maybe_prev: Option<&Rc<SweepEvent>>,
@@ -365,6 +400,7 @@ fn compute_fields(
     *event.result_transition_mut() = result_transition;
 }
 
+/// Determin whether an event contributes to the result based on the boolean operation.
 fn in_result(event: &SweepEvent, operation: Operation) -> bool {
     match *event.edge_type() {
         EdgeType::Normal => match operation {
@@ -382,6 +418,7 @@ fn in_result(event: &SweepEvent, operation: Operation) -> bool {
     }
 }
 
+/// For a result, return whether the transition is from `in -> out` or `out -> in`.
 fn determine_result_transition(event: &SweepEvent, operation: Operation) -> ResultTransition {
     let this_in = !event.in_out();
     let that_in = !event.other_in_out();

@@ -1,7 +1,10 @@
 use crate::paths::{
     events,
     segment::{
-        boolean::{contour::connect_edges, event_queue::EventQueue},
+        boolean::{
+            contour::{connect_edges, Contour},
+            event_queue::EventQueue,
+        },
         Path, Tolerance, ToleranceSquared,
     },
 };
@@ -91,13 +94,7 @@ impl events::Path {
         foreground: &Self,
         tolerance: &ToleranceSquared,
     ) -> Option<Path> {
-        let mut event_queue = EventQueue::fill(self, foreground, operation);
-        if event_queue.is_trivial() {
-            return None;
-        }
-
-        let sorted_events = event_queue.subdivide();
-        let contours = connect_edges(sorted_events);
+        let contours = self.contours(operation, foreground)?;
 
         // 3. Apply polygon operations to the path by cutting up `LineTo`, `CurveTo`, and `ArcTo` commands.
         Some(Path(
@@ -106,6 +103,16 @@ impl events::Path {
                 .filter_map(|c| c.slice(self, foreground, tolerance))
                 .collect(),
         ))
+    }
+
+    pub(crate) fn contours(&self, operation: Operation, foreground: &Self) -> Option<Vec<Contour>> {
+        let mut event_queue = EventQueue::fill(self, foreground, operation);
+        if event_queue.is_trivial() {
+            return None;
+        }
+
+        let sorted_events = event_queue.subdivide();
+        Some(connect_edges(sorted_events))
     }
 }
 
