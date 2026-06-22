@@ -7,7 +7,11 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
-use oxvg_path::{command::Data, Path};
+use oxvg_path::{
+    command::Data,
+    geometry::Point,
+    paths::segment::{self, Segment},
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -109,15 +113,20 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
             width,
             height,
         } = view_box_data;
-        let view_box_path_data = Path(vec![
-            Data::MoveTo([*min_x as f64, *min_y as f64]),
-            Data::HorizontalLineBy([*width as f64]),
-            Data::VerticalLineBy([*height as f64]),
-            Data::HorizontalLineTo([*min_x as f64]),
-            Data::ClosePath,
-        ]);
+        let min_x = *min_x as f64;
+        let min_y = *min_y as f64;
+        let max_x = min_x + *width as f64;
+        let max_y = min_y + *height as f64;
 
-        if !view_box_path_data.intersects(path) {
+        let mut view_box_path_data = Segment::with_capacity(Point([min_x, min_y]), 3);
+        view_box_path_data.push(segment::Data::LineTo(Point([max_x, min_y])));
+        view_box_path_data.push(segment::Data::LineTo(Point([max_x, max_y])));
+        view_box_path_data.push(segment::Data::LineTo(Point([min_x, max_y])));
+        view_box_path_data.close();
+        let view_box_path_data = segment::Path(vec![view_box_path_data]);
+
+        let segments = segment::Path::from_svg(&*path, &segment::Tolerance::default());
+        if !view_box_path_data.intersects(&segments) {
             element.remove();
         }
         Ok(())

@@ -155,6 +155,42 @@ impl Data {
 }
 
 impl Segment {
+    pub fn new(start: Point, data: Vec<Data>, closed: bool) -> Self {
+        Self {
+            start,
+            data,
+            closed,
+        }
+    }
+
+    pub fn empty(start: Point) -> Self {
+        Self {
+            start,
+            data: vec![],
+            closed: false,
+        }
+    }
+
+    pub fn with_capacity(start: Point, capacity: usize) -> Self {
+        Self {
+            start,
+            data: Vec::with_capacity(capacity),
+            closed: false,
+        }
+    }
+
+    pub fn push(&mut self, data: Data) {
+        self.data.push(data);
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
+    pub fn unclose(&mut self) {
+        self.closed = false;
+    }
+
     /// Returns the start point of the segment.
     pub fn start(&self) -> &Point {
         &self.start
