@@ -1,17 +1,16 @@
 //! OXVG Path is a library used for parsing and minifying SVG paths.
 //! It supports parsing of any valid SVG path and provides optimisations close to exactly as SVGO.
 //!
-//! Use the [Path] struct for simple parsing and serializing. By only parsing and serializing,
-//! it will produce optimised formatting out of the box.
-//! It is made up individual command [Data](command::Data).
+//! Use the [Path] struct for simple parsing and serializing. By solely parsing and serializing,
+//! it will produce a path with prettier formatting.
+//! A path is made up individual command [Data](command::Data).
 //!
-//! For more rigorous minification, try using the [run](convert::run) function. This will use
+//! For more rigorous minification, try using the [Path::optimize] method. This will use
 //! non-destructive conversions to shorten the path.
 //!
-//! # Differences to SVGO
+//! For a simpler path representation, best for building and manipulations, use [paths::segment::Path].
 //!
-//! - Unlike SVGO, all close paths are serialized as `Z` instead of either `z` or `Z`. This is fine because the two commands function exactly the same.
-//! - An equivalent of the `applyTransforms` option isn't available, but may be in the future.
+//! For a polygonal representation, best for geospacial analysis, use [paths::events::Path].
 //!
 //! # Licensing
 //!
@@ -25,9 +24,6 @@ extern crate bitflags;
 #[macro_use]
 extern crate napi_derive;
 
-#[cfg(feature = "optimise")]
-#[deprecated]
-pub mod convert;
 #[cfg(feature = "format")]
 mod format;
 #[cfg(feature = "geometry")]
@@ -42,11 +38,5 @@ pub mod optimize;
 #[cfg(feature = "parse")]
 pub mod parser;
 pub mod paths;
-#[cfg(feature = "optimise")]
-#[deprecated = "Use [`crate::geometry::Point`] instead"]
-pub mod points;
-#[cfg(feature = "optimise")]
-#[deprecated]
-mod position;
 
 pub use paths::svg::{command, Path};

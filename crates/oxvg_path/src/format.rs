@@ -1,5 +1,5 @@
 //! Formatting implementations
-use crate::{command::Data, paths::positioned, Path};
+use crate::{command::Data, Path};
 
 pub(crate) fn format<'a>(
     mut iter: impl ExactSizeIterator<Item = &'a Data>,
@@ -32,12 +32,6 @@ impl std::fmt::Display for Path {
         format(self.0.iter(), f)
     }
 }
-impl std::fmt::Display for positioned::Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        format(self.0.iter().map(|p| &p.command), f)
-    }
-}
-
 impl From<Path> for String {
     fn from(value: Path) -> Self {
         format!("{value}")

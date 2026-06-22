@@ -1,10 +1,8 @@
 //! Types for representing bezier curves.
 use crate::{
-    command,
-    geometry::{line::Intersection, Circle, ErrorOptions, Line, Point},
+    geometry::{line::Intersection, Line, Point},
     optimize::Tolerance,
     paths::segment::ToleranceSquared,
-    position::Position,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -100,29 +98,6 @@ impl Curve {
     /// quad control is not on the same curve.
     pub fn quad_control_unchecked(&self, start: Point) -> Point {
         start + (self.start_control() - start) * 1.5
-    }
-
-    /// Returns a curve based on a bezier commands
-    pub fn smooth_bezier_by_args<'a>(prev: &'a Position, item: &'a Position) -> Option<Self> {
-        match item.command {
-            command::Data::SmoothBezierBy(s) => {
-                let p_data = prev.command.args();
-                let len = p_data.len();
-                if len < 4 {
-                    return Some(Self([0.0, 0.0, s[0], s[1], s[2], s[3]]));
-                }
-                Some(Self([
-                    p_data[len - 2] - p_data[len - 4],
-                    p_data[len - 1] - p_data[len - 3],
-                    s[0],
-                    s[1],
-                    s[2],
-                    s[3],
-                ]))
-            }
-            command::Data::CubicBezierBy(c) => Some(Self(c)),
-            _ => None,
-        }
     }
 
     /// Returns the cubic bezier form of the curve.
@@ -252,31 +227,6 @@ impl Curve {
             && (self.end_point().y() < center.y()) == (center.y() < self.start_control().y())
     }
 
-    /// Returns whether a curve is an arc of a circle
-    #[deprecated]
-    pub fn is_arc(&self, circle: &Circle, make_arcs: &ErrorOptions, error: f64) -> bool {
-        let tolerance = f64::min(
-            make_arcs.threshold * error,
-            (make_arcs.tolerance * circle.radius) / 100.0,
-        );
-        [0.0, 0.25, 0.5, 0.75, 1.0]
-            .into_iter()
-            .all(|t| (self.point_at(t).distance(&circle.center) - circle.radius).abs() <= tolerance)
-    }
-
-    /// Returns whether a curve from a previous command is an arc of a circle
-    #[deprecated]
-    pub fn is_arc_prev(&self, circle: &Circle, make_arcs: &ErrorOptions, error: f64) -> bool {
-        self.is_arc(
-            &Circle {
-                center: circle.center + self.end_point(),
-                radius: circle.radius,
-            },
-            make_arcs,
-            error,
-        )
-    }
-
     /// Returns whether the arc fits on a straight line.
     pub fn is_straight(&self, start: Point, tolerance: &Tolerance) -> bool {
         let chord = start.distance(&self.end_point());
@@ -357,11 +307,6 @@ impl Curve {
             }
         }
         true
-    }
-
-    /// Returns the angle from the start of an arc to the end
-    pub fn find_arc_angle(&self, rel_circle: &Circle) -> f64 {
-        rel_circle.arc_angle(self)
     }
 
     /// Returns the distance of the start and end control points.

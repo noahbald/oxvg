@@ -1,7 +1,7 @@
 use std::{f64::consts::PI, ops::Deref};
 
 use crate::{
-    geometry::{Arc, Circle, Curve, Intersection, Line, Point},
+    geometry::{Arc, Curve, Intersection, Line, Point},
     optimize::Tolerance,
     paths::segment::ToleranceSquared,
 };
@@ -51,17 +51,6 @@ impl Ellipses {
             self.x_rotation(),
             end_point_memo,
         )
-    }
-
-    pub const fn circle(&self) -> Option<Circle> {
-        if self.radii().x() == self.radii().y() {
-            Some(Circle {
-                center: self.center(),
-                radius: self.radii().x(),
-            })
-        } else {
-            None
-        }
     }
 
     pub fn circumference(&self) -> f64 {

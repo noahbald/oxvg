@@ -18,7 +18,7 @@ use oxvg_collections::attribute::{
     presentation::{LengthPercentage, VectorEffect},
     Attr, AttrId,
 };
-use oxvg_path::{command::Data, convert, Path};
+use oxvg_path::{command::Data, Path};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -172,7 +172,6 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
         };
         let path = &mut d.0;
         apply_matrix_to_path_data(path, &matrix);
-        convert::cleanup_unpositioned(path);
         log::debug!("new d <- {path}");
         drop(d);
         element.remove_attribute(&AttrId::Transform);

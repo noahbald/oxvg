@@ -1,9 +1,5 @@
 //! Types of geometry used for processing path data.
-#[cfg(feature = "wasm")]
-use tsify::Tsify;
-
 mod arc;
-mod circle;
 mod curve;
 mod ellipses;
 mod line;
@@ -12,35 +8,8 @@ mod polygon;
 mod rectangle;
 
 pub use arc::Arc;
-pub use circle::Circle;
 pub use curve::{CubicBezierTo, Curve, QuadraticBezierTo, SmoothBezierTo, SmoothQuadraticBezierTo};
 pub use line::{Intersection, Line};
 pub use point::{Point, Quadrant};
 pub use polygon::Polygon;
 pub use rectangle::Rectangle;
-
-#[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
-/// When running calculations against curves and arcs, the level of error tolerated
-#[deprecated = "Use [`oxvg_path::Tolerance`]"]
-pub struct ErrorOptions {
-    /// When calculating tolerance, controls the bound compared to error
-    pub threshold: f64,
-    /// When calculating tolerance, controls the bound compared to the radius
-    pub tolerance: f64,
-}
-
-/// When running calculations against curves and arcs, the level of error tolerated
-#[deprecated = "Use [`oxvg_path::Tolerance`]"]
-pub type MakeArcs = ErrorOptions;
-
-impl Default for ErrorOptions {
-    fn default() -> Self {
-        Self {
-            threshold: 2.5,
-            tolerance: 0.5,
-        }
-    }
-}
