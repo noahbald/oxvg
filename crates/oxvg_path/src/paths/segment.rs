@@ -127,7 +127,7 @@ impl Data {
     pub fn end_point(&self) -> Point {
         match self {
             Self::LineTo(point) => *point,
-            Self::CurveTo(curve) => curve.end_point(),
+            Self::CurveTo(curve) => curve.end_point,
             Self::ArcTo(arc) => arc.end_point(),
         }
     }
@@ -137,19 +137,19 @@ impl Data {
     pub fn reverse(&self, start: Point) -> Self {
         match self {
             Data::LineTo(_) => Data::LineTo(start),
-            Data::CurveTo(curve) => Data::CurveTo(Curve::new(
-                curve.end_control(),
-                curve.start_control(),
-                start,
-            )),
-            Data::ArcTo(arc) => Data::ArcTo(Arc::new(
-                arc.center(),
-                arc.radii(),
-                arc.start_angle() + arc.sweep_angle(),
-                -arc.sweep_angle(),
-                arc.x_rotation(),
-                Some(start),
-            )),
+            Data::CurveTo(curve) => {
+                Data::CurveTo(Curve::new(curve.end_control, curve.start_control, start))
+            }
+            Data::ArcTo(arc) => Data::ArcTo(
+                Arc::new(
+                    arc.center(),
+                    arc.radii(),
+                    arc.start_angle() + arc.sweep_angle(),
+                    -arc.sweep_angle(),
+                    arc.x_rotation(),
+                )
+                .with_end_point_memo(start),
+            ),
         }
     }
 }
@@ -389,8 +389,8 @@ mod test {
         let mut path = Path(vec![Segment {
             start: Point::ZERO,
             data: vec![
-                Data::LineTo(Point([0.0, 1.0])),
-                Data::LineTo(Point([1.0, 1.0])),
+                Data::LineTo(Point::new(0.0, 1.0)),
+                Data::LineTo(Point::new(1.0, 1.0)),
             ],
             closed: false,
         }]);
@@ -401,8 +401,8 @@ mod test {
             Path(vec![Segment {
                 start: Point::ZERO,
                 data: vec![
-                    Data::LineTo(Point([0.0, 1.0])),
-                    Data::LineTo(Point([1.0, 1.0])),
+                    Data::LineTo(Point::new(0.0, 1.0)),
+                    Data::LineTo(Point::new(1.0, 1.0)),
                     Data::LineTo(Point::ZERO),
                 ],
                 closed: true,

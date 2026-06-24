@@ -37,16 +37,16 @@ impl Path {
         let (bbbox, sub_bbbox) = build_bbox(&self_hull);
         let (fbbox, sub_fbbox) = build_bbox(&other_hull);
 
-        if bbbox.1.x() <= fbbox.0.x()
-            || fbbox.1.x() <= bbbox.0.x()
-            || bbbox.1.y() <= fbbox.0.y()
-            || fbbox.1.y() <= bbbox.0.y()
+        if bbbox.1.x <= fbbox.0.x
+            || fbbox.1.x <= bbbox.0.x
+            || bbbox.1.y <= fbbox.0.y
+            || fbbox.1.y <= bbbox.0.y
             || sub_bbbox.iter().all(|bbbox| {
                 sub_fbbox.iter().all(|fbbox| {
-                    bbbox.1.x() <= fbbox.0.x()
-                        || fbbox.1.x() <= bbbox.0.x()
-                        || bbbox.1.y() <= fbbox.0.y()
-                        || fbbox.1.y() <= bbbox.0.y()
+                    bbbox.1.x <= fbbox.0.x
+                        || fbbox.1.x <= bbbox.0.x
+                        || bbbox.1.y <= fbbox.0.y
+                        || fbbox.1.y <= bbbox.0.y
                 })
             })
         {
@@ -64,24 +64,20 @@ impl Path {
 
         IndexBounds::new_iter(left).any(|hull_1| {
             hull_nest_2.iter().any(|hull_2| {
-                let mut simplex = vec![hull_1.get_support(hull_2, &Point::X)];
-                let mut direction = simplex[0].minus();
-                let mut iterations = 10_000;
+                let mut simplex = vec![hull_1.get_support(hull_2, Point::X)];
+                let mut direction = -simplex[0];
 
-                loop {
-                    iterations -= 1;
-                    if iterations == 0 {
-                        log::error!("Infinite loop while finding path intersections");
-                        return true;
-                    }
-                    simplex.push(hull_1.get_support(hull_2, &direction));
-                    if direction.dot(simplex.last().unwrap()) <= 0.0 {
+                for _ in 0..10_000 {
+                    simplex.push(hull_1.get_support(hull_2, direction));
+                    if direction.dot(*simplex.last().unwrap()) <= 0.0 {
                         return false;
                     }
                     if process_simplex(&mut simplex, &mut direction) {
                         return true;
                     }
                 }
+                log::error!("Infinite loop while finding path intersections");
+                true
             })
         })
     }
@@ -94,16 +90,16 @@ impl IndexBounds {
         let mut max_x = 0;
         let mut max_y = 0;
         for (i, point) in source.iter().enumerate() {
-            if point.x() < source[min_x].x() {
+            if point.x < source[min_x].x {
                 min_x = i;
             }
-            if point.y() < source[min_y].y() {
+            if point.y < source[min_y].y {
                 min_y = i;
             }
-            if point.x() > source[max_x].x() {
+            if point.x > source[max_x].x {
                 max_x = i;
             }
-            if point.y() > source[max_y].y() {
+            if point.y > source[max_y].y {
                 max_y = i;
             }
         }
@@ -121,19 +117,19 @@ impl IndexBounds {
     }
 
     /// Gets the support point of the Minowski difference of two shapes.
-    fn get_support(&self, other: &IndexBounds, direction: &Point) -> geometry::Point {
-        self.support_point(direction) - (other.support_point(&direction.minus()))
+    fn get_support(&self, other: &IndexBounds, direction: Point) -> geometry::Point {
+        self.support_point(direction) - (other.support_point(-direction))
     }
 
     /// Get the supporting point of a polygon, the furthest point in a given direction.
-    pub fn support_point(&self, direction: &Point) -> Point {
-        let mut index = if direction.y() >= 0.0 {
-            if direction.x() < 0.0 {
+    pub fn support_point(&self, direction: Point) -> Point {
+        let mut index = if direction.y >= 0.0 {
+            if direction.x < 0.0 {
                 self.max_y
             } else {
                 self.max_x
             }
-        } else if direction.x() < 0.0 {
+        } else if direction.x < 0.0 {
             self.min_x
         } else {
             self.min_y
@@ -158,43 +154,41 @@ impl IndexBounds {
     pub fn convex_hull(mut self) -> Self {
         self.source
             .sort_by(|geometry::Point(a), geometry::Point(b)| {
-                if a[0] == b[0] {
-                    a[1].total_cmp(&b[1])
+                if a.x == b.x {
+                    a.y.total_cmp(&b.y)
                 } else {
-                    a[0].total_cmp(&b[0])
+                    a.x.total_cmp(&b.x)
                 }
             });
 
-        let mut lower = vec![];
+        let mut lower: Vec<Point> = vec![];
         let mut min_y = 0;
         let mut bottom = 0;
 
         for (i, point) in self.source.iter().enumerate() {
             while lower.len() >= 2
-                && geometry::Point::cross(lower[lower.len() - 2], lower[lower.len() - 1], *point)
-                    <= 0.0
+                && lower[lower.len() - 2].cross(lower[lower.len() - 1], *point) <= 0.0
             {
                 lower.pop();
             }
-            if point.0[1] < self.source[min_y].0[1] {
+            if point.y < self.source[min_y].y {
                 min_y = i;
                 bottom = lower.len();
             }
             lower.push(*point);
         }
 
-        let mut upper = vec![];
+        let mut upper: Vec<Point> = vec![];
         let mut max_y = self.source.len() - 1;
         let mut top = 0;
 
         for (i, point) in self.source.iter().enumerate().rev() {
             while upper.len() >= 2
-                && geometry::Point::cross(upper[upper.len() - 2], upper[upper.len() - 1], *point)
-                    <= 0.0
+                && upper[upper.len() - 2].cross(upper[upper.len() - 1], *point) <= 0.0
             {
                 upper.pop();
             }
-            if point.0[1] > self.source[max_y].0[1] {
+            if point.y > self.source[max_y].y {
                 max_y = i;
                 top = upper.len();
             }
@@ -230,14 +224,14 @@ fn build_bbox(hull: &[Vec<Point>]) -> ((Point, Point), Vec<(Point, Point)>) {
         sub_bbox.push((Point::NAN, Point::NAN));
         for point in segment {
             let sub_bbox = sub_bbox.last_mut().unwrap();
-            *bbox.0.x_mut() = bbox.0.x().min(point.x());
-            *bbox.0.y_mut() = bbox.0.y().min(point.y());
-            *bbox.1.x_mut() = bbox.1.x().max(point.x());
-            *bbox.1.y_mut() = bbox.1.y().max(point.y());
-            *sub_bbox.0.x_mut() = sub_bbox.0.x().min(point.x());
-            *sub_bbox.0.y_mut() = sub_bbox.0.y().min(point.y());
-            *sub_bbox.1.x_mut() = sub_bbox.1.x().max(point.x());
-            *sub_bbox.1.y_mut() = sub_bbox.1.y().max(point.y());
+            bbox.0.x = bbox.0.x.min(point.x);
+            bbox.0.y = bbox.0.y.min(point.y);
+            bbox.1.x = bbox.1.x.max(point.x);
+            bbox.1.y = bbox.1.y.max(point.y);
+            sub_bbox.0.x = sub_bbox.0.x.min(point.x);
+            sub_bbox.0.y = sub_bbox.0.y.min(point.y);
+            sub_bbox.1.x = sub_bbox.1.x.max(point.x);
+            sub_bbox.1.y = sub_bbox.1.y.max(point.y);
         }
     }
     (bbox, sub_bbox)
@@ -245,17 +239,13 @@ fn build_bbox(hull: &[Vec<Point>]) -> ((Point, Point), Vec<(Point, Point)>) {
 
 /// Creates an iterator of points that cover the outer boundary of the given command.
 fn hull_nest(segment: &Segment) -> impl Iterator<Item = Point> + use<'_> {
-    std::iter::once(segment.start).chain(segment.data.iter().flat_map(|data| match dbg!(data) {
+    std::iter::once(segment.start).chain(segment.data.iter().flat_map(|data| match data {
         Data::LineTo(point) => vec![*point],
-        Data::CurveTo(curve) => vec![
-            curve.start_control(),
-            curve.end_control(),
-            curve.end_point(),
-        ],
+        Data::CurveTo(curve) => vec![curve.start_control, curve.end_control, curve.end_point],
         Data::ArcTo(arc) => {
             let sweep = arc.sweep_angle();
-            let rx = arc.radii().x();
-            let ry = arc.radii().y();
+            let rx = arc.radii().x;
+            let ry = arc.radii().y;
             let center = arc.center();
             let x_rot = arc.x_rotation();
 
@@ -265,11 +255,11 @@ fn hull_nest(segment: &Segment) -> impl Iterator<Item = Point> + use<'_> {
 
             let point_at = |t: f64| {
                 let (sin_t, cos_t) = t.sin_cos();
-                Point([rx * cos_t, ry * sin_t]).rotate_radian(x_rot) + center
+                Point::new(rx * cos_t, ry * sin_t).rotate_radian(x_rot) + center
             };
             let tangent_at = |t: f64| {
                 let (sin_t, cos_t) = t.sin_cos();
-                Point([-rx * sin_t, ry * cos_t]).rotate_radian(x_rot)
+                Point::new(-rx * sin_t, ry * cos_t).rotate_radian(x_rot)
             };
 
             let mut points = Vec::with_capacity(n * 3);
@@ -281,7 +271,7 @@ fn hull_nest(segment: &Segment) -> impl Iterator<Item = Point> + use<'_> {
                 points.push(sub_end - tangent_at(t2) * k);
                 points.push(sub_end);
             }
-            dbg!(points)
+            points
         }
     }))
 }
@@ -293,12 +283,12 @@ pub fn process_simplex(simplex: &mut Vec<Point>, direction: &mut Point) -> bool 
     if simplex.len() == 2 {
         let a = simplex[1];
         let b = simplex[0];
-        let ao = a.minus();
+        let ao = -a;
         let ab = b - a;
         // ao is in the same direction as ab
-        if ao.dot(&ab) > 0.0 {
+        if ao.dot(ab) > 0.0 {
             // get the vector perpendicular to ab facing o
-            *direction = ab.orth(&a);
+            *direction = ab.orth(a);
         } else {
             *direction = ao;
             // only a remains in the simplex
@@ -311,12 +301,12 @@ pub fn process_simplex(simplex: &mut Vec<Point>, direction: &mut Point) -> bool 
         let c = simplex[0];
         let ab = b - a;
         let ac = c - a;
-        let ao = a.minus();
-        let acb = ab.orth(&ac); // The vector perpendicular to ab facing away from c
-        let abc = ac.orth(&ab); // The vector perpendicular to ac facing away from b
+        let ao = -a;
+        let acb = ab.orth(ac); // The vector perpendicular to ab facing away from c
+        let abc = ac.orth(ab); // The vector perpendicular to ac facing away from b
 
-        if acb.dot(&ao) > 0.0 {
-            if ab.dot(&ao) > 0.0 {
+        if acb.dot(ao) > 0.0 {
+            if ab.dot(ao) > 0.0 {
                 // region 4
                 *direction = acb;
                 simplex.remove(0);
@@ -325,8 +315,8 @@ pub fn process_simplex(simplex: &mut Vec<Point>, direction: &mut Point) -> bool 
                 *direction = ao;
                 simplex.drain(0..=1);
             }
-        } else if abc.dot(&ao) > 0.0 {
-            if ac.dot(&ao) > 0.0 {
+        } else if abc.dot(ao) > 0.0 {
+            if ac.dot(ao) > 0.0 {
                 // region 6
                 *direction = abc;
                 simplex.remove(1);

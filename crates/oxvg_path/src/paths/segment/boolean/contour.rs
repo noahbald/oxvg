@@ -111,14 +111,14 @@ impl Contour {
                 }
                 events::Data::Curve(curve, p) => {
                     // Curve reconstructed by slicing and reversing as needed
-                    let curve_start = *p[0].start();
-                    let curve_end = *p.last().unwrap().end();
+                    let curve_start = p[0].start();
+                    let curve_end = p.last().unwrap().end();
                     if *start == curve_start && curve_end == *end {
                         Data::CurveTo(*curve)
                     } else if *start == curve_end && curve_start == *end {
                         Data::CurveTo(curve.reverse(curve_start))
                     } else {
-                        let t1 = if *start == *p[0].start() {
+                        let t1 = if *start == p[0].start() {
                             0.0
                         } else if *start == curve_end {
                             1.0
@@ -141,13 +141,13 @@ impl Contour {
                 }
                 events::Data::Arc(arc, p) => {
                     // Arcs reconstructed by slicing and reversing as needed
-                    let arc_start = *p[0].start();
-                    let arc_end = *p.last().unwrap().end();
+                    let arc_start = p[0].start();
+                    let arc_end = p.last().unwrap().end();
                     if *start == arc_start && arc_end == *end {
-                        Data::ArcTo(*arc)
+                        Data::ArcTo(arc.clone())
                     } else if *start == arc_end && arc_start == *end {
                         // Edge runs opposite to arc's natural direction: full arc reversed
-                        Data::ArcTo(arc.reverse(Some(*start)))
+                        Data::ArcTo(arc.reverse().with_end_point_memo(*start))
                     } else {
                         let t1 = if *start == arc_start {
                             0.0
@@ -166,7 +166,7 @@ impl Contour {
                         Data::ArcTo(if t1 <= t2 {
                             arc.clamp_t(t1, t2)
                         } else {
-                            arc.clamp_t(t2, t1).reverse(None)
+                            arc.clamp_t(t2, t1).reverse()
                         })
                     }
                 }

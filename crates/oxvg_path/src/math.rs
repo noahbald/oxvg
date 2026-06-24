@@ -86,8 +86,8 @@ pub fn radius_factor(rx: f64, ry: f64, xr: f64, start: Point, end: Point) -> f64
     let xr = xr % (2.0 * PI);
 
     let (sin_phi, cos_phi) = xr.sin_cos();
-    let x_mid = (start.x() - end.x()) * 0.5;
-    let y_mid = (start.y() - end.y()) * 0.5;
+    let x_mid = (start.x - end.x) * 0.5;
+    let y_mid = (start.y - end.y) * 0.5;
     let x_prime = cos_phi * x_mid + sin_phi * y_mid;
     let y_prime = -sin_phi * x_mid + cos_phi * y_mid;
 

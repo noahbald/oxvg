@@ -194,8 +194,6 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 }
                 if self.force || {
                     let tolerance = Tolerance::default();
-                    dbg!(prev_path_data.to_string());
-                    dbg!(current_path_data.to_string());
                     let prev_path_data = segment::Path::from_svg(&*prev_path_data, &tolerance);
                     let current_path_data =
                         segment::Path::from_svg(&*current_path_data, &tolerance);

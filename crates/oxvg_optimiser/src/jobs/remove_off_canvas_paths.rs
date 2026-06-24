@@ -118,10 +118,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
         let max_x = min_x + *width as f64;
         let max_y = min_y + *height as f64;
 
-        let mut view_box_path_data = Segment::with_capacity(Point([min_x, min_y]), 3);
-        view_box_path_data.push(segment::Data::LineTo(Point([max_x, min_y])));
-        view_box_path_data.push(segment::Data::LineTo(Point([max_x, max_y])));
-        view_box_path_data.push(segment::Data::LineTo(Point([min_x, max_y])));
+        let mut view_box_path_data = Segment::with_capacity(Point::new(min_x, min_y), 3);
+        view_box_path_data.push(segment::Data::LineTo(Point::new(max_x, min_y)));
+        view_box_path_data.push(segment::Data::LineTo(Point::new(max_x, max_y)));
+        view_box_path_data.push(segment::Data::LineTo(Point::new(min_x, max_y)));
         view_box_path_data.close();
         let view_box_path_data = segment::Path(vec![view_box_path_data]);
 

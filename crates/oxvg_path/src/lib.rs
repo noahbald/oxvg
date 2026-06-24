@@ -29,7 +29,6 @@ mod format;
 #[cfg(feature = "geometry")]
 pub mod geometry;
 #[cfg(feature = "geometry")]
-#[deprecated]
 mod gjk_intersection;
 #[cfg(feature = "geometry")]
 pub(crate) mod math;

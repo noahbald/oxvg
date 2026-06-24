@@ -6,16 +6,8 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// A bezier curve.
-pub struct Curve(
-    /// The args of an SVG cubic bezier to (`C`) command.
-    /// [MDN](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/d#cubic_b%C3%A9zier_curve)
-    pub [f64; 6],
-);
-
-#[derive(Debug)]
-/// A smooth cubic bezier curve.
-pub struct CubicBezierTo {
+/// A cubic bezier curve.
+pub struct Curve {
     /// The start control of the curve.
     pub start_control: Point,
     /// The end control of the curve.
@@ -23,6 +15,9 @@ pub struct CubicBezierTo {
     /// The end point.
     pub end_point: Point,
 }
+
+/// A cubic bezier curve.
+pub type CubicBezierTo = Curve;
 
 #[derive(Debug)]
 /// A smooth cubic bezier curve.
@@ -49,39 +44,36 @@ pub struct SmoothQuadraticBezierTo {
     pub end_point: Point,
 }
 
+impl From<[f64; 6]> for Curve {
+    fn from(value: [f64; 6]) -> Self {
+        Self {
+            start_control: Point::new(value[0], value[1]),
+            end_control: Point::new(value[2], value[3]),
+            end_point: Point::new(value[4], value[5]),
+        }
+    }
+}
+
 impl Curve {
     /// Returns a new curve.
     pub fn new(start_control: Point, end_control: Point, end_point: Point) -> Self {
-        Self([
-            start_control.x(),
-            start_control.y(),
-            end_control.x(),
-            end_control.y(),
-            end_point.x(),
-            end_point.y(),
-        ])
+        Self {
+            start_control,
+            end_control,
+            end_point,
+        }
     }
 
-    /// Returns the start control point.
-    pub const fn start_control(&self) -> Point {
-        Point([self.0[0], self.0[1]])
-    }
-
-    /// Returns the end control point.
-    pub const fn end_control(&self) -> Point {
-        Point([self.0[2], self.0[3]])
-    }
-
-    /// Returns the end point.
-    pub const fn end_point(&self) -> Point {
-        Point([self.0[4], self.0[5]])
+    pub fn new_quad(quad_control: Point, start_point: Point, end_point: Point) -> Self {
+        let cp1 = start_point + (quad_control - start_point) * (2.0 / 3.0);
+        let cp2 = end_point + (quad_control - end_point) * (2.0 / 3.0);
+        Curve::new(cp1, cp2, end_point)
     }
 
     /// Returns the quad control of the curve, if the curve is quadratic.
     pub fn quad_control(&self, start: Point, tolerance: &ToleranceSquared) -> Option<Point> {
         let quad = self.quad_control_unchecked(start);
-        if quad
-            .distance_squared(&(self.end_point() + (self.end_control() - self.end_point()) * 1.5))
+        if quad.distance_squared(self.end_point + (self.end_control - self.end_point) * 1.5)
             < **tolerance
         {
             Some(quad)
@@ -97,16 +89,12 @@ impl Curve {
     /// If the source curve is not quadratic, then the returned
     /// quad control is not on the same curve.
     pub fn quad_control_unchecked(&self, start: Point) -> Point {
-        start + (self.start_control() - start) * 1.5
+        start + (self.start_control - start) * 1.5
     }
 
     /// Returns the cubic bezier form of the curve.
     pub fn cubic_bezier(&self) -> CubicBezierTo {
-        CubicBezierTo {
-            start_control: self.start_control(),
-            end_control: self.end_control(),
-            end_point: self.end_point(),
-        }
+        *self
     }
 
     /// Returns the smooth cubic bezier form of the curve, if possible.
@@ -132,8 +120,8 @@ impl Curve {
     /// smooth cubic bezier is not the same curve.
     pub fn smooth_bezier_unchecked(&self) -> SmoothBezierTo {
         SmoothBezierTo {
-            end_control: self.end_control(),
-            end_point: self.end_point(),
+            end_control: self.end_control,
+            end_point: self.end_point,
         }
     }
 
@@ -157,7 +145,7 @@ impl Curve {
     pub fn quadratic_bezier_unchecked(&self, quad_control: Point) -> QuadraticBezierTo {
         QuadraticBezierTo {
             quad_control,
-            end_point: self.end_point(),
+            end_point: self.end_point,
         }
     }
 
@@ -170,7 +158,7 @@ impl Curve {
     /// smooth quadratic bezier is not the same curve.
     pub fn smooth_quadratic_bezier_unchecked(&self) -> SmoothQuadraticBezierTo {
         SmoothQuadraticBezierTo {
-            end_point: self.end_point(),
+            end_point: self.end_point,
         }
     }
 
@@ -188,7 +176,7 @@ impl Curve {
         quad_control: Point,
         tolerance: &ToleranceSquared,
     ) -> Option<SmoothQuadraticBezierTo> {
-        if control.is_some_and(|cp| quad_control.distance_squared(&cp.reflect(start)) < **tolerance)
+        if control.is_some_and(|cp| quad_control.distance_squared(cp.reflect(start)) < **tolerance)
         {
             Some(self.smooth_quadratic_bezier_unchecked())
         } else {
@@ -215,27 +203,27 @@ impl Curve {
     ///
     /// A curve is convex when the middle of the curve's line is below the curve's midpoint
     pub fn is_convex(&self) -> bool {
-        let end_control_line = Line([Point([0.0, 0.0]), self.end_control()]);
-        let start_control_line = Line([self.start_control(), self.end_point()]);
+        let end_control_line = Line::new(Point::new(0.0, 0.0), self.end_control);
+        let start_control_line = Line::new(self.start_control, self.end_point);
         let Intersection::Intersection(center) = end_control_line.intersection(&start_control_line)
         else {
             return false;
         };
-        (self.end_control().x() < center.x()) == (center.x() < 0.0)
-            && (self.end_control().y() < center.y()) == (center.y() < 0.0)
-            && (self.end_point().x() < center.x()) == (center.x() < self.start_control().x())
-            && (self.end_point().y() < center.y()) == (center.y() < self.start_control().y())
+        (self.end_control.x < center.x) == (center.x < 0.0)
+            && (self.end_control.y < center.y) == (center.y < 0.0)
+            && (self.end_point.x < center.x) == (center.x < self.start_control.x)
+            && (self.end_point.y < center.y) == (center.y < self.start_control.y)
     }
 
     /// Returns whether the arc fits on a straight line.
     pub fn is_straight(&self, start: Point, tolerance: &Tolerance) -> bool {
-        let chord = start.distance(&self.end_point());
+        let chord = start.distance(self.end_point);
         if chord < tolerance.positional {
             return true;
         }
         let tolerance_scaled = tolerance.positional * chord;
-        Point::cross(start, self.end_point(), self.start_control()).abs() < tolerance_scaled
-            && Point::cross(start, self.end_point(), self.end_control()).abs() < tolerance_scaled
+        start.cross(self.end_point, self.start_control).abs() < tolerance_scaled
+            && start.cross(self.end_point, self.end_control).abs() < tolerance_scaled
     }
 
     /// Returns various bezier forms of the curve.
@@ -281,8 +269,8 @@ impl Curve {
         control: Option<Point>,
         tolerance: &ToleranceSquared,
     ) -> bool {
-        self.start_control()
-            .distance_squared(&control.map_or(start, |c| c.reflect(start)))
+        self.start_control
+            .distance_squared(control.map_or(start, |c| c.reflect(start)))
             < **tolerance
     }
 
@@ -311,10 +299,10 @@ impl Curve {
 
     /// Returns the distance of the start and end control points.
     pub fn control_point_distance_squared(&self, start: Point) -> (f64, f64) {
-        let end = self.end_point();
+        let end = self.end_point;
         (
-            control_point_distance_squared(self.start_control(), start, end),
-            control_point_distance_squared(self.end_control(), start, end),
+            control_point_distance_squared(self.start_control, start, end),
+            control_point_distance_squared(self.end_control, start, end),
         )
     }
 
@@ -340,9 +328,9 @@ impl Curve {
     #[allow(clippy::similar_names)]
     pub fn subdivide_t(&self, start: Point, t: f64) -> (Curve, Point, Curve) {
         let p0 = start;
-        let p1 = self.start_control();
-        let p2 = self.end_control();
-        let p3 = self.end_point();
+        let p1 = self.start_control;
+        let p2 = self.end_control;
+        let p3 = self.end_point;
 
         let p01 = p0.lerp(p1, t);
         let p12 = p1.lerp(p2, t);
@@ -366,16 +354,16 @@ impl Curve {
     /// Returns the point `t` percent along a curve's chord from some
     /// start point, where `1.0` is `100%`
     pub fn point_at_from(&self, start: Point, t: f64) -> Point {
-        let start_control = self.start_control();
-        let end_control = self.end_control();
-        let end_point = self.end_point();
+        let start_control = self.start_control;
+        let end_control = self.end_control;
+        let end_point = self.end_point;
         let t2 = t * t;
         let t3 = t2 * t;
         let mt = 1.0 - t;
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
 
-        mt3 * start + 3.0 * mt2 * t * start_control + 3.0 * mt * t2 * end_control + t3 * end_point
+        start * mt3 + start_control * 3.0 * mt2 * t + end_control * 3.0 * mt * t2 + end_point * t3
     }
 
     /// Returns the percent along the curve a point lies, to some tolerance.
@@ -383,9 +371,9 @@ impl Curve {
     pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
         const MAX_ITER: usize = 8;
         let p0 = start;
-        let p1 = self.start_control();
-        let p2 = self.end_control();
-        let p3 = self.end_point();
+        let p1 = self.start_control;
+        let p2 = self.end_control;
+        let p3 = self.end_point;
 
         let da = (p3 - p0) + (p1 - p2) * 3.0;
         let db = (p0 - p1 * 2.0 + p2) * 2.0;
@@ -414,8 +402,8 @@ impl Curve {
                 let bp = b_prime(t);
                 let bp2 = bd_prime(t);
 
-                let f1 = diff.dot(&bp);
-                let f2 = bp.dot(&bp) + diff.dot(&bp2);
+                let f1 = diff.dot(bp);
+                let f2 = bp.dot(bp) + diff.dot(bp2);
 
                 if f2.abs() < 1e-12 {
                     break;
@@ -430,7 +418,7 @@ impl Curve {
                 }
             }
 
-            let dist_sq = self.point_at_from(start, t).distance_squared(&at);
+            let dist_sq = self.point_at_from(start, t).distance_squared(at);
             if dist_sq < best_dist_sq {
                 best_dist_sq = dist_sq;
                 best_t = Some(t);
@@ -447,7 +435,7 @@ impl Curve {
     /// Returns an equivalent curve spanning from the end point to the start.
     #[must_use]
     pub fn reverse(&self, start: Point) -> Self {
-        Curve::new(self.end_control(), self.start_control(), start)
+        Curve::new(self.end_control, self.start_control, start)
     }
 
     /// Creates a subcurve between the percentage `t1` and `t2`, as numbers between `0.0` and `1.0`.
@@ -468,14 +456,13 @@ impl Curve {
 
 fn control_point_distance_squared(control: Point, start: Point, end: Point) -> f64 {
     let vector = end - start;
-    let dot = vector.dot(&vector);
+    let dot = vector.dot(vector);
     if dot == 0.0 {
-        return control.distance_squared(&start);
+        return control.distance_squared(start);
     }
 
-    let t = ((control.0[0] - start.0[0]) * vector.0[0] + (control.0[1] - start.0[1]) * vector.0[1])
-        / dot;
+    let t = ((control.x - start.x) * vector.x + (control.y - start.y) * vector.y) / dot;
     let t = t.clamp(0.0, 1.0);
-    let projection = Point([start.0[0] + t * vector.0[0], start.0[1] + t * vector.0[1]]);
-    control.distance_squared(&projection)
+    let projection = Point::new(start.x + t * vector.x, start.y + t * vector.y);
+    control.distance_squared(projection)
 }

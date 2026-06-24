@@ -48,6 +48,7 @@ cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
+geo-types = { version = "0.7" }
 getrandom = { version = "0.3" }
 itertools = "0.14"
 js-sys = { version = "0.3" }

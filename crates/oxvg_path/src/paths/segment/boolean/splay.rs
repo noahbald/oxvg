@@ -76,9 +76,9 @@ impl Ord for Entry {
             if old_left.point == new_left.point {
                 // Left endpoints exactly identical? Use the right endpoint to sort
                 return less_if(old_left.is_below(new_right.point));
-            } else if old_left.point.x() == new_left.point.x() {
+            } else if old_left.point.x == new_left.point.x {
                 // Left endpoints identical in x, but different in y? Sort by y
-                return less_if(old_left.point.y() < new_left.point.y());
+                return less_if(old_left.point.y < new_left.point.y);
             } else if (left_area > 0.0) == (right_area > 0.0) {
                 // If `l` and `r` lie on the same side of the reference segment,
                 // no intersection check is necessary.
@@ -90,8 +90,8 @@ impl Ord for Entry {
 
             // According to the signed-area values the segments cross. Verify if
             // we can get an intersection point whic is truely different from `l`.
-            match Line([old_left.point, old_right.point])
-                .intersection(&Line([new_left.point, new_right.point]))
+            match Line::new(old_left.point, old_right.point)
+                .intersection(&Line::new(new_left.point, new_right.point))
             {
                 Intersection::None => return less_if(left_area > 0.0),
                 Intersection::Intersection(p) => {
@@ -169,7 +169,7 @@ mod test {
                 command: 0,
             },
             contour_id,
-            Point([other_x, other_y]),
+            Point::new(other_x, other_y),
             false,
             Weak::new(),
             true,
@@ -181,7 +181,7 @@ mod test {
                 command: 0,
             },
             contour_id,
-            Point([x, y]),
+            Point::new(x, y),
             true,
             Rc::downgrade(&other),
             true,
@@ -205,8 +205,8 @@ mod test {
         let min_other = tree.smallest().unwrap().other().unwrap();
         let max_other = tree.largest().unwrap().other().unwrap();
 
-        assert_eq!(max_other.point, Point([2.0, 3.0]));
-        assert_eq!(min_other.point, Point([1.0, 1.0]));
+        assert_eq!(max_other.point, Point::new(2.0, 3.0));
+        assert_eq!(min_other.point, Point::new(1.0, 1.0));
     }
 
     #[test]
@@ -222,8 +222,8 @@ mod test {
         let min_other = tree.smallest().unwrap().other().unwrap();
         let max_other = tree.largest().unwrap().other().unwrap();
 
-        assert_eq!(min_other.point, Point([1.0, 1.0]));
-        assert_eq!(max_other.point, Point([2.0, 3.0]));
+        assert_eq!(min_other.point, Point::new(1.0, 1.0));
+        assert_eq!(max_other.point, Point::new(2.0, 3.0));
     }
 
     #[test]

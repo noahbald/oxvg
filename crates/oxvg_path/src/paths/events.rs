@@ -47,8 +47,8 @@ impl Data {
     /// Returns the end point.
     pub fn end_point(&self) -> Point {
         match self {
-            Self::Line(p) => *p.end(),
-            Self::Curve(p, _) => p.end_point(),
+            Self::Line(p) => p.end(),
+            Self::Curve(p, _) => p.end_point,
             Self::Arc(p, _) => p.end_point(),
         }
     }
@@ -86,7 +86,7 @@ impl Ring {
                     use crate::paths::segment;
                     match data {
                         segment::Data::LineTo(point) => {
-                            let edge = Line([cursor, *point]);
+                            let edge = Line::new(cursor, *point);
                             cursor = *point;
                             Data::Line(edge)
                         }
@@ -99,7 +99,7 @@ impl Ring {
                                 points
                                     .into_iter()
                                     .tuple_windows()
-                                    .map(|(a, b)| Line([a, b]))
+                                    .map(|(a, b)| Line::new(a, b))
                                     .collect(),
                             )
                         }
@@ -108,11 +108,11 @@ impl Ring {
                             Polygon::from_arc(&mut points, cursor, arc, tolerance_squared, 0);
                             cursor = *points.last().unwrap_or(&cursor);
                             Data::Arc(
-                                *arc,
+                                arc.clone(),
                                 points
                                     .into_iter()
                                     .tuple_windows()
-                                    .map(|(a, b)| Line([a, b]))
+                                    .map(|(a, b)| Line::new(a, b))
                                     .collect(),
                             )
                         }

@@ -29,7 +29,7 @@ impl Polygon {
             if points.is_empty() {
                 points.push(start);
             }
-            points.push(curve.end_point());
+            points.push(curve.end_point);
         } else {
             let (left, middle, right) = curve.subdivide(start);
             Self::from_curve(points, start, &left, tolerance_squared);
@@ -45,7 +45,7 @@ impl Polygon {
         tolerance: &ToleranceSquared,
         depth: usize,
     ) {
-        if start.distance_squared(&arc.mid_point()) <= **tolerance || depth >= 7 {
+        if start.distance_squared(arc.mid_point()) <= **tolerance || depth >= 7 {
             if points.is_empty() {
                 points.push(start);
             }

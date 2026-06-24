@@ -112,24 +112,24 @@ impl EventQueue {
 
     /// Returns true when the two shapes trivially do not overlap each other.
     pub fn is_trivial(&self) -> bool {
-        self.bbbox.0.x() > self.fbbox.1.x()
-            || self.fbbox.0.x() > self.bbbox.1.x()
-            || self.bbbox.0.y() > self.fbbox.1.y()
-            || self.fbbox.0.y() > self.bbbox.1.y()
+        self.bbbox.0.x > self.fbbox.1.x
+            || self.fbbox.0.x > self.bbbox.1.x
+            || self.bbbox.0.y > self.fbbox.1.y
+            || self.fbbox.0.y > self.bbbox.1.y
     }
 
     /// Iterate through sorted events. Intersecting events will be subdivided.
     pub fn subdivide(&mut self) -> Vec<Rc<SweepEvent>> {
         let mut sweep_line = Set::new();
         let mut sorted_events: Vec<Rc<SweepEvent>> = vec![];
-        let rightbound = self.bbbox.1.x().min(self.fbbox.1.x());
+        let rightbound = self.bbbox.1.x.min(self.fbbox.1.x);
 
         while let Some(event) = self.heap.pop() {
             sorted_events.push(Rc::clone(&event));
 
             // For such operations, halts once the events no longer overlap
-            if self.operation == Operation::Intersection && event.point.x() > rightbound
-                || self.operation == Operation::Difference && event.point.x() > self.bbbox.1.x()
+            if self.operation == Operation::Intersection && event.point.x > rightbound
+                || self.operation == Operation::Difference && event.point.x > self.bbbox.1.x
             {
                 break;
             }
@@ -205,7 +205,7 @@ impl EventQueue {
                 let e1 = SweepEvent::new(
                     source.clone(),
                     contour_id,
-                    *line.start(),
+                    line.start(),
                     false,
                     Weak::new(),
                     is_exterior,
@@ -213,7 +213,7 @@ impl EventQueue {
                 let e2 = SweepEvent::new(
                     source.clone(),
                     contour_id,
-                    *line.end(),
+                    line.end(),
                     false,
                     Rc::downgrade(&e1),
                     is_exterior,
@@ -226,10 +226,10 @@ impl EventQueue {
                     *e1.left_mut() = true;
                 }
 
-                *bbox.0.x_mut() = bbox.0.x().min(line.start().x());
-                *bbox.0.y_mut() = bbox.0.y().min(line.start().y());
-                *bbox.1.x_mut() = bbox.1.x().max(line.start().x());
-                *bbox.1.y_mut() = bbox.1.y().max(line.start().y());
+                bbox.0.x = bbox.0.x.min(line.start().x);
+                bbox.0.y = bbox.0.y.min(line.start().y);
+                bbox.1.x = bbox.1.x.max(line.start().x);
+                bbox.1.y = bbox.1.y.max(line.start().y);
 
                 self.heap.push(e1);
                 self.heap.push(e2);
@@ -248,7 +248,7 @@ impl EventQueue {
             return 0;
         };
 
-        match Line([a1.point, a2.point]).intersection(&Line([b1.point, b2.point])) {
+        match Line::new(a1.point, a2.point).intersection(&Line::new(b1.point, b2.point)) {
             Intersection::None => 0,
             Intersection::Intersection(p) => {
                 if a1.point == b1.point || a2.point == b2.point {
@@ -329,8 +329,8 @@ impl EventQueue {
             return;
         };
 
-        if intersection.x() == left.point.x() && intersection.y() < left.point.y() {
-            *intersection.x_mut() = intersection.x().next_up();
+        if intersection.x == left.point.x && intersection.y < left.point.y {
+            intersection.x = intersection.x.next_up();
         }
 
         let r = SweepEvent::new(
@@ -460,7 +460,7 @@ mod divide_segments {
                 command: 0,
             },
             0,
-            Point([other_x, other_y]),
+            Point::new(other_x, other_y),
             false,
             Weak::new(),
             true,
@@ -472,7 +472,7 @@ mod divide_segments {
                 command: 0,
             },
             0,
-            Point([x, y]),
+            Point::new(x, y),
             true,
             Rc::downgrade(&other),
             true,
@@ -496,7 +496,7 @@ mod divide_segments {
         queue.heap.push(b1.clone());
 
         let Intersection::Intersection(inter) =
-            Line([a1.point, a2.point]).intersection(&Line([b1.point, b2.point]))
+            Line::new(a1.point, a2.point).intersection(&Line::new(b1.point, b2.point))
         else {
             panic!("Not a point intersection");
         };
@@ -524,7 +524,7 @@ mod fill_queue {
                 command: 0,
             },
             0,
-            Point([x, y]),
+            Point::new(x, y),
             false,
             Weak::new(),
             true,

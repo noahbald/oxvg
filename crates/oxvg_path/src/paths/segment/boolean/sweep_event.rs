@@ -117,7 +117,7 @@ impl SweepEvent {
 
     pub fn is_vertical(&self) -> bool {
         match self.other() {
-            Some(other) => Line([self.point, other.point]).is_vertical(),
+            Some(other) => Line::new(self.point, other.point).is_vertical(),
             None => false,
         }
     }
@@ -197,13 +197,13 @@ impl PartialOrd for SweepEvent {
 impl Ord for SweepEvent {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.point.x() > other.point.x() {
+        if self.point.x > other.point.x {
             return Ordering::Less;
-        } else if self.point.x() < other.point.x() {
+        } else if self.point.x < other.point.x {
             return Ordering::Greater;
-        } else if self.point.y() > other.point.y() {
+        } else if self.point.y > other.point.y {
             return Ordering::Less;
-        } else if self.point.y() < other.point.y() {
+        } else if self.point.y < other.point.y {
             return Ordering::Greater;
         } else if self.left() != other.left() {
             return less_if(self.left());
@@ -235,7 +235,7 @@ mod test {
                 command: 0,
             },
             contour_id,
-            Point([other_x, other_y]),
+            Point::new(other_x, other_y),
             false,
             Weak::new(),
             true,
@@ -247,7 +247,7 @@ mod test {
                 command: 0,
             },
             contour_id,
-            Point([x, y]),
+            Point::new(x, y),
             true,
             Rc::downgrade(&other),
             true,
@@ -297,15 +297,15 @@ mod test {
             true,
         );
 
-        assert!(s1.is_below(Point([0.0, 1.0])));
-        assert!(s1.is_below(Point([1.0, 2.0])));
-        assert!(!s1.is_below(Point([0.0, 0.0])));
-        assert!(!s1.is_below(Point([5.0, -1.0])));
+        assert!(s1.is_below(Point::new(0.0, 1.0)));
+        assert!(s1.is_below(Point::new(1.0, 2.0)));
+        assert!(!s1.is_below(Point::new(0.0, 0.0)));
+        assert!(!s1.is_below(Point::new(5.0, -1.0)));
 
-        assert!(!s2.is_below(Point([0.0, 1.0])));
-        assert!(!s2.is_below(Point([1.0, 2.0])));
-        assert!(!s2.is_below(Point([0.0, 0.0])));
-        assert!(!s2.is_below(Point([5.0, -1.0])));
+        assert!(!s2.is_below(Point::new(0.0, 1.0)));
+        assert!(!s2.is_below(Point::new(1.0, 2.0)));
+        assert!(!s2.is_below(Point::new(0.0, 0.0)));
+        assert!(!s2.is_below(Point::new(5.0, -1.0)));
     }
 
     #[test]
@@ -317,7 +317,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([1.0, 1.0]),
+            Point::new(1.0, 1.0),
             false,
             Weak::new(),
             true,
@@ -329,7 +329,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0, 0.0]),
+            Point::new(0.0, 0.0),
             true,
             Rc::downgrade(&other_s1),
             true,
@@ -341,21 +341,21 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0, 1.0]),
+            Point::new(0.0, 1.0),
             false,
             Rc::downgrade(&s1),
             true,
         ));
 
-        assert!(s1.is_below(Point([0.0, 1.0])));
-        assert!(s1.is_below(Point([1.0, 2.0])));
-        assert!(!s1.is_below(Point([0.0, 0.0])));
-        assert!(!s1.is_below(Point([5.0, -1.0])));
+        assert!(s1.is_below(Point::new(0.0, 1.0)));
+        assert!(s1.is_below(Point::new(1.0, 2.0)));
+        assert!(!s1.is_below(Point::new(0.0, 0.0)));
+        assert!(!s1.is_below(Point::new(5.0, -1.0)));
 
-        assert!(!s2.is_below(Point([0.0, 1.0])));
-        assert!(!s2.is_below(Point([1.0, 2.0])));
-        assert!(!s2.is_below(Point([0.0, 0.0])));
-        assert!(!s2.is_below(Point([5.0, -1.0])));
+        assert!(!s2.is_below(Point::new(0.0, 1.0)));
+        assert!(!s2.is_below(Point::new(1.0, 2.0)));
+        assert!(!s2.is_below(Point::new(0.0, 0.0)));
+        assert!(!s2.is_below(Point::new(5.0, -1.0)));
     }
 
     #[test]
@@ -367,7 +367,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0, 1.0]),
+            Point::new(0.0, 1.0),
             false,
             Weak::new(),
             true,
@@ -379,7 +379,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0, 0.0]),
+            Point::new(0.0, 0.0),
             true,
             Rc::downgrade(&other_s1),
             true,
@@ -391,7 +391,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0001, 1.0]),
+            Point::new(0.0001, 1.0),
             false,
             Weak::new(),
             true,
@@ -403,7 +403,7 @@ mod test {
                 command: 0,
             },
             0,
-            Point([0.0, 0.0]),
+            Point::new(0.0, 0.0),
             true,
             Rc::downgrade(&other_s2),
             true,

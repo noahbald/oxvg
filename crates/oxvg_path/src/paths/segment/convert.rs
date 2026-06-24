@@ -19,43 +19,43 @@ impl Data {
         let last_control = control.take();
         match command {
             command::Data::MoveBy(a) => {
-                *cursor = *cursor + Point(*a);
+                *cursor = *cursor + Point::from(*a);
                 *start = *cursor;
                 None
             }
             command::Data::MoveTo(a) => {
-                *cursor = Point(*a);
+                *cursor = Point::from(*a);
                 *start = *cursor;
                 None
             }
             command::Data::LineBy(a) => {
-                *cursor = *cursor + Point(*a);
+                *cursor = *cursor + Point::from(*a);
                 Some(Data::LineTo(*cursor))
             }
             command::Data::LineTo(a) => {
-                *cursor = Point(*a);
+                *cursor = Point::from(*a);
                 Some(Data::LineTo(*cursor))
             }
             command::Data::HorizontalLineBy(a) => {
-                cursor.0[0] += a[0];
+                cursor.x += a[0];
                 Some(Data::LineTo(*cursor))
             }
             command::Data::HorizontalLineTo(a) => {
-                cursor.0[0] = a[0];
+                cursor.x = a[0];
                 Some(Data::LineTo(*cursor))
             }
             command::Data::VerticalLineBy(a) => {
-                cursor.0[1] += a[0];
+                cursor.y += a[0];
                 Some(Data::LineTo(*cursor))
             }
             command::Data::VerticalLineTo(a) => {
-                cursor.0[1] = a[0];
+                cursor.y = a[0];
                 Some(Data::LineTo(*cursor))
             }
             command::Data::CubicBezierBy(a) => {
-                let start_control = *cursor + Point([a[0], a[1]]);
-                let end_control = *cursor + Point([a[2], a[3]]);
-                let end_point = *cursor + Point([a[4], a[5]]);
+                let start_control = *cursor + Point::new(a[0], a[1]);
+                let end_control = *cursor + Point::new(a[2], a[3]);
+                let end_point = *cursor + Point::new(a[4], a[5]);
 
                 *control = Some(end_control);
                 *cursor = end_point;
@@ -66,30 +66,30 @@ impl Data {
                 )))
             }
             command::Data::CubicBezierTo(a) => {
-                let end_control = Point([a[2], a[3]]);
-                let end_point = Point([a[4], a[5]]);
+                let end_control = Point::new(a[2], a[3]);
+                let end_point = Point::new(a[4], a[5]);
 
                 *control = Some(end_control);
                 *cursor = end_point;
-                Some(Data::CurveTo(Curve(*a)))
+                Some(Data::CurveTo(Curve::from(*a)))
             }
             command::Data::QuadraticBezierBy(a) => {
-                let quad_control = *cursor + Point([a[0], a[1]]);
-                let end = *cursor + Point([a[2], a[3]]);
+                let quad_control = *cursor + Point::new(a[0], a[1]);
+                let end = *cursor + Point::new(a[2], a[3]);
                 *control = Some(quad_control);
 
-                let (cp1, cp2) = Point::quadratic_control_points(quad_control, *cursor, end);
+                let start = *cursor;
                 *cursor = end;
-                Some(Data::CurveTo(Curve::new(cp1, cp2, *cursor)))
+                Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
             }
             command::Data::QuadraticBezierTo(a) => {
-                let quad_control = Point([a[0], a[1]]);
-                let end = Point([a[2], a[3]]);
+                let quad_control = Point::new(a[0], a[1]);
+                let end = Point::new(a[2], a[3]);
                 *control = Some(quad_control);
 
-                let (cp1, cp2) = Point::quadratic_control_points(quad_control, *cursor, end);
+                let start = *cursor;
                 *cursor = end;
-                Some(Data::CurveTo(Curve::new(cp1, cp2, end)))
+                Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
             }
             command::Data::SmoothBezierBy(a) => {
                 let start_control = if let Some(prev_cp) = last_control {
@@ -97,8 +97,8 @@ impl Data {
                 } else {
                     *cursor
                 };
-                let end_control = *cursor + Point([a[0], a[1]]);
-                let end = *cursor + Point([a[2], a[3]]);
+                let end_control = *cursor + Point::new(a[0], a[1]);
+                let end = *cursor + Point::new(a[2], a[3]);
 
                 *control = Some(end_control);
                 *cursor = end;
@@ -110,8 +110,8 @@ impl Data {
                 } else {
                     *cursor
                 };
-                let end_control = Point([a[0], a[1]]);
-                let end = Point([a[2], a[3]]);
+                let end_control = Point::new(a[0], a[1]);
+                let end = Point::new(a[2], a[3]);
 
                 *control = Some(end_control);
                 *cursor = end;
@@ -123,12 +123,12 @@ impl Data {
                 } else {
                     *cursor
                 };
-                let end = *cursor + Point(*a);
+                let end = *cursor + Point::from(*a);
 
                 *control = Some(start_control);
-                let (cp1, cp2) = Point::quadratic_control_points(start_control, *cursor, end);
+                let start = *cursor;
                 *cursor = end;
-                Some(Data::CurveTo(Curve::new(cp1, cp2, end)))
+                Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
             }
             command::Data::SmoothQuadraticBezierTo(a) => {
                 let start_control = if let Some(prev_cp) = last_control {
@@ -136,18 +136,18 @@ impl Data {
                 } else {
                     *cursor
                 };
-                let end = Point(*a);
+                let end = Point::from(*a);
 
                 *control = Some(start_control);
-                let (cp1, cp2) = Point::quadratic_control_points(start_control, *cursor, end);
+                let start = *cursor;
                 *cursor = end;
-                Some(Data::CurveTo(Curve::new(cp1, cp2, end)))
+                Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
             }
             command::Data::ArcBy(a) => Some(
                 Arc::from_arc_by(*a, cursor)
                     .map(Self::ArcTo)
                     .unwrap_or_else(|| {
-                        *cursor = *cursor + Point([a[5], a[6]]);
+                        *cursor = *cursor + Point::new(a[5], a[6]);
                         Self::LineTo(*cursor)
                     }),
             ),
@@ -155,7 +155,7 @@ impl Data {
                 Arc::from_arc_to(*a, cursor)
                     .map(Self::ArcTo)
                     .unwrap_or_else(|| {
-                        *cursor = Point([a[5], a[6]]);
+                        *cursor = Point::new(a[5], a[6]);
                         Self::LineTo(*cursor)
                     }),
             ),
@@ -203,7 +203,7 @@ impl Segment {
 
         let tolerance_squared = tolerance.positional * tolerance.positional;
         result.closed =
-            start.distance_squared(&result.data().last().unwrap().end_point()) < tolerance_squared;
+            start.distance_squared(result.data().last().unwrap().end_point()) < tolerance_squared;
         result
     }
 
@@ -240,7 +240,7 @@ impl Path {
         let mut result = Path(vec![]);
         let mut iterator = value.0.iter().peekable();
         let mut start = match iterator.next() {
-            Some(command::Data::MoveTo(p) | command::Data::MoveBy(p)) => Point(*p),
+            Some(command::Data::MoveTo(p) | command::Data::MoveBy(p)) => Point::from(*p),
             None => return result,
             _ => unreachable!("Path data starts with non-move command"),
         };
@@ -283,7 +283,7 @@ impl Path {
         {
             let control = last_control.take();
             let Some(data) = data else {
-                let mut m = command::Data::MoveTo(start.0);
+                let mut m = command::Data::MoveTo(start.into());
                 m.round(&precision);
                 commands.push(m);
                 continue;
@@ -331,13 +331,13 @@ impl Path {
                 let mut m = match command.id().as_explicit() {
                     ID::LineBy => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveBy(segment_start_by.0)
+                        command::Data::MoveBy(segment_start_by.into())
                     }
                     ID::LineTo => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveTo(segment_start.0)
+                        command::Data::MoveTo(segment_start.into())
                     }
-                    _ => command::Data::MoveTo(segment_start.0),
+                    _ => command::Data::MoveTo(segment_start.into()),
                 };
                 m.round(&precision);
                 commands.push(m);
@@ -363,19 +363,19 @@ impl Path {
         let by = to - start;
         if start == to {
             command::Data::ClosePath
-        } else if precision.round(to.x()) == precision.round(start.x()) {
-            let v_to = command::Data::VerticalLineTo([to.y()]);
-            let v_by = command::Data::VerticalLineBy([by.y()]);
+        } else if precision.round(to.x) == precision.round(start.x) {
+            let v_to = command::Data::VerticalLineTo([to.y]);
+            let v_by = command::Data::VerticalLineBy([by.y]);
             compactest(previous, v_by, v_to, implicit, precision)
-        } else if precision.round(to.y()) == precision.round(start.y()) {
-            let h_to = command::Data::HorizontalLineTo([to.x()]);
-            let h_by = command::Data::HorizontalLineBy([by.x()]);
+        } else if precision.round(to.y) == precision.round(start.y) {
+            let h_to = command::Data::HorizontalLineTo([to.x]);
+            let h_by = command::Data::HorizontalLineBy([by.x]);
             compactest(previous, h_by, h_to, implicit, precision)
         } else if to == segment_start {
             command::Data::ClosePath
         } else {
-            let l_to = command::Data::LineTo(to.0);
-            let l_by = command::Data::LineBy(by.0);
+            let l_to = command::Data::LineTo(to.into());
+            let l_by = command::Data::LineBy(by.into());
             compactest(previous, l_by, l_to, implicit, precision)
         }
     }
@@ -391,9 +391,9 @@ impl Path {
         tolerance_squared: &ToleranceSquared,
         precision: &TolerancePrecision,
     ) -> (command::Data, Option<Point>) {
-        let start_control = curve.start_control();
-        let end_control = curve.end_control();
-        let to = curve.end_point();
+        let start_control = curve.start_control;
+        let end_control = curve.end_control;
+        let to = curve.end_point;
         let by = to - start;
 
         let mut candidates = Vec::with_capacity(4);
@@ -406,33 +406,33 @@ impl Path {
         }) = smooth_bezier
         {
             candidates.push(command::Data::SmoothBezierBy([
-                end_control.x() - start.x(),
-                end_control.y() - start.y(),
-                by.x(),
-                by.y(),
+                end_control.x - start.x,
+                end_control.y - start.y,
+                by.x,
+                by.y,
             ]));
             candidates.push(command::Data::SmoothBezierTo([
-                end_control.x(),
-                end_control.y(),
-                to.x(),
-                to.y(),
+                end_control.x,
+                end_control.y,
+                to.x,
+                to.y,
             ]));
         } else {
             candidates.push(command::Data::CubicBezierBy([
-                start_control.x() - start.x(),
-                start_control.y() - start.y(),
-                end_control.x() - start.x(),
-                end_control.y() - start.y(),
-                by.x(),
-                by.y(),
+                start_control.x - start.x,
+                start_control.y - start.y,
+                end_control.x - start.x,
+                end_control.y - start.y,
+                by.x,
+                by.y,
             ]));
             candidates.push(command::Data::CubicBezierTo([
-                start_control.x(),
-                start_control.y(),
-                end_control.x(),
-                end_control.y(),
-                to.x(),
-                to.y(),
+                start_control.x,
+                start_control.y,
+                end_control.x,
+                end_control.y,
+                to.x,
+                to.y,
             ]));
         }
 
@@ -457,24 +457,24 @@ impl Path {
             }
         }
         if smooth_quadratic_bezier.is_some() {
-            candidates.push(command::Data::SmoothQuadraticBezierBy(by.0));
-            candidates.push(command::Data::SmoothQuadraticBezierTo(to.0));
+            candidates.push(command::Data::SmoothQuadraticBezierBy(by.into()));
+            candidates.push(command::Data::SmoothQuadraticBezierTo(to.into()));
         } else if let Some(QuadraticBezierTo {
             quad_control,
             end_point: _,
         }) = quadratic_bezier
         {
             candidates.push(command::Data::QuadraticBezierBy([
-                quad_control.x() - start.x(),
-                quad_control.y() - start.y(),
-                by.x(),
-                by.y(),
+                quad_control.x - start.x,
+                quad_control.y - start.y,
+                by.x,
+                by.y,
             ]));
             candidates.push(command::Data::QuadraticBezierTo([
-                quad_control.x(),
-                quad_control.y(),
-                to.x(),
-                to.y(),
+                quad_control.x,
+                quad_control.y,
+                to.x,
+                to.y,
             ]));
         }
 
@@ -508,8 +508,8 @@ impl Path {
         let by = arc.end_point() - start;
         let mut arc_to = arc.to_arc_to(tolerance, tolerance_squared, precision);
         let mut arc_by = arc_to;
-        arc_by[5] = by.x();
-        arc_by[6] = by.y();
+        arc_by[5] = by.x;
+        arc_by[6] = by.y;
 
         if smart_arc_rounding {
             if let Some(saggita) = math::saggita(&arc_by, tolerance.positional) {
@@ -608,10 +608,10 @@ mod test {
             Path(vec![Segment {
                 start: Point::splat(5.0),
                 data: vec![
-                    Data::LineTo(Point([5.0, 15.0])),
-                    Data::LineTo(Point([15.0, 15.0])),
-                    Data::LineTo(Point([15.0, 5.0])),
-                    Data::LineTo(Point([5.0, 5.0]))
+                    Data::LineTo(Point::new(5.0, 15.0)),
+                    Data::LineTo(Point::new(15.0, 15.0)),
+                    Data::LineTo(Point::new(15.0, 5.0)),
+                    Data::LineTo(Point::new(5.0, 5.0))
                 ],
                 closed: true
             }])
