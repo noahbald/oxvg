@@ -8,7 +8,11 @@ mod polygon;
 mod rectangle;
 
 pub use arc::Arc;
-pub use curve::{CubicBezierTo, Curve, QuadraticBezierTo, SmoothBezierTo, SmoothQuadraticBezierTo};
+pub use curve::{
+    CubicBezierTo, Curve, CurveWithStart, QuadraticBezierTo, SmoothBezierTo,
+    SmoothQuadraticBezierTo,
+};
+pub use ellipses::{Ellipses, EllipsesTolerance};
 pub use line::{Intersection, Line};
 pub use point::{Point, Quadrant};
 pub use polygon::Polygon;

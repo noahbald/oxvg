@@ -16,6 +16,11 @@ pub struct Curve {
     pub end_point: Point,
 }
 
+pub struct CurveWithStart {
+    pub start: Point,
+    pub curve: Curve,
+}
+
 /// A cubic bezier curve.
 pub type CubicBezierTo = Curve;
 
@@ -68,6 +73,10 @@ impl Curve {
         let cp1 = start_point + (quad_control - start_point) * (2.0 / 3.0);
         let cp2 = end_point + (quad_control - end_point) * (2.0 / 3.0);
         Curve::new(cp1, cp2, end_point)
+    }
+
+    pub fn with_start(self, start: Point) -> CurveWithStart {
+        CurveWithStart { start, curve: self }
     }
 
     /// Returns the quad control of the curve, if the curve is quadratic.
@@ -452,6 +461,22 @@ impl Curve {
         };
         right.subdivide_t(start, t2).0
     }
+
+    /// Creates a subcurve between the points `t1` and `t2`.
+    #[must_use]
+    pub fn clamp_at(
+        &self,
+        start: Point,
+        t1: Point,
+        t2: Point,
+        tolerance: &ToleranceSquared,
+    ) -> Option<Self> {
+        Some(self.clamp_t(
+            start,
+            self.t_at(start, t1, tolerance)?,
+            self.t_at(start, t2, tolerance)?,
+        ))
+    }
 }
 
 fn control_point_distance_squared(control: Point, start: Point, end: Point) -> f64 {
@@ -465,4 +490,67 @@ fn control_point_distance_squared(control: Point, start: Point, end: Point) -> f
     let t = t.clamp(0.0, 1.0);
     let projection = Point::new(start.x + t * vector.x, start.y + t * vector.y);
     control.distance_squared(projection)
+}
+
+impl CurveWithStart {
+    pub fn quad_control(&self, tolerance: &ToleranceSquared) -> Option<Point> {
+        self.curve.quad_control(self.start, tolerance)
+    }
+
+    pub fn quad_control_unchecked(&self) -> Point {
+        self.curve.quad_control_unchecked(self.start)
+    }
+
+    pub fn is_straight(&self, tolerance: &Tolerance) -> bool {
+        self.curve.is_straight(self.start, tolerance)
+    }
+
+    pub fn control_point_distance_squared(&self) -> (f64, f64) {
+        self.curve.control_point_distance_squared(self.start)
+    }
+
+    pub fn subdivide(&self) -> (Self, Self) {
+        self.subdivide_t(0.5)
+    }
+
+    pub fn subdivide_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<(Self, Self)> {
+        Some(self.subdivide_t(self.t_at(at, tolerance)?))
+    }
+
+    pub fn subdivide_t(&self, t: f64) -> (Self, Self) {
+        let (left, middle, right) = self.curve.subdivide_t(self.start, t);
+        (
+            Self {
+                start: self.start,
+                curve: left,
+            },
+            Self {
+                start: middle,
+                curve: right,
+            },
+        )
+    }
+
+    pub fn point_at(&self, t: f64) -> Point {
+        self.curve.point_at_from(self.start, t)
+    }
+
+    #[allow(clippy::similar_names)]
+    pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+        self.curve.t_at(self.start, at, tolerance)
+    }
+
+    pub fn reverse(&self) -> Self {
+        Self {
+            start: self.curve.end_point,
+            curve: self.curve.reverse(self.start),
+        }
+    }
+
+    pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
+        Self {
+            start: self.point_at(t1),
+            curve: self.curve.clamp_t(self.start, t1, t2),
+        }
+    }
 }

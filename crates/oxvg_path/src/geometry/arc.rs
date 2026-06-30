@@ -136,6 +136,10 @@ impl Arc {
         Ellipses::new(self.center, self.radii, self.x_rotation)
     }
 
+    pub fn point_at(&self, t: f64) -> Point {
+        self.point_at_angle(self.start_angle + self.sweep_angle * t)
+    }
+
     /// Returns the point on the ellipses at the given angle.
     pub fn point_at_angle(&self, angle_radians: f64) -> Point {
         self.ellipses().point_at_angle(angle_radians)
@@ -478,6 +482,12 @@ impl Arc {
         middle.set_start_angle(self.start_angle() + t1 * self.sweep_angle());
         middle.set_sweep_angle((t2 - t1) * self.sweep_angle());
         middle
+    }
+
+    /// Returns the sub-arc of this arc between the two points.
+    #[must_use]
+    pub fn clamp_at(&self, t1: Point, t2: Point, tolerance: &ToleranceSquared) -> Option<Self> {
+        Some(self.clamp_t(self.t_at(t1, tolerance)?, self.t_at(t2, tolerance)?))
     }
 
     /// Returns an arc spanning from the end to start of this arc

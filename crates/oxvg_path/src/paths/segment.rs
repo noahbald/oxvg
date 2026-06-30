@@ -12,8 +12,6 @@ use std::ops::Deref;
 
 use crate::geometry::{Arc, Curve, Point};
 
-#[cfg(feature = "boolean")]
-mod boolean;
 mod convert;
 mod simplify;
 
@@ -68,6 +66,7 @@ impl Tolerance {
 }
 
 /// A monad representing a squared positional tolerance.
+#[derive(Clone, Copy)]
 pub struct ToleranceSquared(pub f64);
 
 #[derive(Debug)]

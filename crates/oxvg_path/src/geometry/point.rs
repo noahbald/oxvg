@@ -86,6 +86,11 @@ impl From<Point> for [f64; 2] {
         [value.x, value.y]
     }
 }
+impl From<Point> for (f64, f64) {
+    fn from(value: Point) -> Self {
+        (value.x, value.y)
+    }
+}
 impl From<Point> for geo_types::Point {
     fn from(value: Point) -> Self {
         geo_types::Point(value.0)
@@ -286,6 +291,11 @@ impl Point {
     #[must_use]
     pub fn reflect(self, base: Self) -> Self {
         Self::new(2.0 * base.x - self.x, 2.0 * base.y - self.y)
+    }
+
+    /// The product of the point's x/y values.
+    pub fn product(self) -> f64 {
+        self.x * self.y
     }
 
     /// The dot product of two points

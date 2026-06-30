@@ -1,3 +1,4 @@
+use i_overlay::core::fill_rule::FillRule;
 use oxvg_ast::{
     get_computed_style,
     style::{ComputedStyles, Mode},
@@ -7,10 +8,10 @@ use oxvg_path::optimize;
 
 use lightningcss::{
     properties::svg::{Marker, SVGPaint, StrokeLinecap, StrokeLinejoin},
-    values::shape::FillRule,
+    values::shape,
 };
 
-pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> optimize::Options {
+pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> (FillRule, optimize::Options) {
     let mut options = optimize::Options::all();
 
     let stroke = get_computed_style!(computed_styles, Stroke);
@@ -30,18 +31,26 @@ pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> optimize::Op
         }));
 
     let fill_rule = get_computed_style!(computed_styles, FillRule);
+    let overlay_fill_rule = fill_rule
+        .as_ref()
+        .and_then(|(fill_rule, _)| match fill_rule {
+            Inheritable::Defined(shape::FillRule::Nonzero) => Some(FillRule::NonZero),
+            Inheritable::Defined(shape::FillRule::Evenodd) => Some(FillRule::EvenOdd),
+            _ => None,
+        })
+        .unwrap_or_default();
     let maybe_has_nonzero = fill_rule.as_ref().is_none_or(|(fill_rule, mode)| {
         *mode == Mode::Dynamic
             || matches!(
                 fill_rule,
-                Inheritable::Defined(FillRule::Nonzero) | Inheritable::Inherited
+                Inheritable::Defined(shape::FillRule::Nonzero) | Inheritable::Inherited
             )
     });
-    let maybe_has_evenodd = fill_rule.is_some_and(|(fill_rule, mode)| {
-        mode == Mode::Dynamic
+    let maybe_has_evenodd = fill_rule.as_ref().is_some_and(|(fill_rule, mode)| {
+        *mode == Mode::Dynamic
             || matches!(
                 fill_rule,
-                Inheritable::Defined(FillRule::Evenodd) | Inheritable::Inherited
+                Inheritable::Defined(shape::FillRule::Evenodd) | Inheritable::Inherited
             )
     });
 
@@ -88,10 +97,6 @@ pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> optimize::Op
         | optimize::Options::from_bits_retain(
             (!(maybe_has_stroke && maybe_has_linecap) as u16) * u16::MAX,
         );
-    options &= !optimize::Options::UnsafeNonZero
-        | optimize::Options::from_bits_retain((!maybe_has_nonzero as u16) * u16::MAX);
-    options &= !optimize::Options::UnsafeEvenOdd
-        | optimize::Options::from_bits_retain((!maybe_has_evenodd as u16) * u16::MAX);
     options &= !optimize::Options::UnsafeMarker
         | optimize::Options::from_bits_retain((!maybe_has_any_marker as u16) * u16::MAX);
     options &= !optimize::Options::UnsafeMarkerStart
@@ -100,7 +105,11 @@ pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> optimize::Op
         | optimize::Options::from_bits_retain((!maybe_has_marker_mid as u16) * u16::MAX);
     options &= !optimize::Options::UnsafeMarkerEnd
         | optimize::Options::from_bits_retain((!maybe_has_marker_end as u16) * u16::MAX);
+    options &= !optimize::Options::UniteSegments
+        | optimize::Options::from_bits_retain(
+            ((fill_rule.is_none() || (maybe_has_evenodd ^ maybe_has_nonzero)) as u16) * u16::MAX,
+        );
     options.set(optimize::Options::RemoveCloseLine, safe_to_close);
 
-    options
+    (overlay_fill_rule, options)
 }

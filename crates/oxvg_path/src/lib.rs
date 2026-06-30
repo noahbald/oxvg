@@ -24,6 +24,8 @@ extern crate bitflags;
 #[macro_use]
 extern crate napi_derive;
 
+#[cfg(feature = "algorithm")]
+pub mod algorithm;
 #[cfg(feature = "format")]
 mod format;
 #[cfg(feature = "geometry")]

@@ -47,11 +47,8 @@ pub struct ConvertPathData {
     /// Whether to close unclosed paths segments when safe to do so.
     pub close_segments: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
-    /// Whether to apply `nonzero` rule when safe and optimal to do so (experimental).
+    /// Whether to boolean unite overlapping segments when safe and optimal to do so (experimental).
     pub unite_segments: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
-    /// Whether to apply `evenodd` rule when safe and optimal to do so (experimental).
-    pub xor_segments: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to join commands that fit within it's neighboring commands when safe to do so.
     pub join_nodes: bool,
@@ -83,7 +80,6 @@ impl Default for ConvertPathData {
         ConvertPathData {
             close_segments: flag_default_false(),
             unite_segments: flag_default_false(),
-            xor_segments: flag_default_false(),
             join_nodes: flag_default_true(),
             remove_empty_segments: flag_default_true(),
             remove_zero_segments: flag_default_true(),
@@ -121,7 +117,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
         let computed_styles = ComputedStyles::default()
             .with_all(element, &context.query_has_stylesheet_result)
             .map_err(JobsError::ComputedStylesError)?;
-        let options = gather_optimize_options(&computed_styles) & self.into();
+        let (fill_rule, options) = gather_optimize_options(&computed_styles);
+        let options = options & self.into();
         log::debug!("ConvertPathData::run: gained style info {options:?}");
 
         let Some(mut path) = get_attribute_mut!(element, D) else {
@@ -133,7 +130,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
             return Ok(());
         }
 
-        *path = path.optimize(options, &self.tolerance);
+        *path = path.optimize(options, fill_rule, &self.tolerance);
         Ok(())
     }
 }
@@ -145,7 +142,6 @@ impl From<&ConvertPathData> for optimize::Options {
         let mut output = Options::empty();
         output.set(Options::CloseSegments, val.close_segments);
         output.set(Options::UniteSegments, val.unite_segments);
-        output.set(Options::XORSegments, val.xor_segments);
         output.set(Options::JoinNodes, val.join_nodes);
         output.set(Options::RemoveEmptySegments, val.remove_empty_segments);
         output.set(Options::RemoveNoopCommands, val.remove_zero_segments);
