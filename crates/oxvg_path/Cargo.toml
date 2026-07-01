@@ -22,6 +22,7 @@ algorithm = [
   "dep:i_float",
   "dep:i_overlay",
   "dep:num-traits",
+  "dep:rstar",
 ]
 format = ["ryu", "itertools"]
 geometry = ["dep:geo-types"]
@@ -46,6 +47,7 @@ napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
 num-traits = { workspace = true, optional = true }
 robust = { workspace = true }
+rstar = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }

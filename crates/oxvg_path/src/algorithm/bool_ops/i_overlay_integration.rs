@@ -2,236 +2,300 @@ use std::ops::Deref;
 
 use geo::{Coord, LineString};
 use i_float::float::compatible::FloatPointCompatible;
+use rstar::{RTreeObject, AABB};
 
-use crate::{geometry::Point, paths::segment};
+use crate::{
+    geometry::{Point, Rectangle},
+    paths::segment,
+};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Source<'a> {
-    index: usize,
-    source_start: Point,
-    source: &'a segment::Data,
+    data: &'a segment::Data,
+    start: Point,
+    bbox: Rectangle,
+    contour: Vec<Coord<f64>>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct BoolOpsCoord<'a> {
-    coord: Coord<f64>,
-    source: Option<Source<'a>>,
+pub struct BoolOpsCoord(Coord<f64>);
+
+struct RTreeEntry<'a> {
+    envelope: AABB<[f64; 2]>,
+    source: Source<'a>,
 }
 
-impl Deref for BoolOpsCoord<'_> {
-    type Target = Coord<f64>;
+impl RTreeObject for RTreeEntry<'_> {
+    type Envelope = AABB<[f64; 2]>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.coord
+    fn envelope(&self) -> Self::Envelope {
+        self.envelope
     }
 }
 
-impl BoolOpsCoord<'_> {
+impl Deref for BoolOpsCoord {
+    type Target = Coord<f64>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl BoolOpsCoord {
     pub fn line_string(string: &[Self]) -> LineString<f64> {
         LineString(string.into_iter().map(Deref::deref).copied().collect())
     }
 }
 
-impl<'a> FloatPointCompatible for BoolOpsCoord<'a> {
+impl FloatPointCompatible for BoolOpsCoord {
     type Scalar = f64;
 
     fn from_xy(x: f64, y: f64) -> Self {
-        Self {
-            coord: Coord { x, y },
-            source: None,
-        }
+        Self(Coord { x, y })
     }
 
     fn x(&self) -> f64 {
-        self.coord.x
+        self.x
     }
 
     fn y(&self) -> f64 {
-        self.coord.y
+        self.y
     }
 }
 
 pub mod convert {
+    use std::time;
+
     use geo::{Coord, CoordsIter};
+    use itertools::Itertools;
+    use rstar::{RTree, RTreeObject, AABB};
 
     use crate::{
-        geometry::Point,
+        geometry::{Line, Point, Rectangle},
         paths::segment::{self, ToleranceSquared},
     };
 
-    use super::{BoolOpsCoord, Source};
+    use super::{BoolOpsCoord, RTreeEntry, Source};
 
-    pub fn ring_to_shape_path<'a>(segment: &'a segment::Segment) -> Vec<BoolOpsCoord<'a>> {
+    pub fn flatten_segment<'a>(
+        segment: &'a segment::Segment,
+        registry: &mut Vec<Source<'a>>,
+    ) -> Vec<BoolOpsCoord> {
         if segment.data.is_empty() {
             return vec![];
-        };
+        }
 
+        let mut coords = vec![];
         let mut cursor = segment.start;
-        std::iter::once(vec![BoolOpsCoord {
-            coord: *cursor,
-            source: segment.data.first().map(|source| Source {
-                index: 0,
-                source_start: cursor,
-                source,
-            }),
-        }])
-        .chain(
-            segment
-                .data
-                .iter()
-                .enumerate()
-                .map(|(index, data)| match data {
-                    segment::Data::LineTo(coord) => {
-                        let start = cursor;
-                        cursor = *coord;
-                        vec![BoolOpsCoord {
-                            coord: **coord,
-                            source: Some(Source {
-                                index,
-                                source_start: start,
-                                source: data,
-                            }),
-                        }]
+        coords.push(BoolOpsCoord(*cursor));
+
+        for data in &segment.data {
+            let start = cursor;
+            let mut segment_coords = vec![];
+
+            match data {
+                segment::Data::LineTo(coord) => {
+                    cursor = *coord;
+                    segment_coords.push(**coord)
+                }
+                segment::Data::CurveTo(curve) => {
+                    cursor = curve.end_point;
+                    segment_coords.extend(curve.with_start(start).coords_iter().skip(1));
+                }
+                segment::Data::ArcTo(arc) => {
+                    cursor = arc.end_point();
+                    segment_coords.extend(arc.coords_iter().skip(1));
+                }
+            }
+
+            let bbox =
+                Rectangle::from_coords(std::iter::once(&*start).chain(segment_coords.iter()));
+            registry.push(Source {
+                data,
+                start,
+                bbox,
+                contour: std::iter::once(*start)
+                    .chain(segment_coords.iter().copied())
+                    .collect(),
+            });
+            coords.extend(segment_coords.into_iter().map(BoolOpsCoord));
+        }
+
+        coords
+    }
+
+    pub fn segment_path_from_shapes(
+        shapes: Vec<Vec<Vec<BoolOpsCoord>>>,
+        registry: Vec<Source<'_>>,
+    ) -> segment::Path {
+        let r_tree = rstar::RTree::bulk_load(
+            registry
+                .into_iter()
+                .map(|source| {
+                    let bbox = Rectangle::from_coords(source.contour.iter());
+                    RTreeEntry {
+                        envelope: AABB::from_corners(bbox.min().into(), bbox.max().into()),
+                        source,
                     }
-                    segment::Data::CurveTo(curve) => {
-                        let start = cursor;
-                        cursor = curve.end_point;
-                        curve
-                            .with_start(start)
-                            .coords_iter()
-                            .skip(1)
-                            .map(|coord| BoolOpsCoord {
-                                coord,
-                                source: Some(Source {
-                                    index,
-                                    source_start: start,
-                                    source: data,
-                                }),
-                            })
-                            .collect()
-                    }
-                    segment::Data::ArcTo(arc) => {
-                        let start = cursor;
-                        cursor = arc.end_point();
-                        arc.coords_iter()
-                            .skip(1)
-                            .map(|coord| BoolOpsCoord {
-                                coord,
-                                source: Some(Source {
-                                    index,
-                                    source_start: start,
-                                    source: data,
-                                }),
-                            })
-                            .collect()
-                    }
-                }),
+                })
+                .collect(),
+        );
+        segment::Path(
+            shapes
+                .into_iter()
+                .flat_map(|shape| {
+                    shape
+                        .into_iter()
+                        .map(|ring| segment_from_ring(ring, &r_tree))
+                })
+                .collect(),
         )
-        .flatten()
-        .collect()
     }
 
-    pub fn segment_path_from_shapes(shapes: Vec<Vec<Vec<BoolOpsCoord<'_>>>>) -> segment::Path {
-        segment::Path(shapes.into_iter().flat_map(segment_from_shape).collect())
-    }
-
-    fn segment_from_shape(
-        shape: Vec<Vec<BoolOpsCoord<'_>>>,
-    ) -> impl Iterator<Item = segment::Segment> + use<'_> {
-        shape.into_iter().map(segment_from_ring)
-    }
-
-    fn segment_from_ring(ring: Vec<BoolOpsCoord<'_>>) -> segment::Segment {
+    fn segment_from_ring(ring: Vec<BoolOpsCoord>, r_tree: &RTree<RTreeEntry>) -> segment::Segment {
         let Some(first) = ring.first() else {
             return segment::Segment::empty(Point::default());
         };
 
         let tolerance = &ToleranceSquared(1e-6);
-        let cursor = Point(first.coord);
+        let cursor = Point(**first);
         let mut segment = segment::Segment {
             start: cursor,
             data: vec![],
             closed: true,
         };
 
-        let slice = |start: (Coord<f64>, Source), end: (Coord<f64>, Source)| match start.1.source {
-            segment::Data::LineTo(_) => segment::Data::LineTo(Point(end.0)),
-            segment::Data::CurveTo(curve) => {
-                let t1 = Point(start.0);
-                let t2 = Point(end.0);
-                segment::Data::CurveTo(
-                    if start.1.index < end.1.index {
-                        curve.clamp_at(start.1.source_start, t1, t2, tolerance)
-                    } else {
-                        curve.reverse(start.1.source_start).clamp_at(
-                            start.1.source_start,
-                            t1,
-                            t2,
-                            tolerance,
-                        )
-                    }
-                    .unwrap(),
-                )
-            }
-            segment::Data::ArcTo(arc) => {
-                let t1 = Point(start.0);
-                let t2 = Point(end.0);
-                segment::Data::ArcTo(
-                    if start.1.index < end.1.index {
-                        arc.clamp_at(t1, t2, tolerance)
-                    } else {
-                        arc.reverse().clamp_at(t1, t2, tolerance)
-                    }
-                    .unwrap(),
-                )
-            }
-        };
+        enum Action<'a> {
+            Original {
+                seg: &'a Source<'a>,
+                start: Coord,
+                end: Coord,
+            },
+            Line {
+                end: Coord,
+            },
+        }
+        let mut actions = vec![];
 
-        let mut current_start = None;
-        let mut current_end = None;
-        for (i, coord) in ring.into_iter().enumerate() {
-            dbg!(coord);
-            debug_assert!(coord.source.is_some());
-            if let Some(source) = coord.source {
-                let Some((_, _, start)) = current_start else {
-                    current_start = Some((i, coord.coord, source));
-                    current_end = current_start;
-                    continue;
-                };
-                if std::ptr::eq(source.source, start.source) {
-                    current_end = Some((i, coord.coord, source));
-                    continue;
+        for (a, b) in ring.into_iter().tuple_windows() {
+            if let Some(seg) = find_matching_segment(*a, *b, r_tree) {
+                let mut merged = false;
+
+                if let Some(Action::Original {
+                    seg: last_seg,
+                    end: p_end,
+                    ..
+                }) = actions.last_mut()
+                {
+                    if std::ptr::eq(seg.data, last_seg.data) {
+                        *p_end = *b;
+                        merged = true;
+                    }
                 }
-            }
-
-            // At this point, either
-            // - coord is unsourced
-            // - sources switch
-            //
-            // So
-            // - build from current_start to current_end
-            // - push unsourced coord
-            if let Some((_, start_coord, start)) = current_start {
-                let (_, end_coord, end) = current_end.expect("end must be set with start");
-                debug_assert!(std::ptr::eq(start.source, end.source));
-
-                let data = slice((start_coord, start), (end_coord, end));
-                segment.data.push(data);
-                current_start = None;
-                current_end = None;
-            }
-            if coord.source.is_none() {
-                segment.data.push(segment::Data::LineTo(Point(coord.coord)))
+                if !merged {
+                    actions.push(Action::Original {
+                        seg,
+                        start: *a,
+                        end: *b,
+                    })
+                }
+            } else {
+                actions.push(Action::Line { end: *b })
             }
         }
-        if let Some((_, start_coord, start)) = current_start {
-            let (_, end_coord, end) = current_end.expect("end must be set with start");
-            debug_assert!(std::ptr::eq(start.source, end.source));
 
-            let data = slice((start_coord, start), (end_coord, end));
-            segment.data.push(data);
+        for action in actions {
+            match action {
+                Action::Original {
+                    seg,
+                    start: p_start,
+                    end: p_end,
+                } => {
+                    let t1 = Point(p_start);
+                    let t2 = Point(p_end);
+                    match seg.data {
+                        segment::Data::LineTo(_) => {
+                            segment.data.push(segment::Data::LineTo(t2));
+                        }
+                        segment::Data::CurveTo(curve) => {
+                            let t1 = curve.t_at(seg.start, t1, tolerance).unwrap();
+                            let t2 = curve.t_at(seg.start, t2, tolerance).unwrap();
+                            segment.data.push(segment::Data::CurveTo(if t1 <= t2 {
+                                curve.clamp_t(seg.start, t1, t2)
+                            } else {
+                                let end = curve.end_point;
+                                curve.reverse(seg.start).clamp_t(end, 1.0 - t1, 1.0 - t2)
+                            }))
+                        }
+                        segment::Data::ArcTo(arc) => {
+                            let t1 = arc.t_at(t1, tolerance).unwrap();
+                            let t2 = arc.t_at(t2, tolerance).unwrap();
+                            segment.data.push(segment::Data::ArcTo(if t1 <= t2 {
+                                arc.clamp_t(t1, t2)
+                            } else {
+                                arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
+                            }))
+                        }
+                    }
+                }
+                Action::Line { end: p_end } => {
+                    segment.data.push(segment::Data::LineTo(Point(p_end)))
+                }
+            }
         }
 
         segment
+    }
+
+    fn find_matching_segment<'a, 'b>(
+        a: Coord<f64>,
+        b: Coord<f64>,
+        r_tree: &'b RTree<RTreeEntry<'a>>,
+    ) -> Option<&'b Source<'a>> {
+        let mid = Point(a).midpoint(Point(b));
+        let mut best_match = None;
+        let mut min_total_distance = f64::MAX;
+
+        let tolerance = 1e-3;
+        let bbox = Rectangle::new(Point(a), Point(b));
+        let query_envolope: AABB<[f64; 2]> = <RTreeEntry as RTreeObject>::Envelope::from_corners(
+            (bbox.min() - *Point::splat(tolerance)).into(),
+            (bbox.max() + *Point::splat(tolerance)).into(),
+        );
+
+        for entry in r_tree.locate_in_envelope_intersecting(&query_envolope) {
+            let seg = &entry.source;
+            if !seg.bbox.intersects(&bbox) {
+                continue;
+            }
+
+            let dist_a = project_on_polyline(Point(a), &seg.contour);
+            let dist_b = project_on_polyline(Point(b), &seg.contour);
+            let dist_m = project_on_polyline(mid, &seg.contour);
+
+            if dist_a < tolerance && dist_b < tolerance && dist_m < tolerance {
+                let total_dist = dist_a + dist_b + dist_m;
+                if total_dist < min_total_distance {
+                    min_total_distance = total_dist;
+                    best_match = Some(seg);
+                }
+            }
+        }
+        best_match
+    }
+
+    fn project_on_polyline(p: Point, polyline: &[Coord<f64>]) -> f64 {
+        let mut min_dist_squared = f64::MAX;
+
+        for (p0, p1) in polyline.into_iter().tuple_windows() {
+            let segment = Line::new(Point(*p0), Point(*p1));
+            let dist = segment.distance_squared(p);
+
+            if dist < min_dist_squared {
+                min_dist_squared = dist;
+            }
+        }
+
+        min_dist_squared.sqrt()
     }
 }

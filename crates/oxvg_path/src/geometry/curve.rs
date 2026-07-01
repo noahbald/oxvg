@@ -214,10 +214,14 @@ impl Curve {
     pub fn is_convex(&self) -> bool {
         let end_control_line = Line::new(Point::new(0.0, 0.0), self.end_control);
         let start_control_line = Line::new(self.start_control, self.end_point);
-        let Intersection::Intersection(center) = end_control_line.intersection(&start_control_line)
+        let Some(Intersection::SinglePoint {
+            intersection: center,
+            ..
+        }) = end_control_line.intersection(&start_control_line)
         else {
             return false;
         };
+        let center = Point(center);
         (self.end_control.x < center.x) == (center.x < 0.0)
             && (self.end_control.y < center.y) == (center.y < 0.0)
             && (self.end_point.x < center.x) == (center.x < self.start_control.x)

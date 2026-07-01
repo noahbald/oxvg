@@ -431,13 +431,13 @@ impl Arc {
     pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
         let ellipses = self.ellipses();
         let tolerance = ellipses.ellipse_tolerance(tolerance);
-        let angle = self.ellipses().angle_at_point(at, &tolerance)?;
-        let mut delta = angle - self.start_angle();
-        if self.sweep_angle() > 0.0 {
-            delta = delta.rem_euclid(2.0 * PI);
-        } else {
-            delta = -((-delta).rem_euclid(2.0 * PI));
+        let mut angle = self.ellipses().angle_at_point(at, &tolerance)?;
+        if self.sweep_angle > 0.0 && angle < 0.0 {
+            angle += 2.0 * PI;
+        } else if self.sweep_angle < 0.0 && angle > 0.0 {
+            angle -= 2.0 * PI;
         }
+        let delta = (angle - self.start_angle()) % (2.0 * PI);
         let t = (delta / self.sweep_angle()).clamp(0.0, 1.0);
         if self
             .point_at_angle(self.start_angle() + t * self.sweep_angle())

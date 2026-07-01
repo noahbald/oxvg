@@ -12,7 +12,7 @@ use i_overlay::{
 
 use crate::{
     algorithm::bool_ops::i_overlay_integration::{
-        convert::{ring_to_shape_path, segment_path_from_shapes},
+        convert::{flatten_segment, segment_path_from_shapes},
         BoolOpsCoord,
     },
     paths::segment,
@@ -30,8 +30,17 @@ impl segment::Path {
         op: OverlayRule,
         fill_rule: FillRule,
     ) -> Self {
-        let subject = self.0.iter().map(ring_to_shape_path).collect::<Vec<_>>();
-        let clip = other.0.iter().map(ring_to_shape_path).collect::<Vec<_>>();
+        let mut registry = vec![];
+        let subject = self
+            .0
+            .iter()
+            .map(|ring| flatten_segment(ring, &mut registry))
+            .collect::<Vec<_>>();
+        let clip = other
+            .0
+            .iter()
+            .map(|ring| flatten_segment(ring, &mut registry))
+            .collect::<Vec<_>>();
         let shapes = FloatOverlay::with_subj_and_clip_custom(
             &subject,
             &clip,
@@ -39,7 +48,7 @@ impl segment::Path {
             Default::default(),
         )
         .overlay(op, fill_rule);
-        segment_path_from_shapes(shapes)
+        segment_path_from_shapes(shapes, registry)
     }
 
     /// Returns the overlapping regions shared by both `self` and `other`.
@@ -88,6 +97,7 @@ impl segment::Path {
 /// See [`geo::algorithm::bool_ops::unary_union`].
 pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -> segment::Path {
     let mut winding_order: Option<WindingOrder> = None;
+    let mut registry = vec![];
     let subject = boppables
         .into_iter()
         .flat_map(|boppable| {
@@ -95,7 +105,7 @@ pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -
                 .0
                 .iter()
                 .map(|ring| {
-                    let shape = ring_to_shape_path(ring);
+                    let shape = flatten_segment(ring, &mut registry);
                     if winding_order.is_none() {
                         winding_order = BoolOpsCoord::line_string(&shape).winding_order();
                     }
@@ -114,7 +124,7 @@ pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -
     let shapes =
         FloatOverlay::with_subj_custom(&subject, OverlayOptions::ogc(), Default::default())
             .overlay(OverlayRule::Subject, fill_rule);
-    segment_path_from_shapes(shapes)
+    segment_path_from_shapes(shapes, registry)
 }
 
 #[cfg(test)]
@@ -133,7 +143,7 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(&output.to_string(), "M0 0h10v5h5v10H5v-5H0V0Z");
+        assert_eq!(&output.to_string(), "M0 10V0h10v5h5v10H5v-5Z");
     }
 
     #[test]
@@ -146,7 +156,7 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "M0 0h10v5h5v10H5v-5H0V0Z");
+        assert_eq!(output.to_string(), "M0 10V0h10v5h5v10H5v-5Z");
     }
 
     #[test]
@@ -159,7 +169,7 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "M10 50q14.5-24.167 29-1.611Q44.5 50.833 50 60q15 25 10 40-3.125 9.375-17.969-8.594Q31.875 84.375 10 50Z");
+        assert_eq!(output.to_string(), "M10.545 50.855Q10.273 50.43 10 50q14.5-24.167 29-1.611Q44.5 50.833 50 60q15 25 10 40-3.125 9.375-17.969-8.594-9.902-6.855-30.945-39.705Z");
     }
 
     #[test]
@@ -172,12 +182,10 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        // TODO: Update expected
-        assert_eq!(output.to_string(), "M1.818 89.867Q1.797 83.672 10 70q3.344-5.574 6.564-9.904Q13.426 55.383 10 50q13.321-22.201 26.642-4.971Q49.658 44.144 60 70q-4.861 3.038-9.316 5.707Q52.091 83.728 50 90q-2.815 8.444-15.135-5.294-33.004 17.563-33.046 5.161Z");
+        assert_eq!(output.to_string(), "M1.826 90.215Q1.563 84.063 10 70q3.344-5.573 6.564-9.904Q13.426 55.384 10 50q13.321-22.202 26.642-4.97Q49.658 44.144 60 70q-4.861 3.038-9.316 5.707Q52.091 83.727 50 90q-2.815 8.444-15.135-5.294-32.062 17.061-33.017 5.844Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn unite_arc_aligned_winding() {
         let background = Path::parse_string("M10 5a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
         let foreground = Path::parse_string("M10 10a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
@@ -187,12 +195,10 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        // TODO: Update expected
-        assert_eq!(output.to_string(), "m0 5A5 5 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10a5 5 0 0 1-10 0a5 5 0 0 1 .67-2.5A5 5 0 0 1 0 5");
+        assert_eq!(output.to_string(), "M.002 5.123A5 5 0 0 1 0 5 1 1 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10 1 1 0 0 1 0 10 5 5 0 0 1 .67 7.5 5 5 0 0 1 .006 5.245Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn unite_arc_opposite_winding() {
         let background = Path::parse_string("M0 5a5 5 0 1 0 10 0a5 5 0 1 0 -10 0").unwrap();
         let foreground = Path::parse_string("M10 10a5 5 0 1 0 -10 0a5 5 0 1 0 10 0").unwrap();
@@ -202,11 +208,10 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "m0 5A5 5 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10a5 5 0 0 1-10 0a5 5 0 0 1 .67-2.5A5 5 0 0 1 0 5");
+        assert_eq!(output.to_string(), "M.002 5.123A5 5 0 0 1 0 5 1 1 0 0 1 10 5a5 5 0 0 1-.67 2.5A5 5 0 0 1 10 10 1 1 0 0 1 0 10 5 5 0 0 1 .67 7.5 5 5 0 0 1 .006 5.245Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn unite_various_aligned_winding() {
         let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
         let foreground =
@@ -217,11 +222,10 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "m5 5h2.5L10 0c2.05 2.05 3.26 3.68 3.91 5L15 5c2.71 2.71 1.01 3.95-1.11 4.52c-.91 1.36-2.26 2.11-.89 3.48a5 5 0 0 1-4.7-3.3a5 5 0 0 1-1.53-.88L5 10l1-2a5 5 0 0 1-1-3");
+        assert_eq!(output.to_string(), "M5 5.061A5 5 0 0 1 5 5h2.5L10 0c2.049 2.049 3.259 3.679 3.912 5H15c2.712 2.712 1.011 3.953-1.114 4.521-.909 1.362-2.258 2.106-.886 3.479a5 5 0 0 1-4.702-3.298 5 5 0 0 1-1.526-.883L5 10 6 8a5 5 0 0 1-.999-2.877Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn unite_various_opposite_winding() {
         let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
         let foreground = Path::parse_string("M10 10C15 10 10 5 15 7.5a5 5 0 1 0 -5 0h-5Z").unwrap();
@@ -231,11 +235,10 @@ mod test {
         let foreground = segment::Path::from_svg(&foreground, tolerance);
 
         let output = background.union(&foreground).to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "m5 5h2.85a5 5 0 1 1 8.33 1.56c1.45 3.08-4.65 3.41-5.94 3.44q-.11 0-.24 0a5 5 0 0 1-4-2l-1-.5l.67 0A5 5 0 0 1 5 5");
+        assert_eq!(output.to_string(), "M5 5.061A5 5 0 0 1 5 5h2.848a5 5 0 1 1 8.331 1.556c1.453 3.086-4.659 3.407-5.945 3.44q-.085.003-.175.004C10.02 10 10 10 10 10a5 5 0 0 1-4-2l-1-.5h.67a5 5 0 0 1-.668-2.377Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn intersect_various_aligned_winding() {
         let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
         let foreground =
@@ -248,11 +251,10 @@ mod test {
         let output = background
             .intersection(&foreground)
             .to_svg(tolerance, false);
-        assert_eq!(output.to_string(), "m6 8l1.5-3h6.41c1.08 2.18.64 3.52-.03 4.52C12.09 10 10 10 10 10a5 5 0 0 1-1.7-.3A5 5 0 0 1 8 8l-1.23.82A5 5 0 0 1 6 8");
+        assert_eq!(output.to_string(), "M6.021 8.028A5 5 0 0 1 6 8l1.5-3h6.412c1.077 2.176.645 3.517-.026 4.521C12.093 10 10 10 10 10a5 5 0 0 1-1.702-.298A5 5 0 0 1 8 8l-1.228.819a5 5 0 0 1-.714-.742Z");
     }
 
     #[test]
-    #[ignore = "failing"]
     fn intersect_various_opposite_winding() {
         let background = Path::parse_string("M5 5H15C20 10 10 10 10 10a5 5 0 0 1 -5 -5").unwrap();
         let foreground = Path::parse_string("M10 10C15 10 10 5 15 7.5a5 5 0 1 0 -5 0h-5Z").unwrap();
@@ -264,7 +266,6 @@ mod test {
         let output = background
             .intersection(&foreground)
             .to_svg(tolerance, false);
-        // TODO: Update expected
-        assert_eq!(output.to_string(), "m5.67 7.5l4.33 0A5 5 0 0 1 7.85 5L15 5c.58.58.96 1.1 1.18 1.56A5 5 0 0 1 15 7.5c-4.92-2.46-.16 2.34-4.76 2.5C10.08 10 10 10 10 10L6 8a5 5 0 0 1-.33-.5");
+        assert_eq!(output.to_string(), "M5.68 7.518a5 5 0 0 1-.01-.018H10A5 5 0 0 1 7.847 5H15c.584.584.963 1.1 1.178 1.555A5 5 0 0 1 15 7.5c-4.92-2.46-.158 2.341-4.766 2.496-.076.002-.135.003-.175.003Q10.03 10 10 10L6 8a5 5 0 0 1-.289-.43Z");
     }
 }

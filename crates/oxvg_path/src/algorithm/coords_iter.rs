@@ -35,7 +35,11 @@ impl<'a> CurveCoordsIter<'a> {
         tolerance_squared: ToleranceSquared,
     ) -> Self {
         let mut t_step = 1.0;
-        while curve.start.distance_squared(curve.point_at(t_step)) > *tolerance_squared {
+        for _ in 0..7 {
+            let distance_squared = curve.start.distance_squared(curve.point_at(t_step));
+            if distance_squared < *tolerance_squared {
+                break;
+            }
             t_step /= 2.0;
         }
         t_step = t_step.max(f64::EPSILON);
@@ -62,12 +66,15 @@ impl<'a> ArcCoordsIter<'a> {
         tolerance_squared: ToleranceSquared,
     ) -> Self {
         let mut t_step = 1.0;
-        while t_step > tolerance.angular
-            && arc
-                .start_point()
-                .distance_squared(arc.point_at_angle(t_step))
-                > *tolerance_squared
-        {
+        for _ in 0..7 {
+            if (t_step * arc.sweep_angle()).abs() <= tolerance.angular
+                || arc
+                    .start_point()
+                    .distance_squared(arc.point_at_angle(t_step))
+                    <= *tolerance_squared
+            {
+                break;
+            }
             t_step /= 2.0;
         }
         t_step = t_step.max(f64::EPSILON);
@@ -87,7 +94,11 @@ impl Iterator for CurveCoordsIter<'_> {
         if self.t > 1.0 {
             return None;
         }
-        let item = self.curve.point_at(self.t);
+        let item = if self.t == 1.0 || self.t + self.t_step > 1.0 {
+            self.curve.curve.end_point
+        } else {
+            self.curve.point_at(self.t)
+        };
         self.t += self.t_step;
         Some(*item)
     }
@@ -102,10 +113,14 @@ impl Iterator for ArcCoordsIter<'_> {
     type Item = Coord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.t >= 1.0 {
+        if self.t > 1.0 {
             return None;
         }
-        let item = self.arc.point_at(self.t);
+        let item = if self.t == 1.0 || self.t + self.t_step > 1.0 {
+            self.arc.end_point()
+        } else {
+            self.arc.point_at(self.t)
+        };
         self.t += self.t_step;
         Some(*item)
     }
@@ -118,10 +133,10 @@ impl ExactSizeIterator for ArcCoordsIter<'_> {
 
 fn len(t: f64, t_step: f64) -> usize {
     let total = t_step.powi(-1);
-    let progress = total - total * (t_step / t);
+    let remaning = total - (t / t_step);
 
     // NOTE: Truncated
-    (total - progress) as usize
+    remaning as usize
 }
 
 impl CoordsIter for CurveWithStart {

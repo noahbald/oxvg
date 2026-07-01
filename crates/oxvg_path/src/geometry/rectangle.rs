@@ -1,5 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
+use geo::Coord;
+
 use crate::geometry::Point;
 
 /// A bounded 2D quadrilateral whose area is defined by minimum and maximum [`Point`].
@@ -25,6 +27,28 @@ impl Rectangle {
         Self(geo_types::Rect::new(a.0, b.0))
     }
 
+    pub fn from_points<'a>(iter: impl Iterator<Item = &'a Point>) -> Self {
+        Self::from_coords(iter.map(Deref::deref))
+    }
+
+    pub fn from_coords<'a>(iter: impl Iterator<Item = &'a geo_types::Coord<f64>>) -> Self {
+        let mut min_x = f64::NAN;
+        let mut max_x = f64::NAN;
+        let mut min_y = f64::NAN;
+        let mut max_y = f64::NAN;
+
+        for coord in iter {
+            min_x = min_x.min(coord.x);
+            max_x = max_x.max(coord.x);
+            min_y = min_y.min(coord.y);
+            max_y = max_y.max(coord.y);
+        }
+        Self(geo_types::Rect::new(
+            geo_types::Coord { x: min_x, y: min_y },
+            geo_types::Coord { x: max_x, y: max_y },
+        ))
+    }
+
     /// Returns the rectangle that fits within the two rectangles
     pub fn intersection(&self, other: &Self) -> Option<Self> {
         let min_x = self.min().x.max(other.min().x);
@@ -44,7 +68,10 @@ impl Rectangle {
 
     /// Returns whether the two rectangle overlap each other
     pub fn intersects(&self, other: &Self) -> bool {
-        self.contains(Point(other.min()))
+        self.min().x <= other.max().x
+            && self.max().x >= other.min().x
+            && self.min().y <= other.max().y
+            && other.max().y >= other.min().y
     }
 
     /// Returns whether the rectangle contains the given point

@@ -96,9 +96,14 @@ impl Ellipses {
             m2 + Point::new(d2.y, -d2.x) * scale,
         );
 
-        let Intersection::Intersection(center) = l1.intersection(&l2) else {
+        let Some(Intersection::SinglePoint {
+            intersection: center,
+            ..
+        }) = l1.intersection(&l2)
+        else {
             return None;
         };
+        let center = Point(center);
 
         // validate circle
         let radius = center.distance(start);
