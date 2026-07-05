@@ -1,3 +1,4 @@
+//! Types and methods for iterating [`geo::Line`] lines of shapes.
 use std::iter::Map;
 
 use geo::{Coord, Line, LinesIter};

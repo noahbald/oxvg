@@ -1,11 +1,7 @@
-//! Types and methods for iterating [`geo`] coords of shapes.
+//! Types and methods for iterating [`geo::Coord`] coords of shapes.
 use geo::{Coord, CoordsIter};
 
-use crate::{
-    geometry::{Arc, CurveWithStart},
-    optimize::Tolerance,
-    paths::segment::ToleranceSquared,
-};
+use crate::geometry::{Arc, CurveWithStart, Tolerance, ToleranceSquared};
 
 #[derive(Clone)]
 /// Iterates along the coordinates of a curve by stepping along the curve.
@@ -131,6 +127,7 @@ impl ExactSizeIterator for ArcCoordsIter<'_> {
     }
 }
 
+#[allow(clippy::cast_sign_loss)]
 fn len(t: f64, t_step: f64) -> usize {
     let total = t_step.powi(-1);
     let remaning = total - (t / t_step);
@@ -144,7 +141,7 @@ impl CoordsIter for CurveWithStart {
     type ExteriorIter<'a> = CurveCoordsIter<'a>;
     type Scalar = f64;
 
-    fn coords_iter<'a>(&'a self) -> Self::Iter<'a> {
+    fn coords_iter(&self) -> Self::Iter<'_> {
         CurveCoordsIter::new(self)
     }
 

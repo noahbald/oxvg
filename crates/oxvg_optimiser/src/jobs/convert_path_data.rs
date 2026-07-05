@@ -4,7 +4,7 @@ use oxvg_ast::{
     style::ComputedStyles,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_path::optimize::{self, Tolerance};
+use oxvg_path::{geometry::Tolerance, optimize};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 

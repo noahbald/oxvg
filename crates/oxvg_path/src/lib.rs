@@ -1,16 +1,16 @@
 //! OXVG Path is a library used for parsing and minifying SVG paths.
 //! It supports parsing of any valid SVG path and provides optimisations close to exactly as SVGO.
 //!
-//! Use the [Path] struct for simple parsing and serializing. By solely parsing and serializing,
+//! Use the [`Path`] struct for simple parsing and serializing. By solely parsing and serializing,
 //! it will produce a path with prettier formatting.
-//! A path is made up individual command [Data](command::Data).
+//! A path is made up individual command [`Data`](command::Data).
 //!
-//! For more rigorous minification, try using the [Path::optimize] method. This will use
+//! For more rigorous minification, try using the [`Path::optimize`] method. This will use
 //! non-destructive conversions to shorten the path.
 //!
-//! For a simpler path representation, best for building and manipulations, use [paths::segment::Path].
+//! For a simpler path representation, best for building and manipulations, use [`paths::segment::Path`].
 //!
-//! For a polygonal representation, best for geospacial analysis, use [paths::events::Path].
+//! For a polygonal representation, best for geospacial analysis, use [`paths::events::Path`].
 //!
 //! # Licensing
 //!

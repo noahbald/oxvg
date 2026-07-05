@@ -1,11 +1,6 @@
 //! Methods for optimizing SVG paths
 
-use crate::{
-    paths::segment::{self},
-    Path,
-};
-
-pub use crate::paths::segment::Tolerance;
+use crate::{geometry::Tolerance, paths::segment, Path};
 
 pub use i_overlay::core::fill_rule::FillRule;
 
@@ -118,7 +113,8 @@ impl Path {
     ///
     /// ```
     /// use oxvg_path::Path;
-    /// use oxvg_path::optimize::{FillRule, Options, Tolerance};
+    /// use oxvg_path::optimize::{FillRule, Options};
+    /// use oxvg_path::geometry::Tolerance;
     /// use oxvg_path::parser::Parse as _;
     ///
     /// let mut path = Path::parse_string("M 10,30 L 10,50 L 30 30 H 10").unwrap();

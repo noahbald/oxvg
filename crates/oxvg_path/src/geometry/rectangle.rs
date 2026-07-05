@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use geo::Coord;
+use geo::Intersects;
 
 use crate::geometry::Point;
 
@@ -27,10 +27,12 @@ impl Rectangle {
         Self(geo_types::Rect::new(a.0, b.0))
     }
 
+    /// Creates a rectangle bounding the set of points generated.
     pub fn from_points<'a>(iter: impl Iterator<Item = &'a Point>) -> Self {
         Self::from_coords(iter.map(Deref::deref))
     }
 
+    /// Creates a rectangle bounding the set of coords generated.
     pub fn from_coords<'a>(iter: impl Iterator<Item = &'a geo_types::Coord<f64>>) -> Self {
         let mut min_x = f64::NAN;
         let mut max_x = f64::NAN;
@@ -68,18 +70,12 @@ impl Rectangle {
 
     /// Returns whether the two rectangle overlap each other
     pub fn intersects(&self, other: &Self) -> bool {
-        self.min().x <= other.max().x
-            && self.max().x >= other.min().x
-            && self.min().y <= other.max().y
-            && other.max().y >= other.min().y
+        self.0.intersects(&other.0)
     }
 
     /// Returns whether the rectangle contains the given point
     pub fn contains(&self, point: Point) -> bool {
-        self.min().x <= point.x
-            && point.x <= self.max().x
-            && self.min().y <= point.y
-            && point.y <= self.max().y
+        self.0.intersects(&*point)
     }
 
     /// Returns a point clamped within the bounds of the rectangle

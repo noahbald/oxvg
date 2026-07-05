@@ -43,7 +43,7 @@ impl Deref for BoolOpsCoord {
 
 impl BoolOpsCoord {
     pub fn line_string(string: &[Self]) -> LineString<f64> {
-        LineString(string.into_iter().map(Deref::deref).copied().collect())
+        LineString(string.iter().map(Deref::deref).copied().collect())
     }
 }
 
@@ -64,15 +64,13 @@ impl FloatPointCompatible for BoolOpsCoord {
 }
 
 pub mod convert {
-    use std::time;
-
     use geo::{Coord, CoordsIter};
     use itertools::Itertools;
     use rstar::{RTree, RTreeObject, AABB};
 
     use crate::{
-        geometry::{Line, Point, Rectangle},
-        paths::segment::{self, ToleranceSquared},
+        geometry::{Line, Point, Rectangle, ToleranceSquared},
+        paths::segment,
     };
 
     use super::{BoolOpsCoord, RTreeEntry, Source};
@@ -96,7 +94,7 @@ pub mod convert {
             match data {
                 segment::Data::LineTo(coord) => {
                     cursor = *coord;
-                    segment_coords.push(**coord)
+                    segment_coords.push(**coord);
                 }
                 segment::Data::CurveTo(curve) => {
                     cursor = curve.end_point;
@@ -153,18 +151,6 @@ pub mod convert {
     }
 
     fn segment_from_ring(ring: Vec<BoolOpsCoord>, r_tree: &RTree<RTreeEntry>) -> segment::Segment {
-        let Some(first) = ring.first() else {
-            return segment::Segment::empty(Point::default());
-        };
-
-        let tolerance = &ToleranceSquared(1e-6);
-        let cursor = Point(**first);
-        let mut segment = segment::Segment {
-            start: cursor,
-            data: vec![],
-            closed: true,
-        };
-
         enum Action<'a> {
             Original {
                 seg: &'a Source<'a>,
@@ -175,6 +161,19 @@ pub mod convert {
                 end: Coord,
             },
         }
+
+        let Some(first) = ring.first() else {
+            return segment::Segment::empty(Point::default());
+        };
+
+        let tolerance = ToleranceSquared(1e-6);
+        let cursor = Point(**first);
+        let mut segment = segment::Segment {
+            start: cursor,
+            data: vec![],
+            closed: true,
+        };
+
         let mut actions = vec![];
 
         for (a, b) in ring.into_iter().tuple_windows() {
@@ -197,10 +196,10 @@ pub mod convert {
                         seg,
                         start: *a,
                         end: *b,
-                    })
+                    });
                 }
             } else {
-                actions.push(Action::Line { end: *b })
+                actions.push(Action::Line { end: *b });
             }
         }
 
@@ -225,7 +224,7 @@ pub mod convert {
                             } else {
                                 let end = curve.end_point;
                                 curve.reverse(seg.start).clamp_t(end, 1.0 - t1, 1.0 - t2)
-                            }))
+                            }));
                         }
                         segment::Data::ArcTo(arc) => {
                             let t1 = arc.t_at(t1, tolerance).unwrap();
@@ -234,12 +233,12 @@ pub mod convert {
                                 arc.clamp_t(t1, t2)
                             } else {
                                 arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
-                            }))
+                            }));
                         }
                     }
                 }
                 Action::Line { end: p_end } => {
-                    segment.data.push(segment::Data::LineTo(Point(p_end)))
+                    segment.data.push(segment::Data::LineTo(Point(p_end)));
                 }
             }
         }
@@ -287,7 +286,7 @@ pub mod convert {
     fn project_on_polyline(p: Point, polyline: &[Coord<f64>]) -> f64 {
         let mut min_dist_squared = f64::MAX;
 
-        for (p0, p1) in polyline.into_iter().tuple_windows() {
+        for (p0, p1) in polyline.iter().tuple_windows() {
             let segment = Line::new(Point(*p0), Point(*p1));
             let dist = segment.distance_squared(p);
 

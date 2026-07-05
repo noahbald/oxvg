@@ -1,12 +1,15 @@
-//! A reimplementation of `geo::algorithm::bool_ops` with regard to SVG. Instead of converting
-//! to a polygon and losing curves/arcs, we track which parts of the output belong to the input
-//! and rebuild a path based on the source.
-
+//! A reimplementation of [`geo::algorithm::bool_ops`] with regard to SVG.
+//!
+//! Unlike [`geo`] the output polygon is converted back to [`Self`] by reconstructing
+//! from the input path data.
+//!
+//! For a polygonal output, try building [`geo::geometry::MultiPolygon`] by iterating through
+//! the [`segment::Data`] and pushing [`geo::CoordsIter`], then use [`geo::algorithm::bool_ops`].
 pub(crate) mod i_overlay_integration;
 
 use geo::{winding_order::WindingOrder, Winding};
 use i_overlay::{
-    core::{fill_rule::FillRule, overlay_rule::OverlayRule},
+    core::{fill_rule::FillRule, overlay_rule::OverlayRule, solver::Solver},
     float::overlay::{FloatOverlay, OverlayOptions},
 };
 
@@ -19,11 +22,24 @@ use crate::{
 };
 
 impl segment::Path {
-    /// See [geo::algorithm::bool_ops::BooleanOps::boolean_op]
+    /// Performs a boolean operation between the shapes using the default fill-rule.
+    ///
+    /// Unlike [`geo`] the output polygon is converted back to [`Self`] by reconstructing
+    /// from the input path data.
+    ///
+    /// See [`geo::algorithm::bool_ops::BooleanOps::boolean_op`]
+    #[must_use]
     pub fn boolean_op(&self, other: &Self, op: OverlayRule) -> Self {
         self.boolean_op_with_fill_rule(other, op, FillRule::EvenOdd)
     }
 
+    /// Performs a boolean operation between the shapes using the specified fill-rule.
+    ///
+    /// Unlike [`geo`] the output polygon is converted back to [`Self`] by reconstructing
+    /// from the input path data.
+    ///
+    /// See [`geo::algorithm::bool_ops::BooleanOps::boolean_op_with_fill_rule`]
+    #[must_use]
     pub fn boolean_op_with_fill_rule(
         &self,
         other: &Self,
@@ -45,55 +61,70 @@ impl segment::Path {
             &subject,
             &clip,
             OverlayOptions::ogc(),
-            Default::default(),
+            Solver::default(),
         )
         .overlay(op, fill_rule);
         segment_path_from_shapes(shapes, registry)
     }
 
     /// Returns the overlapping regions shared by both `self` and `other`.
+    #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         self.boolean_op(other, OverlayRule::Intersect)
     }
 
     /// Returns the overlapping regions shared by both `self` and `other`, using the specified fill rule.
+    #[must_use]
     pub fn intersection_with_fill_rule(&self, other: &Self, fill_rule: FillRule) -> Self {
         self.boolean_op_with_fill_rule(other, OverlayRule::Intersect, fill_rule)
     }
 
     /// Combines the regions of both `self` and `other` into a single geometry, removing
     /// overlaps and merging boundaries. Consider using [`unary_union`] for efficiently combining several adjacent / overlapping geometries.
+    #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         self.boolean_op(other, OverlayRule::Union)
     }
 
     /// Combines the regions of both `self` and `other` into a single geometry, removing
     /// overlaps and merging boundaries, using the specified fill rule.
+    #[must_use]
     pub fn union_with_fill_rule(&self, other: &Self, fill_rule: FillRule) -> Self {
         self.boolean_op_with_fill_rule(other, OverlayRule::Union, fill_rule)
     }
 
     /// The regions that are in either `self` or `other`, but not in both.
+    #[must_use]
     pub fn xor(&self, other: &Self) -> Self {
         self.boolean_op(other, OverlayRule::Xor)
     }
 
     /// The regions that are in either `self` or `other`, but not in both.
+    #[must_use]
     pub fn xor_with_fill_rule(&self, other: &Self, fill_rule: FillRule) -> Self {
         self.boolean_op_with_fill_rule(other, OverlayRule::Xor, fill_rule)
     }
 
     /// The regions of `self` which are not in `other`.
+    #[must_use]
     pub fn difference(&self, other: &Self) -> Self {
         self.boolean_op(other, OverlayRule::Difference)
     }
 
     /// The regions of `self` which are not in `other`, using the specified fill rule.
+    #[must_use]
     pub fn difference_with_fill_rule(&self, other: &Self, fill_rule: FillRule) -> Self {
         self.boolean_op_with_fill_rule(other, OverlayRule::Difference, fill_rule)
     }
 }
 
+/// Efficient [union](segment::Path::union) of many adjacent / overlapping geometries
+///
+/// This is typically much faster than `union`ing a bunch of geometries together one at a time.
+///
+/// Note: Geometries can be wound in either direction, but the winding order must be consistent,
+/// and each polygon's interior rings must be wound opposite to its exterior.
+///
 /// See [`geo::algorithm::bool_ops::unary_union`].
 pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -> segment::Path {
     let mut winding_order: Option<WindingOrder> = None;
@@ -121,9 +152,8 @@ pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -
         FillRule::Negative
     };
 
-    let shapes =
-        FloatOverlay::with_subj_custom(&subject, OverlayOptions::ogc(), Default::default())
-            .overlay(OverlayRule::Subject, fill_rule);
+    let shapes = FloatOverlay::with_subj_custom(&subject, OverlayOptions::ogc(), Solver::default())
+        .overlay(OverlayRule::Subject, fill_rule);
     segment_path_from_shapes(shapes, registry)
 }
 
@@ -131,7 +161,7 @@ pub fn unary_union<'a>(boppables: impl IntoIterator<Item = &'a segment::Path>) -
 mod test {
     use oxvg_parse::Parse;
 
-    use crate::{optimize::Tolerance, paths::segment, Path};
+    use crate::{geometry::Tolerance, paths::segment, Path};
 
     #[test]
     fn unite_squares_aligned_winding() {

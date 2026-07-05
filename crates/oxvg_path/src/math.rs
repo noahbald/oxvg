@@ -1,22 +1,16 @@
 use std::f64::consts::PI;
 
-use crate::{geometry::Point, optimize::Tolerance, paths::segment::TolerancePrecision};
-
-/// Rounds a number to a specified number of decimal points
-pub fn to_fixed(data: f64, precision: i32) -> f64 {
-    let pow = 10.0_f64.powi(precision);
-    (data * pow).round() / pow
-}
+use crate::geometry::{Point, Tolerance, TolerancePrecision};
 
 /// Calculate the hypotenuse of two numbers
-pub(crate) fn hypot_squared(v1: f64, v2: f64) -> f64 {
+pub fn hypot_squared(v1: f64, v2: f64) -> f64 {
     (v1 * v1) + (v2 * v2)
 }
 
 /// Calculates the saggita of an arc, clamped at 180 degrees.
 ///
 /// A saggita is the distance from the midpoint of the arc to itself
-pub(crate) fn saggita(arc_by: &[f64; 7], error: f64) -> Option<f64> {
+pub fn saggita(arc_by: &[f64; 7], error: f64) -> Option<f64> {
     let [rx, ry, ..] = arc_by;
     if (rx - ry).abs() > error {
         return None;
@@ -40,7 +34,7 @@ pub fn euclid_gcd_lossy(
     a: f64,
     b: f64,
     tolerance: &Tolerance,
-    precision: &TolerancePrecision,
+    precision: TolerancePrecision,
 ) -> f64 {
     #[allow(clippy::cast_sign_loss)]
     let u = precision.scale(a).abs() as u32;

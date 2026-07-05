@@ -1,9 +1,5 @@
 //! Types for representing bezier curves.
-use crate::{
-    geometry::{line::Intersection, Line, Point},
-    optimize::Tolerance,
-    paths::segment::ToleranceSquared,
-};
+use crate::geometry::{line::Intersection, Line, Point, Tolerance, ToleranceSquared};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// A cubic bezier curve.
@@ -16,8 +12,15 @@ pub struct Curve {
     pub end_point: Point,
 }
 
+/// A cubic bezier curve from a start point.
+///
+/// Useful as a shorthand for [`Curve`] methods that would usually require a start point
+/// as an argument.
+#[derive(Debug, Clone, PartialEq)]
 pub struct CurveWithStart {
+    /// The start point of the curve.
     pub start: Point,
+    /// The bezier curve.
     pub curve: Curve,
 }
 
@@ -69,21 +72,46 @@ impl Curve {
         }
     }
 
+    /// Returns a new curve based on the given quadratic control.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new_quad(Point::Y * 3.0, Point::ZERO, Point::X * 3.0),
+    ///   Curve::new(Point::new(0.0, 2.0), Point::new(1.0, 2.0), Point::X * 3.0),
+    /// );
+    /// ```
     pub fn new_quad(quad_control: Point, start_point: Point, end_point: Point) -> Self {
         let cp1 = start_point + (quad_control - start_point) * (2.0 / 3.0);
         let cp2 = end_point + (quad_control - end_point) * (2.0 / 3.0);
         Curve::new(cp1, cp2, end_point)
     }
 
+    /// Returns a bezier curve with an associated start point.
     pub fn with_start(self, start: Point) -> CurveWithStart {
         CurveWithStart { start, curve: self }
     }
 
     /// Returns the quad control of the curve, if the curve is quadratic.
-    pub fn quad_control(&self, start: Point, tolerance: &ToleranceSquared) -> Option<Point> {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::new(0.0, 2.0), Point::new(1.0, 2.0), Point::X * 3.0)
+    ///     .quad_control(Point::ZERO, Tolerance::default().square()),
+    ///   Some(Point::Y * 3.0),
+    /// );
+    /// ```
+    pub fn quad_control(&self, start: Point, tolerance: ToleranceSquared) -> Option<Point> {
         let quad = self.quad_control_unchecked(start);
         if quad.distance_squared(self.end_point + (self.end_control - self.end_point) * 1.5)
-            < **tolerance
+            < *tolerance
         {
             Some(quad)
         } else {
@@ -97,11 +125,24 @@ impl Curve {
     ///
     /// If the source curve is not quadratic, then the returned
     /// quad control is not on the same curve.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::new(0.0, 2.0), Point::new(1.0, 2.0), Point::X * 3.0)
+    ///     .quad_control_unchecked(Point::ZERO),
+    ///   Point::Y * 3.0,
+    /// );
+    /// ```
     pub fn quad_control_unchecked(&self, start: Point) -> Point {
         start + (self.start_control - start) * 1.5
     }
 
     /// Returns the cubic bezier form of the curve.
+    #[must_use]
     pub fn cubic_bezier(&self) -> CubicBezierTo {
         *self
     }
@@ -111,7 +152,7 @@ impl Curve {
         &self,
         start: Point,
         control: Option<Point>,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<SmoothBezierTo> {
         if self.is_smooth(start, control, tolerance) {
             Some(self.smooth_bezier_unchecked())
@@ -138,7 +179,7 @@ impl Curve {
     pub fn quadratic_bezier(
         &self,
         start: Point,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<QuadraticBezierTo> {
         self.quad_control(start, tolerance)
             .map(|quad_control| self.quadratic_bezier_unchecked(quad_control))
@@ -183,10 +224,9 @@ impl Curve {
         start: Point,
         control: Option<Point>,
         quad_control: Point,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<SmoothQuadraticBezierTo> {
-        if control.is_some_and(|cp| quad_control.distance_squared(cp.reflect(start)) < **tolerance)
-        {
+        if control.is_some_and(|cp| quad_control.distance_squared(cp.reflect(start)) < *tolerance) {
             Some(self.smooth_quadratic_bezier_unchecked())
         } else {
             None
@@ -198,7 +238,7 @@ impl Curve {
         &self,
         start: Point,
         control: Option<Point>,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<SmoothQuadraticBezierTo> {
         self.smooth_quadratic_bezier_unchecked_quad(
             start,
@@ -211,6 +251,14 @@ impl Curve {
     /// Returns whether a curve is convex
     ///
     /// A curve is convex when the middle of the curve's line is below the curve's midpoint
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert!(Curve::new(Point::X, Point::X, Point::UNIT).is_convex());
+    /// ```
     pub fn is_convex(&self) -> bool {
         let end_control_line = Line::new(Point::new(0.0, 0.0), self.end_control);
         let start_control_line = Line::new(self.start_control, self.end_point);
@@ -229,6 +277,15 @@ impl Curve {
     }
 
     /// Returns whether the arc fits on a straight line.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert!(Curve::new(Point::UNIT, Point::UNIT * 2.0, Point::UNIT * 3.0)
+    ///   .is_straight(Point::ZERO, &Tolerance::default()));
+    /// ```
     pub fn is_straight(&self, start: Point, tolerance: &Tolerance) -> bool {
         let chord = start.distance(self.end_point);
         if chord < tolerance.positional {
@@ -244,7 +301,7 @@ impl Curve {
         &self,
         start: Point,
         control: Option<Point>,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> (
         CubicBezierTo,
         Option<SmoothBezierTo>,
@@ -280,34 +337,11 @@ impl Curve {
         &self,
         start: Point,
         control: Option<Point>,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> bool {
         self.start_control
             .distance_squared(control.map_or(start, |c| c.reflect(start)))
-            < **tolerance
-    }
-
-    /// Returns whether the arc fits on a straight line
-    #[deprecated = "For deprecated use on arc-by commands"]
-    pub fn is_data_straight(args: &[f64], tolerance: f64) -> bool {
-        // Get line equation a·x + b·y + c = 0 coefficients a, b (c = 0) by start and end points.
-        let i = args.len() - 2;
-        let a = -args[i + 1]; // y1 − y2 (y1 = 0)
-        let b = args[i]; // x2 − x1 (x1 = 0)
-        let d = 1.0 / (a * a + b * b); // same part for all points
-
-        if i <= 1 || !d.is_finite() {
-            // Curve that ends at start point isn't the case
-            return false;
-        }
-
-        // Distance from point `(x0, y0)` to the line is `sqrt((c − a·x0 − b·y0)² / (a² + b²))`
-        for i in (0..=(i - 2)).rev().step_by(2) {
-            if (f64::powi(a * args[i] + b * args[i + 1], 2) * d) > (tolerance * tolerance) {
-                return false;
-            }
-        }
-        true
+            < *tolerance
     }
 
     /// Returns the distance of the start and end control points.
@@ -321,16 +355,49 @@ impl Curve {
 
     /// Divides the curve into two halves drawn from some start point. Returns
     /// the left half and the right half with their starting points.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).subdivide(Point::ZERO),
+    ///   (
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125)),
+    ///     Point::new(0.875, 0.125),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT),
+    ///   )
+    /// );
+    /// ```
     pub fn subdivide(&self, start: Point) -> (Curve, Point, Curve) {
         self.subdivide_t(start, 0.5)
     }
 
     /// Returns two halves of the curve by a point that lies on the curve, up to some tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).subdivide_at(
+    ///     Point::ZERO,
+    ///     Point::new(0.875, 0.125),
+    ///     Tolerance::default().square(),
+    ///   ),
+    ///   Some((
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125)),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT),
+    ///   )),
+    /// );
+    /// ```
     pub fn subdivide_at(
         &self,
         start: Point,
         at: Point,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<(Curve, Curve)> {
         let result = self.subdivide_t(start, self.t_at(start, at, tolerance)?);
         Some((result.0, result.2))
@@ -338,6 +405,24 @@ impl Curve {
 
     /// Returns two divisions of the curve by the percentage along the curve, as a number
     /// between `0.0` and `1.0`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).subdivide_t(
+    ///     Point::ZERO,
+    ///     0.5,
+    ///   ),
+    ///   (
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125)),
+    ///     Point::new(0.875, 0.125),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT),
+    ///   )
+    /// );
+    /// ```
     #[allow(clippy::similar_names)]
     pub fn subdivide_t(&self, start: Point, t: f64) -> (Curve, Point, Curve) {
         let p0 = start;
@@ -357,15 +442,22 @@ impl Curve {
         (left, p0123, right)
     }
 
-    /// Returns the point `t` percent along a curve's chord, where `1.0` is `100%`
-    #[must_use]
-    #[deprecated]
-    pub fn point_at(&self, t: f64) -> Point {
-        self.point_at_from(Point::ZERO, t)
-    }
-
     /// Returns the point `t` percent along a curve's chord from some
     /// start point, where `1.0` is `100%`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).point_at_from(
+    ///     Point::ZERO,
+    ///     0.5,
+    ///   ),
+    ///   Point::new(0.875, 0.125),
+    /// );
+    /// ```
     pub fn point_at_from(&self, start: Point, t: f64) -> Point {
         let start_control = self.start_control;
         let end_control = self.end_control;
@@ -380,8 +472,23 @@ impl Curve {
     }
 
     /// Returns the percent along the curve a point lies, to some tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).t_at(
+    ///     Point::ZERO,
+    ///     Point::new(0.875, 0.125),
+    ///     Tolerance::default().square(),
+    ///   ),
+    ///   Some(0.5),
+    /// );
+    /// ```
     #[allow(clippy::similar_names)]
-    pub fn t_at(&self, start: Point, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+    pub fn t_at(&self, start: Point, at: Point, tolerance: ToleranceSquared) -> Option<f64> {
         const MAX_ITER: usize = 8;
         let p0 = start;
         let p1 = self.start_control;
@@ -398,7 +505,7 @@ impl Curve {
         };
         let bd_prime = |t: f64| -> Point { (da * (2.0 * t) + db) * 3.0 };
 
-        let tol_sq = **tolerance;
+        let tol_sq = *tolerance;
 
         // Try several seeds spread across [0,1] and keep the best converged result.
         let seeds: [f64; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
@@ -446,12 +553,38 @@ impl Curve {
     }
 
     /// Returns an equivalent curve spanning from the end point to the start.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).reverse(Point::ZERO),
+    ///   Curve::new(Point::X, Point::X, Point::ZERO),
+    /// );
+    /// ```
     #[must_use]
     pub fn reverse(&self, start: Point) -> Self {
         Curve::new(self.end_control, self.start_control, start)
     }
 
     /// Creates a subcurve between the percentage `t1` and `t2`, as numbers between `0.0` and `1.0`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).clamp_t(
+    ///     Point::ZERO,
+    ///     0.5,
+    ///     1.0
+    ///   ),
+    ///   Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT),
+    /// );
+    /// ```
     #[must_use]
     pub fn clamp_t(&self, start: Point, t1: f64, t2: f64) -> Self {
         debug_assert!((0.0..=1.0).contains(&t1));
@@ -467,13 +600,29 @@ impl Curve {
     }
 
     /// Creates a subcurve between the points `t1` and `t2`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT).clamp_at(
+    ///     Point::ZERO,
+    ///     Point::new(0.875, 0.125),
+    ///     Point::UNIT,
+    ///     Tolerance::default().square(),
+    ///   ),
+    ///   Some(Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT)),
+    /// );
+    /// ```
     #[must_use]
     pub fn clamp_at(
         &self,
         start: Point,
         t1: Point,
         t2: Point,
-        tolerance: &ToleranceSquared,
+        tolerance: ToleranceSquared,
     ) -> Option<Self> {
         Some(self.clamp_t(
             start,
@@ -497,30 +646,134 @@ fn control_point_distance_squared(control: Point, start: Point, end: Point) -> f
 }
 
 impl CurveWithStart {
-    pub fn quad_control(&self, tolerance: &ToleranceSquared) -> Option<Point> {
+    /// Returns the quad control of the curve, if the curve is quadratic.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::new(0.0, 2.0), Point::new(1.0, 2.0), Point::X * 3.0)
+    ///     .with_start(Point::ZERO)
+    ///     .quad_control(Tolerance::default().square()),
+    ///   Some(Point::Y * 3.0),
+    /// );
+    /// ```
+    pub fn quad_control(&self, tolerance: ToleranceSquared) -> Option<Point> {
         self.curve.quad_control(self.start, tolerance)
     }
 
+    /// Returns the quad control of the curve, without checking if the curve is quadratic.
+    ///
+    /// # Correctness
+    ///
+    /// If the source curve is not quadratic, then the returned
+    /// quad control is not on the same curve.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::new(0.0, 2.0), Point::new(1.0, 2.0), Point::X * 3.0)
+    ///     .with_start(Point::ZERO)
+    ///     .quad_control_unchecked(),
+    ///   Point::Y * 3.0,
+    /// );
+    /// ```
     pub fn quad_control_unchecked(&self) -> Point {
         self.curve.quad_control_unchecked(self.start)
     }
 
+    /// Returns whether the arc fits on a straight line.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert!(Curve::new(Point::UNIT, Point::UNIT * 2.0, Point::UNIT * 3.0)
+    ///   .with_start(Point::ZERO)
+    ///   .is_straight(&Tolerance::default()));
+    /// ```
     pub fn is_straight(&self, tolerance: &Tolerance) -> bool {
         self.curve.is_straight(self.start, tolerance)
     }
 
+    /// Returns the distance of the start and end control points.
     pub fn control_point_distance_squared(&self) -> (f64, f64) {
         self.curve.control_point_distance_squared(self.start)
     }
 
+    /// Divides the curve into two halves drawn from some start point. Returns
+    /// the left half and the right half with their starting points.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .subdivide(),
+    ///   (
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125))
+    ///       .with_start(Point::ZERO),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT)
+    ///       .with_start(Point::new(0.875, 0.125)),
+    ///   )
+    /// );
+    /// ```
     pub fn subdivide(&self) -> (Self, Self) {
         self.subdivide_t(0.5)
     }
 
-    pub fn subdivide_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<(Self, Self)> {
+    /// Returns two halves of the curve by a point that lies on the curve, up to some tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .subdivide_at(Point::new(0.875, 0.125), Tolerance::default().square()),
+    ///   Some((
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125))
+    ///       .with_start(Point::ZERO),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT)
+    ///       .with_start(Point::new(0.875, 0.125)),
+    ///   ))
+    /// );
+    /// ```
+    pub fn subdivide_at(&self, at: Point, tolerance: ToleranceSquared) -> Option<(Self, Self)> {
         Some(self.subdivide_t(self.t_at(at, tolerance)?))
     }
 
+    /// Returns two divisions of the curve by the percentage along the curve, as a number
+    /// between `0.0` and `1.0`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .subdivide_t(0.5),
+    ///   (
+    ///     Curve::new(Point::X * 0.5, Point::X * 0.75, Point::new(0.875, 0.125))
+    ///       .with_start(Point::ZERO),
+    ///     Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT)
+    ///       .with_start(Point::new(0.875, 0.125)),
+    ///   )
+    /// );
+    /// ```
     pub fn subdivide_t(&self, t: f64) -> (Self, Self) {
         let (left, middle, right) = self.curve.subdivide_t(self.start, t);
         (
@@ -535,15 +788,60 @@ impl CurveWithStart {
         )
     }
 
+    /// Returns the point `t` percent along a curve's chord from some
+    /// start point, where `1.0` is `100%`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .point_at(0.5),
+    ///   Point::new(0.875, 0.125),
+    /// );
+    /// ```
     pub fn point_at(&self, t: f64) -> Point {
         self.curve.point_at_from(self.start, t)
     }
 
     #[allow(clippy::similar_names)]
-    pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+    /// Returns the percent along the curve a point lies, to some tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point, Tolerance};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .t_at(Point::new(0.875, 0.125), Tolerance::default().square()),
+    ///   Some(0.5),
+    /// );
+    /// ```
+    pub fn t_at(&self, at: Point, tolerance: ToleranceSquared) -> Option<f64> {
         self.curve.t_at(self.start, at, tolerance)
     }
 
+    /// Returns an equivalent curve spanning from the end point to the start.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .reverse(),
+    ///   Curve::new(Point::X, Point::X, Point::ZERO)
+    ///     .with_start(Point::UNIT),
+    /// );
+    /// ```
+    #[must_use]
     pub fn reverse(&self) -> Self {
         Self {
             start: self.curve.end_point,
@@ -551,6 +849,22 @@ impl CurveWithStart {
         }
     }
 
+    /// Creates a subcurve between the percentage `t1` and `t2`, as numbers between `0.0` and `1.0`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Curve, Point};
+    ///
+    /// assert_eq!(
+    ///   Curve::new(Point::X, Point::X, Point::UNIT)
+    ///     .with_start(Point::ZERO)
+    ///     .clamp_t(0.5, 1.0),
+    ///   Curve::new(Point::new(1.0, 0.25), Point::new(1.0, 0.5), Point::UNIT)
+    ///     .with_start(Point::new(0.875, 0.125)),
+    /// );
+    /// ```
+    #[must_use]
     pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
         Self {
             start: self.point_at(t1),

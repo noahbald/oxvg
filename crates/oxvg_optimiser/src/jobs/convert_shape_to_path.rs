@@ -10,7 +10,11 @@ use oxvg_collections::{
     attribute::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
     element::ElementId,
 };
-use oxvg_path::{command::Data, optimize::Tolerance, paths::segment::TolerancePrecision, Path};
+use oxvg_path::{
+    command::Data,
+    geometry::{Tolerance, TolerancePrecision},
+    Path,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -159,27 +163,27 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 
         match name {
             ElementId::Rect if !self.referenced_shapes.contains(ReferencedShapes::Rect) => {
-                ConvertShapeToPath::rect_to_path(element, &precision, context.info);
+                ConvertShapeToPath::rect_to_path(element, precision, context.info);
             }
             ElementId::Line if !self.referenced_shapes.contains(ReferencedShapes::Line) => {
-                ConvertShapeToPath::line_to_path(element, &precision, context.info);
+                ConvertShapeToPath::line_to_path(element, precision, context.info);
             }
             ElementId::Polyline if !self.referenced_shapes.contains(ReferencedShapes::Polyline) => {
-                ConvertShapeToPath::poly_to_path(element, &precision, false, context.info);
+                ConvertShapeToPath::poly_to_path(element, precision, false, context.info);
             }
             ElementId::Polygon if !self.referenced_shapes.contains(ReferencedShapes::Polygon) => {
-                ConvertShapeToPath::poly_to_path(element, &precision, true, context.info);
+                ConvertShapeToPath::poly_to_path(element, precision, true, context.info);
             }
             ElementId::Circle
                 if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Circle) =>
             {
-                ConvertShapeToPath::circle_to_path(element, &precision, context.info);
+                ConvertShapeToPath::circle_to_path(element, precision, context.info);
             }
 
             ElementId::Ellipse
                 if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Circle) =>
             {
-                ConvertShapeToPath::ellipse_to_path(element, &precision, context.info);
+                ConvertShapeToPath::ellipse_to_path(element, precision, context.info);
             }
 
             _ => {}
@@ -207,7 +211,7 @@ fn r_px(r: cell::Ref<Radius>) -> Option<f64> {
 impl ConvertShapeToPath {
     fn rect_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         if has_attribute!(element, RX | RY) {
@@ -252,7 +256,7 @@ impl ConvertShapeToPath {
 
     fn line_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(x1) = (match get_attribute!(element, X1Line) {
@@ -296,7 +300,7 @@ impl ConvertShapeToPath {
 
     fn poly_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
         is_polygon: bool,
         info: &Info<'input, 'arena>,
     ) {
@@ -324,7 +328,7 @@ impl ConvertShapeToPath {
     #[allow(clippy::similar_names)]
     fn circle_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(cx) = (match get_attribute!(element, CXGeometry) {
@@ -364,7 +368,7 @@ impl ConvertShapeToPath {
     #[allow(clippy::similar_names)]
     fn ellipse_to_path<'input, 'arena>(
         element: &Element<'input, 'arena>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
         let Some(cx) = (match get_attribute!(element, CXGeometry) {

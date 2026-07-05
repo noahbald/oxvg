@@ -1,4 +1,4 @@
-use crate::{command, paths::segment::TolerancePrecision};
+use crate::{command, geometry::TolerancePrecision};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,8 +20,9 @@ use crate::{command, paths::segment::TolerancePrecision};
 pub struct Path(pub Vec<command::Data>);
 
 impl Path {
+    #[cfg(feature = "geometry")]
     /// Rounds the arguments of the comand data up to some precision
-    pub fn round(&mut self, precision: &TolerancePrecision) {
+    pub fn round(&mut self, precision: TolerancePrecision) {
         self.0.iter_mut().for_each(|d| d.round(precision));
     }
 }

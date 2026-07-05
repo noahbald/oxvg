@@ -2,12 +2,9 @@ use std::f64::consts::PI;
 
 use crate::{
     command::{self, ID},
-    geometry::{Arc, Curve, Point},
+    geometry::{Arc, Curve, Point, Tolerance, TolerancePrecision, ToleranceSquared},
     optimize::Options,
-    paths::segment::{
-        convert::compactest, Data, IterStartCursorItem, Path, Tolerance, TolerancePrecision,
-        ToleranceSquared,
-    },
+    paths::segment::{convert::compactest, Data, IterStartCursorItem, Path},
 };
 
 impl Path {
@@ -19,31 +16,31 @@ impl Path {
         let precision = tolerance.precision();
 
         if options.contains(Options::StraightCurves) {
-            self.straight_curves(tolerance, &tolerance_squared);
+            self.straight_curves(tolerance, tolerance_squared);
         }
         if options.contains(Options::ArcCurves) {
             self.arc_curves(
                 tolerance,
-                &tolerance_squared,
-                &precision,
+                tolerance_squared,
+                precision,
                 options.contains(Options::SmartArcRounding),
             );
         }
         if options.contains(Options::RemoveNoopCommands) {
-            self.remove_noop_commands(&tolerance_squared);
+            self.remove_noop_commands(tolerance_squared);
         }
         if options.contains(Options::JoinNodes) {
-            self.join_nodes(tolerance, &tolerance_squared);
+            self.join_nodes(tolerance, tolerance_squared);
         }
         if options.contains(Options::RemoveCloseLine) {
-            self.remove_close_line(&tolerance_squared);
+            self.remove_close_line(tolerance_squared);
         }
         if options.contains(Options::RemoveEmptySegments) {
             self.remove_empty_segments();
         }
     }
 
-    fn straight_curves(&mut self, tolerance: &Tolerance, tolerance_squared: &ToleranceSquared) {
+    fn straight_curves(&mut self, tolerance: &Tolerance, tolerance_squared: ToleranceSquared) {
         let mut segments = self.iter_start_cursor_mut();
         let mut is_previous_quadratic = false;
         let mut last_control = None;
@@ -98,8 +95,8 @@ impl Path {
     fn arc_curves(
         &mut self,
         tolerance: &Tolerance,
-        tolerance_squared: &ToleranceSquared,
-        precision: &TolerancePrecision,
+        tolerance_squared: ToleranceSquared,
+        precision: TolerancePrecision,
         smart_arc_rounding: bool,
     ) {
         let candidates: Vec<_> = self
@@ -209,20 +206,20 @@ impl Path {
         }
     }
 
-    fn remove_noop_commands(&mut self, tolerance_squared: &ToleranceSquared) {
+    fn remove_noop_commands(&mut self, tolerance_squared: ToleranceSquared) {
         for segment in &mut self.0 {
             let mut start = segment.start;
             segment.data.retain(|command| {
                 let is_zero = match command {
-                    Data::LineTo(p) => p.distance_squared(start) < **tolerance_squared,
+                    Data::LineTo(p) => p.distance_squared(start) < *tolerance_squared,
                     Data::CurveTo(curve) => {
-                        curve.start_control.distance_squared(start) < **tolerance_squared
-                            && curve.end_control.distance_squared(start) < **tolerance_squared
-                            && curve.end_point.distance_squared(start) < **tolerance_squared
+                        curve.start_control.distance_squared(start) < *tolerance_squared
+                            && curve.end_control.distance_squared(start) < *tolerance_squared
+                            && curve.end_point.distance_squared(start) < *tolerance_squared
                     }
                     Data::ArcTo(arc) => {
                         arc.sweep_angle() < PI
-                            && arc.end_point().distance_squared(start) < **tolerance_squared
+                            && arc.end_point().distance_squared(start) < *tolerance_squared
                     }
                 };
                 start = command.end_point();
@@ -232,7 +229,7 @@ impl Path {
         if let Some(segment) = self.0.last_mut() {
             if segment.closed {
                 segment.data.pop_if(|command| match command {
-                    Data::LineTo(p) => p.distance_squared(segment.start) < **tolerance_squared,
+                    Data::LineTo(p) => p.distance_squared(segment.start) < *tolerance_squared,
                     _ => false,
                 });
             }
@@ -240,7 +237,7 @@ impl Path {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn join_nodes(&mut self, tolerance: &Tolerance, tolerance_squared: &ToleranceSquared) {
+    fn join_nodes(&mut self, tolerance: &Tolerance, tolerance_squared: ToleranceSquared) {
         for segment in &mut self.0 {
             let mut new_data = vec![];
             let mut start = segment.start;
@@ -286,12 +283,11 @@ impl Path {
                             let merged = Curve::new(p1, p2, current.end_point);
 
                             let (left, split_point, right) = merged.subdivide_t(start, t);
-                            if split_point.distance_squared(previous.end_point)
-                                < **tolerance_squared
+                            if split_point.distance_squared(previous.end_point) < *tolerance_squared
                                 && left.end_control.distance_squared(previous.end_control)
-                                    < **tolerance_squared
+                                    < *tolerance_squared
                                 && right.start_control.distance_squared(current.start_control)
-                                    < **tolerance_squared
+                                    < *tolerance_squared
                             {
                                 *previous = merged;
                             } else {
@@ -370,14 +366,14 @@ impl Path {
         }
     }
 
-    fn remove_close_line(&mut self, tolerance_squared: &ToleranceSquared) {
+    fn remove_close_line(&mut self, tolerance_squared: ToleranceSquared) {
         for segment in self.0.iter_mut().filter(|segment| segment.closed()) {
             if let Some(end) = segment.data.last().map(|data| match data {
                 Data::LineTo(end) => *end,
                 Data::CurveTo(curve) => curve.end_point,
                 Data::ArcTo(arc) => arc.end_point(),
             }) {
-                if segment.start().distance_squared(end) < **tolerance_squared {
+                if segment.start().distance_squared(end) < *tolerance_squared {
                     segment.closed = segment
                         .data
                         .pop_if(|command| matches!(command, Data::LineTo(_)))
@@ -403,8 +399,9 @@ mod test {
     use std::f64::consts::PI;
 
     use crate::{
+        geometry::Tolerance,
         geometry::{Arc, Curve, Point},
-        optimize::{Options, Tolerance},
+        optimize::Options,
         paths::segment::{Data, Path, Segment},
     };
 
@@ -430,7 +427,7 @@ mod test {
         }]);
         path.simplify(
             Options::StraightCurves,
-            &crate::paths::segment::Tolerance {
+            &crate::geometry::Tolerance {
                 positional: 0.01,
                 angular: 0.01,
                 precision: 2,

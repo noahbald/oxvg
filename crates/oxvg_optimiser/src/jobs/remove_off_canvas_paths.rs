@@ -9,7 +9,7 @@ use oxvg_ast::{
 use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
 use oxvg_path::{
     command::Data,
-    geometry::Point,
+    geometry::{Point, Tolerance},
     paths::segment::{self, Segment},
 };
 #[cfg(feature = "serde")]
@@ -125,7 +125,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
         view_box_path_data.close();
         let view_box_path_data = segment::Path(vec![view_box_path_data]);
 
-        let segments = segment::Path::from_svg(&*path, &segment::Tolerance::default());
+        let segments = segment::Path::from_svg(&*path, &Tolerance::default());
         if !view_box_path_data.intersects(&segments) {
             element.remove();
         }

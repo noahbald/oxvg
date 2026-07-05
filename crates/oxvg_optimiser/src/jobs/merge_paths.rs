@@ -13,10 +13,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{inheritable::Inheritable, path};
-use oxvg_path::{
-    command,
-    paths::segment::{self, Tolerance},
-};
+use oxvg_path::{command, geometry::Tolerance, paths::segment};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -195,8 +192,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 if self.force || {
                     let tolerance = Tolerance::default();
                     let prev_path_data = segment::Path::from_svg(&*prev_path_data, &tolerance);
-                    let current_path_data =
-                        segment::Path::from_svg(&*current_path_data, &tolerance);
+                    let current_path_data = segment::Path::from_svg(&current_path_data, &tolerance);
                     !prev_path_data.intersects(&current_path_data)
                 } {
                     log::debug!("merging, current doesn't intersect prev");

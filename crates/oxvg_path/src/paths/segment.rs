@@ -5,98 +5,11 @@
 //! - Simplification of paths and segments
 //! - Boolean operations of paths and segments
 //! - Translations of paths and segments
-#[cfg(feature = "wasm")]
-use tsify::Tsify;
-
-use std::ops::Deref;
-
 use crate::geometry::{Arc, Curve, Point};
 
 mod convert;
+#[cfg(feature = "optimise")]
 mod simplify;
-
-#[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone)]
-/// Tolerance for converting between SVG, Segments, and Polygons
-pub struct Tolerance {
-    /// The level of tolerance when comparing the error between distances
-    #[cfg_attr(feature = "serde", serde(default = "positional_default"))]
-    pub positional: f64,
-    /// The level of tolerance when comparing the error between angles
-    #[cfg_attr(feature = "serde", serde(default = "angular_default"))]
-    pub angular: f64,
-    /// The number of decimal places to round numbers to during processing
-    #[cfg_attr(feature = "serde", serde(default = "precision_default"))]
-    pub precision: i32,
-}
-
-const fn positional_default() -> f64 {
-    1e-3
-}
-const fn angular_default() -> f64 {
-    1e-3
-}
-const fn precision_default() -> i32 {
-    3
-}
-
-impl Default for Tolerance {
-    fn default() -> Self {
-        // TODO: Experiment for best defaults
-        Self {
-            positional: positional_default(),
-            angular: angular_default(),
-            precision: precision_default(),
-        }
-    }
-}
-
-impl Tolerance {
-    /// Returns the square of the positional tolerance.
-    pub fn square(&self) -> ToleranceSquared {
-        ToleranceSquared(self.positional * self.positional)
-    }
-
-    /// Returns the scale for the precision.
-    pub fn precision(&self) -> TolerancePrecision {
-        TolerancePrecision(10.0_f64.powi(self.precision))
-    }
-}
-
-/// A monad representing a squared positional tolerance.
-#[derive(Clone, Copy)]
-pub struct ToleranceSquared(pub f64);
-
-#[derive(Debug)]
-/// A monad representing a scale for rounding a number to some precision
-pub struct TolerancePrecision(pub f64);
-
-impl Deref for ToleranceSquared {
-    type Target = f64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl TolerancePrecision {
-    /// Expands the number to a rounded number
-    pub const fn scale(&self, value: f64) -> f64 {
-        (value * self.0).round()
-    }
-
-    /// Shrink the number to a decimal number
-    pub const fn descale(&self, value: f64) -> f64 {
-        value / self.0
-    }
-
-    /// Rounds a number to the given precision
-    pub const fn round(&self, value: f64) -> f64 {
-        self.descale(self.scale(value))
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 /// A reduced representation of an SVG path command
@@ -154,6 +67,7 @@ impl Data {
 }
 
 impl Segment {
+    /// Constructs a segment with the given data and closed flag at some start point.
     pub fn new(start: Point, data: Vec<Data>, closed: bool) -> Self {
         Self {
             start,
@@ -162,6 +76,7 @@ impl Segment {
         }
     }
 
+    /// Constructs an empty segment that starts at the given point.
     pub fn empty(start: Point) -> Self {
         Self {
             start,
@@ -170,6 +85,8 @@ impl Segment {
         }
     }
 
+    /// Constructs a segment with at least the capacity given for storing [`Data`] that starts at
+    /// the given point.
     pub fn with_capacity(start: Point, capacity: usize) -> Self {
         Self {
             start,
@@ -178,14 +95,17 @@ impl Segment {
         }
     }
 
+    /// Appends the command to the segment.
     pub fn push(&mut self, data: Data) {
         self.data.push(data);
     }
 
+    /// Marks the segment as unclosed, equivalent to ending without `Z`.
     pub fn close(&mut self) {
         self.closed = true;
     }
 
+    /// Marks the segment as closed, equivalent to ending with `Z`.
     pub fn unclose(&mut self) {
         self.closed = false;
     }

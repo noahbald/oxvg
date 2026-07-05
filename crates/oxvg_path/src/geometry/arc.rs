@@ -2,21 +2,29 @@
 use std::{cell::Cell, f64::consts::PI};
 
 use crate::{
-    geometry::{ellipses::Ellipses, Curve, Point, Quadrant},
+    geometry::{
+        ellipses::Ellipses, Curve, Point, Quadrant, Tolerance, TolerancePrecision, ToleranceSquared,
+    },
     math::{self, radius_factor},
-    optimize::Tolerance,
-    paths::segment::{TolerancePrecision, ToleranceSquared},
 };
 
 #[derive(Clone, PartialEq)]
 /// An arc curve to some point.
 pub struct Arc {
+    /// The center of the arc's ellipse
     center: Point,
+    /// The radii of the arc's ellipse
     radii: Point,
+    /// The start angle of the arc.
     start_angle: f64,
+    /// The sweep angle of the arc.
     sweep_angle: f64,
+    /// The x-rotation of th arc's ellipse
     x_rotation: f64,
-    // TODO: private internals; invalid memo on mutation; debug_assert memo
+    /// The memoised end point of the arc. Used to prevent floating point errors
+    /// during arc conversions and divisions.
+    ///
+    /// This should never be `pub` and must be invalidated on arc mutation.
     end_point_memo: Cell<Option<Point>>,
 }
 
@@ -68,42 +76,93 @@ impl Arc {
         self.x_rotation
     }
 
+    /// Sets the center point of the arc's ellipse.
     pub fn set_center(&mut self, center: Point) {
         self.end_point_memo.set(None);
         self.center = center;
     }
 
+    /// Sets the center point of the arc's ellipse.
     pub fn set_radii(&mut self, radii: Point) {
         self.end_point_memo.set(None);
         self.radii = radii;
     }
 
+    /// Sets the start angle of the arc.
     pub fn set_start_angle(&mut self, start_angle: f64) {
         self.end_point_memo.set(None);
         self.start_angle = start_angle;
     }
 
+    /// Sets the end angle of the arc.
     pub fn set_sweep_angle(&mut self, sweep_angle: f64) {
         self.end_point_memo.set(None);
         self.sweep_angle = sweep_angle;
     }
 
+    /// Sets the x-rotation of the arc.
     pub fn set_x_rotation(&mut self, x_rotation: f64) {
         self.end_point_memo.set(None);
         self.x_rotation = x_rotation;
     }
 
     /// Returns the point on the ellipses of the arc's start point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let start_point = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).start_point();
+    /// assert!(start_point.distance(Point::Y) < 1e-15);
+    /// ```
     pub fn start_point(&self) -> Point {
         self.point_at_angle(self.start_angle())
     }
 
     /// Returns the point on the ellipses halfway between the arc's start and end point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let mid_point = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).mid_point();
+    /// let expected_mid_point = Point::new(-1.0, 1.0) / 2.0_f64.sqrt();
+    /// assert!(mid_point.distance(expected_mid_point) < 1e-15);
+    /// ```
     pub fn mid_point(&self) -> Point {
-        self.point_at_angle(self.start_angle() + (self.sweep_angle() / 2.0))
+        self.point_at(0.5)
     }
 
     /// Returns the point on the ellipses of the arc's end point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let end_point = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).end_point();
+    /// assert!(end_point.distance(Point::NEG_X) < 1e-15);
+    /// ```
     pub fn end_point(&self) -> Point {
         if let Some(end_point) = self.end_point_memo.get() {
             end_point
@@ -114,6 +173,29 @@ impl Arc {
         }
     }
 
+    /// Overwrites the memoised end point value of the arc. Useful for overwriting
+    /// floating point errors that may have occurred during conversions and divisions.
+    ///
+    /// # Panics
+    ///
+    /// Debug builds will panic if the memo is off by the computed end-point by some
+    /// tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let mut arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// );
+    /// arc.set_end_point_memo(Point::NEG_X);
+    /// assert_eq!(arc.end_point(), Point::NEG_X);
+    /// ```
     pub fn set_end_point_memo(&mut self, end_point: Point) {
         self.end_point_memo.set(None);
         debug_assert!(
@@ -126,6 +208,28 @@ impl Arc {
     }
 
     #[must_use]
+    /// Overwrites the memoised end point value of the arc. Useful for overwriting
+    /// floating point errors that may have occurred during conversions and divisions.
+    ///
+    /// # Panics
+    ///
+    /// Debug builds will panic if the memo is off by the computed end-point by some
+    /// tolerance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).with_end_point_memo(Point::NEG_X);
+    /// assert_eq!(arc.end_point(), Point::NEG_X);
+    /// ```
     pub fn with_end_point_memo(mut self, end_point: Point) -> Self {
         self.set_end_point_memo(end_point);
         self
@@ -136,16 +240,65 @@ impl Arc {
         Ellipses::new(self.center, self.radii, self.x_rotation)
     }
 
+    /// Returns the point on the arc `t` percentage along the arc's sweep angle, where
+    /// `t` is a value within `0.0` and `1.0`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let mid_point = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).point_at(0.5);
+    /// let expected_mid_point = Point::new(-1.0, 1.0) / 2.0_f64.sqrt();
+    /// assert!(mid_point.distance(expected_mid_point) < 1e-15);
+    /// ```
     pub fn point_at(&self, t: f64) -> Point {
         self.point_at_angle(self.start_angle + self.sweep_angle * t)
     }
 
     /// Returns the point on the ellipses at the given angle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let point = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// ).point_at_angle(0.0);
+    /// assert!(point.distance(Point::X) < 1e-15);
+    /// ```
     pub fn point_at_angle(&self, angle_radians: f64) -> Point {
         self.ellipses().point_at_angle(angle_radians)
     }
 
     /// Returns the approximate perimeter of the arc, using Ramanujan's algorithm.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// );
+    /// // 4 iterations is usually sufficient.
+    /// assert_eq!(arc.len(4), 1.5707963267948966);
+    /// ```
     #[allow(clippy::cast_precision_loss)]
     pub fn len(&self, iterations: usize) -> f64 {
         if self.radii().x == 0.0 || self.radii().y == 0.0 {
@@ -179,7 +332,7 @@ impl Arc {
     }
 
     /// Converts `a` command parameters to [`Arc`].
-    /// Returns `None` if the command can be replaced with [`Line`].
+    /// Returns `None` if the command can be replaced with [`oxvg_path::geometry::Line`].
     ///
     /// Cursor is updated when `Some` is returned.
     pub fn from_arc_by(mut arc_by: [f64; 7], cursor: &mut Point) -> Option<Self> {
@@ -189,7 +342,7 @@ impl Arc {
     }
 
     /// Converts `A` command parameters to [`Arc`].
-    /// Returns `None` if the command can be replaced with [`Line`].
+    /// Returns `None` if the command can be replaced with [`oxvg_path::geometry::Line`].
     ///
     /// Cursor is updated when `Some` is returned.
     #[allow(clippy::similar_names)]
@@ -281,6 +434,21 @@ impl Arc {
     }
 
     /// Returns whether the arc approximately fits on a circle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// );
+    /// assert!(arc.is_circle(&Tolerance::default()));
+    /// ```
     pub fn is_circle(&self, tolerance: &Tolerance) -> bool {
         self.ellipses().is_circle(tolerance)
     }
@@ -289,7 +457,7 @@ impl Arc {
         &self,
         other: &Self,
         tolerance: &Tolerance,
-        tolerance_squared: &ToleranceSquared,
+        tolerance_squared: ToleranceSquared,
     ) -> bool {
         let min_sweep = self.sweep_angle().abs().min(other.sweep_angle().abs());
         if self.radii().x == self.radii().y
@@ -305,12 +473,12 @@ impl Arc {
         }
 
         let scale = (min_sweep.powi(-1)).max(40.0 * self.radii().len());
-        let tolerance_scaled = **tolerance_squared * scale;
+        let tolerance_scaled = *tolerance_squared * scale;
         self.center().distance_squared(other.center()) < tolerance_scaled
             && self.radii().distance_squared(other.radii()) < tolerance_scaled
             && (
                 // TODO: Check x_rotation affects start_angle
-                (self.radii().x - self.radii().y).abs() < **tolerance_squared
+                (self.radii().x - self.radii().y).abs() < *tolerance_squared
                     || (self.x_rotation() - other.x_rotation()).abs() < tolerance.angular
             )
     }
@@ -350,20 +518,20 @@ impl Arc {
     pub fn to_arc_to(
         &self,
         tolerance: &Tolerance,
-        tolerance_squared: &ToleranceSquared,
-        precision: &TolerancePrecision,
+        tolerance_squared: ToleranceSquared,
+        precision: TolerancePrecision,
     ) -> [f64; 7] {
         let end = self.end_point();
         let mut radii = self.radii();
         let lambda = self.radius_factor();
         let limit = self.radii() * lambda.sqrt();
         if (self.radius_factor() > 1.0)
-            || ((self.radii() * lambda.sqrt()).distance_squared(self.radii()) < **tolerance_squared)
+            || ((self.radii() * lambda.sqrt()).distance_squared(self.radii()) < *tolerance_squared)
         {
             let denom = math::euclid_gcd_lossy(radii.x, radii.y, tolerance, precision);
             let mut simple = radii / denom;
             while (simple - limit).quadrant() == Quadrant::A {
-                simple = simple / 2.0;
+                simple /= 2.0;
             }
             radii = simple;
         }
@@ -387,12 +555,12 @@ impl Arc {
         curve: &Curve,
         start: Point,
         tolerance: &Tolerance,
-        tolerance_squared: &ToleranceSquared,
+        tolerance_squared: ToleranceSquared,
     ) -> Option<Self> {
         let ellipses = Ellipses::fit_curve(curve, start, tolerance)?;
         let tolerance = ellipses.ellipse_tolerance(tolerance_squared);
-        let start_angle = ellipses.angle_at_point(start, &tolerance)?;
-        let end_angle = ellipses.angle_at_point(curve.end_point, &tolerance)?;
+        let start_angle = ellipses.angle_at_point(start, tolerance)?;
+        let end_angle = ellipses.angle_at_point(curve.end_point, tolerance)?;
         let mut sweep_angle = end_angle - start_angle;
 
         if sweep_angle > PI {
@@ -409,6 +577,21 @@ impl Arc {
     }
 
     /// Returns two halves of the arc, with the left being the first half and the right being the second half.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert!(arc.is_circle(&Tolerance::default()));
+    /// ```
     pub fn subdivide(&self) -> (Arc, Arc) {
         self.subdivide_t(0.5)
     }
@@ -428,10 +611,28 @@ impl Arc {
     /// Returns the percentage as a number between `0.0` and `1.0` that the given point
     /// is between the arc's start and end point, when that point is on the arc within
     /// some tolerance.
-    pub fn t_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<f64> {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.t_at(Point::NEG_X, Tolerance::default().square()),
+    ///   Some(0.5),
+    /// );
+    /// ```
+    pub fn t_at(&self, at: Point, tolerance: ToleranceSquared) -> Option<f64> {
         let ellipses = self.ellipses();
         let tolerance = ellipses.ellipse_tolerance(tolerance);
-        let mut angle = self.ellipses().angle_at_point(at, &tolerance)?;
+        let mut angle = self.ellipses().angle_at_point(at, tolerance)?;
         if self.sweep_angle > 0.0 && angle < 0.0 {
             angle += 2.0 * PI;
         } else if self.sweep_angle < 0.0 && angle > 0.0 {
@@ -452,13 +653,79 @@ impl Arc {
 
     /// Returns two divisions of the arc by some point between the arc's start and end, with the left
     /// being the first division and the right being the second division.
-    pub fn subdivide_at(&self, at: Point, tolerance: &ToleranceSquared) -> Option<(Arc, Arc)> {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.subdivide_at(Point::NEG_X, Tolerance::default().square()),
+    ///   Some((
+    ///     Arc::new(
+    ///       Point::ZERO,
+    ///       Point::UNIT,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       0.0,
+    ///     ),
+    ///     Arc::new(
+    ///       Point::ZERO,
+    ///       Point::UNIT,
+    ///       std::f64::consts::PI,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       0.0,
+    ///     ),
+    ///   )),
+    /// );
+    /// ```
+    pub fn subdivide_at(&self, at: Point, tolerance: ToleranceSquared) -> Option<(Arc, Arc)> {
         Some(self.subdivide_t(self.t_at(at, tolerance)?))
     }
 
     /// Returns two divisions of the arc by some percentage between the arc's start and end as a number
     /// between `0.0` and `1.0`, with the left being the first division and the right being
     /// the second division.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.subdivide_t(0.5),
+    ///   (
+    ///     Arc::new(
+    ///       Point::ZERO,
+    ///       Point::UNIT,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       0.0,
+    ///     ),
+    ///     Arc::new(
+    ///       Point::ZERO,
+    ///       Point::UNIT,
+    ///       std::f64::consts::PI,
+    ///       std::f64::consts::FRAC_PI_2,
+    ///       0.0,
+    ///     ),
+    ///   ),
+    /// );
+    /// ```
     pub fn subdivide_t(&self, t: f64) -> (Arc, Arc) {
         let split_angle = self.start_angle + t * self.sweep_angle;
 
@@ -473,6 +740,30 @@ impl Arc {
     }
 
     /// Returns the sub-arc of this arc between the two percentages.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.clamp_t(0.5, 1.0),
+    ///   Arc::new(
+    ///     Point::ZERO,
+    ///     Point::UNIT,
+    ///     std::f64::consts::PI,
+    ///     std::f64::consts::FRAC_PI_2,
+    ///     0.0,
+    ///   ),
+    /// );
+    /// ```
     #[must_use]
     pub fn clamp_t(&self, t1: f64, t2: f64) -> Self {
         debug_assert!((0.0..=1.0).contains(&t1));
@@ -485,12 +776,60 @@ impl Arc {
     }
 
     /// Returns the sub-arc of this arc between the two points.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.clamp_at(Point::NEG_X, Point::NEG_Y, Tolerance::default().square()),
+    ///   Some(Arc::new(
+    ///     Point::ZERO,
+    ///     Point::UNIT,
+    ///     std::f64::consts::PI,
+    ///     std::f64::consts::FRAC_PI_2,
+    ///     0.0,
+    ///   )),
+    /// );
+    /// ```
     #[must_use]
-    pub fn clamp_at(&self, t1: Point, t2: Point, tolerance: &ToleranceSquared) -> Option<Self> {
+    pub fn clamp_at(&self, t1: Point, t2: Point, tolerance: ToleranceSquared) -> Option<Self> {
         Some(self.clamp_t(self.t_at(t1, tolerance)?, self.t_at(t2, tolerance)?))
     }
 
     /// Returns an arc spanning from the end to start of this arc
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(
+    ///   arc.reverse(),
+    ///   Arc::new(
+    ///     Point::ZERO,
+    ///     Point::UNIT,
+    ///     std::f64::consts::PI + std::f64::consts::FRAC_PI_2,
+    ///     -std::f64::consts::PI,
+    ///     0.0,
+    ///   ),
+    /// );
+    /// ```
     #[must_use]
     pub fn reverse(&self) -> Self {
         Arc::new(
@@ -503,6 +842,21 @@ impl Arc {
     }
 
     /// Returns the radius factor as defined by the SVG spec (F6.6.2)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::PI,
+    ///   0.0,
+    /// );
+    /// assert_eq!(arc.radius_factor(), 1.0);
+    /// ```
     pub fn radius_factor(&self) -> f64 {
         radius_factor(
             self.radii().x,

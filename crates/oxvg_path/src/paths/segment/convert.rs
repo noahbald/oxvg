@@ -1,10 +1,11 @@
 use crate::{
     command::{self, ID},
-    geometry::{Arc, Curve, Point, Polygon, QuadraticBezierTo, SmoothBezierTo},
-    math::{self},
-    paths::segment::{
-        Data, IterStartCursorItem, Path, Segment, Tolerance, TolerancePrecision, ToleranceSquared,
+    geometry::{
+        Arc, Curve, Point, QuadraticBezierTo, SmoothBezierTo, Tolerance, TolerancePrecision,
+        ToleranceSquared,
     },
+    math::{self},
+    paths::segment::{Data, IterStartCursorItem, Path, Segment},
 };
 
 impl Data {
@@ -19,7 +20,7 @@ impl Data {
         let last_control = control.take();
         match command {
             command::Data::MoveBy(a) => {
-                *cursor = *cursor + Point::from(*a);
+                *cursor += Point::from(*a);
                 *start = *cursor;
                 None
             }
@@ -29,7 +30,7 @@ impl Data {
                 None
             }
             command::Data::LineBy(a) => {
-                *cursor = *cursor + Point::from(*a);
+                *cursor += Point::from(*a);
                 Some(Data::LineTo(*cursor))
             }
             command::Data::LineTo(a) => {
@@ -147,7 +148,7 @@ impl Data {
                 Arc::from_arc_by(*a, cursor)
                     .map(Self::ArcTo)
                     .unwrap_or_else(|| {
-                        *cursor = *cursor + Point::new(a[5], a[6]);
+                        *cursor += Point::new(a[5], a[6]);
                         Self::LineTo(*cursor)
                     }),
             ),
@@ -206,32 +207,6 @@ impl Segment {
             start.distance_squared(result.data().last().unwrap().end_point()) < tolerance_squared;
         result
     }
-
-    /// Coverts the segment to a polygon, dividing curves and arcs up to some tolerance.
-    ///
-    /// # Panics
-    ///
-    /// If the generated polygons have to points.
-    pub fn to_polygon(&self, tolerance: &Tolerance) -> Polygon {
-        let mut points = vec![*self.start()];
-        for item in self.data() {
-            match item {
-                Data::LineTo(point) => points.push(*point),
-                Data::CurveTo(curve) => {
-                    let start = points.last().copied().unwrap();
-                    Polygon::from_curve(&mut points, start, curve, &tolerance.square());
-                }
-                Data::ArcTo(arc) => {
-                    let start = points.last().copied().unwrap();
-                    Polygon::from_arc(&mut points, start, arc, &tolerance.square(), 0);
-                }
-            }
-        }
-        Polygon {
-            points,
-            closed: self.closed(),
-        }
-    }
 }
 
 impl Path {
@@ -284,7 +259,7 @@ impl Path {
             let control = last_control.take();
             let Some(data) = data else {
                 let mut m = command::Data::MoveTo(start.into());
-                m.round(&precision);
+                m.round(precision);
                 commands.push(m);
                 continue;
             };
@@ -299,7 +274,7 @@ impl Path {
                     start,
                     *to,
                     implicit.as_ref(),
-                    &precision,
+                    precision,
                 ),
                 Data::ArcTo(arc) => Self::to_svg_arc(
                     previous,
@@ -307,8 +282,8 @@ impl Path {
                     start,
                     implicit.as_ref(),
                     tolerance,
-                    &tolerance_squared,
-                    &precision,
+                    tolerance_squared,
+                    precision,
                     smart_arc_rounding,
                 ),
                 Data::CurveTo(curve) => {
@@ -319,8 +294,8 @@ impl Path {
                         curve,
                         next,
                         implicit.as_ref(),
-                        &tolerance_squared,
-                        &precision,
+                        tolerance_squared,
+                        precision,
                     );
                     last_control = control;
                     command
@@ -339,7 +314,7 @@ impl Path {
                     }
                     _ => command::Data::MoveTo(segment_start.into()),
                 };
-                m.round(&precision);
+                m.round(precision);
                 commands.push(m);
             }
             let close = close && command.id() != ID::ClosePath;
@@ -358,7 +333,7 @@ impl Path {
         start: Point,
         to: Point,
         implicit: Option<&ID>,
-        precision: &TolerancePrecision,
+        precision: TolerancePrecision,
     ) -> command::Data {
         let by = to - start;
         if start == to {
@@ -388,8 +363,8 @@ impl Path {
         curve: &Curve,
         next: Option<&Data>,
         implicit: Option<&ID>,
-        tolerance_squared: &ToleranceSquared,
-        precision: &TolerancePrecision,
+        tolerance_squared: ToleranceSquared,
+        precision: TolerancePrecision,
     ) -> (command::Data, Option<Point>) {
         let start_control = curve.start_control;
         let end_control = curve.end_control;
@@ -501,8 +476,8 @@ impl Path {
         start: Point,
         implicit: Option<&ID>,
         tolerance: &Tolerance,
-        tolerance_squared: &ToleranceSquared,
-        precision: &TolerancePrecision,
+        tolerance_squared: ToleranceSquared,
+        precision: TolerancePrecision,
         smart_arc_rounding: bool,
     ) -> command::Data {
         let by = arc.end_point() - start;
@@ -543,7 +518,7 @@ fn compactest_vec(
     previous: Option<&command::Data>,
     data: Vec<command::Data>,
     implicit: Option<&ID>,
-    precision: &TolerancePrecision,
+    precision: TolerancePrecision,
 ) -> command::Data {
     data.into_iter()
         .map(|d| {
@@ -581,7 +556,7 @@ pub(crate) fn compactest(
     left: command::Data,
     right: command::Data,
     implicit: Option<&ID>,
-    precision: &TolerancePrecision,
+    precision: TolerancePrecision,
 ) -> command::Data {
     compactest_vec(previous, vec![left, right], implicit, precision)
 }
@@ -591,8 +566,8 @@ mod test {
     use oxvg_parse::Parse as _;
 
     use crate::{
-        geometry::Point,
-        optimize::{Options, Tolerance},
+        geometry::{Point, Tolerance},
+        optimize::Options,
         paths::segment::{Data, Path, Segment},
     };
 

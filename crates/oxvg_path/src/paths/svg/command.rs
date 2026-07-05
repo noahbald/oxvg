@@ -1,7 +1,7 @@
 //! Path data representations for SVG paths
 use std::fmt::Write as _;
 
-use crate::{math, paths::segment::TolerancePrecision};
+use crate::{geometry::TolerancePrecision, math};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -178,7 +178,7 @@ impl Data {
     }
 
     /// Rounds the arguments of the comand data up to some precision
-    pub fn round(&mut self, precision: &TolerancePrecision) {
+    pub fn round(&mut self, precision: TolerancePrecision) {
         let mut nulled = false;
         self.args_mut().iter_mut().enumerate().for_each(|(i, d)| {
             let mut result = precision.round(*d);
@@ -240,41 +240,6 @@ impl Data {
     /// Returns whether the command goes to a relative position.
     pub fn is_by(&self) -> bool {
         matches!(self, Self::ClosePath) || !self.is_to()
-    }
-
-    pub(crate) fn make_longhand(&mut self, data: &[f64]) {
-        match self {
-            Self::SmoothBezierBy(a) => {
-                *self = Self::CubicBezierBy(Self::make_s_args_longhand(*a, data));
-            }
-            Self::SmoothQuadraticBezierBy(a) => {
-                *self = Self::QuadraticBezierBy(Self::make_t_args_longhand(*a, data));
-            }
-            Self::Implicit(c) => c.make_longhand(data),
-            _ => {}
-        }
-    }
-    pub(crate) fn make_s_args_longhand(source: [f64; 4], data: &[f64]) -> [f64; 6] {
-        let len = data.len();
-        assert!(len >= 4);
-        [
-            data[len - 2] - data[len - 4],
-            data[len - 1] - data[len - 3],
-            source[0],
-            source[1],
-            source[2],
-            source[3],
-        ]
-    }
-    pub(crate) fn make_t_args_longhand(source: [f64; 2], data: &[f64]) -> [f64; 4] {
-        let len = data.len();
-        assert!(len >= 4);
-        [
-            data[len - 2] - data[len - 4],
-            data[len - 1] - data[len - 3],
-            source[0],
-            source[1],
-        ]
     }
 
     /// Whether, when formatting itself, a space is needed between itself and the previous
