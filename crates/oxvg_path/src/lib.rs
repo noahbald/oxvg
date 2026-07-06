@@ -10,8 +10,6 @@
 //!
 //! For a simpler path representation, best for building and manipulations, use [`paths::segment::Path`].
 //!
-//! For a polygonal representation, best for geospacial analysis, use [`paths::events::Path`].
-//!
 //! # Licensing
 //!
 //! This library is based off the [`convertPathData`](https://svgo.dev/docs/plugins/convertPathData/) plugin from SVGO and is similarly released under MIT.

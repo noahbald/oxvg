@@ -332,7 +332,7 @@ impl Arc {
     }
 
     /// Converts `a` command parameters to [`Arc`].
-    /// Returns `None` if the command can be replaced with [`oxvg_path::geometry::Line`].
+    /// Returns `None` if the command can be replaced with [`crate::geometry::Line`].
     ///
     /// Cursor is updated when `Some` is returned.
     pub fn from_arc_by(mut arc_by: [f64; 7], cursor: &mut Point) -> Option<Self> {
@@ -342,7 +342,7 @@ impl Arc {
     }
 
     /// Converts `A` command parameters to [`Arc`].
-    /// Returns `None` if the command can be replaced with [`oxvg_path::geometry::Line`].
+    /// Returns `None` if the command can be replaced with [`crate::geometry::Line`].
     ///
     /// Cursor is updated when `Some` is returned.
     #[allow(clippy::similar_names)]

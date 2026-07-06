@@ -16,7 +16,7 @@ use crate::{command, geometry::TolerancePrecision};
 /// assert_eq!(&path.to_string(), "M10 .01.5-1");
 /// ```
 ///
-/// For more extensive minification, look into using the [run](convert::run) function.
+/// For more extensive minification, look into using the [`Path::optimize`] method.
 pub struct Path(pub Vec<command::Data>);
 
 impl Path {
