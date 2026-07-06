@@ -132,10 +132,10 @@ impl ExactSizeIterator for ArcCoordsIter<'_> {
 #[allow(clippy::cast_sign_loss)]
 fn len(t: f64, t_step: f64) -> usize {
     let total = t_step.powi(-1);
-    let remaning = total - (t / t_step);
+    let remaining = total - (t / t_step);
 
     // NOTE: Truncated
-    remaning as usize
+    remaining as usize
 }
 
 impl CoordsIter for CurveWithStart {

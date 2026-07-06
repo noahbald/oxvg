@@ -238,7 +238,7 @@ impl Path {
 impl Path {
     /// Returns an svg equivalent path from a segmented path, in the compactest set of equivalent commands.
     pub fn to_svg(&self, tolerance: &Tolerance, smart_arc_rounding: bool) -> crate::Path {
-        // NOTE: When comparing compactness, order of precendence is given by order of TO/BY commands.
+        // NOTE: When comparing compactness, order of precedence is given by order of TO/BY commands.
         //       We should order it so that BY is preferenced for readability.
         let tolerance_squared = tolerance.square();
         let precision = tolerance.precision();
@@ -516,7 +516,7 @@ impl Path {
 
 fn compactest_vec(
     previous: Option<&command::Data>,
-    data: Vec<command::Data>,
+    data: impl IntoIterator<Item = command::Data>,
     implicit: Option<&ID>,
     precision: TolerancePrecision,
 ) -> command::Data {
@@ -558,7 +558,7 @@ pub(crate) fn compactest(
     implicit: Option<&ID>,
     precision: TolerancePrecision,
 ) -> command::Data {
-    compactest_vec(previous, vec![left, right], implicit, precision)
+    compactest_vec(previous, [left, right], implicit, precision)
 }
 
 #[cfg(test)]

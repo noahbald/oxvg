@@ -257,7 +257,7 @@ impl Point {
         self.dot(self)
     }
 
-    /// Returns the andle of the point from `[0, 0]` in degrees.
+    /// Returns the angle of the point from `[0, 0]` in degrees.
     ///
     /// # Examples
     ///

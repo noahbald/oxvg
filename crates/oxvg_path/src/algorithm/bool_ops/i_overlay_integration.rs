@@ -257,12 +257,12 @@ pub mod convert {
 
         let tolerance = 1e-3;
         let bbox = Rectangle::new(Point(a), Point(b));
-        let query_envolope: AABB<[f64; 2]> = <RTreeEntry as RTreeObject>::Envelope::from_corners(
+        let query_envelope: AABB<[f64; 2]> = <RTreeEntry as RTreeObject>::Envelope::from_corners(
             (bbox.min() - *Point::splat(tolerance)).into(),
             (bbox.max() + *Point::splat(tolerance)).into(),
         );
 
-        for entry in r_tree.locate_in_envelope_intersecting(&query_envolope) {
+        for entry in r_tree.locate_in_envelope_intersecting(&query_envelope) {
             let seg = &entry.source;
             if !seg.bbox.intersects(&bbox) {
                 continue;

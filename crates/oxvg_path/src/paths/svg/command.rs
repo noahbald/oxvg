@@ -182,7 +182,7 @@ impl Data {
         }
     }
 
-    /// Rounds the arguments of the comand data up to some precision
+    /// Rounds the arguments of the command data up to some precision
     pub fn round(&mut self, precision: TolerancePrecision) {
         let mut nulled = false;
         self.args_mut().iter_mut().enumerate().for_each(|(i, d)| {
@@ -271,7 +271,7 @@ impl Data {
             false
         };
         let mut count = ProbeLen { len: 0, negative };
-        count.write_fmt(format_args!("{self}")).unwrap();
+        let _ = write!(count, "{self}");
         count
     }
 }

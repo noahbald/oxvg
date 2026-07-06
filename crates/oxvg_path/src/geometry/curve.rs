@@ -190,7 +190,7 @@ impl Curve {
     ///
     /// # Correctness
     ///
-    /// If the quad control is not corect, then the returned
+    /// If the quad control is not correct, then the returned
     /// smooth quadratic bezier is not the same curve.
     pub fn quadratic_bezier_unchecked(&self, quad_control: Point) -> QuadraticBezierTo {
         QuadraticBezierTo {

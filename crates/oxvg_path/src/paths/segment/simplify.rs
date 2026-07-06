@@ -147,16 +147,6 @@ impl Path {
                     precision,
                 );
                 if let Some(arc) = candidates.get(next_i - 1).cloned().flatten() {
-                    Path::to_svg_arc(
-                        previous.as_ref(),
-                        &arc,
-                        start,
-                        implicit.as_ref(),
-                        tolerance,
-                        tolerance_squared,
-                        precision,
-                        smart_arc_rounding,
-                    );
                     // First case: arc will be joined to next arc
                     if candidates
                         .get(next_i)
