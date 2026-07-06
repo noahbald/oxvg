@@ -30,6 +30,7 @@ impl<'a> CurveCoordsIter<'a> {
         curve: &'a CurveWithStart,
         tolerance_squared: ToleranceSquared,
     ) -> Self {
+        // TODO: PERF: Adaptive steps would improve iteration count for consumers
         let mut t_step = 1.0;
         for _ in 0..7 {
             let distance_squared = curve.start.distance_squared(curve.point_at(t_step));
@@ -61,6 +62,7 @@ impl<'a> ArcCoordsIter<'a> {
         tolerance: &Tolerance,
         tolerance_squared: ToleranceSquared,
     ) -> Self {
+        // TODO: PERF: Adaptive steps would improve iteration count for consumers
         let mut t_step = 1.0;
         for _ in 0..7 {
             if (t_step * arc.sweep_angle()).abs() <= tolerance.angular

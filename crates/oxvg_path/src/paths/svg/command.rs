@@ -102,6 +102,11 @@ pub enum ID {
     Implicit(Box<ID>),
 }
 
+pub(crate) struct ProbeLen {
+    pub len: usize,
+    pub negative: bool,
+}
+
 impl Data {
     /// Returns the id for the command
     pub fn id(&self) -> ID {
@@ -257,6 +262,25 @@ impl Data {
         };
         math::saggita(args, error)
     }
+
+    pub(crate) fn size_hint(&self) -> ProbeLen {
+        let negative = if let Self::Implicit(inner) = self {
+            let first_arg = inner.args()[0];
+            first_arg.is_sign_negative() && first_arg != -0.0
+        } else {
+            false
+        };
+        let mut count = ProbeLen { len: 0, negative };
+        count.write_fmt(format_args!("{self}")).unwrap();
+        count
+    }
+}
+
+impl std::fmt::Write for ProbeLen {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.len += s.len();
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for Data {
@@ -267,19 +291,20 @@ impl std::fmt::Display for Data {
             .iter()
             .try_for_each(|current| -> std::fmt::Result {
                 let current = *current;
-                let s = short_number(current);
+                let mut buffer = ryu::Buffer::new();
+                let raw = buffer.format(current);
                 #[allow(clippy::float_cmp)] // This is fine for formatting
                 if let Some(previous) = previous_option {
                     if current >= 1.0
                         || (current == 0.0)
                         || (previous == 0.0 && current >= 0.0)
-                        || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
+                        || (previous % 1.0 == 0.0 && raw.starts_with("0."))
                         || (current > 0.0 && current < 1e-4)
                     {
                         f.write_char(' ')?;
                     }
                 }
-                s.fmt(f)?;
+                short_number_from_buffer(raw, f)?;
                 previous_option = Some(current);
                 Ok(())
             })?;
@@ -454,30 +479,37 @@ impl std::fmt::Display for ID {
     }
 }
 
+pub(crate) fn short_number_from_buffer<W: std::fmt::Write>(
+    mut raw: &str,
+    w: &mut W,
+) -> std::fmt::Result {
+    // Remove trailing zeros
+    if raw.contains('.') {
+        raw = raw.strip_suffix('0').unwrap_or(raw)
+    }
+    if raw == "0." || raw == "-0." {
+        return w.write_char('0');
+    }
+    raw = raw.strip_suffix('.').unwrap_or(raw);
+    // Remove leading zero
+    return if raw.starts_with("0.") {
+        w.write_str(&raw[1..])
+    } else if raw.starts_with("-0.") {
+        w.write_char('-')?;
+        w.write_str(&raw[2..])
+    } else {
+        w.write_str(raw)
+    };
+}
+
 /// Formats a command's argument into it's shortest possible form
 pub fn short_number<F>(n: F) -> String
 where
     F: ryu::Float,
 {
-    let mut s = ryu::Buffer::new().format(n).to_owned();
-    // Remove trailing zeros
-    if s.contains('.') {
-        s = match s.strip_suffix('0') {
-            Some(s) => s.into(),
-            None => s,
-        };
-    }
-    if s == "0." || s == "-0." {
-        return String::from("0");
-    }
-    if s.ends_with('.') {
-        s.pop();
-    }
-    // Remove leading zero
-    if s.starts_with("0.") {
-        s.remove(0);
-    } else if s.starts_with("-0.") {
-        s.remove(1);
-    }
-    s
+    let mut buffer = ryu::Buffer::new();
+    let raw = buffer.format(n);
+    let mut output = String::with_capacity(raw.len());
+    let _ = short_number_from_buffer(raw, &mut output);
+    output
 }

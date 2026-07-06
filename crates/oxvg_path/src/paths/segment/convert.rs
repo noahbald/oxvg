@@ -532,15 +532,15 @@ fn compactest_vec(
             d.round(precision);
             d
         })
-        .map(|d| (d.to_string(), d))
+        .map(|d| (d.size_hint(), d))
         .map(|d| {
             if previous
                 .as_ref()
-                .is_some_and(|p| d.1.is_space_needed(p) && !d.0.starts_with('-'))
+                .is_some_and(|p| d.1.is_space_needed(p) && !d.0.negative)
             {
-                (d.0.len() + 1, d.1)
+                (d.0.len + 1, d.1)
             } else {
-                (d.0.len(), d.1)
+                (d.0.len, d.1)
             }
         })
         .min_by(|a, b| {
