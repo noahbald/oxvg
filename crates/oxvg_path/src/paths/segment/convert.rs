@@ -170,6 +170,52 @@ impl Data {
             }
         }
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn to_svg(
+        &self,
+        previous: Option<&command::CachedData>,
+        next: Option<&Self>,
+        segment_start: Point,
+        start: Point,
+        control: Option<Point>,
+        last_control: &mut Option<Point>,
+        implicit: Option<&ID>,
+        tolerance: &Tolerance,
+        tolerance_squared: ToleranceSquared,
+        precision: TolerancePrecision,
+        smart_arc_rounding: bool,
+    ) -> command::CachedData {
+        match self {
+            Data::LineTo(to) => {
+                Path::to_svg_line(previous, segment_start, start, *to, implicit, precision)
+            }
+            Data::ArcTo(arc) => Path::to_svg_arc(
+                previous,
+                arc,
+                start,
+                implicit,
+                tolerance,
+                tolerance_squared,
+                precision,
+                smart_arc_rounding,
+            ),
+            Data::CurveTo(curve) => {
+                let (command, control) = Path::to_svg_curve(
+                    previous,
+                    control,
+                    start,
+                    curve,
+                    next,
+                    implicit,
+                    tolerance_squared,
+                    precision,
+                );
+                *last_control = control;
+                command
+            }
+        }
+    }
 }
 
 impl Segment {
@@ -188,7 +234,7 @@ impl Segment {
         let mut control = None;
         for command in iterator {
             if let Some(data) = Data::take(command, start, cursor, &mut control, &mut z_end) {
-                result.data.push(data);
+                result.push(data);
             } else {
                 break;
             }
@@ -243,7 +289,7 @@ impl Path {
         let tolerance_squared = tolerance.square();
         let precision = tolerance.precision();
 
-        let mut commands: Vec<command::Data> = vec![];
+        let mut commands: Vec<command::CachedData> = vec![];
 
         let mut last_control = None;
         for IterStartCursorItem {
@@ -258,7 +304,7 @@ impl Path {
         {
             let control = last_control.take();
             let Some(data) = data else {
-                let mut m = command::Data::MoveTo(start.into());
+                let mut m = command::CachedData::new(command::Data::MoveTo(start.into()));
                 m.round(precision);
                 commands.push(m);
                 continue;
@@ -267,77 +313,61 @@ impl Path {
             let previous = if is_start { None } else { commands.last() };
             let implicit = previous.map(|d| d.id().next_implicit());
 
-            let mut command = match data {
-                Data::LineTo(to) => Self::to_svg_line(
-                    previous,
-                    segment_start,
-                    start,
-                    *to,
-                    implicit.as_ref(),
-                    precision,
-                ),
-                Data::ArcTo(arc) => Self::to_svg_arc(
-                    previous,
-                    arc,
-                    start,
-                    implicit.as_ref(),
-                    tolerance,
-                    tolerance_squared,
-                    precision,
-                    smart_arc_rounding,
-                ),
-                Data::CurveTo(curve) => {
-                    let (command, control) = Self::to_svg_curve(
-                        previous,
-                        control,
-                        start,
-                        curve,
-                        next,
-                        implicit.as_ref(),
-                        tolerance_squared,
-                        precision,
-                    );
-                    last_control = control;
-                    command
-                }
-            };
+            let mut command = data.to_svg(
+                previous,
+                next,
+                segment_start,
+                start,
+                control,
+                &mut last_control,
+                implicit.as_ref(),
+                tolerance,
+                tolerance_squared,
+                precision,
+                smart_arc_rounding,
+            );
 
             if is_start {
                 let mut m = match command.id().as_explicit() {
                     ID::LineBy => {
-                        command = command::Data::Implicit(Box::new(command));
+                        command = command.implicit();
                         command::Data::MoveBy(segment_start_by.into())
                     }
                     ID::LineTo => {
-                        command = command::Data::Implicit(Box::new(command));
+                        command = command.implicit();
                         command::Data::MoveTo(segment_start.into())
                     }
                     _ => command::Data::MoveTo(segment_start.into()),
                 };
                 m.round(precision);
-                commands.push(m);
+                commands.push(command::CachedData::new(m));
             }
             let close = close && command.id() != ID::ClosePath;
             commands.push(command);
             if close {
-                commands.push(command::Data::ClosePath);
+                commands.push(command::CachedData::new(command::Data::ClosePath));
             }
         }
 
-        crate::Path(commands)
+        crate::Path(
+            commands
+                .into_iter()
+                .map(command::CachedData::inner)
+                .collect(),
+        )
     }
 
     fn to_svg_line(
-        previous: Option<&command::Data>,
+        previous: Option<&command::CachedData>,
         segment_start: Point,
         start: Point,
         to: Point,
         implicit: Option<&ID>,
         precision: TolerancePrecision,
-    ) -> command::Data {
+    ) -> command::CachedData {
         let by = to - start;
         if start == to {
-            command::Data::ClosePath
+            command::CachedData::new(command::Data::ClosePath)
         } else if precision.round(to.x) == precision.round(start.x) {
             let v_to = command::Data::VerticalLineTo([to.y]);
             let v_by = command::Data::VerticalLineBy([by.y]);
@@ -347,7 +377,7 @@ impl Path {
             let h_by = command::Data::HorizontalLineBy([by.x]);
             compactest(previous, h_by, h_to, implicit, precision)
         } else if to == segment_start {
-            command::Data::ClosePath
+            command::CachedData::new(command::Data::ClosePath)
         } else {
             let l_to = command::Data::LineTo(to.into());
             let l_by = command::Data::LineBy(by.into());
@@ -357,7 +387,7 @@ impl Path {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn to_svg_curve(
-        previous: Option<&command::Data>,
+        previous: Option<&command::CachedData>,
         control: Option<Point>,
         start: Point,
         curve: &Curve,
@@ -365,7 +395,7 @@ impl Path {
         implicit: Option<&ID>,
         tolerance_squared: ToleranceSquared,
         precision: TolerancePrecision,
-    ) -> (command::Data, Option<Point>) {
+    ) -> (command::CachedData, Option<Point>) {
         let start_control = curve.start_control;
         let end_control = curve.end_control;
         let to = curve.end_point;
@@ -471,7 +501,7 @@ impl Path {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn to_svg_arc(
-        previous: Option<&command::Data>,
+        previous: Option<&command::CachedData>,
         arc: &Arc,
         start: Point,
         implicit: Option<&ID>,
@@ -479,7 +509,7 @@ impl Path {
         tolerance_squared: ToleranceSquared,
         precision: TolerancePrecision,
         smart_arc_rounding: bool,
-    ) -> command::Data {
+    ) -> command::CachedData {
         let by = arc.end_point() - start;
         let mut arc_to = arc.to_arc_to(tolerance, tolerance_squared, precision);
         let mut arc_by = arc_to;
@@ -514,50 +544,63 @@ impl Path {
     }
 }
 
+pub fn compactest_cached(
+    previous: Option<&command::CachedData>,
+    data: impl Iterator<Item = command::CachedData>,
+    implicit: Option<&ID>,
+    precision: TolerancePrecision,
+) -> command::CachedData {
+    data.map(|d| {
+        if implicit.is_some_and(|i| *i == d.id()) {
+            d.implicit()
+        } else {
+            d
+        }
+    })
+    .map(|mut d| {
+        d.round(precision);
+        d
+    })
+    .map(|d| {
+        let string = d.to_string();
+        if previous
+            .as_ref()
+            .is_some_and(|p| d.is_space_needed(p) && !string.starts_with('-'))
+        {
+            (string.len() + 1, d)
+        } else {
+            (string.len(), d)
+        }
+    })
+    .min_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| b.1.is_implicit().cmp(&a.1.is_implicit()))
+    })
+    .map(|d| d.1)
+    .unwrap()
+}
+
 fn compactest_vec(
-    previous: Option<&command::Data>,
+    previous: Option<&command::CachedData>,
     data: impl IntoIterator<Item = command::Data>,
     implicit: Option<&ID>,
     precision: TolerancePrecision,
-) -> command::Data {
-    data.into_iter()
-        .map(|d| {
-            if implicit.is_some_and(|i| *i == d.id()) {
-                command::Data::Implicit(Box::new(d))
-            } else {
-                d
-            }
-        })
-        .map(|mut d| {
-            d.round(precision);
-            d
-        })
-        .map(|d| (d.size_hint(), d))
-        .map(|d| {
-            if previous
-                .as_ref()
-                .is_some_and(|p| d.1.is_space_needed(p) && !d.0.negative)
-            {
-                (d.0.len + 1, d.1)
-            } else {
-                (d.0.len, d.1)
-            }
-        })
-        .min_by(|a, b| {
-            a.0.cmp(&b.0)
-                .then_with(|| b.1.is_implicit().cmp(&a.1.is_implicit()))
-        })
-        .map(|d| d.1)
-        .unwrap()
+) -> command::CachedData {
+    compactest_cached(
+        previous,
+        data.into_iter().map(command::CachedData::new),
+        implicit,
+        precision,
+    )
 }
 
 pub(crate) fn compactest(
-    previous: Option<&command::Data>,
+    previous: Option<&command::CachedData>,
     left: command::Data,
     right: command::Data,
     implicit: Option<&ID>,
     precision: TolerancePrecision,
-) -> command::Data {
+) -> command::CachedData {
     compactest_vec(previous, [left, right], implicit, precision)
 }
 
@@ -583,10 +626,10 @@ mod test {
             Path(vec![Segment {
                 start: Point::splat(5.0),
                 data: vec![
-                    Data::LineTo(Point::new(5.0, 15.0)),
-                    Data::LineTo(Point::new(15.0, 15.0)),
-                    Data::LineTo(Point::new(15.0, 5.0)),
-                    Data::LineTo(Point::new(5.0, 5.0))
+                    Data::LineTo(Point::new(5.0, 15.0)).with_cache(),
+                    Data::LineTo(Point::new(15.0, 15.0)).with_cache(),
+                    Data::LineTo(Point::new(15.0, 5.0)).with_cache(),
+                    Data::LineTo(Point::new(5.0, 5.0)).with_cache(),
                 ],
                 closed: true
             }])

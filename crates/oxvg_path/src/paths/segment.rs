@@ -5,28 +5,22 @@
 //! - Simplification of paths and segments
 //! - Boolean operations of paths and segments
 //! - Translations of paths and segments
-use crate::geometry::{Arc, Curve, Point};
+use std::ops::Deref;
+
+use crate::geometry::Point;
 
 mod convert;
+mod data;
 #[cfg(feature = "optimise")]
 mod simplify;
 
-#[derive(Debug, PartialEq, Clone)]
-/// A reduced representation of an SVG path command
-pub enum Data {
-    /// A line command
-    LineTo(Point),
-    /// A bezier command
-    CurveTo(Curve),
-    /// An arc command
-    ArcTo(Arc),
-}
+pub use data::{CachedData, Data};
 
 #[derive(Debug, PartialEq, Clone)]
 /// A segment represents some contiguous shape made from a set of commands
 pub struct Segment {
     pub(crate) start: Point,
-    pub(crate) data: Vec<Data>,
+    pub(crate) data: Vec<CachedData>,
     pub(crate) closed: bool,
 }
 
@@ -34,44 +28,12 @@ pub struct Segment {
 /// A segment path is a set of disjointed shapes, each composed of a set of commands
 pub struct Path(pub Vec<Segment>);
 
-impl Data {
-    /// Returns the end point of the data item.
-    pub fn end_point(&self) -> Point {
-        match self {
-            Self::LineTo(point) => *point,
-            Self::CurveTo(curve) => curve.end_point,
-            Self::ArcTo(arc) => arc.end_point(),
-        }
-    }
-
-    /// Returns the equivalent data item going from the end to the start.
-    #[must_use]
-    pub fn reverse(&self, start: Point) -> Self {
-        match self {
-            Data::LineTo(_) => Data::LineTo(start),
-            Data::CurveTo(curve) => {
-                Data::CurveTo(Curve::new(curve.end_control, curve.start_control, start))
-            }
-            Data::ArcTo(arc) => Data::ArcTo(
-                Arc::new(
-                    arc.center(),
-                    arc.radii(),
-                    arc.start_angle() + arc.sweep_angle(),
-                    -arc.sweep_angle(),
-                    arc.x_rotation(),
-                )
-                .with_end_point_memo(start),
-            ),
-        }
-    }
-}
-
 impl Segment {
     /// Constructs a segment with the given data and closed flag at some start point.
     pub fn new(start: Point, data: Vec<Data>, closed: bool) -> Self {
         Self {
             start,
-            data,
+            data: data.into_iter().map(CachedData::new).collect(),
             closed,
         }
     }
@@ -97,7 +59,12 @@ impl Segment {
 
     /// Appends the command to the segment.
     pub fn push(&mut self, data: Data) {
-        self.data.push(data);
+        self.data.push(CachedData::new(data));
+    }
+
+    /// Returns a reference to the command at the given index.
+    pub fn get(&self, index: usize) -> Option<&Data> {
+        self.data.get(index).map(Deref::deref)
     }
 
     /// Marks the segment as unclosed, equivalent to ending without `Z`.
@@ -116,8 +83,12 @@ impl Segment {
     }
 
     /// Returns the data of the segment.
-    pub fn data(&self) -> &[Data] {
-        &self.data
+    pub fn data<'a>(
+        &'a self,
+    ) -> std::iter::Map<std::slice::Iter<'a, CachedData>, fn(&'a CachedData) -> &'a Data> {
+        self.data
+            .iter()
+            .map(Deref::deref as fn(&'a CachedData) -> &'a Data)
     }
 
     /// Returns whether the segment is closed.
@@ -141,7 +112,7 @@ impl Path {
     /// Closes unclosed segments within the path.
     pub fn close_segments(&mut self) {
         for segment in self.0.iter_mut().filter(|s| !s.closed) {
-            segment.data.push(Data::LineTo(segment.start));
+            segment.push(Data::LineTo(segment.start));
             segment.closed = true;
         }
     }
@@ -201,7 +172,7 @@ pub struct IterStartCursorMut<'a> {
     cursor: Point,
 }
 impl<'a> Iterator for IterStartCursor<'a> {
-    type Item = IterStartCursorItem<&'a Data>;
+    type Item = IterStartCursorItem<&'a CachedData>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -247,7 +218,7 @@ impl<'a> Iterator for IterStartCursor<'a> {
     }
 }
 impl IterStartCursorMut<'_> {
-    fn next(&mut self) -> Option<IterStartCursorItem<&mut Data>> {
+    fn next(&mut self) -> Option<IterStartCursorItem<&mut CachedData>> {
         let mut last_segment_end = if self.segment > 0 {
             Some(self.path.0[self.segment - 1].end_point())
         } else {
@@ -308,8 +279,8 @@ mod test {
         let mut path = Path(vec![Segment {
             start: Point::ZERO,
             data: vec![
-                Data::LineTo(Point::new(0.0, 1.0)),
-                Data::LineTo(Point::new(1.0, 1.0)),
+                Data::LineTo(Point::new(0.0, 1.0)).with_cache(),
+                Data::LineTo(Point::new(1.0, 1.0)).with_cache(),
             ],
             closed: false,
         }]);
@@ -320,9 +291,9 @@ mod test {
             Path(vec![Segment {
                 start: Point::ZERO,
                 data: vec![
-                    Data::LineTo(Point::new(0.0, 1.0)),
-                    Data::LineTo(Point::new(1.0, 1.0)),
-                    Data::LineTo(Point::ZERO),
+                    Data::LineTo(Point::new(0.0, 1.0)).with_cache(),
+                    Data::LineTo(Point::new(1.0, 1.0)).with_cache(),
+                    Data::LineTo(Point::ZERO).with_cache(),
                 ],
                 closed: true,
             }])
