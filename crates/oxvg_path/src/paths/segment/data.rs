@@ -1,6 +1,6 @@
 use std::{
-    cell::OnceCell,
     ops::{Deref, DerefMut},
+    sync::OnceLock,
 };
 
 use crate::{
@@ -25,8 +25,8 @@ pub enum Data {
 /// redundant computation while simplifying.
 pub struct CachedData {
     data: Data,
-    cache: OnceCell<crate::command::CachedData>,
-    control: OnceCell<Option<Point>>,
+    cache: OnceLock<crate::command::CachedData>,
+    control: OnceLock<Option<Point>>,
 }
 
 impl Deref for CachedData {
@@ -53,9 +53,15 @@ impl Data {
     pub fn with_cache(self) -> CachedData {
         CachedData {
             data: self,
-            cache: OnceCell::new(),
-            control: OnceCell::new(),
+            cache: OnceLock::new(),
+            control: OnceLock::new(),
         }
+    }
+
+    pub fn with_cache_init(self, init: command::CachedData) -> CachedData {
+        let result = self.with_cache();
+        result.cache.set(init).unwrap();
+        result
     }
 
     /// Returns the end point of the data item.
@@ -94,8 +100,8 @@ impl CachedData {
     pub fn new(data: Data) -> Self {
         Self {
             data,
-            cache: OnceCell::new(),
-            control: OnceCell::new(),
+            cache: OnceLock::new(),
+            control: OnceLock::new(),
         }
     }
 
@@ -155,7 +161,19 @@ impl CachedData {
         precision: TolerancePrecision,
     ) -> (command::CachedData, Option<Point>) {
         if let Some(data) = self.cache.get().cloned() {
-            (data, *self.control.get().unwrap())
+            let data_id = data.id();
+            (
+                data,
+                *self.control.get_or_init(|| {
+                    Path::to_svg_curve_control(
+                        data_id,
+                        start,
+                        curve,
+                        curve.quadratic_bezier(start, tolerance_squared),
+                        control,
+                    )
+                }),
+            )
         } else {
             let (data, control) = Path::to_svg_curve(
                 previous,

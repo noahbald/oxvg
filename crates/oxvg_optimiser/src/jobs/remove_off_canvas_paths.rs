@@ -8,7 +8,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
 use oxvg_path::{
-    command::Data,
+    command::{CachedData, Data},
     geometry::{Point, Tolerance},
     paths::segment::{self, Segment},
 };
@@ -105,7 +105,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
         }
 
         if path.0.len() == 2 {
-            path.0.push(Data::ClosePath);
+            path.0.push(CachedData::new(Data::ClosePath));
         }
         let ViewBox {
             min_x,

@@ -66,6 +66,7 @@ impl<'input> Path {
             list.push(
                 input
                     .try_parse(|input| command::Data::parse(input, command_id))
+                    .map(command::CachedData::new)
                     .map_err(|error| oxvg_parse::error::ParseError {
                         error,
                         remaining_content: input.take_slice(),

@@ -119,13 +119,17 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 continue;
             };
             if let Some(first) = current_path_data.0.first_mut() {
-                if let command::Data::MoveBy(data) = first {
-                    *first = command::Data::MoveTo(*data);
+                if let command::Data::MoveBy(data) = **first {
+                    *first = command::CachedData::new(command::Data::MoveTo(data));
 
                     if let Some(second) = current_path_data.0.get_mut(1) {
                         if second.is_implicit() && second.as_explicit().id() != command::ID::LineTo
                         {
-                            *second = second.as_explicit().clone();
+                            *second = std::mem::replace(
+                                second,
+                                command::CachedData::new(command::Data::ClosePath),
+                            )
+                            .explicit();
                         }
                     }
                 }

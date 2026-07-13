@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     command::{self, ID},
     geometry::{
@@ -5,170 +7,173 @@ use crate::{
         ToleranceSquared,
     },
     math::{self},
-    paths::segment::{Data, IterStartCursorItem, Path, Segment},
+    paths::segment::{CachedData, Data, IterStartCursorItem, Path, Segment},
 };
 
 impl Data {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn take(
-        command: &command::Data,
+        command: &command::CachedData,
         start: &mut Point,
         cursor: &mut Point,
         control: &mut Option<Point>,
         z_end: &mut bool,
-    ) -> Option<Self> {
+    ) -> Option<CachedData> {
         let last_control = control.take();
-        match command {
-            command::Data::MoveBy(a) => {
-                *cursor += Point::from(*a);
-                *start = *cursor;
-                None
-            }
-            command::Data::MoveTo(a) => {
-                *cursor = Point::from(*a);
-                *start = *cursor;
-                None
-            }
-            command::Data::LineBy(a) => {
-                *cursor += Point::from(*a);
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::LineTo(a) => {
-                *cursor = Point::from(*a);
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::HorizontalLineBy(a) => {
-                cursor.x += a[0];
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::HorizontalLineTo(a) => {
-                cursor.x = a[0];
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::VerticalLineBy(a) => {
-                cursor.y += a[0];
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::VerticalLineTo(a) => {
-                cursor.y = a[0];
-                Some(Data::LineTo(*cursor))
-            }
-            command::Data::CubicBezierBy(a) => {
-                let start_control = *cursor + Point::new(a[0], a[1]);
-                let end_control = *cursor + Point::new(a[2], a[3]);
-                let end_point = *cursor + Point::new(a[4], a[5]);
+        Some(
+            match &**command {
+                command::Data::MoveBy(a) => {
+                    *cursor += Point::from(*a);
+                    *start = *cursor;
+                    None
+                }
+                command::Data::MoveTo(a) => {
+                    *cursor = Point::from(*a);
+                    *start = *cursor;
+                    None
+                }
+                command::Data::LineBy(a) => {
+                    *cursor += Point::from(*a);
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::LineTo(a) => {
+                    *cursor = Point::from(*a);
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::HorizontalLineBy(a) => {
+                    cursor.x += a[0];
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::HorizontalLineTo(a) => {
+                    cursor.x = a[0];
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::VerticalLineBy(a) => {
+                    cursor.y += a[0];
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::VerticalLineTo(a) => {
+                    cursor.y = a[0];
+                    Some(Data::LineTo(*cursor))
+                }
+                command::Data::CubicBezierBy(a) => {
+                    let start_control = *cursor + Point::new(a[0], a[1]);
+                    let end_control = *cursor + Point::new(a[2], a[3]);
+                    let end_point = *cursor + Point::new(a[4], a[5]);
 
-                *control = Some(end_control);
-                *cursor = end_point;
-                Some(Self::CurveTo(Curve::new(
-                    start_control,
-                    end_control,
-                    end_point,
-                )))
-            }
-            command::Data::CubicBezierTo(a) => {
-                let end_control = Point::new(a[2], a[3]);
-                let end_point = Point::new(a[4], a[5]);
+                    *control = Some(end_control);
+                    *cursor = end_point;
+                    Some(Self::CurveTo(Curve::new(
+                        start_control,
+                        end_control,
+                        end_point,
+                    )))
+                }
+                command::Data::CubicBezierTo(a) => {
+                    let end_control = Point::new(a[2], a[3]);
+                    let end_point = Point::new(a[4], a[5]);
 
-                *control = Some(end_control);
-                *cursor = end_point;
-                Some(Data::CurveTo(Curve::from(*a)))
-            }
-            command::Data::QuadraticBezierBy(a) => {
-                let quad_control = *cursor + Point::new(a[0], a[1]);
-                let end = *cursor + Point::new(a[2], a[3]);
-                *control = Some(quad_control);
+                    *control = Some(end_control);
+                    *cursor = end_point;
+                    Some(Data::CurveTo(Curve::from(*a)))
+                }
+                command::Data::QuadraticBezierBy(a) => {
+                    let quad_control = *cursor + Point::new(a[0], a[1]);
+                    let end = *cursor + Point::new(a[2], a[3]);
+                    *control = Some(quad_control);
 
-                let start = *cursor;
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
-            }
-            command::Data::QuadraticBezierTo(a) => {
-                let quad_control = Point::new(a[0], a[1]);
-                let end = Point::new(a[2], a[3]);
-                *control = Some(quad_control);
+                    let start = *cursor;
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
+                }
+                command::Data::QuadraticBezierTo(a) => {
+                    let quad_control = Point::new(a[0], a[1]);
+                    let end = Point::new(a[2], a[3]);
+                    *control = Some(quad_control);
 
-                let start = *cursor;
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
-            }
-            command::Data::SmoothBezierBy(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
-                let end_control = *cursor + Point::new(a[0], a[1]);
-                let end = *cursor + Point::new(a[2], a[3]);
+                    let start = *cursor;
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
+                }
+                command::Data::SmoothBezierBy(a) => {
+                    let start_control = if let Some(prev_cp) = last_control {
+                        prev_cp.reflect(*cursor)
+                    } else {
+                        *cursor
+                    };
+                    let end_control = *cursor + Point::new(a[0], a[1]);
+                    let end = *cursor + Point::new(a[2], a[3]);
 
-                *control = Some(end_control);
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
-            }
-            command::Data::SmoothBezierTo(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
-                let end_control = Point::new(a[0], a[1]);
-                let end = Point::new(a[2], a[3]);
+                    *control = Some(end_control);
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
+                }
+                command::Data::SmoothBezierTo(a) => {
+                    let start_control = if let Some(prev_cp) = last_control {
+                        prev_cp.reflect(*cursor)
+                    } else {
+                        *cursor
+                    };
+                    let end_control = Point::new(a[0], a[1]);
+                    let end = Point::new(a[2], a[3]);
 
-                *control = Some(end_control);
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
-            }
-            command::Data::SmoothQuadraticBezierBy(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
-                let end = *cursor + Point::from(*a);
+                    *control = Some(end_control);
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
+                }
+                command::Data::SmoothQuadraticBezierBy(a) => {
+                    let start_control = if let Some(prev_cp) = last_control {
+                        prev_cp.reflect(*cursor)
+                    } else {
+                        *cursor
+                    };
+                    let end = *cursor + Point::from(*a);
 
-                *control = Some(start_control);
-                let start = *cursor;
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
-            }
-            command::Data::SmoothQuadraticBezierTo(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
-                let end = Point::from(*a);
+                    *control = Some(start_control);
+                    let start = *cursor;
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
+                }
+                command::Data::SmoothQuadraticBezierTo(a) => {
+                    let start_control = if let Some(prev_cp) = last_control {
+                        prev_cp.reflect(*cursor)
+                    } else {
+                        *cursor
+                    };
+                    let end = Point::from(*a);
 
-                *control = Some(start_control);
-                let start = *cursor;
-                *cursor = end;
-                Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
-            }
-            command::Data::ArcBy(a) => Some(
-                Arc::from_arc_by(*a, cursor)
-                    .map(Self::ArcTo)
-                    .unwrap_or_else(|| {
-                        *cursor += Point::new(a[5], a[6]);
-                        Self::LineTo(*cursor)
-                    }),
-            ),
-            command::Data::ArcTo(a) => Some(
-                Arc::from_arc_to(*a, cursor)
-                    .map(Self::ArcTo)
-                    .unwrap_or_else(|| {
-                        *cursor = Point::new(a[5], a[6]);
-                        Self::LineTo(*cursor)
-                    }),
-            ),
-            command::Data::ClosePath => {
-                *z_end = true;
-                None
-            }
-            command::Data::Implicit(command) => {
-                *control = last_control;
-                Self::take(command, start, cursor, control, z_end)
-            }
-        }
+                    *control = Some(start_control);
+                    let start = *cursor;
+                    *cursor = end;
+                    Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
+                }
+                command::Data::ArcBy(a) => Some(
+                    Arc::from_arc_by(*a, cursor)
+                        .map(Self::ArcTo)
+                        .unwrap_or_else(|| {
+                            *cursor += Point::new(a[5], a[6]);
+                            Self::LineTo(*cursor)
+                        }),
+                ),
+                command::Data::ArcTo(a) => Some(
+                    Arc::from_arc_to(*a, cursor)
+                        .map(Self::ArcTo)
+                        .unwrap_or_else(|| {
+                            *cursor = Point::new(a[5], a[6]);
+                            Self::LineTo(*cursor)
+                        }),
+                ),
+                command::Data::ClosePath => {
+                    *z_end = true;
+                    None
+                }
+                command::Data::Implicit(_) => {
+                    *control = last_control;
+                    return Self::take(&command.clone().explicit(), start, cursor, control, z_end);
+                }
+            }?
+            .with_cache(),
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -220,7 +225,7 @@ impl Data {
 
 impl Segment {
     fn take<'a>(
-        iterator: &mut impl Iterator<Item = &'a command::Data>,
+        iterator: &mut impl Iterator<Item = &'a command::CachedData>,
         start: &mut Point,
         cursor: &mut Point,
         tolerance: &Tolerance,
@@ -234,7 +239,7 @@ impl Segment {
         let mut control = None;
         for command in iterator {
             if let Some(data) = Data::take(command, start, cursor, &mut control, &mut z_end) {
-                result.push(data);
+                result.data.push(data);
             } else {
                 break;
             }
@@ -260,7 +265,7 @@ impl Path {
     pub fn from_svg(value: &crate::Path, tolerance: &Tolerance) -> Self {
         let mut result = Path(vec![]);
         let mut iterator = value.0.iter().peekable();
-        let mut start = match iterator.next() {
+        let mut start = match iterator.next().map(Deref::deref) {
             Some(command::Data::MoveTo(p) | command::Data::MoveBy(p)) => Point::from(*p),
             None => return result,
             _ => unreachable!("Path data starts with non-move command"),
@@ -349,12 +354,7 @@ impl Path {
             }
         }
 
-        crate::Path(
-            commands
-                .into_iter()
-                .map(command::CachedData::inner)
-                .collect(),
-        )
+        crate::Path(commands)
     }
 
     fn to_svg_line(
@@ -484,7 +484,19 @@ impl Path {
         }
 
         let result = compactest_vec(previous, candidates, implicit, precision);
-        let control = match result.id().as_explicit() {
+        let control =
+            Self::to_svg_curve_control(result.id(), start, curve, quadratic_bezier, control);
+        (result, control)
+    }
+
+    pub(crate) fn to_svg_curve_control(
+        result_id: ID,
+        start: Point,
+        curve: &Curve,
+        quadratic_bezier: Option<QuadraticBezierTo>,
+        control: Option<Point>,
+    ) -> Option<Point> {
+        match result_id.as_explicit() {
             ID::QuadraticBezierTo | ID::QuadraticBezierBy => {
                 quadratic_bezier.map(|q| q.quad_control)
             }
@@ -492,11 +504,10 @@ impl Path {
                 control.map(|c| c.reflect(start))
             }
             ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierBy | ID::SmoothBezierTo => {
-                Some(quadratic_bezier.map_or(end_control, |q| q.quad_control))
+                Some(quadratic_bezier.map_or(curve.end_control, |q| q.quad_control))
             }
             _ => None,
-        };
-        (result, control)
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

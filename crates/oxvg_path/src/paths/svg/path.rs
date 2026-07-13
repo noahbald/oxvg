@@ -17,7 +17,7 @@ use crate::{command, geometry::TolerancePrecision};
 /// ```
 ///
 /// For more extensive minification, look into using the [`Path::optimize`] method.
-pub struct Path(pub Vec<command::Data>);
+pub struct Path(pub Vec<command::CachedData>);
 
 impl Path {
     #[cfg(feature = "geometry")]

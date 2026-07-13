@@ -1,8 +1,8 @@
 //! Formatting implementations
-use crate::{command::Data, Path};
+use crate::{command::CachedData, Path};
 
 pub(crate) fn format<'a>(
-    mut iter: impl ExactSizeIterator<Item = &'a Data>,
+    mut iter: impl ExactSizeIterator<Item = &'a CachedData>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     use itertools::Itertools;
@@ -13,12 +13,10 @@ pub(crate) fn format<'a>(
         iter.next().unwrap().fmt(f)?;
         return Ok(());
     }
+    let mut iter = iter.peekable();
+    iter.peek().map(|start| start.fmt(f)).transpose()?;
     iter.tuple_windows()
-        .enumerate()
-        .try_for_each(|(i, (prev, current))| -> std::fmt::Result {
-            if i == 0 {
-                prev.fmt(f)?;
-            }
+        .try_for_each(|(prev, current)| -> std::fmt::Result {
             let str = current.to_string();
             if current.is_space_needed(prev) && !str.starts_with('-') {
                 f.write_char(' ')?;
