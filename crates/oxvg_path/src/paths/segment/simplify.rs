@@ -1,10 +1,10 @@
-use std::{f64::consts::PI, ops::Deref};
+use std::f64::consts::PI;
 
 use crate::{
     command::{self, ID},
     geometry::{Arc, Curve, Point, Tolerance, TolerancePrecision, ToleranceSquared},
     optimize::Options,
-    paths::segment::{convert::compactest_cached, Data, IterStartCursorItem, Path},
+    paths::segment::{convert::compactest, Data, IterStartCursorItem, Path},
 };
 
 impl Path {
@@ -57,7 +57,7 @@ impl Path {
             };
             let previous_quadratic = command > 0 && is_previous_quadratic;
             is_previous_quadratic = false;
-            match &**data {
+            match data {
                 Data::CurveTo(curve) => {
                     // NOTE: 1: Don't straighten `t`/`T` continuing a chain.
                     //       See (2)
@@ -74,7 +74,7 @@ impl Path {
                                 .is_none()
                         });
                     if is_optimal && curve.is_straight(start, tolerance) {
-                        *data = Data::LineTo(curve.end_point).with_cache();
+                        *data = Data::LineTo(curve.end_point);
                     } else {
                         // NOTE: 2: When quadratic is not straightened, it it
                         //       part of a chain
@@ -84,7 +84,7 @@ impl Path {
                 }
                 Data::ArcTo(arc) => {
                     if arc.is_straight(tolerance) {
-                        *data = Data::LineTo(arc.end_point()).with_cache();
+                        *data = Data::LineTo(arc.end_point());
                     }
                 }
                 Data::LineTo(_) => {}
@@ -107,7 +107,7 @@ impl Path {
                      data,
                      ..
                  }| {
-                    match data.map(Deref::deref)? {
+                    match data? {
                         Data::CurveTo(curve) => {
                             Arc::fit_curve(curve, start, tolerance, tolerance_squared)
                         }
@@ -119,7 +119,7 @@ impl Path {
             .collect();
 
         let mut segments = self.iter_start_cursor_mut();
-        let mut previous: Option<command::CachedData> = None;
+        let mut previous: Option<command::Data> = None;
         let mut last_control = None;
         let mut next_i = 0;
         while let Some(IterStartCursorItem {
@@ -134,9 +134,9 @@ impl Path {
                 continue;
             };
             let implicit = previous.as_ref().map(|p| p.id().next_implicit());
-            if let Data::CurveTo(curve) = &**data {
+            if let Data::CurveTo(curve) = data {
                 let control = last_control.take();
-                let (c, control) = data.to_svg_curve(
+                let (c, control) = Path::to_svg_curve(
                     previous.as_ref(),
                     control,
                     start,
@@ -154,7 +154,7 @@ impl Path {
                         .flatten()
                         .is_some_and(|next| arc.is_connected(&next, tolerance, tolerance_squared))
                     {
-                        **data = Data::ArcTo(arc);
+                        *data = Data::ArcTo(arc);
                         continue;
                     }
                     // Second case: arc will be joined to previous arc
@@ -167,7 +167,7 @@ impl Path {
                                 prev.is_connected(&arc, tolerance, tolerance_squared)
                             })
                     {
-                        **data = Data::ArcTo(arc);
+                        *data = Data::ArcTo(arc);
                         continue;
                     }
                     // Third case: arc is optimal in comparison to curve
@@ -181,18 +181,11 @@ impl Path {
                         precision,
                         smart_arc_rounding,
                     );
-                    let c = compactest_cached(
-                        previous.as_ref(),
-                        [c, a].into_iter(),
-                        implicit.as_ref(),
-                        precision,
-                    );
+                    let c = compactest(previous.as_ref(), c, a, implicit.as_ref(), precision);
                     if matches!(c.id(), ID::ArcBy | ID::ArcTo) {
-                        **data = Data::ArcTo(arc);
+                        *data = Data::ArcTo(arc);
                         continue;
                     }
-                    previous = Some(c);
-                } else {
                     previous = Some(c);
                 }
 
@@ -207,7 +200,7 @@ impl Path {
         for segment in &mut self.0 {
             let mut start = segment.start;
             segment.data.retain(|command| {
-                let is_zero = match &**command {
+                let is_zero = match command {
                     Data::LineTo(p) => p.distance_squared(start) < *tolerance_squared,
                     Data::CurveTo(curve) => {
                         curve.start_control.distance_squared(start) < *tolerance_squared
@@ -225,7 +218,7 @@ impl Path {
         }
         if let Some(segment) = self.0.last_mut() {
             if segment.closed {
-                segment.data.pop_if(|command| match &**command {
+                segment.data.pop_if(|command| match command {
                     Data::LineTo(p) => p.distance_squared(segment.start) < *tolerance_squared,
                     _ => false,
                 });
@@ -244,37 +237,29 @@ impl Path {
                     continue;
                 };
 
-                match (&**previous, &*command) {
-                    (Data::LineTo(previous_inner), Data::LineTo(current))
-                        if Point::is_continuous_parallel(
-                            start,
-                            *previous_inner,
-                            *current,
-                            tolerance,
-                        ) =>
+                match (previous, &command) {
+                    (Data::LineTo(previous), Data::LineTo(current))
+                        if Point::is_continuous_parallel(start, *previous, *current, tolerance) =>
                     {
-                        *previous = command;
+                        *previous = *current;
                     }
 
-                    (Data::CurveTo(previous_inner), Data::CurveTo(current)) => {
+                    (Data::CurveTo(previous), Data::CurveTo(current)) => {
                         if Point::is_continuous_parallel(
-                            previous_inner.end_control,
-                            previous_inner.end_point,
+                            previous.end_control,
+                            previous.end_point,
                             current.start_control,
                             tolerance,
                         ) {
-                            let d1 = previous_inner
-                                .end_point
-                                .distance(previous_inner.end_control);
-                            let d2 = current.start_control.distance(previous_inner.end_point);
+                            let d1 = previous.end_point.distance(previous.end_control);
+                            let d2 = current.start_control.distance(previous.end_point);
                             let sum = d1 + d2;
 
                             let t = if sum > 1e-9 {
                                 d1 / sum
                             } else {
-                                let left_len = previous_inner.end_point.distance(start);
-                                let right_len =
-                                    current.end_point.distance(previous_inner.end_point);
+                                let left_len = previous.end_point.distance(start);
+                                let right_len = current.end_point.distance(previous.end_point);
                                 let chord_sum = left_len + right_len;
                                 if chord_sum > 1e-9 {
                                     left_len / chord_sum
@@ -283,65 +268,59 @@ impl Path {
                                 }
                             };
 
-                            let p1 = (previous_inner.start_control - start * (1.0 - t)) / t;
+                            let p1 = (previous.start_control - start * (1.0 - t)) / t;
                             let p2 = (current.end_control - current.end_point * t) / (1.0 - t);
                             let merged = Curve::new(p1, p2, current.end_point);
 
                             let (left, split_point, right) = merged.subdivide_t(start, t);
-                            if split_point.distance_squared(previous_inner.end_point)
-                                < *tolerance_squared
-                                && left
-                                    .end_control
-                                    .distance_squared(previous_inner.end_control)
+                            if split_point.distance_squared(previous.end_point) < *tolerance_squared
+                                && left.end_control.distance_squared(previous.end_control)
                                     < *tolerance_squared
                                 && right.start_control.distance_squared(current.start_control)
                                     < *tolerance_squared
                             {
-                                *previous = Data::CurveTo(merged).with_cache();
+                                *previous = merged;
                             } else {
-                                start = previous_inner.end_point;
+                                start = previous.end_point;
                                 new_data.push(command);
                             }
                         } else {
-                            start = previous_inner.end_point;
+                            start = previous.end_point;
                             new_data.push(command);
                         }
                     }
-                    (Data::ArcTo(previous_inner), Data::ArcTo(current))
-                        if previous_inner.is_connected(current, tolerance, tolerance_squared) =>
+                    (Data::ArcTo(previous), Data::ArcTo(current))
+                        if previous.is_connected(current, tolerance, tolerance_squared) =>
                     {
-                        let mut previous_inner = previous_inner.clone();
-                        let prev_sweep = previous_inner.sweep_angle();
+                        let prev_sweep = previous.sweep_angle();
                         let current_sweep = current.sweep_angle();
-                        let previous_len = previous_inner.len(4);
+                        let previous_len = previous.len(4);
                         let current_len = current.len(4);
                         let mut projection = current.clone();
-                        projection.set_start_angle(previous_inner.start_angle());
-                        projection.set_sweep_angle(previous_inner.sweep_angle());
+                        projection.set_start_angle(previous.start_angle());
+                        projection.set_sweep_angle(previous.sweep_angle());
                         let scale = projection.len(4) / previous_len;
                         if previous_len >= current_len {
                             // Fit current arc deviation onto previous's ellipse
                             let converted = current_sweep * scale;
-                            previous_inner
-                                .set_sweep_angle(previous_inner.sweep_angle() + converted);
-                            if previous_inner.is_circle(tolerance) {
-                                let r1 = previous_inner.center().distance(start);
-                                let r2 = previous_inner.center().distance(current.end_point());
+                            previous.set_sweep_angle(previous.sweep_angle() + converted);
+                            if previous.is_circle(tolerance) {
+                                let r1 = previous.center().distance(start);
+                                let r2 = previous.center().distance(current.end_point());
                                 let avg_r = r1.midpoint(r2);
-                                previous_inner.set_radii(Point::splat(avg_r));
+                                previous.set_radii(Point::splat(avg_r));
                             }
-                            previous_inner.set_end_point_memo(current.end_point());
+                            previous.set_end_point_memo(current.end_point());
                         } else {
                             let mut current = current.clone();
                             let end_point = current.end_point();
-                            current.set_start_angle(previous_inner.start_angle());
+                            current.set_start_angle(previous.start_angle());
                             // Fit previous arc deviation onto current's ellipse
                             let converted = prev_sweep * scale.powi(-1);
                             current.set_sweep_angle(current.sweep_angle() + converted);
-                            if previous_inner.is_circle(tolerance) {
-                                let r1 =
-                                    previous_inner.radii().x.midpoint(previous_inner.radii().y)
-                                        * previous_len.powi(2);
+                            if previous.is_circle(tolerance) {
+                                let r1 = previous.radii().x.midpoint(previous.radii().y)
+                                    * previous_len.powi(2);
                                 let r2 = current.radii().x.midpoint(current.radii().y)
                                     * current_len.powi(2);
                                 let avg_r =
@@ -349,23 +328,20 @@ impl Path {
                                 current.set_radii(Point::splat(avg_r));
                             }
                             current.set_end_point_memo(end_point);
-                            previous_inner = current;
+                            *previous = current;
                         }
-                        if previous_inner.sweep_angle().abs() > 2.0 * PI - tolerance.angular
-                            || previous_inner.end_point() == start
+                        if previous.sweep_angle().abs() > 2.0 * PI - tolerance.angular
+                            || previous.end_point() == start
                         {
-                            let delta = PI.copysign(previous_inner.sweep_angle());
-                            previous_inner.set_sweep_angle(delta);
-                            let mut next = previous_inner.clone();
-                            next.set_start_angle(previous_inner.start_angle() + delta);
+                            let delta = PI.copysign(previous.sweep_angle());
+                            previous.set_sweep_angle(delta);
+                            let mut next = previous.clone();
+                            next.set_start_angle(previous.start_angle() + delta);
                             next.set_sweep_angle(delta);
                             next.set_end_point_memo(current.end_point());
-                            previous_inner.set_end_point_memo(previous_inner.end_point());
-                            start = previous_inner.end_point();
-                            *previous = Data::ArcTo(previous_inner).with_cache();
-                            new_data.push(Data::ArcTo(next).with_cache());
-                        } else {
-                            *previous = Data::ArcTo(previous_inner).with_cache();
+                            previous.set_end_point_memo(previous.end_point());
+                            start = previous.end_point();
+                            new_data.push(Data::ArcTo(next));
                         }
                     }
                     (previous, _) => {
@@ -382,7 +358,7 @@ impl Path {
 
     fn remove_close_line(&mut self, tolerance_squared: ToleranceSquared) {
         for segment in self.0.iter_mut().filter(|segment| segment.closed()) {
-            if let Some(end) = segment.data.last().map(|data| match &**data {
+            if let Some(end) = segment.data.last().map(|data| match data {
                 Data::LineTo(end) => *end,
                 Data::CurveTo(curve) => curve.end_point,
                 Data::ArcTo(arc) => arc.end_point(),
@@ -390,7 +366,7 @@ impl Path {
                 if segment.start().distance_squared(end) < *tolerance_squared {
                     segment.closed = segment
                         .data
-                        .pop_if(|command| matches!(&**command, Data::LineTo(_)))
+                        .pop_if(|command| matches!(command, Data::LineTo(_)))
                         .is_some();
                 } else {
                     // Line end outside of tolerance; segment must have
@@ -430,14 +406,12 @@ mod test {
                     -PI,
                     PI,
                     0.0,
-                ))
-                .with_cache(),
+                )),
                 Data::CurveTo(Curve::new(
                     Point::new(3.0, 0.0),
                     Point::new(4.0, 0.0),
                     Point::new(5.0, 0.0),
-                ))
-                .with_cache(),
+                )),
             ],
             closed: false,
         }]);
@@ -454,8 +428,8 @@ mod test {
             Path(vec![Segment {
                 start: Point::ZERO,
                 data: vec![
-                    Data::LineTo(Point::new(2.0, 0.0)).with_cache(),
-                    Data::LineTo(Point::new(5.0, 0.0)).with_cache()
+                    Data::LineTo(Point::new(2.0, 0.0)),
+                    Data::LineTo(Point::new(5.0, 0.0))
                 ],
                 closed: false,
             }])
@@ -476,12 +450,12 @@ mod test {
         let mut path = Path(vec![Segment {
             start: Point::ZERO,
             data: vec![
-                Data::ArcTo(arc1).with_cache(),
-                Data::ArcTo(arc2).with_cache(),
-                Data::CurveTo(curve1).with_cache(),
-                Data::CurveTo(curve2).with_cache(),
-                Data::LineTo(Point::new(5.0, 0.0)).with_cache(),
-                Data::LineTo(Point::new(6.0, 0.0)).with_cache(),
+                Data::ArcTo(arc1),
+                Data::ArcTo(arc2),
+                Data::CurveTo(curve1),
+                Data::CurveTo(curve2),
+                Data::LineTo(Point::new(5.0, 0.0)),
+                Data::LineTo(Point::new(6.0, 0.0)),
             ],
             closed: false,
         }]);
@@ -509,9 +483,9 @@ mod test {
         let mut path = Path(vec![Segment {
             start: Point::ZERO,
             data: vec![
-                Data::LineTo(Point::new(1.0, 0.0)).with_cache(),
-                Data::LineTo(Point::new(1.0, 1.0)).with_cache(),
-                Data::LineTo(Point::ZERO).with_cache(),
+                Data::LineTo(Point::new(1.0, 0.0)),
+                Data::LineTo(Point::new(1.0, 1.0)),
+                Data::LineTo(Point::ZERO),
             ],
             closed: true,
         }]);
@@ -521,8 +495,8 @@ mod test {
             Path(vec![Segment {
                 start: Point::ZERO,
                 data: vec![
-                    Data::LineTo(Point::new(1.0, 0.0)).with_cache(),
-                    Data::LineTo(Point::new(1.0, 1.0)).with_cache(),
+                    Data::LineTo(Point::new(1.0, 0.0)),
+                    Data::LineTo(Point::new(1.0, 1.0)),
                 ],
                 closed: true,
             }])

@@ -91,7 +91,7 @@ pub mod convert {
             let start = cursor;
             let mut segment_coords = vec![];
 
-            match &**data {
+            match data {
                 segment::Data::LineTo(coord) => {
                     cursor = *coord;
                     segment_coords.push(**coord);
@@ -214,12 +214,12 @@ pub mod convert {
                     let t2 = Point(p_end);
                     match seg.data {
                         segment::Data::LineTo(_) => {
-                            segment.push(segment::Data::LineTo(t2));
+                            segment.data.push(segment::Data::LineTo(t2));
                         }
                         segment::Data::CurveTo(curve) => {
                             let t1 = curve.t_at(seg.start, t1, tolerance).unwrap();
                             let t2 = curve.t_at(seg.start, t2, tolerance).unwrap();
-                            segment.push(segment::Data::CurveTo(if t1 <= t2 {
+                            segment.data.push(segment::Data::CurveTo(if t1 <= t2 {
                                 curve.clamp_t(seg.start, t1, t2)
                             } else {
                                 let end = curve.end_point;
@@ -229,7 +229,7 @@ pub mod convert {
                         segment::Data::ArcTo(arc) => {
                             let t1 = arc.t_at(t1, tolerance).unwrap();
                             let t2 = arc.t_at(t2, tolerance).unwrap();
-                            segment.push(segment::Data::ArcTo(if t1 <= t2 {
+                            segment.data.push(segment::Data::ArcTo(if t1 <= t2 {
                                 arc.clamp_t(t1, t2)
                             } else {
                                 arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
@@ -238,7 +238,7 @@ pub mod convert {
                     }
                 }
                 Action::Line { end: p_end } => {
-                    segment.push(segment::Data::LineTo(Point(p_end)));
+                    segment.data.push(segment::Data::LineTo(Point(p_end)));
                 }
             }
         }

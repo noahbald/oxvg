@@ -242,7 +242,7 @@ fn build_bbox(hull: &[Vec<Point>]) -> ((Point, Point), Vec<(Point, Point)>) {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_precision_loss)]
 fn hull_nest(segment: &Segment) -> impl Iterator<Item = Point> + use<'_> {
-    std::iter::once(segment.start).chain(segment.data.iter().flat_map(|data| match &**data {
+    std::iter::once(segment.start).chain(segment.data.iter().flat_map(|data| match data {
         Data::LineTo(point) => vec![*point],
         Data::CurveTo(curve) => vec![curve.start_control, curve.end_control, curve.end_point],
         Data::ArcTo(arc) => {

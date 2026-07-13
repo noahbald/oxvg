@@ -1,9 +1,5 @@
 //! Path data representations for SVG paths
-use std::{
-    cell::OnceCell,
-    fmt::Write as _,
-    ops::{Deref, DerefMut},
-};
+use std::fmt::Write as _;
 
 use crate::{geometry::TolerancePrecision, math};
 
@@ -106,24 +102,9 @@ pub enum ID {
     Implicit(Box<ID>),
 }
 
-#[derive(Debug, Clone)]
-/// A wrapper for [`Data`] that auto-caches the result of `to_string`, useful for cases where
-/// you may need to serialize multiple times.
-pub struct CachedData {
-    data: Data,
-    cache: OnceCell<String>,
-}
-impl Deref for CachedData {
-    type Target = Data;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-impl DerefMut for CachedData {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.cache.take();
-        &mut self.data
-    }
+pub(crate) struct ProbeLen {
+    pub len: usize,
+    pub negative: bool,
 }
 
 impl Data {
@@ -280,6 +261,25 @@ impl Data {
             return None;
         };
         math::saggita(args, error)
+    }
+
+    pub(crate) fn size_hint(&self) -> ProbeLen {
+        let negative = if let Self::Implicit(inner) = self {
+            let first_arg = inner.args()[0];
+            first_arg.is_sign_negative() && first_arg != -0.0
+        } else {
+            false
+        };
+        let mut count = ProbeLen { len: 0, negative };
+        let _ = write!(count, "{self}");
+        count
+    }
+}
+
+impl std::fmt::Write for ProbeLen {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.len += s.len();
+        Ok(())
     }
 }
 
@@ -485,73 +485,21 @@ pub(crate) fn short_number_from_buffer<W: std::fmt::Write>(
 ) -> std::fmt::Result {
     // Remove trailing zeros
     if raw.contains('.') {
-        raw = raw.strip_suffix('0').unwrap_or(raw);
+        raw = raw.strip_suffix('0').unwrap_or(raw)
     }
     if raw == "0." || raw == "-0." {
         return w.write_char('0');
     }
     raw = raw.strip_suffix('.').unwrap_or(raw);
     // Remove leading zero
-    if raw.starts_with("0.") {
+    return if raw.starts_with("0.") {
         w.write_str(&raw[1..])
     } else if raw.starts_with("-0.") {
         w.write_char('-')?;
         w.write_str(&raw[2..])
     } else {
         w.write_str(raw)
-    }
-}
-
-impl CachedData {
-    /// Wrap the data with a `to_string` cache.
-    pub fn new(data: Data) -> Self {
-        Self {
-            data,
-            cache: OnceCell::new(),
-        }
-    }
-
-    pub(crate) fn round(&mut self, precision: TolerancePrecision) {
-        if self.cache.get().is_some() {
-            // Should already be rounded
-            return;
-        }
-        self.data.round(precision);
-    }
-
-    /// Returns the data within the cache.
-    pub fn inner(self) -> Data {
-        self.data
-    }
-
-    /// Sets the data as implicit, updating the `to_string` cache if necessary.
-    #[must_use]
-    pub fn implicit(mut self) -> Self {
-        if self.is_implicit() {
-            self
-        } else {
-            if let Some(string) = self.cache.get_mut() {
-                if string.starts_with(char::is_alphabetic) {
-                    string.remove(0);
-                }
-            }
-            self.data = Data::Implicit(Box::new(self.data));
-            self
-        }
-    }
-}
-#[allow(clippy::to_string_trait_impl)]
-impl ToString for CachedData {
-    fn to_string(&self) -> String {
-        if let Some(string) = self.cache.get() {
-            string.clone()
-        } else {
-            let mut string = String::new();
-            write!(string, "{}", self.data).unwrap();
-            self.cache.set(string.clone()).unwrap();
-            string
-        }
-    }
+    };
 }
 
 /// Formats a command's argument into it's shortest possible form
