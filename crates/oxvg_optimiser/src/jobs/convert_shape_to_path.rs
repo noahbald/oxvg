@@ -11,7 +11,7 @@ use oxvg_collections::{
     element::ElementId,
 };
 use oxvg_path::{
-    command::{CachedData, Data},
+    command::Data,
     geometry::{Tolerance, TolerancePrecision},
     Path,
 };
@@ -238,11 +238,11 @@ impl ConvertShapeToPath {
         };
 
         let mut path = Path(vec![
-            CachedData::new(Data::MoveTo([x, y])),
-            CachedData::new(Data::HorizontalLineTo([x + width])),
-            CachedData::new(Data::VerticalLineTo([y + height])),
-            CachedData::new(Data::HorizontalLineTo([x])),
-            CachedData::new(Data::ClosePath),
+            Data::MoveTo([x, y]),
+            Data::HorizontalLineTo([x + width]),
+            Data::VerticalLineTo([y + height]),
+            Data::HorizontalLineTo([x]),
+            Data::ClosePath,
         ]);
         path.round(precision);
 
@@ -285,8 +285,8 @@ impl ConvertShapeToPath {
         };
 
         let mut path = Path(vec![
-            CachedData::new(Data::MoveTo([x1, y1])),
-            CachedData::new(Data::Implicit(Box::new(Data::LineTo([x2, y2])))),
+            Data::MoveTo([x1, y1]),
+            Data::Implicit(Box::new(Data::LineTo([x2, y2]))),
         ]);
         path.round(precision);
 
@@ -316,7 +316,7 @@ impl ConvertShapeToPath {
             return;
         }
         if is_polygon {
-            data.push(CachedData::new(Data::ClosePath));
+            data.push(Data::ClosePath);
         }
         let mut path = Path(data);
         path.round(precision);
@@ -351,18 +351,10 @@ impl ConvertShapeToPath {
         };
 
         let mut path = Path(vec![
-            CachedData::new(Data::MoveTo([cx, cy - r])),
-            CachedData::new(Data::ArcTo([r, r, 0.0, 1.0, 0.0, cx, cy + r])),
-            CachedData::new(Data::Implicit(Box::new(Data::ArcTo([
-                r,
-                r,
-                0.0,
-                1.0,
-                0.0,
-                cx,
-                cy - r,
-            ])))),
-            CachedData::new(Data::ClosePath),
+            Data::MoveTo([cx, cy - r]),
+            Data::ArcTo([r, r, 0.0, 1.0, 0.0, cx, cy + r]),
+            Data::Implicit(Box::new(Data::ArcTo([r, r, 0.0, 1.0, 0.0, cx, cy - r]))),
+            Data::ClosePath,
         ]);
         path.round(precision);
 
@@ -405,18 +397,10 @@ impl ConvertShapeToPath {
         };
 
         let mut path = Path(vec![
-            CachedData::new(Data::MoveTo([cx, cy - ry])),
-            CachedData::new(Data::ArcTo([rx, ry, 0.0, 1.0, 0.0, cx, cy + ry])),
-            CachedData::new(Data::Implicit(Box::new(Data::ArcTo([
-                rx,
-                ry,
-                0.0,
-                1.0,
-                0.0,
-                cx,
-                cy - ry,
-            ])))),
-            CachedData::new(Data::ClosePath),
+            Data::MoveTo([cx, cy - ry]),
+            Data::ArcTo([rx, ry, 0.0, 1.0, 0.0, cx, cy + ry]),
+            Data::Implicit(Box::new(Data::ArcTo([rx, ry, 0.0, 1.0, 0.0, cx, cy - ry]))),
+            Data::ClosePath,
         ]);
         path.round(precision);
 

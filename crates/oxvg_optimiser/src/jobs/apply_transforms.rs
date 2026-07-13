@@ -1,5 +1,5 @@
 use core::ops::Mul;
-use std::{f64, ops::DerefMut};
+use std::f64;
 
 use lightningcss::properties::{
     svg::{SVGPaint, StrokeDasharray},
@@ -258,120 +258,114 @@ fn apply_matrix_to_path_data(path_data: &mut Path, matrix: &[f64; 6]) {
     let mut start = [0.0; 2];
     let mut cursor = [0.0; 2];
     if let Some(data) = path_data.0.get_mut(0) {
-        if let Data::MoveBy(args) = &**data {
-            **data = Data::MoveTo(*args);
+        if let Data::MoveBy(args) = data {
+            *data = Data::MoveTo(*args);
         }
     }
 
-    path_data
-        .0
-        .iter_mut()
-        // NOTE: This invalidates all cached data.
-        //       This is fine because all path data is being modified.
-        .map(DerefMut::deref_mut)
-        .for_each(|data| {
-            if let Data::Implicit(_) = data {
-                *data = data.as_explicit().clone();
+    path_data.0.iter_mut().for_each(|data| {
+        if let Data::Implicit(_) = data {
+            *data = data.as_explicit().clone();
+        }
+        match data {
+            Data::HorizontalLineTo(args) => *data = Data::LineTo([args[0], cursor[1]]),
+            Data::HorizontalLineBy(args) => *data = Data::LineBy([args[0], 0.0]),
+            Data::VerticalLineTo(args) => *data = Data::LineTo([cursor[0], args[0]]),
+            Data::VerticalLineBy(args) => *data = Data::LineBy([0.0, args[0]]),
+            _ => {}
+        }
+        match data {
+            Data::MoveTo(args) => {
+                cursor[0] = args[0];
+                cursor[1] = args[1];
+                start[0] = cursor[0];
+                start[1] = cursor[1];
+                *args = transform_absolute_point(matrix, args[0], args[1]);
             }
-            match data {
-                Data::HorizontalLineTo(args) => *data = Data::LineTo([args[0], cursor[1]]),
-                Data::HorizontalLineBy(args) => *data = Data::LineBy([args[0], 0.0]),
-                Data::VerticalLineTo(args) => *data = Data::LineTo([cursor[0], args[0]]),
-                Data::VerticalLineBy(args) => *data = Data::LineBy([0.0, args[0]]),
-                _ => {}
+            Data::MoveBy(args) => {
+                cursor[0] += args[0];
+                cursor[1] += args[1];
+                start[0] = cursor[0];
+                start[1] = cursor[1];
+                *args = transform_relative_point(matrix, args[0], args[1]);
             }
-            match data {
-                Data::MoveTo(args) => {
-                    cursor[0] = args[0];
-                    cursor[1] = args[1];
-                    start[0] = cursor[0];
-                    start[1] = cursor[1];
-                    *args = transform_absolute_point(matrix, args[0], args[1]);
-                }
-                Data::MoveBy(args) => {
-                    cursor[0] += args[0];
-                    cursor[1] += args[1];
-                    start[0] = cursor[0];
-                    start[1] = cursor[1];
-                    *args = transform_relative_point(matrix, args[0], args[1]);
-                }
-                Data::LineTo(args) | Data::SmoothQuadraticBezierTo(args) => {
-                    cursor[0] = args[0];
-                    cursor[1] = args[1];
-                    *args = transform_absolute_point(matrix, args[0], args[1]);
-                }
-                Data::LineBy(args) | Data::SmoothQuadraticBezierBy(args) => {
-                    cursor[0] += args[0];
-                    cursor[1] += args[1];
-                    *args = transform_relative_point(matrix, args[0], args[1]);
-                }
-                Data::CubicBezierTo(args) => {
-                    cursor[0] = args[4];
-                    cursor[1] = args[5];
-                    let p1 = transform_absolute_point(matrix, args[0], args[1]);
-                    let p2 = transform_absolute_point(matrix, args[2], args[3]);
-                    let p = transform_absolute_point(matrix, args[4], args[5]);
-                    *args = [p1[0], p1[1], p2[0], p2[1], p[0], p[1]];
-                }
-                Data::CubicBezierBy(args) => {
-                    cursor[0] += args[4];
-                    cursor[1] += args[5];
-                    let p1 = transform_relative_point(matrix, args[0], args[1]);
-                    let p2 = transform_relative_point(matrix, args[2], args[3]);
-                    let p = transform_relative_point(matrix, args[4], args[5]);
-                    *args = [p1[0], p1[1], p2[0], p2[1], p[0], p[1]];
-                }
-                Data::SmoothBezierTo(args) | Data::QuadraticBezierTo(args) => {
-                    cursor[0] = args[2];
-                    cursor[1] = args[3];
-                    let p1 = transform_absolute_point(matrix, args[0], args[1]);
-                    let p = transform_absolute_point(matrix, args[2], args[3]);
-                    *args = [p1[0], p1[1], p[0], p[1]];
-                }
-                Data::SmoothBezierBy(args) | Data::QuadraticBezierBy(args) => {
-                    cursor[0] += args[2];
-                    cursor[1] += args[3];
-                    let p1 = transform_relative_point(matrix, args[0], args[1]);
-                    let p = transform_relative_point(matrix, args[2], args[3]);
-                    *args = [p1[0], p1[1], p[0], p[1]];
-                }
-                Data::ArcTo(args) => {
-                    transform_arc(cursor, args, matrix);
-                    cursor[0] = args[5];
-                    cursor[1] = args[6];
-                    if f64::abs(args[2]) > 80.0 {
-                        args.swap(0, 1);
-                        args[2] += if args[2] > 0.0 { -90.0 } else { 90.0 };
-                    }
-                    let p = transform_absolute_point(matrix, args[5], args[6]);
-                    args[5] = p[0];
-                    args[6] = p[1];
-                }
-                Data::ArcBy(args) => {
-                    transform_arc([0.0; 2], args, matrix);
-                    cursor[0] += args[5];
-                    cursor[1] += args[6];
-                    if f64::abs(args[2]) > 80.0 {
-                        args.swap(0, 1);
-                        args[2] += if args[2] > 0.0 { -90.0 } else { 90.0 };
-                    }
-                    let p = transform_relative_point(matrix, args[5], args[6]);
-                    args[5] = p[0];
-                    args[6] = p[1];
-                }
-                Data::ClosePath => {
-                    cursor[0] = start[0];
-                    cursor[1] = start[1];
-                }
-                Data::HorizontalLineBy(_)
-                | Data::HorizontalLineTo(_)
-                | Data::VerticalLineBy(_)
-                | Data::VerticalLineTo(_)
-                | Data::Implicit(_) => {
-                    unreachable!("Reached destroyed command type")
-                }
+            Data::LineTo(args) | Data::SmoothQuadraticBezierTo(args) => {
+                cursor[0] = args[0];
+                cursor[1] = args[1];
+                *args = transform_absolute_point(matrix, args[0], args[1]);
             }
-        });
+            Data::LineBy(args) | Data::SmoothQuadraticBezierBy(args) => {
+                cursor[0] += args[0];
+                cursor[1] += args[1];
+                *args = transform_relative_point(matrix, args[0], args[1]);
+            }
+            Data::CubicBezierTo(args) => {
+                cursor[0] = args[4];
+                cursor[1] = args[5];
+                let p1 = transform_absolute_point(matrix, args[0], args[1]);
+                let p2 = transform_absolute_point(matrix, args[2], args[3]);
+                let p = transform_absolute_point(matrix, args[4], args[5]);
+                *args = [p1[0], p1[1], p2[0], p2[1], p[0], p[1]];
+            }
+            Data::CubicBezierBy(args) => {
+                cursor[0] += args[4];
+                cursor[1] += args[5];
+                let p1 = transform_relative_point(matrix, args[0], args[1]);
+                let p2 = transform_relative_point(matrix, args[2], args[3]);
+                let p = transform_relative_point(matrix, args[4], args[5]);
+                *args = [p1[0], p1[1], p2[0], p2[1], p[0], p[1]];
+            }
+            Data::SmoothBezierTo(args) | Data::QuadraticBezierTo(args) => {
+                cursor[0] = args[2];
+                cursor[1] = args[3];
+                let p1 = transform_absolute_point(matrix, args[0], args[1]);
+                let p = transform_absolute_point(matrix, args[2], args[3]);
+                *args = [p1[0], p1[1], p[0], p[1]];
+            }
+            Data::SmoothBezierBy(args) | Data::QuadraticBezierBy(args) => {
+                cursor[0] += args[2];
+                cursor[1] += args[3];
+                let p1 = transform_relative_point(matrix, args[0], args[1]);
+                let p = transform_relative_point(matrix, args[2], args[3]);
+                *args = [p1[0], p1[1], p[0], p[1]];
+            }
+            Data::ArcTo(args) => {
+                transform_arc(cursor, args, matrix);
+                cursor[0] = args[5];
+                cursor[1] = args[6];
+                if f64::abs(args[2]) > 80.0 {
+                    args.swap(0, 1);
+                    args[2] += if args[2] > 0.0 { -90.0 } else { 90.0 };
+                }
+                let p = transform_absolute_point(matrix, args[5], args[6]);
+                args[5] = p[0];
+                args[6] = p[1];
+            }
+            Data::ArcBy(args) => {
+                transform_arc([0.0; 2], args, matrix);
+                cursor[0] += args[5];
+                cursor[1] += args[6];
+                if f64::abs(args[2]) > 80.0 {
+                    args.swap(0, 1);
+                    args[2] += if args[2] > 0.0 { -90.0 } else { 90.0 };
+                }
+                let p = transform_relative_point(matrix, args[5], args[6]);
+                args[5] = p[0];
+                args[6] = p[1];
+            }
+            Data::ClosePath => {
+                cursor[0] = start[0];
+                cursor[1] = start[1];
+            }
+            Data::HorizontalLineBy(_)
+            | Data::HorizontalLineTo(_)
+            | Data::VerticalLineBy(_)
+            | Data::VerticalLineTo(_)
+            | Data::Implicit(_) => {
+                unreachable!("Reached destroyed command type")
+            }
+        }
+    });
 }
 
 fn transform_absolute_point(matrix: &[f64; 6], x: f64, y: f64) -> [f64; 2] {

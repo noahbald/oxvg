@@ -1,8 +1,8 @@
 //! Path data representations for SVG paths
 use std::{
+    cell::OnceCell,
     fmt::Write as _,
     ops::{Deref, DerefMut},
-    sync::OnceLock,
 };
 
 use crate::{geometry::TolerancePrecision, math};
@@ -111,7 +111,7 @@ pub enum ID {
 /// you may need to serialize multiple times.
 pub struct CachedData {
     data: Data,
-    cache: OnceLock<String>,
+    cache: OnceCell<String>,
 }
 impl Deref for CachedData {
     type Target = Data;
@@ -123,29 +123,6 @@ impl DerefMut for CachedData {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.cache.take();
         &mut self.data
-    }
-}
-impl PartialEq for CachedData {
-    fn eq(&self, other: &Self) -> bool {
-        self.data.eq(&other.data)
-    }
-}
-#[cfg(feature = "serde")]
-impl serde::Serialize for CachedData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.data.serialize(serializer)
-    }
-}
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for CachedData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Data::deserialize(deserializer).map(Self::new)
     }
 }
 
@@ -264,22 +241,6 @@ impl Data {
             return inner.as_explicit();
         }
         self
-    }
-
-    pub fn explicit(self) -> Self {
-        if let Self::Implicit(inner) = self {
-            inner.explicit()
-        } else {
-            self
-        }
-    }
-
-    pub fn implicit(self) -> Self {
-        if self.is_implicit() {
-            self
-        } else {
-            Self::Implicit(Box::new(self))
-        }
     }
 
     /// Returns whether the command goes to an absolute position.
@@ -546,7 +507,7 @@ impl CachedData {
     pub fn new(data: Data) -> Self {
         Self {
             data,
-            cache: OnceLock::new(),
+            cache: OnceCell::new(),
         }
     }
 
@@ -574,21 +535,7 @@ impl CachedData {
                     string.remove(0);
                 }
             }
-            self.data = self.data.implicit();
-            self
-        }
-    }
-
-    pub fn explicit(mut self) -> Self {
-        if self.is_implicit() {
-            if let Some(string) = self.cache.get_mut() {
-                if !string.starts_with(char::is_alphabetic) {
-                    string.insert(0, self.data.id().into());
-                }
-            }
-            self.data = self.data.explicit();
-            self
-        } else {
+            self.data = Data::Implicit(Box::new(self.data));
             self
         }
     }
