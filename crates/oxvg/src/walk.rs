@@ -125,6 +125,11 @@ impl Walk {
     }
 
     fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) {
+        let num_workers = if self.threads == 0 {
+            std::thread::available_parallelism().map_or(4, std::num::NonZero::get)
+        } else {
+            self.threads
+        };
         let output_path = |input: &PathBuf| {
             let Some(output) = self.output.as_ref().and_then(|output| output.first()) else {
                 return Ok(None);
@@ -137,36 +142,56 @@ impl Walk {
                 })
             })
         };
-        WalkBuilder::new(path)
-            .max_depth(if self.recursive { None } else { Some(1) })
-            .hidden(!self.hidden)
-            .git_ignore(!self.no_ignore)
-            .ignore(!self.no_ignore)
-            .follow_links(true)
-            .threads(self.threads)
-            .build_parallel()
-            .run(|| {
+        type WorkItem = (String, PathBuf, Option<PathBuf>);
+        let (tx, rx) = crossbeam_channel::bounded::<WorkItem>(num_workers * 4);
+
+        std::thread::scope(|scope| {
+            for _ in 0..num_workers {
+                let rx = rx.clone();
                 let mut visitor = f();
-                Box::new(move |path| {
-                    let Ok(path) = path else {
-                        return WalkState::Continue;
-                    };
-                    if path.file_type().is_none_or(|f| !f.is_file()) {
-                        return WalkState::Continue;
+                scope.spawn(move || {
+                    for (contents, path, output_path) in rx {
+                        visitor(&contents, Some(&path), output_path.as_ref());
                     }
-                    let path = path.into_path();
-                    if path.extension().and_then(OsStr::to_str) != Some("svg") {
-                        return WalkState::Continue;
-                    }
-                    let Ok(output_path) = output_path(&path) else {
-                        return WalkState::Continue;
-                    };
-                    let Ok(file) = std::fs::read_to_string(path.clone()) else {
-                        return WalkState::Continue;
-                    };
-                    visitor(&file, Some(&path), output_path.as_ref());
-                    WalkState::Continue
-                })
-            });
+                });
+            }
+            drop(rx);
+
+            WalkBuilder::new(path)
+                .max_depth(if self.recursive { None } else { Some(1) })
+                .hidden(!self.hidden)
+                .git_ignore(!self.no_ignore)
+                .ignore(!self.no_ignore)
+                .follow_links(true)
+                .threads(self.threads)
+                .build_parallel()
+                .run(|| {
+                    let tx = tx.clone();
+                    Box::new(move |path| {
+                        let Ok(path) = path else {
+                            return WalkState::Continue;
+                        };
+                        if path.file_type().is_none_or(|f| !f.is_file()) {
+                            return WalkState::Continue;
+                        }
+                        let path = path.into_path();
+                        if path.extension().and_then(OsStr::to_str) != Some("svg") {
+                            return WalkState::Continue;
+                        }
+                        let Ok(output_path) = output_path(&path) else {
+                            return WalkState::Continue;
+                        };
+                        let Ok(file) = std::fs::read_to_string(path.clone()) else {
+                            return WalkState::Continue;
+                        };
+                        if tx.send((file, path, output_path)).is_err() {
+                            // Workers have all exited (e.g. panicked); stop walking.
+                            return WalkState::Quit;
+                        }
+                        WalkState::Continue
+                    })
+                });
+            drop(tx);
+        });
     }
 }
