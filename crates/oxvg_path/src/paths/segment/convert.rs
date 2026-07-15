@@ -520,6 +520,7 @@ fn compactest_vec(
     implicit: Option<&ID>,
     precision: TolerancePrecision,
 ) -> command::Data {
+    let previous_args = previous.and_then(command::Data::args);
     data.into_iter()
         .map(|d| {
             if implicit.is_some_and(|i| *i == d.id()) {
@@ -532,15 +533,17 @@ fn compactest_vec(
             d.round(precision);
             d
         })
-        .map(|d| (d.size_hint(), d))
         .map(|d| {
-            if previous
-                .as_ref()
-                .is_some_and(|p| d.1.is_space_needed(p) && !d.0.negative)
-            {
-                (d.0.len + 1, d.1)
+            let args = d.args();
+            let hint = d.size_hint_with_args(args.as_ref());
+            if previous_args.as_ref().is_some_and(|p| {
+                d.is_implicit()
+                    && args.is_some_and(|args| args.is_space_needed(p))
+                    && !hint.negative
+            }) {
+                (hint.len + 1, d)
             } else {
-                (d.0.len, d.1)
+                (hint.len, d)
             }
         })
         .min_by(|a, b| {

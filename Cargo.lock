@@ -1445,6 +1445,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nunny"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a917062db7bc4aacea810b261939fd1c7e21c1156a641e3d9faa07740e3c4fb2"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1653,6 +1662,7 @@ dependencies = [
  "napi",
  "napi-derive",
  "num-traits",
+ "nunny",
  "oxvg_parse",
  "pretty_assertions",
  "robust",

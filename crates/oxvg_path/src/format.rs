@@ -13,17 +13,35 @@ pub(crate) fn format<'a>(
         iter.next().unwrap().fmt(f)?;
         return Ok(());
     }
+    let mut prev_args = None;
     iter.tuple_windows()
         .enumerate()
         .try_for_each(|(i, (prev, current))| -> std::fmt::Result {
             if i == 0 {
-                prev.fmt(f)?;
+                f.write_char(prev.id().into())?;
+                prev_args = prev.args();
+                if let Some(prev_args) = prev_args.as_ref() {
+                    prev_args.fmt(f)?;
+                }
             }
-            let str = current.to_string();
-            if current.is_space_needed(prev) && !str.starts_with('-') {
-                f.write_char(' ')?;
+            let args = current.args();
+            if let Some(args) = args.as_ref() {
+                if let Some(prev_args) = prev_args.as_ref() {
+                    if current.is_implicit() {
+                        if args.is_space_needed(prev_args) && *args.first() >= 0.0 {
+                            f.write_char(' ')?;
+                        }
+                    } else {
+                        f.write_char(current.id().into())?;
+                    }
+                } else {
+                    f.write_char(current.id().into())?;
+                }
+                args.fmt(f)?;
+            } else {
+                f.write_char(current.id().into())?;
             }
-            f.write_str(&str)?;
+            prev_args = args;
             Ok(())
         })
 }
