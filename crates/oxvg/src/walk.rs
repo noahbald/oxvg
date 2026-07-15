@@ -66,7 +66,8 @@ impl Output<'_, '_, '_> {
                     std::fs::create_dir_all(parent)?;
                 }
                 let file = std::fs::File::create(output)?;
-                self.dom.serialize_into(file, self.options)?;
+                let writer = std::io::BufWriter::new(file);
+                self.dom.serialize_into(writer, self.options)?;
 
                 let input_kb = self.input_bytes / 1000.0;
                 let output_kb = output.metadata()?.len() as f64 / 1000.0;
