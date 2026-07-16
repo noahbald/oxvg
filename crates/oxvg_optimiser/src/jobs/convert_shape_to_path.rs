@@ -356,7 +356,11 @@ impl ConvertShapeToPath {
             Data::Implicit(Box::new(Data::ArcTo([r, r, 0.0, 1.0, 0.0, cx, cy - r]))),
             Data::ClosePath,
         ]);
-        path.round(precision);
+        path.0.iter_mut().for_each(|d| {
+            d.args_mut()
+                .iter_mut()
+                .for_each(|d| *d = precision.round(*d))
+        });
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);
@@ -402,7 +406,11 @@ impl ConvertShapeToPath {
             Data::Implicit(Box::new(Data::ArcTo([rx, ry, 0.0, 1.0, 0.0, cx, cy - ry]))),
             Data::ClosePath,
         ]);
-        path.round(precision);
+        path.0.iter_mut().for_each(|d| {
+            d.args_mut()
+                .iter_mut()
+                .for_each(|d| *d = precision.round(*d))
+        });
 
         set_attribute!(element, D(path::Path(path, None)));
         element.remove_attribute(&AttrId::CXGeometry);

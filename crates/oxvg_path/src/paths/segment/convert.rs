@@ -1,5 +1,5 @@
 use crate::{
-    command::{self, ID},
+    command::{self, short_number, ID},
     geometry::{
         Arc, Curve, Point, QuadraticBezierTo, SmoothBezierTo, Tolerance, TolerancePrecision,
         ToleranceSquared,
@@ -508,6 +508,40 @@ impl Path {
             }
         }
 
+        if precision.round(arc_by[5]) == 0.0 && precision.round(arc_by[6]) == 0.0 {
+            if arc_by[5] != 0.0 && arc_by[6] != 0.0 {
+                if short_number(arc_by[5]).len() < short_number(arc_by[6]).len() {
+                    arc_by[6] = 0.0;
+                } else {
+                    arc_by[5] = 0.0;
+                }
+            } else if arc_by[5] != 0.0 {
+                arc_by[6] = 0.0;
+            } else if arc_by[6] != 0.0 {
+                arc_by[5] = 0.0;
+            }
+        } else {
+            arc_by[5] = precision.round(arc_by[5]);
+            arc_by[6] = precision.round(arc_by[6]);
+        }
+        if precision.round(arc_to[5]) == start.x && precision.round(arc_to[6]) == start.y {
+            if arc_to[5] != start.x && arc_to[6] != start.y {
+                if short_number(arc_to[5]).len() < short_number(arc_to[6]).len() {
+                    arc_to[5] = precision.round(arc_to[5]);
+                    arc_to[6] = start.y;
+                } else {
+                    arc_to[5] = start.x;
+                    arc_to[6] = precision.round(arc_to[6]);
+                }
+            } else if arc_to[5] != start.x {
+                arc_to[6] = start.y;
+            } else if arc_to[6] != start.y {
+                arc_to[5] = start.x;
+            }
+        } else {
+            arc_to[5] = precision.round(arc_to[5]);
+            arc_to[6] = precision.round(arc_to[6]);
+        }
         let a_by = command::Data::ArcBy(arc_by);
         let a_to = command::Data::ArcTo(arc_to);
         compactest(previous, a_by, a_to, implicit, precision)

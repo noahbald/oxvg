@@ -208,7 +208,7 @@ impl Path {
                             && curve.end_point.distance_squared(start) < *tolerance_squared
                     }
                     Data::ArcTo(arc) => {
-                        arc.sweep_angle() < PI
+                        arc.sweep_angle().abs() < PI
                             && arc.end_point().distance_squared(start) < *tolerance_squared
                     }
                 };

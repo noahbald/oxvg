@@ -196,17 +196,13 @@ impl Data {
 
     /// Rounds the arguments of the command data up to some precision
     pub fn round(&mut self, precision: TolerancePrecision) {
-        let mut nulled = false;
-        self.args_mut().iter_mut().enumerate().for_each(|(i, d)| {
-            let mut result = precision.round(*d);
-            if result == 0.0 {
-                match i {
-                    7 if nulled => result = precision.descale(1.0),
-                    6 => nulled = true,
-                    _ => {}
-                }
+        let args = self.args_mut();
+        let is_arc = args.len() == 7;
+        args.iter_mut().enumerate().for_each(|(i, d)| {
+            if is_arc && i >= 5 {
+                return;
             }
-            *d = result;
+            *d = precision.round(*d);
         });
     }
 
@@ -232,6 +228,14 @@ impl Data {
     pub fn as_explicit(&self) -> &Self {
         if let Self::Implicit(inner) = self {
             return inner.as_explicit();
+        }
+        self
+    }
+
+    /// Returns the command, converting from implicit if necessary
+    pub fn as_explicit_mut(&mut self) -> &mut Self {
+        if let Self::Implicit(inner) = self {
+            return inner.as_explicit_mut();
         }
         self
     }
