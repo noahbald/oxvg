@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_useless_stroke_and_fill.rs
+assertion_line: 383
+expression: "test_config(r#\"{ \"removeUselessStrokeAndFill\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- don't panic on a style value that has no presentation-attribute form:\n         `var()` with a fallback (previously: \"attr convertible to property\n         should also be able to convert back\" in oxvg_ast::style) -->\n    <path fill=\"#fff\" style=\"fill:var(--c,#fff)\" d=\"M1,1 L2.123456,2.654321\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- don't panic on a style value that has no presentation-attribute form:
+         `var()` with a fallback (previously: "attr convertible to property
+         should also be able to convert back" in oxvg_ast::style) -->
+    <path fill="#fff" style="fill:var(--c,#fff)" d="M1 1 2.123456 2.654321"/>
+</svg>

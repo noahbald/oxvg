@@ -380,5 +380,17 @@ fn remove_useless_stroke_and_fill() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeUselessStrokeAndFill": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- don't panic on a style value that has no presentation-attribute form:
+         `var()` with a fallback (previously: "attr convertible to property
+         should also be able to convert back" in oxvg_ast::style) -->
+    <path fill="#fff" style="fill:var(--c,#fff)" d="M1,1 L2.123456,2.654321"/>
+</svg>"##
+        ),
+    )?);
+
     Ok(())
 }

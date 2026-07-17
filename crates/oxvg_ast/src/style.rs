@@ -318,45 +318,35 @@ impl<'input> ComputedStyles<'input> {
 
     /// Gets the resolved style from a presentation attribute id.
     ///
-    /// # Panics
-    ///
-    /// If conversions between property and attr fail
+    /// A css value that cannot be converted back into a presentation
+    /// attribute (e.g. `fill: var(--c, #fff)` — `var()` with a fallback in a
+    /// `style` attribute) resolves to `None` ("unknown"), NOT to a
+    /// lower-priority source, which could disagree with what a browser
+    /// resolves.
     pub fn get(&self, id: &AttrId) -> Option<(Attr<'input>, Mode)> {
         debug_assert!(id.attribute_group().contains(AttributeGroup::Presentation));
         let property_id = id.into();
-        self.get_from_css_high_priori(&property_id)
-            .map(|(css, mode)| {
-                (
-                    css.try_into()
-                        .expect("attr convertible to property should also be able to convert back"),
-                    mode,
-                )
-            })
-            .or_else(|| {
-                self.get_from_css_low_priori(&property_id)
-                    .map(|(css, mode)| (css.try_into().unwrap(), mode))
-            })
-            .or_else(|| self.get_from_attr(id))
-            .or_else(|| {
-                // 7. Inherited
-                self.get_inherited(id.local_name())
-            })
+        if let Some((css, mode)) = self.get_from_css_high_priori(&property_id) {
+            return css.try_into().ok().map(|attr| (attr, mode));
+        }
+        if let Some((css, mode)) = self.get_from_css_low_priori(&property_id) {
+            return css.try_into().ok().map(|attr| (attr, mode));
+        }
+        self.get_from_attr(id).or_else(|| {
+            // 7. Inherited
+            self.get_inherited(id.local_name())
+        })
     }
 
     /// Gets a computed style as a property if there's a matching [`PropertyId`]
     ///
-    /// # Panics
-    ///
-    /// If conversions between property and attr fail
+    /// As with [`ComputedStyles::get`], a value that cannot be converted
+    /// resolves to `None` rather than panicking.
     pub fn get_by_property(&self, id: &PropertyId) -> Option<(Property<'input>, Mode)> {
         if let Ok(attr_id) = id.try_into() {
-            return self.get(&attr_id).map(|(attr, mode)| {
-                (
-                    attr.try_into()
-                        .expect("property convertible to attr should also be able to convert back"),
-                    mode,
-                )
-            });
+            return self
+                .get(&attr_id)
+                .and_then(|(attr, mode)| attr.try_into().ok().map(|prop| (prop, mode)));
         }
         self.get_from_css_high_priori(id)
             .or_else(|| self.get_from_css_low_priori(id))
