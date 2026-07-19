@@ -1,11 +1,13 @@
-//! Definitions for the commands of path data.
-use crate::{
-    geometry::{Curve, Point},
-    math,
-};
-use std::fmt::Write;
+//! Path data representations for SVG paths
+use std::{fmt::Write as _, ops::Deref};
+
+use crate::{geometry::TolerancePrecision, math};
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(
+    clippy::unsafe_derive_deserialize,
+    reason = "Data::args unrelated to construction"
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// Data for a path command
@@ -104,17 +106,14 @@ pub enum ID {
     Implicit(Box<ID>),
 }
 
-#[derive(Debug, Clone)]
-/// The equivalent of a [Path](crate::Path), but with additional positional information
-pub struct Position {
-    /// The path command.
-    pub command: Data,
-    /// The base point of the command
-    pub start: Point,
-    /// The coords the the command goes to
-    pub end: Point,
-    /// If available, the equivalent [`SmoothBezierBy`](crate::command::Data::SmoothBezierBy) args
-    pub s_data: Option<Curve>,
+#[derive(Debug)]
+/// A container of an SVG command's arguments. This allows debugging and getting first/last
+/// values without `None` checking.
+pub struct Args<'a>(&'a nunny::Slice<f64>);
+
+pub(crate) struct ProbeLen {
+    pub len: usize,
+    pub negative: bool,
 }
 
 impl Data {
@@ -145,26 +144,29 @@ impl Data {
     }
 
     /// Returns the arguments for the command
-    pub fn args(&self) -> &[f64] {
-        match self {
-            Self::MoveTo(a)
-            | Self::MoveBy(a)
-            | Self::LineTo(a)
-            | Self::LineBy(a)
-            | Self::SmoothQuadraticBezierTo(a)
-            | Self::SmoothQuadraticBezierBy(a) => a,
-            Self::ClosePath => &[],
-            Self::HorizontalLineTo(a)
-            | Self::HorizontalLineBy(a)
-            | Self::VerticalLineTo(a)
-            | Self::VerticalLineBy(a) => a,
-            Self::SmoothBezierTo(a)
-            | Self::SmoothBezierBy(a)
-            | Self::QuadraticBezierTo(a)
-            | Self::QuadraticBezierBy(a) => a,
-            Self::CubicBezierTo(a) | Self::CubicBezierBy(a) => a,
-            Self::ArcTo(a) | Self::ArcBy(a) => a,
-            Self::Implicit(a) => a.args(),
+    pub fn args(&self) -> Option<Args<'_>> {
+        unsafe {
+            // SAFETY: All variants are fixed size arrays with len >=1
+            Some(Args(nunny::Slice::new_unchecked(match self {
+                Self::MoveTo(a)
+                | Self::MoveBy(a)
+                | Self::LineTo(a)
+                | Self::LineBy(a)
+                | Self::SmoothQuadraticBezierTo(a)
+                | Self::SmoothQuadraticBezierBy(a) => a,
+                Self::HorizontalLineTo(a)
+                | Self::HorizontalLineBy(a)
+                | Self::VerticalLineTo(a)
+                | Self::VerticalLineBy(a) => a,
+                Self::SmoothBezierTo(a)
+                | Self::SmoothBezierBy(a)
+                | Self::QuadraticBezierTo(a)
+                | Self::QuadraticBezierBy(a) => a,
+                Self::CubicBezierTo(a) | Self::CubicBezierBy(a) => a,
+                Self::ArcTo(a) | Self::ArcBy(a) => a,
+                Self::ClosePath => return None,
+                Self::Implicit(a) => return a.args(),
+            })))
         }
     }
 
@@ -192,13 +194,25 @@ impl Data {
         }
     }
 
+    /// Rounds the arguments of the command data up to some precision
+    pub fn round(&mut self, precision: TolerancePrecision) {
+        let args = self.args_mut();
+        let is_arc = args.len() == 7;
+        args.iter_mut().enumerate().for_each(|(i, d)| {
+            if is_arc && i >= 5 {
+                return;
+            }
+            *d = precision.round(*d);
+        });
+    }
+
     /// Set the arg of the command at given index
     ///
     /// # Panics
     /// If the provided index is out of bounds for the type of command
     pub fn set_arg(&mut self, index: usize, value: f64) {
         let args = self.args_mut();
-        assert!(
+        debug_assert!(
             index < args.len(),
             "Set path command args at out of bounds index"
         );
@@ -214,6 +228,14 @@ impl Data {
     pub fn as_explicit(&self) -> &Self {
         if let Self::Implicit(inner) = self {
             return inner.as_explicit();
+        }
+        self
+    }
+
+    /// Returns the command, converting from implicit if necessary
+    pub fn as_explicit_mut(&mut self) -> &mut Self {
+        if let Self::Implicit(inner) = self {
+            return inner.as_explicit_mut();
         }
         self
     }
@@ -241,55 +263,41 @@ impl Data {
         matches!(self, Self::ClosePath) || !self.is_to()
     }
 
-    pub(crate) fn make_longhand(&mut self, data: &[f64]) {
-        match self {
-            Self::SmoothBezierBy(a) => {
-                *self = Self::CubicBezierBy(Self::make_s_args_longhand(*a, data));
-            }
-            Self::SmoothQuadraticBezierBy(a) => {
-                *self = Self::QuadraticBezierBy(Self::make_t_args_longhand(*a, data));
-            }
-            Self::Implicit(c) => c.make_longhand(data),
-            _ => {}
-        }
-    }
-    pub(crate) fn make_s_args_longhand(source: [f64; 4], data: &[f64]) -> [f64; 6] {
-        let len = data.len();
-        assert!(len >= 4);
-        [
-            data[len - 2] - data[len - 4],
-            data[len - 1] - data[len - 3],
-            source[0],
-            source[1],
-            source[2],
-            source[3],
-        ]
-    }
-    pub(crate) fn make_t_args_longhand(source: [f64; 2], data: &[f64]) -> [f64; 4] {
-        let len = data.len();
-        assert!(len >= 4);
-        [
-            data[len - 2] - data[len - 4],
-            data[len - 1] - data[len - 3],
-            source[0],
-            source[1],
-        ]
-    }
-
-    /// Whether, when formatting itself, a space is needed between itself and the previous
-    /// command
-    pub(crate) fn is_space_needed(&self, prev: &Self) -> bool {
-        self.is_implicit()
-            && (prev.args().last().is_some_and(|n| (n % 1.0) == 0.0)
-                || self.args().first().is_some_and(|n| n >= &1.0 || n == &0.0))
-    }
-
     /// Calculates the saggita of an arc-by if possible
     pub fn calculate_saggita(&self, error: f64) -> Option<f64> {
         let Self::ArcBy(args) = self else {
             return None;
         };
         math::saggita(args, error)
+    }
+
+    pub(crate) fn size_hint_with_args(&self, args: Option<&Args>) -> ProbeLen {
+        let negative = self.is_implicit()
+            && args.is_some_and(|args| {
+                let a = args.first();
+                a.is_sign_negative() && *a != -0.0
+            });
+        let mut count = ProbeLen { len: 0, negative };
+        let _ = write!(count, "{self}");
+        count
+    }
+}
+
+impl std::fmt::Write for ProbeLen {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.len += s.len();
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.id().fmt(f)?;
+        if let Some(args) = self.args() {
+            args.fmt(f)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -328,62 +336,6 @@ impl From<(&ID, [f64; 7])> for Data {
             ID::Implicit(command) => Data::Implicit(Box::new(Data::from((command.as_ref(), args)))),
         }
     }
-}
-
-impl std::fmt::Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.id().fmt(f)?;
-        let mut previous_option = None;
-        self.args()
-            .iter()
-            .try_for_each(|current| -> std::fmt::Result {
-                let current = *current;
-                let s = short_number(current);
-                #[allow(clippy::float_cmp)] // This is fine for formatting
-                if let Some(previous) = previous_option {
-                    if current >= 1.0
-                        || (current == 0.0)
-                        || (previous == 0.0 && current >= 0.0)
-                        || (previous % 1.0 == 0.0 && s.chars().next().is_some_and(|c| c == '.'))
-                        || (current > 0.0 && current < 1e-4)
-                    {
-                        f.write_char(' ')?;
-                    }
-                }
-                s.fmt(f)?;
-                previous_option = Some(current);
-                Ok(())
-            })?;
-        Ok(())
-    }
-}
-
-/// Formats a command's argument into it's shortest possible form
-pub fn short_number<F>(n: F) -> String
-where
-    F: ryu::Float,
-{
-    let mut s = ryu::Buffer::new().format(n).to_owned();
-    // Remove trailing zeros
-    if s.contains('.') {
-        s = match s.strip_suffix('0') {
-            Some(s) => s.into(),
-            None => s,
-        };
-    }
-    if s == "0." || s == "-0." {
-        return String::from("0");
-    }
-    if s.ends_with('.') {
-        s.pop();
-    }
-    // Remove leading zero
-    if s.starts_with("0.") {
-        s.remove(0);
-    } else if s.starts_with("-0.") {
-        s.remove(1);
-    }
-    s
 }
 
 impl ID {
@@ -509,9 +461,86 @@ impl From<ID> for char {
 impl std::fmt::Display for ID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_implicit() {
-            return Ok(());
+            Ok(())
+        } else {
+            f.write_char(self.into())
         }
-        f.write_char(self.into())?;
-        Ok(())
     }
+}
+
+impl<'a> Deref for Args<'a> {
+    type Target = &'a nunny::Slice<f64>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for Args<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buffer = ryu::Buffer::new();
+        let mut previous_option = None;
+        self.0.iter().try_for_each(|current| -> std::fmt::Result {
+            let Some(previous) = previous_option else {
+                previous_option = Some(*current);
+                return short_number_from_buffer(buffer.format(*current), f);
+            };
+            let current = *current;
+            let raw = buffer.format(current);
+            #[allow(clippy::float_cmp)] // This is fine for formatting
+            if current >= 1.0
+                || (current == 0.0)
+                || (previous == 0.0 && current >= 0.0)
+                || (previous % 1.0 == 0.0 && raw.starts_with("0."))
+                || (current > 0.0 && current < 1e-4)
+            {
+                f.write_char(' ')?;
+            }
+            previous_option = Some(current);
+            short_number_from_buffer(raw, f)
+        })
+    }
+}
+
+impl Args<'_> {
+    /// Whether, when formatting itself, a space is needed between itself and the previous
+    /// command.
+    /// This check is only needed when `self` is for an implicit command.
+    pub(crate) fn is_space_needed(&self, prev: &Self) -> bool {
+        (prev.last() % 1.0) == 0.0 || self.first() >= &1.0 || self.first() == &0.0
+    }
+}
+
+pub(crate) fn short_number_from_buffer<W: std::fmt::Write>(
+    mut raw: &str,
+    w: &mut W,
+) -> std::fmt::Result {
+    // Remove trailing zeros
+    if raw.contains('.') {
+        raw = raw.strip_suffix('0').unwrap_or(raw);
+    }
+    if matches!(raw, "0." | "-0.") {
+        return w.write_char('0');
+    }
+    raw = raw.strip_suffix('.').unwrap_or(raw);
+    // Remove leading zero
+    if raw.starts_with("0.") {
+        w.write_str(&raw[1..])
+    } else if raw.starts_with("-0.") {
+        w.write_char('-')?;
+        w.write_str(&raw[2..])
+    } else {
+        w.write_str(raw)
+    }
+}
+
+/// Formats a command's argument into it's shortest possible form
+pub fn short_number<F>(n: F) -> String
+where
+    F: ryu::Float,
+{
+    let mut buffer = ryu::Buffer::new();
+    let raw = buffer.format(n);
+    let mut output = String::with_capacity(raw.len());
+    let _ = short_number_from_buffer(raw, &mut output);
+    output
 }

@@ -48,7 +48,12 @@ cssparser_lightningcss = { package = "cssparser", version = "0.33" }
 dashmap = "6.1"
 derive_more = "2.0"
 derive-where = "1.2"
+geo = "0.33"
+geo-types = { version = "0.7" }
 getrandom = { version = "0.3" }
+i_float = "3.0"
+i_overlay = "7.0"
+i_shape = "3.0"
 itertools = "0.14"
 js-sys = { version = "0.3" }
 lightningcss = { version = "1.0.0-alpha.71", default-features = false, features = [
@@ -59,13 +64,17 @@ lsp-types = "0.97"
 napi = { version = "3.8", default-features = false, features = ["napi7"] }
 napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
+num-traits = "0.2"
+nunny = "0.2"
 paste = "1.0"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
 rayon = "1.11"
 rcdom = { package = "markup5ever_rcdom", version = "0.36.0" }
 regex = "1.11"
+robust = "1.2"
 roxmltree = "0.20"
+rstar = "0.12"
 schemars = { version = "1.2.1" }
 selectors = "0.36"
 serde = "1.0"
@@ -73,6 +82,7 @@ serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
 smallvec = "1.13.2"
+splay_tree = { git = "https://github.com/sile/splay_tree.git", rev = "b5f5532c98307dc87be88d534c299c73548057e8" }
 string_cache = "0.9"
 tendril = "0.5"
 tokio = "1.48"
@@ -101,7 +111,8 @@ inherits = "release"
 
 [profile.profiling]
 inherits = "release"
-debug = true
+debug = "line-tables-only"
+strip = false
 
 [profile.release]
 lto = true

@@ -48,6 +48,6 @@
 	"license": "MIT",
 	"packageManager": "pnpm@10.5.2",
 	"devDependencies": {
-		"wasm-pack": "^0.14"
+		"wasm-pack": "^0.15"
 	}
 }

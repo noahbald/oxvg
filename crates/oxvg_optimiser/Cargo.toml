@@ -45,6 +45,7 @@ cssparser = { workspace = true }
 dashmap = { workspace = true }
 derive_more = { workspace = true }
 derive-where = { workspace = true }
+i_overlay = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }

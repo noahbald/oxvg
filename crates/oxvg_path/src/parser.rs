@@ -199,3 +199,44 @@ impl command::Data {
         }
     }
 }
+
+#[test]
+#[cfg(feature = "default")]
+fn test_path_parse() {
+    use crate::Path;
+    use oxvg_parse::Parse as _;
+    // Should parse single command
+    insta::assert_snapshot!(Path::parse_string("M 10,50").unwrap());
+
+    // Should parse multiple commands
+    insta::assert_snapshot!(
+        Path::parse_string("M 10,50 C 20,30 40,50 60,70 C 10,20 30,40 50,60").unwrap()
+    );
+
+    // Should parse arc
+    insta::assert_snapshot!(Path::parse_string("m-0,1a 25,25 -30 0,1 0,0").unwrap());
+
+    // Should parse implicit
+    insta::assert_snapshot!(Path::parse_string(
+        "M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005"
+    )
+    .unwrap());
+
+    // Should parse minified
+    insta::assert_snapshot!(Path::parse_string("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap());
+
+    // Should error when command isn't given
+    assert!(Path::parse_string("0,0").is_err());
+
+    // Should error when args are missing
+    assert!(Path::parse_string("m1").is_err());
+
+    // Parse arc with decimals as separators
+    insta::assert_snapshot!(Path::parse_string("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
+
+    // Parse implicit arc
+    insta::assert_snapshot!(Path::parse_string(
+        "m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8"
+    )
+    .unwrap());
+}

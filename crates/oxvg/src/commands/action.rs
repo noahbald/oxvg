@@ -296,14 +296,13 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 f32::parse_string(get_part(parts)?.as_str()).map_err(|err| anyhow::anyhow!("{err}"))
             };
         let get_part_f32_peek = |parts: &mut Peekable<std::vec::IntoIter<String>>| {
-            let n = if let Some(part) = parts.peek() {
+            let n = {
+                let part = parts.peek()?;
                 if let Ok(n) = f32::parse_string(part) {
                     n
                 } else {
                     return None;
                 }
-            } else {
-                return None;
             };
             parts.next();
             Some(n)

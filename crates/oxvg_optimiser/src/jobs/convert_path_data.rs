@@ -4,16 +4,14 @@ use oxvg_ast::{
     style::ComputedStyles,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_path::{convert, geometry::MakeArcs};
+use oxvg_path::{geometry::Tolerance, optimize};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde")]
-use serde_json::Value;
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::{error::JobsError, utils::style_info::gather_style_info};
+use crate::{error::JobsError, utils::style_info::gather_optimize_options};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -45,73 +43,54 @@ use crate::{error::JobsError, utils::style_info::gather_style_info};
 /// Rounding errors may result in slight visual differences.
 ///
 pub struct ConvertPathData {
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
+    /// Whether to close unclosed paths segments when safe to do so.
+    pub close_segments: bool,
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
+    /// Whether to boolean unite overlapping segments when safe and optimal to do so (experimental).
+    pub unite_segments: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to remove redundant path commands.
-    pub remove_useless: bool,
+    /// Whether to join commands that fit within it's neighboring commands when safe to do so.
+    pub join_nodes: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to round the radius of circular arcs when the effective change is under error bounds.
-    pub smart_arc_rounding: bool,
+    /// Whether to remove move commands neighbored by move commands when safe to do so.
+    pub remove_empty_segments: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert straight curves to lines
+    /// Whether to remove segments where all command args are effectively zero.
+    pub remove_zero_segments: bool,
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
+    /// Whether to remove closing lines when safe to do so.
+    pub remove_close_line: bool,
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
+    /// Whether to convert curves and arcs into lines.
     pub straight_curves: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert complex curves that look like cubic beziers (q) into them.
-    pub convert_to_q: bool,
+    /// Whether to convert curves curves into arcs.
+    pub arc_curves: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert normal lines that move in one direction to a vertical or horizontal line command.
-    pub line_shorthands: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether merge repeated commands into one.
-    pub collapse_repeated: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert complex curves that look like smooth curves into them.
-    pub curve_smooth_shorthands: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert lines that close a curve to a close command (z).
-    pub convert_to_z: bool,
-    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
-    /// Whether to always convert relative paths to absolute, even if larger.
-    pub force_absolute_path: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to weakly force absolute commands, when slightly suboptimal
-    pub negative_extra_space: bool,
-    #[cfg_attr(feature = "serde", serde(default = "MakeArcs::default"))]
-    /// Controls whether to convert from curves to arcs
-    pub make_arcs: MakeArcs,
-    #[cfg_attr(feature = "serde", serde(default = "ConvertPrecision::default"))]
-    #[cfg_attr(feature = "wasm", tsify(type = "null | false | number"))]
-    /// Number of decimal places to round to.
-    ///
-    /// Precisions larger than 20 will be treated as 0.
-    pub float_precision: ConvertPrecision,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
-    /// Whether to convert from relative to absolute, when shorter.
-    pub utilize_absolute: bool,
+    /// Whether to loosen arc radius rounding based on chord length.
+    pub smart_arc_rounding: bool,
+    #[cfg_attr(feature = "serde", serde(default = "Tolerance::default"))]
+    /// Tolerance for converting between SVG, Segments, and Polygons.
+    pub tolerance: Tolerance,
 }
 
 impl Default for ConvertPathData {
     fn default() -> Self {
         ConvertPathData {
-            remove_useless: flag_default_true(),
-            smart_arc_rounding: flag_default_true(),
+            close_segments: flag_default_false(),
+            unite_segments: flag_default_false(),
+            join_nodes: flag_default_true(),
+            remove_empty_segments: flag_default_true(),
+            remove_zero_segments: flag_default_true(),
+            remove_close_line: flag_default_true(),
             straight_curves: flag_default_true(),
-            convert_to_q: flag_default_true(),
-            line_shorthands: flag_default_true(),
-            collapse_repeated: flag_default_true(),
-            curve_smooth_shorthands: flag_default_true(),
-            convert_to_z: flag_default_true(),
-            force_absolute_path: bool::default(),
-            negative_extra_space: flag_default_true(),
-            make_arcs: MakeArcs::default(),
-            float_precision: ConvertPrecision::default(),
-            utilize_absolute: flag_default_true(),
+            arc_curves: flag_default_true(),
+            smart_arc_rounding: flag_default_true(),
+            tolerance: Tolerance::default(),
         }
     }
 }
-
-#[cfg_attr(feature = "napi", napi(object))]
-#[derive(Clone, Default, Copy, Debug)]
-pub struct ConvertPrecision(pub convert::Precision);
 
 impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
     type Error = JobsError<'input>;
@@ -138,8 +117,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
         let computed_styles = ComputedStyles::default()
             .with_all(element, &context.query_has_stylesheet_result)
             .map_err(JobsError::ComputedStylesError)?;
-        let style_info = gather_style_info(element, &computed_styles);
-        log::debug!("ConvertPathData::run: gained style info {style_info:?}");
+        let (fill_rule, options) = gather_optimize_options(&computed_styles);
+        let options = options & self.into();
+        log::debug!("ConvertPathData::run: gained style info {options:?}");
 
         let Some(mut path) = get_attribute_mut!(element, D) else {
             log::debug!("ConvertPathData::run: ignoring unparsed path-data");
@@ -150,38 +130,25 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
             return Ok(());
         }
 
-        convert::run(
-            path,
-            &convert::Options {
-                flags: self.into(),
-                make_arcs: self.make_arcs.clone(),
-                precision: self.float_precision.0,
-            },
-            &style_info,
-        );
+        *path = path.optimize(options, fill_rule, &self.tolerance);
         Ok(())
     }
 }
 
-impl From<&ConvertPathData> for convert::Flags {
+impl From<&ConvertPathData> for optimize::Options {
     fn from(val: &ConvertPathData) -> Self {
-        use convert::Flags;
+        use optimize::Options;
 
-        let mut output = convert::Flags::default();
-        output.set(Flags::remove_useless_flag, val.remove_useless);
-        output.set(Flags::smart_arc_rounding_flag, val.smart_arc_rounding);
-        output.set(Flags::straight_curves_flag, val.straight_curves);
-        output.set(Flags::convert_to_q_flag, val.convert_to_q);
-        output.set(Flags::line_shorthands_flag, val.line_shorthands);
-        output.set(Flags::collapse_repeated_flag, val.collapse_repeated);
-        output.set(
-            Flags::curve_smooth_shorthands_flag,
-            val.curve_smooth_shorthands,
-        );
-        output.set(Flags::convert_to_z_flag, val.convert_to_z);
-        output.set(Flags::force_absolute_path_flag, val.force_absolute_path);
-        output.set(Flags::negative_extra_space_flag, val.negative_extra_space);
-        output.set(Flags::utilize_absolute_flag, val.utilize_absolute);
+        let mut output = Options::empty();
+        output.set(Options::CloseSegments, val.close_segments);
+        output.set(Options::UniteSegments, val.unite_segments);
+        output.set(Options::JoinNodes, val.join_nodes);
+        output.set(Options::RemoveEmptySegments, val.remove_empty_segments);
+        output.set(Options::RemoveNoopCommands, val.remove_zero_segments);
+        output.set(Options::RemoveCloseLine, val.remove_close_line);
+        output.set(Options::StraightCurves, val.straight_curves);
+        output.set(Options::ArcCurves, val.arc_curves);
+        output.set(Options::SmartArcRounding, val.smart_arc_rounding);
         output
     }
 }
@@ -189,66 +156,8 @@ impl From<&ConvertPathData> for convert::Flags {
 const fn flag_default_true() -> bool {
     true
 }
-
-#[derive(Debug)]
-#[cfg(feature = "serde")]
-enum DeserializePrecisionError {
-    OutOfRange,
-    InvalidType,
-}
-
-#[cfg(feature = "serde")]
-impl std::fmt::Display for DeserializePrecisionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::OutOfRange => f.write_str("number out of range for i32"),
-            Self::InvalidType => f.write_str("expected null, i32, or false"),
-        }
-    }
-}
-
-#[cfg(feature = "serde")]
-impl serde::de::StdError for DeserializePrecisionError {}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for ConvertPrecision {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = Value::deserialize(deserializer)?;
-        match value {
-            Value::Null => Ok(Self(oxvg_path::convert::Precision::None)),
-            Value::Number(x) => match x.as_i64() {
-                Some(x) => Ok(Self(oxvg_path::convert::Precision::Enabled(
-                    x.try_into().map_err(|_| {
-                        serde::de::Error::custom(DeserializePrecisionError::OutOfRange)
-                    })?,
-                ))),
-                None => Err(serde::de::Error::custom(
-                    DeserializePrecisionError::OutOfRange,
-                )),
-            },
-            Value::Bool(x) if !x => Ok(Self(oxvg_path::convert::Precision::Disabled)),
-            _ => Err(serde::de::Error::custom(
-                DeserializePrecisionError::InvalidType,
-            )),
-        }
-    }
-}
-
-#[cfg(feature = "serde")]
-impl Serialize for ConvertPrecision {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self.0 {
-            oxvg_path::convert::Precision::None => Value::Null.serialize(serializer),
-            oxvg_path::convert::Precision::Disabled => false.serialize(serializer),
-            oxvg_path::convert::Precision::Enabled(n) => n.serialize(serializer),
-        }
-    }
+const fn flag_default_false() -> bool {
+    false
 }
 
 #[test]
@@ -257,7 +166,7 @@ fn convert_path_data() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        r#"{ "convertPathData": {} }"#,
+        r#"{ "convertPathData": { "removeEmptySegments": false } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <!-- Optimise move commands -->
@@ -484,7 +393,7 @@ fn convert_path_data() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "convertPathData": { "floatPrecision": 2 } }"#,
+        r#"{ "convertPathData": { "tolerance": { "precision": 2 } } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <path d="M.49 8.8c-.3-.75-.44-1.55-.44-2.35 0-3.54 2.88-6.43 6.43-6.43 3.53 0 6.42 2.88 6.42 6.43 0 .8-.15 1.6-.43 2.35"/>
@@ -494,7 +403,7 @@ fn convert_path_data() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "convertPathData": { "floatPrecision": 0 } }"#,
+        r#"{ "convertPathData": { "tolerance": { "precision": 0 } } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <path d="M.49 8.8c-.3-.75-.44-1.55-.44-2.35 0-3.54 2.88-6.43 6.43-6.43 3.53 0 6.42 2.88 6.42 6.43 0 .8-.15 1.6-.43 2.35"/>
@@ -504,7 +413,7 @@ fn convert_path_data() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "convertPathData": { "floatPrecision": 8 } }"#,
+        r#"{ "convertPathData": { "tolerance": { "precision": 8 } } }"#,
         Some(
             r#"<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <path d="M33.027833,1.96545901 C33.097408,2.03503401 38.0413624,6.97898843 38.0413624,6.97898842 C38.0413625,6.97898834 38.0094318,4.0346712 38.0094318,4.0346712 L34,0.0252395624 L34,0 L13,0 L13,2 L33.062374,2 Z"></path>
