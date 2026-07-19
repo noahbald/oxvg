@@ -460,6 +460,18 @@ impl Arc {
         tolerance_squared: ToleranceSquared,
     ) -> bool {
         let min_sweep = self.sweep_angle().abs().min(other.sweep_angle().abs());
+        if self.radii().x == self.radii().y
+            && other.radii().x == other.radii().y
+            && self.sweep_angle().signum() == other.sweep_angle().signum()
+        {
+            let max_radius = self.radii().x.max(other.radii().x);
+            let straight_threshold = 0.1 * max_radius;
+            if min_sweep < straight_threshold.min(1.0) {
+                // Relatively small, relatively round arcs can be regarded as continuous
+                return true;
+            }
+        }
+
         let scale = (min_sweep.powi(-1)).max(40.0 * self.radii().len());
         let tolerance_scaled = *tolerance_squared * scale;
         self.center().distance_squared(other.center()) < tolerance_scaled
