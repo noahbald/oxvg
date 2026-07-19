@@ -1,5 +1,7 @@
+use std::f64::consts::PI;
+
 use crate::{
-    command::{self, short_number, ID},
+    command::{self, ID},
     geometry::{
         Arc, Curve, Point, QuadraticBezierTo, SmoothBezierTo, Tolerance, TolerancePrecision,
         ToleranceSquared,
@@ -508,36 +510,22 @@ impl Path {
             }
         }
 
+        let tangent = start_tangent_unit(arc);
+        let min_by = Point::new(
+            precision.round(precision.descale(tangent.x)),
+            precision.round(precision.descale(tangent.y)),
+        );
         if precision.round(arc_by[5]) == 0.0 && precision.round(arc_by[6]) == 0.0 {
-            if arc_by[5] != 0.0 && arc_by[6] != 0.0 {
-                if short_number(arc_by[5]).len() < short_number(arc_by[6]).len() {
-                    arc_by[6] = 0.0;
-                } else {
-                    arc_by[5] = 0.0;
-                }
-            } else if arc_by[5] != 0.0 {
-                arc_by[6] = 0.0;
-            } else if arc_by[6] != 0.0 {
-                arc_by[5] = 0.0;
-            }
+            arc_by[5] = min_by.x;
+            arc_by[6] = min_by.y;
         } else {
             arc_by[5] = precision.round(arc_by[5]);
             arc_by[6] = precision.round(arc_by[6]);
         }
+        let start = Point::new(precision.round(start.x), precision.round(start.y));
         if precision.round(arc_to[5]) == start.x && precision.round(arc_to[6]) == start.y {
-            if arc_to[5] != start.x && arc_to[6] != start.y {
-                if short_number(arc_to[5]).len() < short_number(arc_to[6]).len() {
-                    arc_to[5] = precision.round(arc_to[5]);
-                    arc_to[6] = start.y;
-                } else {
-                    arc_to[5] = start.x;
-                    arc_to[6] = precision.round(arc_to[6]);
-                }
-            } else if arc_to[5] != start.x {
-                arc_to[6] = start.y;
-            } else if arc_to[6] != start.y {
-                arc_to[5] = start.x;
-            }
+            arc_to[5] = start.x + min_by.x;
+            arc_to[6] = start.y + min_by.y;
         } else {
             arc_to[5] = precision.round(arc_to[5]);
             arc_to[6] = precision.round(arc_to[6]);
@@ -596,6 +584,32 @@ pub(crate) fn compactest(
     precision: TolerancePrecision,
 ) -> command::Data {
     compactest_vec(previous, [left, right], implicit, precision)
+}
+
+fn start_tangent_unit(arc: &Arc) -> Point {
+    let (sin_a, cos_a) = arc.start_angle().sin_cos();
+    let mut tx = -arc.radii().x * sin_a;
+    let mut ty = arc.radii().y * cos_a;
+
+    let mut effective_sweep = arc.sweep_angle().rem_euclid(2.0 * PI);
+    if effective_sweep > PI {
+        effective_sweep -= 2.0 * PI;
+    }
+    if effective_sweep < 0.0 {
+        tx = -tx;
+        ty = -ty;
+    }
+
+    let (sin_r, cos_r) = arc.x_rotation().sin_cos();
+    let rx = tx * cos_r - ty * sin_r;
+    let ry = tx * sin_r + ty * cos_r;
+
+    let len = (rx * rx + ry * ry).sqrt();
+    if len == 0.0 {
+        Point::new(0.0, 0.0)
+    } else {
+        Point::new(rx / len, ry / len)
+    }
 }
 
 #[cfg(test)]
