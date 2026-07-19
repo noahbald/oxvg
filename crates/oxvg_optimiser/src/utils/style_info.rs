@@ -109,7 +109,10 @@ pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> (FillRule, o
         | optimize::Options::from_bits_retain(
             ((fill_rule.is_none() || (maybe_has_evenodd ^ maybe_has_nonzero)) as u16) * u16::MAX,
         );
-    options.set(optimize::Options::RemoveCloseLine, safe_to_close);
+    options.set(
+        optimize::Options::RemoveCloseLine,
+        !maybe_has_stroke && !maybe_has_marker_mid && !maybe_has_marker_end,
+    );
 
     (overlay_fill_rule, options)
 }
