@@ -126,6 +126,11 @@ impl Ellipses {
     /// For a curve, returns the ellipses that the curve approximates an arc of, if the curve
     /// fits within some tolerance.
     pub fn fit_curve(curve: &Curve, start: Point, tolerance: &Tolerance) -> Option<Ellipses> {
+        if start.cross(curve.start_control, curve.end_point).signum()
+            != start.cross(curve.end_control, curve.end_point).signum()
+        {
+            return None;
+        }
         // Find circumcircle
         let middle = curve.point_at_from(start, 0.5);
         let end = curve.end_point;
