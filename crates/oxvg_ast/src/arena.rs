@@ -97,7 +97,7 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
         self.indices.borrow().get(id).map(|&p| {
             let node = unsafe { &*p };
 
-            assert!(node.id() == id);
+            assert_eq!(node.id(), id);
             node
         })
     }

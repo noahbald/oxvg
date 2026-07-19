@@ -359,7 +359,7 @@ impl ConvertShapeToPath {
         path.0.iter_mut().for_each(|d| {
             d.args_mut()
                 .iter_mut()
-                .for_each(|d| *d = precision.round(*d))
+                .for_each(|d| *d = precision.round(*d));
         });
 
         set_attribute!(element, D(path::Path(path, None)));
@@ -409,7 +409,7 @@ impl ConvertShapeToPath {
         path.0.iter_mut().for_each(|d| {
             d.args_mut()
                 .iter_mut()
-                .for_each(|d| *d = precision.round(*d))
+                .for_each(|d| *d = precision.round(*d));
         });
 
         set_attribute!(element, D(path::Path(path, None)));

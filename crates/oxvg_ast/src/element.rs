@@ -114,10 +114,8 @@ impl<'input, 'arena> Element<'input, 'arena> {
                                 local,
                             }),
                         value,
-                    } if matching_prefix.is_none() => {
-                        if value == uri {
-                            matching_prefix = Some(local.clone());
-                        }
+                    } if matching_prefix.is_none() && value == uri => {
+                        matching_prefix = Some(local.clone());
                     }
                     _ => (),
                 }

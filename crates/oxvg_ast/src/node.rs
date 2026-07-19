@@ -309,9 +309,9 @@ impl<'input, 'arena> Node<'input, 'arena> {
         prev_child.next_sibling.set(Some(new_node));
         new_node.previous_sibling.set(Some(prev_child));
         new_node.next_sibling.set(Some(reference_node));
-        debug_assert!(new_node.parent.get() == Some(self));
-        debug_assert!(new_node.next_sibling.get() == Some(reference_node));
-        debug_assert!(reference_node.previous_sibling.get() == Some(new_node));
+        debug_assert_eq!(new_node.parent.get(), Some(self));
+        debug_assert_eq!(new_node.next_sibling.get(), Some(reference_node));
+        debug_assert_eq!(reference_node.previous_sibling.get(), Some(new_node));
     }
 
     /// Inserts a node after the reference node as a child of the current node.
@@ -332,9 +332,9 @@ impl<'input, 'arena> Node<'input, 'arena> {
         next_child.previous_sibling.set(Some(new_node));
         new_node.next_sibling.set(Some(next_child));
         new_node.previous_sibling.set(Some(reference_node));
-        debug_assert!(new_node.parent.get() == Some(self));
-        debug_assert!(new_node.previous_sibling.get() == Some(*reference_node));
-        debug_assert!(reference_node.next_sibling.get() == Some(new_node));
+        debug_assert_eq!(new_node.parent.get(), Some(self));
+        debug_assert_eq!(new_node.previous_sibling.get(), Some(*reference_node));
+        debug_assert_eq!(reference_node.next_sibling.get(), Some(new_node));
     }
 
     /// Iterates through the children of the node, using the callback to determine which
@@ -433,9 +433,9 @@ impl<'input, 'arena> Node<'input, 'arena> {
         } else {
             self.first_child.set(Some(a_child));
         }
-        debug_assert!(a_child.parent.get() == Some(self));
+        debug_assert_eq!(a_child.parent.get(), Some(self));
         debug_assert!(a_child.next_sibling.get().is_none());
-        debug_assert!(self.last_child.get() == Some(a_child));
+        debug_assert_eq!(self.last_child.get(), Some(a_child));
     }
 
     /// Returns a node from the child nodes

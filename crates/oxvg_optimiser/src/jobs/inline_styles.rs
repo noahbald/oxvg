@@ -317,7 +317,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                 HashableElement::new(element.clone())
             });
         for (element, mut group) in grouping {
-            group.sort_by(|a, b| a.specificity.cmp(&b.specificity));
+            group.sort_by_key(|a| a.specificity);
 
             let mut style_attr = remove_attribute!(element, Style)
                 .unwrap_or_else(|| Style(DeclarationBlock::default()));

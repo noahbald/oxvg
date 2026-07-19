@@ -125,7 +125,7 @@ fn move_attributes_to_child(element: &Element) {
 
         removals.push(name);
         let Some(mut child_attr) = child_attr else {
-            log::debug!("collapse_groups: moved {attr:?}: same as parent",);
+            log::debug!("collapse_groups: moved {attr:?}: same as parent");
             first_child_attrs.set_named_item(attr.clone());
             continue;
         };

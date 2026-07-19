@@ -84,13 +84,7 @@ impl<'input, 'arena> State<'input, 'arena> {
         let document = element.as_document();
         let state_element = element
             .last_element_child()
-            .and_then(|e| {
-                if assert_oxvg_element(&e, StateElement::STATE).is_ok() {
-                    Some(e)
-                } else {
-                    None
-                }
-            })
+            .filter(|e| assert_oxvg_element(e, StateElement::STATE).is_ok())
             .unwrap_or_else(|| {
                 document.create_element(create_oxvg_element(StateElement::STATE), allocator)
             });

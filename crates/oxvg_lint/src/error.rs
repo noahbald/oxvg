@@ -222,7 +222,7 @@ impl Error<'_> {
             f.write_fmt(format_args!("\n {: <padding$} · \x1b[35m", ""))?;
             f.write_fmt(format_args!("{:─<1$}\x1b[0m", "", column + range.len()))?;
         } else {
-            f.write_fmt(format_args!("\n {: <1$} · ", "", padding,))?;
+            f.write_fmt(format_args!("\n {: <1$} · ", "", padding))?;
             f.write_fmt(format_args!("{: <1$}\x1b[35m", "", column))?;
             f.write_fmt(format_args!("{:─<1$}\x1b[0m", "", range.len()))?;
         }
