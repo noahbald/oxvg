@@ -126,8 +126,11 @@ impl Ellipses {
     /// For a curve, returns the ellipses that the curve approximates an arc of, if the curve
     /// fits within some tolerance.
     pub fn fit_curve(curve: &Curve, start: Point, tolerance: &Tolerance) -> Option<Ellipses> {
-        if start.cross(curve.start_control, curve.end_point).signum()
-            != start.cross(curve.end_control, curve.end_point).signum()
+        let start_control_cross = start.cross(curve.start_control, curve.end_point);
+        let end_control_cross = start.cross(curve.end_control, curve.end_point);
+        if start_control_cross.signum() != end_control_cross.signum()
+            && (start_control_cross > tolerance.positional
+                || end_control_cross > tolerance.positional)
         {
             return None;
         }
