@@ -465,8 +465,7 @@ impl Arc {
             && self.sweep_angle().signum() == other.sweep_angle().signum()
         {
             let max_radius = self.radii().x.max(other.radii().x);
-            let straight_threshold = 0.1 * max_radius;
-            if min_sweep < straight_threshold.min(1.0) {
+            if min_sweep * max_radius < 10.0 {
                 // Relatively small, relatively round arcs can be regarded as continuous
                 return true;
             }
