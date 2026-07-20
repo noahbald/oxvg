@@ -92,19 +92,36 @@ macro_rules! jobs {
                                 return Err(napi::Error::new(Status::InvalidArg, "expected name to be string"));
                             };
                             let name = Self::from_svgo_plugin_to_snake_case(&svgo_name);
-                            match name.as_str() {
-                                $(stringify!($name) => oxvg_config.$name = Some(plugin.get("params")?.unwrap_or_default()),)+
-                                _ => return Err(napi::Error::new(Status::InvalidArg, format!("unknown job `{name}`"))),
-                            }
                             if matches!(name.as_str(), "convert_path_data") {
-                                if let Ok(Some(params)) = plugin.get::<Object>("params") {
-                                    if matches!(plugin.get::<bool>("applyTransforms"), Ok(Some(true))) {
+                                if let Some(params) = plugin.get::<Object>("params")? {
+                                    let mut convert_path_data: ConvertPathData = plugin.get("params").ok().flatten().unwrap_or_default();
+                                    let make_arcs = params.get::<Object>("makeArcs").ok().flatten();
+                                    if let Some(make_arcs) = make_arcs {
+                                        convert_path_data.tolerance.positional = make_arcs.get("threshold").ok().flatten().unwrap_or(convert_path_data.tolerance.positional);
+                                    }
+                                    convert_path_data.tolerance.precision = params.get("floatPrecision").ok().flatten().unwrap_or(convert_path_data.tolerance.precision);
+                                    convert_path_data.close_segments = params.get("convertToZ").ok().flatten().unwrap_or(convert_path_data.close_segments);
+                                    convert_path_data.join_nodes = params.get("collapseRepeated").ok().flatten().unwrap_or(convert_path_data.join_nodes);
+                                    convert_path_data.remove_empty_segments = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_empty_segments);
+                                    convert_path_data.remove_zero_segments = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_zero_segments);
+                                    convert_path_data.remove_close_line = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_close_line);
+                                    convert_path_data.straight_curves = params.get("straightCurves").ok().flatten().unwrap_or(convert_path_data.straight_curves);
+                                    convert_path_data.arc_curves = make_arcs.is_some();
+                                    convert_path_data.smart_arc_rounding = params.get("smartArcRounding").ok().flatten().unwrap_or(convert_path_data.smart_arc_rounding);
+                                    oxvg_config.convert_path_data = Some(convert_path_data);
+
+                                    if matches!(params.get::<bool>("applyTransforms"), Ok(Some(true))) {
                                         oxvg_config.apply_transforms = Some(ApplyTransforms {
                                             transform_precision: params.get("transformPrecision")?,
                                             apply_transforms_stroked:
                                                 params.get("applyTransformsStroked")?.unwrap_or_default(),
                                         });
                                     }
+                                }
+                            } else {
+                                match name.as_str() {
+                                    $(stringify!($name) => oxvg_config.$name = Some(plugin.get("params")?.unwrap_or_default()),)+
+                                    _ => return Err(napi::Error::new(Status::InvalidArg, format!("unknown job `{name}`"))),
                                 }
                             }
                         }
@@ -152,7 +169,23 @@ macro_rules! jobs {
                             let params = plugin.remove("params");
                             if let Some(mut params) = params {
                                 if matches!(name.as_str(), "convert_path_data") {
+                                    let mut convert_path_data: ConvertPathData = serde_json::from_value(params.clone()).unwrap_or_default();
                                     if let serde_json::Value::Object(params) = &mut params {
+                                        let mut make_arcs = params.remove("makeArcs");
+                                        if let Some(serde_json::Value::Object(make_arcs)) = make_arcs.as_mut() {
+                                            convert_path_data.tolerance.positional = make_arcs.remove("threshold").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.tolerance.positional);
+                                        }
+                                        convert_path_data.tolerance.precision = params.remove("floatPrecision").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.tolerance.precision);
+                                        convert_path_data.close_segments = params.remove("convertToZ").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.close_segments);
+                                        convert_path_data.join_nodes = params.remove("collapseRepeated").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.join_nodes);
+                                        convert_path_data.remove_empty_segments = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_empty_segments);
+                                        convert_path_data.remove_zero_segments = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_zero_segments);
+                                        convert_path_data.remove_close_line = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_close_line);
+                                        convert_path_data.straight_curves = params.remove("straightCurves").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.straight_curves);
+                                        convert_path_data.arc_curves = make_arcs.is_some();
+                                        convert_path_data.smart_arc_rounding = params.remove("smartArcRounding").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.smart_arc_rounding);
+                                        oxvg_config.convert_path_data = Some(convert_path_data);
+
                                         if matches!(
                                             params.remove("applyTransforms"),
                                             Some(serde_json::Value::Bool(true)),
@@ -166,10 +199,11 @@ macro_rules! jobs {
                                             });
                                         }
                                     }
-                                }
-                                match name.as_str() {
-                                    $(stringify!($name) => oxvg_config.$name = Some(serde_json::from_value(params)?),)+
-                                    _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                                } else {
+                                    match name.as_str() {
+                                        $(stringify!($name) => oxvg_config.$name = Some(serde_json::from_value(params)?),)+
+                                        _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
+                                    }
                                 }
                             } else {
                                 match name.as_str() {
