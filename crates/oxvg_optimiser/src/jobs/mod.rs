@@ -96,6 +96,17 @@ macro_rules! jobs {
                                 $(stringify!($name) => oxvg_config.$name = Some(plugin.get("params")?.unwrap_or_default()),)+
                                 _ => return Err(napi::Error::new(Status::InvalidArg, format!("unknown job `{name}`"))),
                             }
+                            if matches!(name.as_str(), "convert_path_data") {
+                                if let Ok(Some(params)) = plugin.get::<Object>("params") {
+                                    if matches!(plugin.get::<bool>("applyTransforms"), Ok(Some(true))) {
+                                        oxvg_config.apply_transforms = Some(ApplyTransforms {
+                                            transform_precision: params.get("transformPrecision")?,
+                                            apply_transforms_stroked:
+                                                params.get("applyTransformsStroked")?.unwrap_or_default(),
+                                        });
+                                    }
+                                }
+                            }
                         }
                         _ => return Err(napi::Error::new(Status::InvalidArg, "unexpected type")),
                     }
@@ -139,7 +150,23 @@ macro_rules! jobs {
                             };
                             let name = Self::from_svgo_plugin_to_snake_case(&svgo_name);
                             let params = plugin.remove("params");
-                            if let Some(params) = params {
+                            if let Some(mut params) = params {
+                                if matches!(name.as_str(), "convert_path_data") {
+                                    if let serde_json::Value::Object(params) = &mut params {
+                                        if matches!(
+                                            params.remove("applyTransforms"),
+                                            Some(serde_json::Value::Bool(true)),
+                                        ) {
+                                            oxvg_config.apply_transforms = Some(ApplyTransforms {
+                                                transform_precision: params.remove("transformPrecision")
+                                                    .and_then(|p| serde_json::from_value(p).ok()),
+                                                apply_transforms_stroked: params.remove("applyTransformsStroked")
+                                                    .and_then(|p| serde_json::from_value(p).ok())
+                                                    .unwrap_or_default()
+                                            });
+                                        }
+                                    }
+                                }
                                 match name.as_str() {
                                     $(stringify!($name) => oxvg_config.$name = Some(serde_json::from_value(params)?),)+
                                     _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
@@ -149,6 +176,9 @@ macro_rules! jobs {
                                     $(stringify!($name) => oxvg_config.$name = Some($job::default()),)+
                                     _ => return Err(serde_json::Error::custom(format!("unknown job `{name}`"))),
                                 };
+                                if matches!(name.as_str(), "convert_path_data") {
+                                    oxvg_config.apply_transforms = Some(ApplyTransforms::default());
+                                }
                             }
                         }
                         _ => return Err(serde_json::Error::custom(format!("unexpected type"))),
@@ -174,6 +204,9 @@ macro_rules! jobs {
                     $(stringify!($name) => self.$name = Some($job::default()),)+
                     _ => return Err(()),
                 };
+                if matches!(name.as_str(), "convert_path_data") {
+                    self.apply_transforms = Some(ApplyTransforms::default());
+                }
                 Ok(())
             }
 
