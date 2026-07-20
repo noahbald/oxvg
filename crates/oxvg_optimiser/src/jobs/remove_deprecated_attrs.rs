@@ -15,7 +15,7 @@ use tsify::Tsify;
 
 use crate::error::JobsError;
 
-const fn default_remove_unsafe() -> bool {
+const fn default_remove_any() -> bool {
     false
 }
 
@@ -87,7 +87,7 @@ impl<'input> AttrStylesheet<'input> {
 ///
 /// By default this job should never visually change the document.
 ///
-/// Specifying `remove_unsafe` may remove attributes which visually change
+/// Specifying `remove_any` may remove attributes which visually change
 /// the document.
 ///
 /// # Errors
@@ -96,15 +96,15 @@ impl<'input> AttrStylesheet<'input> {
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveDeprecatedAttrs {
-    #[cfg_attr(feature = "serde", serde(default = "default_remove_unsafe"))]
-    /// Whether to remove deprecated presentation attributes
-    pub remove_unsafe: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_remove_any"))]
+    /// Whether to remove deprecated presentation attributes that may be unsafe to remove
+    pub remove_any: bool,
 }
 
 impl Default for RemoveDeprecatedAttrs {
     fn default() -> Self {
         RemoveDeprecatedAttrs {
-            remove_unsafe: default_remove_unsafe(),
+            remove_any: default_remove_any(),
         }
     }
 }
@@ -154,7 +154,7 @@ impl RemoveDeprecatedAttrs {
             }
             let info = attr.name().info();
             if info.contains(AttributeInfo::DeprecatedSafe)
-                || (self.remove_unsafe && info.contains(AttributeInfo::DeprecatedUnsafe))
+                || (self.remove_any && info.contains(AttributeInfo::DeprecatedUnsafe))
             {
                 return false;
             }
@@ -188,7 +188,7 @@ fn remove_attrs() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeDeprecatedAttrs": { "removeUnsafe": true } }"#,
+        r#"{ "removeDeprecatedAttrs": { "removeAny": true } }"#,
         Some(
             r#"<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <!-- removes unsafe to remove deprecated `viewTarget` -->
@@ -198,7 +198,7 @@ fn remove_attrs() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeDeprecatedAttrs": { "removeUnsafe": true } }"#,
+        r#"{ "removeDeprecatedAttrs": { "removeAny": true } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="100.5" height=".5" enable-background="new 0 0 100.5 .5">
     <!-- remove deprecated `enable-background` -->
@@ -233,7 +233,7 @@ fn remove_attrs() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeDeprecatedAttrs": { "removeUnsafe": true } }"#,
+        r#"{ "removeDeprecatedAttrs": { "removeAny": true } }"#,
         Some(
             r#"<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <!-- removes unsafe to remove deprecated `xml:lang` -->
@@ -243,7 +243,7 @@ fn remove_attrs() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeDeprecatedAttrs": { "removeUnsafe": true } }"#,
+        r#"{ "removeDeprecatedAttrs": { "removeAny": true } }"#,
         Some(
             r#"<svg version="1.1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <!-- keep selected `version` -->
