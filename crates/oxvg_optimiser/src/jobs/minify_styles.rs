@@ -70,7 +70,7 @@ pub struct MinifyStyles {
     /// Whether to remove styles with no matching elements.
     #[cfg_attr(feature = "wasm", tsify(type = r#"boolean | "force""#, optional))]
     #[cfg_attr(feature = "serde", serde(default = "RemoveUnused::default"))]
-    pub remove_unused: RemoveUnused,
+    pub usage: RemoveUnused,
 }
 
 #[derive(Debug)]
@@ -125,7 +125,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                 .insert(element.id(), element.clone());
         }
 
-        if matches!(self.options.remove_unused, RemoveUnused::False) {
+        if matches!(self.options.usage, RemoveUnused::False) {
             return Ok(());
         }
 
@@ -160,7 +160,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
             let mut style_sheet = style_sheet.borrow_mut();
 
             let mut visitor = StyleVisitor(self);
-            match self.options.remove_unused {
+            match self.options.usage {
                 RemoveUnused::True
                     if !context
                         .flags
@@ -355,7 +355,7 @@ fn minify_styles() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "minifyStyles": { "removeUnused": false } }"#,
+        r#"{ "minifyStyles": { "usage": false } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <style>
@@ -407,7 +407,7 @@ fn minify_styles() -> anyhow::Result<()> {
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "minifyStyles": { "removeUnused": "force" } }"#,
+        r#"{ "minifyStyles": { "usage": "force" } }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
     <style>
