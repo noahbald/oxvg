@@ -109,6 +109,56 @@ test("optimise with config", async () => {
 			};
 			assert.deepEqual(result, expected);
 		});
+
+		test("convertPathData", () => {
+			const result =convertSvgoConfig([
+				{
+					name: "convertPathData",
+					params: {
+		        applyTransforms: true,
+		        applyTransformsStroked: true,
+		        straightCurves: true,
+		        convertToQ: true,
+		        lineShorthands: true,
+		        convertToZ: true,
+		        curveSmoothShorthands: true,
+		        floatPrecision: 2,
+		        transformPrecision: 2,
+		        smartArcRounding: true,
+		        removeUseless: true,
+		        collapseRepeated: true,
+		        utilizeAbsolute: true,
+		        negativeExtraSpace: true,
+		        forceAbsolutePath: false	
+					}
+				}
+			]);
+			/** @type {import("./index.d.ts").Jobs} */
+			const expected = {
+				// Should apply when `applyTransforms: true`
+		    applyTransforms: {
+		      applyTransformsStroked: true,
+		      transformPrecision: 2
+		    },
+		    convertPathData: {
+		      arcCurves: false,
+		      closeSegments: true,
+		      joinNodes: true,
+		      removeCloseLine: true,
+		      removeEmptySegments: true,
+		      removeZeroSegments: true,
+		      smartArcRounding: true,
+		      straightCurves: true,
+		      tolerance: {
+		        angular: 0.001,
+		        positional: 0.001,
+		        precision: 2
+		      },
+		      uniteSegments: false
+		    }
+			};
+			assert.deepEqual(result, expected);
+		})
 	});
 });
 
