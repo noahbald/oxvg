@@ -1250,40 +1250,26 @@ export interface ConvertOneStopGradients {
  * Rounding errors may result in slight visual differences.
  */
 export interface ConvertPathData {
-  /** Whether to remove redundant path commands. */
-  removeUseless: boolean
-  /** Whether to round the radius of circular arcs when the effective change is under error bounds. */
-  smartArcRounding: boolean
-  /** Whether to convert straight curves to lines */
+  /** Whether to close unclosed paths segments when safe to do so. */
+  closeSegments: boolean
+  /** Whether to boolean unite overlapping segments when safe and optimal to do so (experimental). */
+  uniteSegments: boolean
+  /** Whether to join commands that fit within it's neighboring commands when safe to do so. */
+  joinNodes: boolean
+  /** Whether to remove move commands neighbored by move commands when safe to do so. */
+  removeEmptySegments: boolean
+  /** Whether to remove segments where all command args are effectively zero. */
+  removeZeroSegments: boolean
+  /** Whether to remove closing lines when safe to do so. */
+  removeCloseLine: boolean
+  /** Whether to convert curves and arcs into lines. */
   straightCurves: boolean
-  /** Whether to convert complex curves that look like cubic beziers (q) into them. */
-  convertToQ: boolean
-  /** Whether to convert normal lines that move in one direction to a vertical or horizontal line command. */
-  lineShorthands: boolean
-  /** Whether merge repeated commands into one. */
-  collapseRepeated: boolean
-  /** Whether to convert complex curves that look like smooth curves into them. */
-  curveSmoothShorthands: boolean
-  /** Whether to convert lines that close a curve to a close command (z). */
-  convertToZ: boolean
-  /** Whether to always convert relative paths to absolute, even if larger. */
-  forceAbsolutePath: boolean
-  /** Whether to weakly force absolute commands, when slightly suboptimal */
-  negativeExtraSpace: boolean
-  /** Controls whether to convert from curves to arcs */
-  makeArcs: MakeArcs
-  /**
-   * Number of decimal places to round to.
-   *
-   * Precisions larger than 20 will be treated as 0.
-   */
-  floatPrecision: ConvertPrecision
-  /** Whether to convert from relative to absolute, when shorter. */
-  utilizeAbsolute: boolean
-}
-
-export interface ConvertPrecision {
-  field0: Precision
+  /** Whether to convert curves curves into arcs. */
+  arcCurves: boolean
+  /** Whether to loosen arc radius rounding based on chord length. */
+  smartArcRounding: boolean
+  /** Tolerance for converting between SVG, Segments, and Polygons. */
+  tolerance: Tolerance
 }
 
 /**
@@ -1308,7 +1294,7 @@ export interface ConvertShapeToPath {
   /** Whether to convert `<circle>` and `<ellipses>` to paths. */
   convertArcs: boolean
   /** The number of decimal places to round to */
-  floatPrecision: ConvertPrecision
+  floatPrecision: number
 }
 
 /**
@@ -1554,7 +1540,7 @@ export type Method =
  */
 export interface MinifyStyles {
   /** Whether to remove styles with no matching elements. */
-  removeUnused: RemoveUnused
+  usage: RemoveUnused
 }
 
 /**
@@ -1746,7 +1732,7 @@ export interface RemoveComments {
  *
  * By default this job should never visually change the document.
  *
- * Specifying `remove_unsafe` may remove attributes which visually change
+ * Specifying `remove_any` may remove attributes which visually change
  * the document.
  *
  * # Errors
@@ -1756,8 +1742,8 @@ export interface RemoveComments {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface RemoveDeprecatedAttrs {
-  /** Whether to remove deprecated presentation attributes */
-  removeUnsafe: boolean
+  /** Whether to remove deprecated presentation attributes that may be unsafe to remove */
+  removeAny: boolean
 }
 
 /**
@@ -2355,16 +2341,12 @@ export type XMLNSOrder =
   | { type: 'Alphabetical' }
   | { type: 'Front' }
   | { type: 'Napi' }
-/** When running calculations against arcs, the level of error tolerated */
-export interface MakeArcs {
-  /** When calculating tolerance, controls the bound compared to error */
-  threshold: number
-  /** When calculating tolerance, controls the bound compared to the radius */
-  tolerance: number
+/** Tolerance for converting between SVG, Segments, and Polygons */
+export interface Tolerance {
+  /** The level of tolerance when comparing the error between distances */
+  positional: number
+  /** The level of tolerance when comparing the error between angles */
+  angular: number
+  /** The number of decimal places to round numbers to during processing */
+  precision: number
 }
-
-/** How many decimal points to round path command arguments */
-export type Precision =
-  | { type: 'None' }
-  | { type: 'Disabled' }
-  | { type: 'Enabled', field0: number }
