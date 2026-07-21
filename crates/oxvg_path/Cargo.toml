@@ -17,7 +17,6 @@ workspace = true
 default = ["algorithm", "geometry", "parse", "format", "optimise"]
 algorithm = [
   "geometry",
-  "dep:splay_tree",
   "dep:geo",
   "dep:i_float",
   "dep:i_overlay",
@@ -52,7 +51,6 @@ rstar = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
-splay_tree = { workspace = true, optional = true }
 tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 ryu = { version = "1.0.18", optional = true }
