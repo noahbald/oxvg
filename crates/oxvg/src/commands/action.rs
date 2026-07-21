@@ -182,81 +182,55 @@ impl RunCommand for ActionList {
 
         if parts.is_empty() || parts.contains(ATTR) {
             println!("# Attribute\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/attr.md"
-            ));
+            println!(include_str!("../spec/manipulate/attr.md"));
         }
         if parts.is_empty() || parts.contains(CLASS) {
             println!("# Class\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/class.md"
-            ));
+            println!(include_str!("../spec/manipulate/class.md"));
         }
         if parts.is_empty() || parts.contains(STYLE) {
             println!("# Style\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/style.md"
-            ));
+            println!(include_str!("../spec/manipulate/style.md"));
         }
         if parts.is_empty() || parts.contains(MATRIX) {
             println!("# Matrix\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/matrix.md"
-            ));
+            println!(include_str!("../spec/manipulate/matrix.md"));
         }
         if parts.is_empty() || parts.contains(TRANSLATE) {
             println!("# Translate\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/translate.md"
-            ));
+            println!(include_str!("../spec/manipulate/translate.md"));
         }
         if parts.is_empty() || parts.contains(SCALE) {
             println!("# Scale\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/scale.md"
-            ));
+            println!(include_str!("../spec/manipulate/scale.md"));
         }
         if parts.is_empty() || parts.contains(ROTATE) {
             println!("# Rotate\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/rotate.md"
-            ));
+            println!(include_str!("../spec/manipulate/rotate.md"));
         }
         if parts.is_empty() || parts.contains(SKEW_X) {
             println!("# Skew X\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/skewX.md"
-            ));
+            println!(include_str!("../spec/manipulate/skewX.md"));
         }
         if parts.is_empty() || parts.contains(SKEW_Y) {
             println!("# Skew Y\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/manipulate/skewY.md"
-            ));
+            println!(include_str!("../spec/manipulate/skewY.md"));
         }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/state/forget.md"
-            ));
+            println!(include_str!("../spec/state/forget.md"));
         }
         if parts.is_empty() || parts.contains(SELECT) {
             println!("# Select\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/state/select.md"
-            ));
+            println!(include_str!("../spec/state/select.md"));
         }
         if parts.is_empty() || parts.contains(SELECT_MORE) {
             println!("# Select More\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/state/select-more.md"
-            ));
+            println!(include_str!("../spec/state/select-more.md"));
         }
         if parts.is_empty() || parts.contains(DESELECT) {
             println!("# Deselect\n");
-            println!(include_str!(
-                "../../../oxvg_actions/src/spec/state/deselect.md"
-            ));
+            println!(include_str!("../spec/state/deselect.md"));
         }
         Ok(())
     }
