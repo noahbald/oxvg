@@ -1671,7 +1671,6 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde-wasm-bindgen",
- "splay_tree",
  "tsify",
  "wasm-bindgen",
 ]
@@ -2412,11 +2411,6 @@ dependencies = [
  "robust",
  "smallvec",
 ]
-
-[[package]]
-name = "splay_tree"
-version = "0.5.0"
-source = "git+https://github.com/sile/splay_tree.git?rev=b5f5532c98307dc87be88d534c299c73548057e8#b5f5532c98307dc87be88d534c299c73548057e8"
 
 [[package]]
 name = "stable_deref_trait"
