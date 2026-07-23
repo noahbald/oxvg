@@ -170,10 +170,10 @@ jobs:
         id: release_check
         run: |
           MSG="$(git log -1 --pretty=%B)"
-          # TAG="$(git tag --points-at HEAD | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$' | head -n1 || true)"
-          if [[ "${{ github.ref }}" == "refs/heads/main" && "$MSG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$ ]]; then
+          TAG="$(git tag --points-at HEAD | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$' | head -n1 || true)"
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "$MSG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$  ]]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
-            # echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           else
             echo "should_release=false" >> "$GITHUB_OUTPUT"
           fi
