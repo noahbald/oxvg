@@ -1,0 +1,179 @@
+name: benchmark comparison
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/criterion-report.mjs"
+      - ".github/workflows/benchmark.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+
+concurrency:
+  group: benchmark-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bench-base:
+    name: benchmark base
+    runs-on: ubuntu-24.04
+    outputs:
+      results: ${{ steps.results.outputs.json }}
+    steps:
+      - name: Check out base revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Check out benchmark tooling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tooling
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+            crates/oxvg_optimiser/benches
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "source -> target"
+          shared-key: benchmark-base
+
+      - name: Download benchmark inputs
+        run: |
+          tooling/crates/oxvg_optimiser/benches/download_svgs.sh \
+            "$GITHUB_WORKSPACE/source/crates/oxvg_optimiser/benches"
+
+      - name: Run benchmarks
+        working-directory: source
+        env:
+          CRITERION_HOME: ${{ runner.temp }}/criterion
+        run: cargo bench --package oxvg_optimiser -- --noplot
+
+      - name: Export results
+        id: results
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          json=$(node tooling/.github/scripts/criterion-report.mjs \
+            extract "$RUNNER_TEMP/criterion")
+          printf 'json=%s\n' "$json" >> "$GITHUB_OUTPUT"
+
+  bench-head:
+    name: benchmark PR
+    runs-on: ubuntu-24.04
+    outputs:
+      results: ${{ steps.results.outputs.json }}
+    steps:
+      - name: Check out PR revision
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "source -> target"
+          shared-key: benchmark-head
+
+      - name: Download benchmark inputs
+        run: |
+          source/crates/oxvg_optimiser/benches/download_svgs.sh \
+            "$GITHUB_WORKSPACE/source/crates/oxvg_optimiser/benches"
+
+      - name: Run benchmarks
+        working-directory: source
+        env:
+          CRITERION_HOME: ${{ runner.temp }}/criterion
+        run: cargo bench --package oxvg_optimiser -- --noplot
+
+      - name: Export results
+        id: results
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          json=$(node source/.github/scripts/criterion-report.mjs \
+            extract "$RUNNER_TEMP/criterion")
+          printf 'json=%s\n' "$json" >> "$GITHUB_OUTPUT"
+
+  report:
+    name: report benchmark comparison
+    needs: [bench-base, bench-head]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out report tooling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Generate report
+        env:
+          BASE_RESULTS: ${{ needs.bench-base.outputs.results }}
+          HEAD_RESULTS: ${{ needs.bench-head.outputs.results }}
+          BENCHMARK_THRESHOLD_PERCENT: "5"
+        run: |
+          node .github/scripts/criterion-report.mjs report > benchmark-report.md
+          cat benchmark-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update PR comment
+        if: >-
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'dependabot[bot]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- oxvg-benchmark-report -->";
+            const body = fs.readFileSync("benchmark-report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const previous = comments.find(
+              (comment) =>
+                comment.user.type === "Bot" && comment.body.includes(marker),
+            );
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
