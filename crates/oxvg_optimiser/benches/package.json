@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "benches",
-  "version": "1.0.0",
+  "version": "0.0.6",
   "description": "Criterion benchmarks for SVGO",
   "main": "index.js",
   "scripts": {
