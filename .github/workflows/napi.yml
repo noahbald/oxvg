@@ -145,6 +145,9 @@ jobs:
       - test-macOS-windows-binding
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - name: setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup node
@@ -163,7 +166,20 @@ jobs:
       - name: List packages
         run: ls -R packages/napi
         shell: bash
+      - name: Publish eligiblity
+        id: release_check
+        run: |
+          MSG="$(git log -1 --pretty=%B)"
+          # TAG="$(git tag --points-at HEAD | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$' | head -n1 || true)"
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "$MSG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$ ]]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            # echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
       - name: Publish
+        if: steps.release_check.outputs.should_release == 'true'
         working-directory: packages/napi
         run: |
           npm config set provenance true
@@ -180,4 +196,3 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
