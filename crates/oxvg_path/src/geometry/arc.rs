@@ -200,6 +200,9 @@ impl Arc {
         self.end_point_memo.set(None);
         debug_assert!(
             self.end_point().distance_squared(end_point) < 5e-2,
+            // This is usually caused by bad joins of arc in simplify::Path::join_nodes.
+            // If you encounter this, consider updating the tolerance for small
+            // arcs stricter.
             "Memoised end-point ({end_point:?}) out of range of computed end-point({:?}) by {}",
             self.end_point(),
             self.end_point().distance(end_point)

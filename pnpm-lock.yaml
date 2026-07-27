@@ -21,6 +21,12 @@ importers:
         specifier: ^0.1.82
         version: 0.1.82
 
+  packages/jsx:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: ^3.4.1
+        version: 3.4.1(@emnapi/runtime@1.6.0)(@types/node@22.13.14)
+
   packages/napi:
     devDependencies:
       '@napi-rs/cli':

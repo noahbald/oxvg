@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "packages/wasm", "packages/napi"]
+members = ["crates/*", "packages/wasm", "packages/napi", "packages/jsx"]
 
 [workspace.lints.rust]
 missing_docs = { level = "warn" }
@@ -30,6 +30,7 @@ oxvg_actions = { path = "crates/oxvg_actions", version = ">=0.0" }
 oxvg_ast = { path = "crates/oxvg_ast", version = ">=0.0" }
 oxvg_collections = { path = "crates/oxvg_collections", version = ">=0.0" }
 oxvg_diagnostics = { path = "crates/oxvg_diagnostics", version = ">=0.0" }
+oxvg_jsx = { path = "crates/oxvg_jsx", version = ">=0.0" }
 oxvg_lint = { path = "crates/oxvg_lint", version = ">=0.0" }
 oxvg_optimiser = { path = "crates/oxvg_optimiser", default-features = false, version = ">=0.0" }
 oxvg_path = { path = "crates/oxvg_path", version = ">=0.0" }
@@ -66,6 +67,7 @@ napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
 num-traits = "0.2"
 nunny = "0.2"
+oxc_ast = "0.141"
 paste = "1.0"
 phf = { version = "0.11", features = ["macros"] }
 precomputed-hash = "0.1"
@@ -83,6 +85,8 @@ serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
 smallvec = "1.13.2"
 string_cache = "0.9"
+swc_core = "46.0"
+swc_ecma_lexer = "25.0"
 tendril = "0.5"
 tokio = "1.48"
 tower-lsp-server = "0.22"

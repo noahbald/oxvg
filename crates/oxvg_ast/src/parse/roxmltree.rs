@@ -76,10 +76,10 @@ pub fn parse_tree_with_allocator<'input, 'arena, T, F>(
     source: &'input roxmltree::Document<'input>,
     arena: &'arena mut Arena<'input, 'arena>,
     values: &'input Values,
-    mut f: F,
+    f: F,
 ) -> Result<T, ParseError>
 where
-    F: FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+    F: FnOnce(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
 {
     let mut allocator = Allocator::new(arena, values);
 
@@ -105,7 +105,7 @@ where
 /// If the depth of the tree is too deep
 pub fn parse_tree<
     T,
-    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+    F: for<'input, 'arena> FnOnce(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
 >(
     source: &roxmltree::Document,
     f: F,
@@ -124,7 +124,7 @@ pub fn parse_tree<
 /// If the depth of the tree is too deep
 pub fn parse_with_options<
     T,
-    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+    F: for<'input, 'arena> FnOnce(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
 >(
     source: &str,
     options: ParsingOptions,
@@ -142,7 +142,7 @@ pub fn parse_with_options<
 /// If the depth of the tree is too deep
 pub fn parse<
     T,
-    F: for<'input, 'arena> FnMut(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
+    F: for<'input, 'arena> FnOnce(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
 >(
     source: &str,
     f: F,
