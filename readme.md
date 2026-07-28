@@ -39,6 +39,12 @@ A basic [linter](https://github.com/noahbald/oxvg/wiki/Linter) similar to svglin
 
 <img width="1147" height="334" alt="image" src="https://github.com/user-attachments/assets/a5c190e6-b685-4c6e-ba35-1c8bd3578b02" />
 
+### ⚛️ JSX 
+
+A [JSX transformer](https://github.com/noahbald/oxvg/wiki/JSX) to take SVG documents and transform them into JSX components, for use in React, Preact, Native, or any other JSX-compatible language.
+
+This aims to implement SVGR as closely as possible.
+
 ## 📖 Libraries
 
 If you're a Rust developer wanting to work with SVGs in your project, we have a set of crates at your disposal.
@@ -74,6 +80,10 @@ This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also b
 This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
 
 Please expect some instability as we may add new features to enable simple manipulations for paths in the future.
+
+### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_jsx)
+
+This is a library for parsing SVG, optimising, and transforming it into JSX modules.
 
 ## Building
 
