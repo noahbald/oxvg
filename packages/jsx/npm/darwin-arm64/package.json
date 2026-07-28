@@ -1,0 +1,15 @@
+{
+	"name": "@oxvg/jsx-darwin-arm64",
+	"version": "0.0.6",
+	"repository": {
+		"url": "git+https://github.com/noahbald/oxvg.git"
+	},
+	"os": ["darwin"],
+	"cpu": ["arm64"],
+	"main": "jsx.darwin-arm64.node",
+	"files": ["jsx.darwin-arm64.node"],
+	"license": "MIT",
+	"engines": {
+		"node": ">= 10"
+	}
+}

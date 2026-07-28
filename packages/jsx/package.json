@@ -1,0 +1,36 @@
+{
+	"name": "@oxvg/jsx",
+	"version": "0.0.6",
+	"description": "",
+	"main": "index.js",
+	"types": "index.d.ts",
+	"scripts": {
+		"artifacts": "napi artifacts",
+		"build": "napi build --platform --release",
+		"build:debug": "napi build --platform",
+		"prepublishOnly": "napi prepublish -t npm",
+		"test": "node ./test.js",
+		"universal": "napi universal",
+		"version": "napi version"
+	},
+	"repository": {
+		"url": "git+https://github.com/noahbald/oxvg.git",
+		"type": "git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"napi": {
+		"binaryName": "jsx",
+		"targets": [
+			"x86_64-apple-darwin",
+			"aarch64-apple-darwin",
+			"x86_64-unknown-linux-gnu",
+			"x86_64-pc-windows-msvc"
+		]
+	},
+	"packageManager": "pnpm@10.5.2",
+	"devDependencies": {
+		"@napi-rs/cli": "^3.4.1"
+	}
+}

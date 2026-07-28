@@ -1,0 +1,15 @@
+{
+	"name": "@oxvg/jsx-win32-x64-msvc",
+	"version": "0.0.6",
+	"os": ["win32"],
+	"repository": {
+		"url": "git+https://github.com/noahbald/oxvg.git"
+	},
+	"cpu": ["x64"],
+	"main": "jsx.win32-x64-msvc.node",
+	"files": ["jsx.win32-x64-msvc.node"],
+	"license": "MIT",
+	"engines": {
+		"node": ">= 10"
+	}
+}
