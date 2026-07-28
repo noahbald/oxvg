@@ -1,7 +1,7 @@
-name: napi
+name: jsx
 env:
   DEBUG: napi:*
-  APP_NAME: oxvg
+  APP_NAME: jsx
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 'on':
   push:
@@ -24,16 +24,16 @@ jobs:
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
-            build: pnpm --filter @oxvg/napi build --target x86_64-apple-darwin
+            build: pnpm --filter @oxvg/jsx build --target x86_64-apple-darwin
           - host: windows-latest
-            build: pnpm --filter @oxvg/napi build --target x86_64-pc-windows-msvc
+            build: pnpm --filter @oxvg/jsx build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            build: pnpm --filter @oxvg/napi build --target x86_64-unknown-linux-gnu --use-napi-cross
+            build: pnpm --filter @oxvg/jsx build --target x86_64-unknown-linux-gnu --use-napi-cross
           - host: macos-latest
             target: aarch64-apple-darwin
-            build: pnpm --filter @oxvg/napi build --target aarch64-apple-darwin
+            build: pnpm --filter @oxvg/jsx build --target aarch64-apple-darwin
     name: stable - ${{ matrix.settings.target }} - node@22
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -90,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: packages/napi/${{ env.APP_NAME }}.*.node
+          path: packages/jsx/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -129,12 +129,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: packages/napi
+          path: packages/jsx
       - name: List packages
-        run: ls -R packages/napi
+        run: ls -R packages/jsx
         shell: bash
       - name: Test bindings
-        run: pnpm --filter @oxvg/napi test
+        run: pnpm --filter @oxvg/jsx test
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -160,11 +160,11 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: packages/napi/artifacts
+          path: packages/jsx/artifacts
       - name: Move artifacts
-        run: pnpm run --filter @oxvg/napi artifacts
+        run: pnpm run --filter @oxvg/jsx artifacts
       - name: List packages
-        run: ls -R packages/napi
+        run: ls -R packages/jsx
         shell: bash
       - name: Publish eligiblity
         id: release_check
@@ -180,7 +180,7 @@ jobs:
         shell: bash
       - name: Publish
         if: steps.release_check.outputs.should_release == 'true'
-        working-directory: packages/napi
+        working-directory: packages/jsx
         run: |
           npm install -g npm
           if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
