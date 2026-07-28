@@ -28,6 +28,7 @@ oxvg_ast = { workspace = true, features = [
   "clap",
 ] }
 oxvg_collections = { workspace = true }
+oxvg_jsx = { workspace = true, features = ["clap", "swc_core", "optimise"] }
 oxvg_lint = { workspace = true, features = ["clap", "serde", "lsp"] }
 oxvg_optimiser = { workspace = true, features = ["clap", "serde"] }
 oxvg_parse = { workspace = true }
@@ -40,6 +41,13 @@ log = { workspace = true, features = ["release_max_level_off"] }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "ecma_codegen",
+  "common",
+  "__visit",
+] }
+swc_ecma_lexer = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "rt-multi-thread", "macros"] }
 tower-lsp-server = { workspace = true }
 typed-arena = { workspace = true }

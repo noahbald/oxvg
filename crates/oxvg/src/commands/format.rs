@@ -70,7 +70,7 @@ impl RunCommand for Format {
             })
         })?;
         if error.load(Ordering::Relaxed) {
-            Err(anyhow::anyhow!("Failed to format document!"))
+            Err(anyhow::anyhow!("Failed to format all documents!"))
         } else {
             Ok(())
         }
