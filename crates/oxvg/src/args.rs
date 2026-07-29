@@ -4,7 +4,7 @@ use std::future::Future;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    commands::{Action, Format, Lint, Optimise},
+    commands::{Action, Format, Lint, Optimise, JSX},
     config::Config,
 };
 
@@ -52,4 +52,6 @@ pub enum Command {
     Lint(Lint),
     /// Transform SVG documents
     Action(Action),
+    /// Convert SVG documents to JSX
+    JSX(JSX),
 }

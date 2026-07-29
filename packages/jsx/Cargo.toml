@@ -1,0 +1,33 @@
+[package]
+name = "oxvg_jsx_napi"
+version = "0.0.6"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "napi bindings for oxvg_jsx transform"
+publish = false
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oxvg_ast = { workspace = true, default-features = false, features = [
+  "roxmltree",
+] }
+oxvg_jsx = { workspace = true, features = ["napi", "swc_core", "optimise"] }
+oxvg_optimiser = { workspace = true }
+
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+napi = { workspace = true }
+napi-derive = { workspace = true }
+roxmltree = { workspace = true }
+swc_core = { workspace = true }
+typed-arena = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

@@ -1,0 +1,49 @@
+[package]
+name = "oxvg_jsx"
+version = "0.0.6"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../../readme.md"
+keywords = ["svg", "jsx", "react", "svgr"]
+description = "JSX utilities for OXVG SVG documents"
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["swc_core", "optimise"]
+clap = ["dep:clap"]
+napi = ["dep:napi", "dep:napi-derive", "oxvg_optimiser/napi"]
+optimise = ["dep:oxvg_optimiser"]
+oxc_ast = ["dep:oxc_ast"]
+swc_core = ["dep:swc_core", "dep:swc_ecma_lexer"]
+
+[dependencies]
+oxvg_ast = { workspace = true, default-features = false }
+oxvg_collections = { workspace = true, default-features = false, features = [
+  "serialize",
+] }
+oxvg_optimiser = { workspace = true, optional = true }
+oxvg_serialize = { workspace = true }
+
+clap = { workspace = true, optional = true }
+convert_case = "0.11"
+itertools = { workspace = true }
+lightningcss = { workspace = true }
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
+oxc_ast = { workspace = true, optional = true }
+swc_core = { workspace = true, optional = true, features = [
+  "ecma_ast",
+  "ecma_codegen",
+  "common",
+] }
+swc_ecma_lexer = { workspace = true, optional = true }
+
+[dev-dependencies]
+oxvg_ast = { workspace = true, features = ["serialize", "roxmltree"] }
+
+pretty_assertions = { workspace = true }

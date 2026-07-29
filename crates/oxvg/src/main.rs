@@ -20,5 +20,6 @@ async fn main() -> anyhow::Result<()> {
             Lint::Serve(args) => args.run(config).await,
         },
         Command::Action(args) => args.run(config).await,
+        Command::JSX(args) => args.run(config).await,
     }
 }
