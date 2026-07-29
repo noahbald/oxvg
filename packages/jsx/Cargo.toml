@@ -1,7 +1,7 @@
 [package]
 name = "oxvg_jsx_napi"
 version = "0.0.6"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -16,9 +16,7 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-oxvg_ast = { workspace = true, default-features = false, features = [
-  "roxmltree",
-] }
+oxvg_ast = { workspace = true, features = ["roxmltree"] }
 oxvg_jsx = { workspace = true, features = ["napi", "swc_core", "optimise"] }
 oxvg_optimiser = { workspace = true }
 

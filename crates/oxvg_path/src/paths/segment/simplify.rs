@@ -216,14 +216,13 @@ impl Path {
                 !is_zero
             });
         }
-        if let Some(segment) = self.0.last_mut() {
-            if segment.closed {
+        if let Some(segment) = self.0.last_mut()
+            && segment.closed {
                 segment.data.pop_if(|command| match command {
                     Data::LineTo(p) => p.distance_squared(segment.start) < *tolerance_squared,
                     _ => false,
                 });
             }
-        }
     }
 
     #[allow(clippy::too_many_lines)]

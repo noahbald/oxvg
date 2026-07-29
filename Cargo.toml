@@ -23,6 +23,7 @@ authors = ["Noah <noahwbaldwin@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/noahbald/oxvg"
 readme = "readme.md"
+edition = "2024"
 
 [workspace.dependencies]
 oxvg = { path = "crates/oxvg" }

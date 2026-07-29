@@ -5,9 +5,9 @@ use std::cell::{Cell, RefMut};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
+        Attr, AttrId,
         core_attrs::{Class, NonWhitespace},
         list_of::{ListOf, Space},
-        Attr, AttrId,
     },
 };
 
@@ -30,7 +30,7 @@ impl<'a, 'input: 'a> ClassList<'a, 'input> {
         let attrs = self.attrs.0.borrow_mut();
         let index = self.class_index_memo.get();
         RefMut::filter_map(attrs, |a: &mut Vec<Attr<'input>>| match a.get_mut(index) {
-            Some(Attr::Class(ref mut class)) => Some(class),
+            Some(Attr::Class(class)) => Some(class),
             _ => None,
         })
         .ok()
@@ -40,7 +40,7 @@ impl<'a, 'input: 'a> ClassList<'a, 'input> {
         let attrs = self.attrs.0.borrow_mut();
         RefMut::filter_map(attrs, |a: &mut Vec<Attr<'input>>| {
             let (i, attr) = a.iter_mut().enumerate().find_map(|(i, attr)| match attr {
-                Attr::Class(ref mut class) => Some((i, class)),
+                Attr::Class(class) => Some((i, class)),
                 _ => None,
             })?;
             self.class_index_memo.set(i);

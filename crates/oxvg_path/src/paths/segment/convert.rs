@@ -488,8 +488,8 @@ impl Path {
         arc_by[5] = by.x;
         arc_by[6] = by.y;
 
-        if smart_arc_rounding {
-            if let Some(saggita) = math::saggita(&arc_by, tolerance.positional) {
+        if smart_arc_rounding
+            && let Some(saggita) = math::saggita(&arc_by, tolerance.positional) {
                 let mut p = precision.0;
                 let mut new_arc = arc_by;
                 while p >= 1.0 {
@@ -508,7 +508,6 @@ impl Path {
                 arc_to[0] = arc_by[0];
                 arc_to[1] = arc_by[1];
             }
-        }
 
         let tangent = start_tangent_unit(arc);
         let min_by = Point::new(

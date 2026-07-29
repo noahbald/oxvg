@@ -636,11 +636,10 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     /// ```
     pub fn write_attribute(&mut self, attr: &Attr<'_>) -> Result {
         let minify = self.opt.minify;
-        if self.opt.trim_whitespace == Space::Auto {
-            if let Attr::XmlSpace(space) = attr.unaliased() {
+        if self.opt.trim_whitespace == Space::Auto
+            && let Attr::XmlSpace(space) = attr.unaliased() {
                 self.preserve_whitespaces = matches!(space, XmlSpace::Preserve);
             }
-        }
         match attr.prefix().value() {
             Some(prefix) => {
                 self.write_attribute_raw(format_args!("{prefix}:{}", attr.local_name()), |w| {

@@ -307,11 +307,10 @@ impl<'input> Parse<'input> for RepeatCount {
                     .map(|()| Self::Indefinite)
             })
             .or_else(|_| Number::parse(input).map(Self::Number))?;
-        if let Self::Number(number) = result {
-            if number <= 0.0 {
+        if let Self::Number(number) = result
+            && number <= 0.0 {
                 return Err(Error::InvalidRange);
             }
-        }
         Ok(result)
     }
 }

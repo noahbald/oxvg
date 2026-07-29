@@ -72,14 +72,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
             let b_name = b.qual_name();
             let a_frequency = frequencies.get(a_name);
             let b_frequency = frequencies.get(b_name);
-            if let Some(a_frequency) = a_frequency {
-                if let Some(b_frequency) = b_frequency {
+            if let Some(a_frequency) = a_frequency
+                && let Some(b_frequency) = b_frequency {
                     let frequency_ord = b_frequency.cmp(a_frequency);
                     if frequency_ord != Ordering::Equal {
                         return frequency_ord;
                     }
                 }
-            }
             let len_ord = b_name.len().cmp(&a_name.len());
             if len_ord != Ordering::Equal {
                 return len_ord;

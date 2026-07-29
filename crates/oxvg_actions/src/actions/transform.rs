@@ -137,7 +137,7 @@ impl<'input> Actor<'input, '_> {
                         transform.clone()
                     ])))
                 );
-            };
+            }
         }
         Ok(())
     }

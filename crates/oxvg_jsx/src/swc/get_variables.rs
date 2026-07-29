@@ -384,11 +384,10 @@ impl Variables {
                     expr: Box::new(Expr::Ident(export_ident)),
                 })
             } else {
-                if let Some(n) = &opts.named_export {
-                    if Ident::verify_symbol(n).is_err() {
+                if let Some(n) = &opts.named_export
+                    && Ident::verify_symbol(n).is_err() {
                         return Err(ConfigError::InvalidIdent(n.clone()));
                     }
-                }
                 ModuleDecl::ExportNamed(NamedExport {
                     span: DUMMY_SP,
                     specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {

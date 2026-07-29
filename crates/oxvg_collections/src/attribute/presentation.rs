@@ -539,42 +539,36 @@ impl<'input> Parse<'input> for FontVariant {
                 let mut font_variant_emoji: Option<FontVariantEmoji> = None;
                 loop {
                     input.skip_whitespace();
-                    if font_variant_ligatures.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantLigatures::parse) {
+                    if font_variant_ligatures.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantLigatures::parse) {
                             font_variant_ligatures = Some(value);
                             continue;
                         }
-                    }
-                    if font_variant_caps.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantCaps::parse) {
+                    if font_variant_caps.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantCaps::parse) {
                             font_variant_caps = Some(value);
                             continue;
                         }
-                    }
-                    if font_variant_numeric.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantNumeric::parse) {
+                    if font_variant_numeric.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantNumeric::parse) {
                             font_variant_numeric = Some(value);
                             continue;
                         }
-                    }
-                    if font_variant_east_asian.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantEastAsian::parse) {
+                    if font_variant_east_asian.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantEastAsian::parse) {
                             font_variant_east_asian = Some(value);
                             continue;
                         }
-                    }
-                    if font_variant_position.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantPosition::parse) {
+                    if font_variant_position.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantPosition::parse) {
                             font_variant_position = Some(value);
                             continue;
                         }
-                    }
-                    if font_variant_emoji.is_none() {
-                        if let Ok(value) = input.try_parse(FontVariantEmoji::parse) {
+                    if font_variant_emoji.is_none()
+                        && let Ok(value) = input.try_parse(FontVariantEmoji::parse) {
                             font_variant_emoji = Some(value);
                             continue;
                         }
-                    }
                     break;
                 }
                 Ok(Self::Some {
@@ -702,30 +696,26 @@ impl<'input> Parse<'input> for FontVariantLigatures {
             contextual_alt_values: None,
         };
         loop {
-            if result.common_lig_values.is_none() {
-                if let Ok(value) = input.try_parse(CommonLigValues::parse) {
+            if result.common_lig_values.is_none()
+                && let Ok(value) = input.try_parse(CommonLigValues::parse) {
                     result.common_lig_values = Some(value);
                     continue;
                 }
-            }
-            if result.discretionary_lig_values.is_none() {
-                if let Ok(value) = input.try_parse(DiscretionaryLigValues::parse) {
+            if result.discretionary_lig_values.is_none()
+                && let Ok(value) = input.try_parse(DiscretionaryLigValues::parse) {
                     result.discretionary_lig_values = Some(value);
                     continue;
                 }
-            }
-            if result.historical_lig_values.is_none() {
-                if let Ok(value) = input.try_parse(HistoricalLigValues::parse) {
+            if result.historical_lig_values.is_none()
+                && let Ok(value) = input.try_parse(HistoricalLigValues::parse) {
                     result.historical_lig_values = Some(value);
                     continue;
                 }
-            }
-            if result.contextual_alt_values.is_none() {
-                if let Ok(value) = input.try_parse(ContextualAltValues::parse) {
+            if result.contextual_alt_values.is_none()
+                && let Ok(value) = input.try_parse(ContextualAltValues::parse) {
                     result.contextual_alt_values = Some(value);
                     continue;
                 }
-            }
             break;
         }
         Ok(result)
@@ -837,24 +827,21 @@ impl<'input> Parse<'input> for FontVariantNumeric {
             slashed_zero: false,
         };
         loop {
-            if result.numeric_figure_values.is_none() {
-                if let Ok(value) = input.try_parse(NumericFigureValues::parse) {
+            if result.numeric_figure_values.is_none()
+                && let Ok(value) = input.try_parse(NumericFigureValues::parse) {
                     result.numeric_figure_values = Some(value);
                     continue;
                 }
-            }
-            if result.numeric_spacing_values.is_none() {
-                if let Ok(value) = input.try_parse(NumericSpacingValues::parse) {
+            if result.numeric_spacing_values.is_none()
+                && let Ok(value) = input.try_parse(NumericSpacingValues::parse) {
                     result.numeric_spacing_values = Some(value);
                     continue;
                 }
-            }
-            if result.numeric_fraction_values.is_none() {
-                if let Ok(value) = input.try_parse(NumericFractionValues::parse) {
+            if result.numeric_fraction_values.is_none()
+                && let Ok(value) = input.try_parse(NumericFractionValues::parse) {
                     result.numeric_fraction_values = Some(value);
                     continue;
                 }
-            }
             if !result.ordinal {
                 result.ordinal = input
                     .try_parse(|input| input.expect_ident_matching("ordinal"))
@@ -1183,18 +1170,16 @@ impl<'input> Parse<'input> for FontVariantEastAsian {
             ruby: false,
         };
         loop {
-            if result.east_asian_variant_values.is_none() {
-                if let Ok(value) = input.try_parse(EastAsianVariantValues::parse) {
+            if result.east_asian_variant_values.is_none()
+                && let Ok(value) = input.try_parse(EastAsianVariantValues::parse) {
                     result.east_asian_variant_values = Some(value);
                     continue;
                 }
-            }
-            if result.east_asian_width_values.is_none() {
-                if let Ok(value) = input.try_parse(EastAsianWidthValues::parse) {
+            if result.east_asian_width_values.is_none()
+                && let Ok(value) = input.try_parse(EastAsianWidthValues::parse) {
                     result.east_asian_width_values = Some(value);
                     continue;
                 }
-            }
             if !result.ruby {
                 result.ruby = input
                     .try_parse(|input| input.expect_ident_matching("ruby"))

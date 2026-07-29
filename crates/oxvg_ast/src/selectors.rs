@@ -552,13 +552,12 @@ impl selectors::Element for SelectElement<'_, '_> {
         self.element.prefix().hash(prefix_hash);
         f(prefix_hash.finish() as u32);
 
-        if let Some(id) = self.element.get_attribute(&AttrId::Id) {
-            if let Attr::Id(id) = &*id {
+        if let Some(id) = self.element.get_attribute(&AttrId::Id)
+            && let Attr::Id(id) = &*id {
                 let id_hash = &mut DefaultHasher::default();
                 id.hash(id_hash);
                 f(prefix_hash.finish() as u32);
             }
-        }
 
         self.element.class_list().for_each(|class| {
             let class_hash = &mut DefaultHasher::default();

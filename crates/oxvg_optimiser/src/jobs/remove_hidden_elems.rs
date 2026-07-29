@@ -164,8 +164,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
 
 impl<'input, 'arena> Data<'input, 'arena> {
     fn remove_element(&self, element: &Element<'input, 'arena>) {
-        if let Some(parent) = Element::parent_element(element) {
-            if is_element!(parent, Defs) {
+        if let Some(parent) = Element::parent_element(element)
+            && is_element!(parent, Defs) {
                 if let Some(NonWhitespace(id)) = get_attribute!(element, Id).as_deref() {
                     self.removed_def_ids.borrow_mut().insert(id.clone());
                 }
@@ -175,7 +175,6 @@ impl<'input, 'arena> Data<'input, 'arena> {
                     return;
                 }
             }
-        }
         log::debug!("data: removing element: {element:?}");
         element.remove();
     }
@@ -325,11 +324,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
 impl<'input, 'arena> State<'_, 'input, 'arena> {
     fn can_remove_non_rendering_node(&self, element: &Element<'input, 'arena>) -> bool {
-        if let Some(id) = get_attribute!(element, Id) {
-            if self.data.all_references.borrow().contains(&**id) {
+        if let Some(id) = get_attribute!(element, Id)
+            && self.data.all_references.borrow().contains(&**id) {
                 return false;
             }
-        }
         element
             .children_iter()
             .all(|e| self.can_remove_non_rendering_node(&e))
@@ -342,11 +340,10 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         context: &mut Context,
     ) -> bool {
         let mut is_hidden = false;
-        if self.options.is_hidden.unwrap_or(true) {
-            if let Some((Inheritable::Defined(Visibility::Hidden), Mode::Static)) =
+        if self.options.is_hidden.unwrap_or(true)
+            && let Some((Inheritable::Defined(Visibility::Hidden), Mode::Static)) =
                 get_computed_style!(computed_styles, Visibility)
-            {
-                if !element.breadth_first().any(|child| {
+                && !element.breadth_first().any(|child| {
                     matches!(
                         get_attribute!(child, Visibility).as_deref(),
                         Some(Inheritable::Defined(Visibility::Visible) | Inheritable::Inherited)
@@ -354,31 +351,26 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
                 }) {
                     is_hidden = true;
                 }
-            }
-        }
 
-        if !is_hidden && self.options.display_none.unwrap_or(true) {
-            if let Some((Inheritable::Defined(Display::Keyword(DisplayKeyword::None)), _)) =
+        if !is_hidden && self.options.display_none.unwrap_or(true)
+            && let Some((Inheritable::Defined(Display::Keyword(DisplayKeyword::None)), _)) =
                 get_computed_style!(computed_styles, Display)
             {
                 is_hidden = !is_element!(element, Marker);
             }
-        }
         if is_hidden {
             // Protect references that may use non-visible data
             let references_by_id = self.data.references_by_id.borrow();
-            if let Some(id) = get_attribute!(element, Id) {
-                if references_by_id.contains_key(id.0.as_str()) {
+            if let Some(id) = get_attribute!(element, Id)
+                && references_by_id.contains_key(id.0.as_str()) {
                     context.flags.visit_skip();
                     return false;
                 }
-            }
             return !element.breadth_first().any(|child| {
-                if let Some(id) = get_attribute!(child, Id) {
-                    if references_by_id.contains_key(id.0.as_str()) {
+                if let Some(id) = get_attribute!(child, Id)
+                    && references_by_id.contains_key(id.0.as_str()) {
                         return true;
                     }
-                }
                 false
             });
         }
@@ -389,40 +381,30 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         if is_element!(element, Circle)
             && element.is_empty()
             && self.options.circle_r_zero.unwrap_or(true)
-        {
-            if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                 get_attribute!(element, RGeometry).as_deref()
-            {
-                if length.to_px() == Some(0.0) {
+                && length.to_px() == Some(0.0) {
                     log::debug!("RemoveHiddenElement: removing hidden ellipse");
                     element.remove();
                     return true;
                 }
-            }
-        }
 
         if is_element!(element, Ellipse) {
-            if self.options.ellipse_rx_zero.unwrap_or(true) {
-                if let Some(Radius::LengthPercentage(LengthPercentage(
+            if self.options.ellipse_rx_zero.unwrap_or(true)
+                && let Some(Radius::LengthPercentage(LengthPercentage(
                     DimensionPercentage::Dimension(length),
                 ))) = get_attribute!(element, RX).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
 
-            if self.options.ellipse_ry_zero.unwrap_or(true) {
-                if let Some(Radius::LengthPercentage(LengthPercentage(
+            if self.options.ellipse_ry_zero.unwrap_or(true)
+                && let Some(Radius::LengthPercentage(LengthPercentage(
                     DimensionPercentage::Dimension(length),
                 ))) = get_attribute!(element, RY).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
         }
 
         false
@@ -430,72 +412,54 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
 
     fn is_hidden_rect(&self, element: &Element<'input, 'arena>) -> bool {
         if is_element!(element, Rect) && element.is_empty() {
-            if self.options.rect_width_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.rect_width_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthRect).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
-            if self.options.rect_height_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.rect_height_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightRect).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
         }
         false
     }
 
     fn is_hidden_pattern(&self, element: &Element<'input, 'arena>) -> bool {
         if is_element!(element, Pattern) {
-            if self.options.pattern_width_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.pattern_width_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthPattern).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
-            if self.options.pattern_height_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.pattern_height_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightPattern).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
         }
         false
     }
 
     fn is_hidden_image(&self, element: &Element<'input, 'arena>) -> bool {
         if is_element!(element, Image) {
-            if self.options.image_width_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.image_width_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthImage).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
-            if self.options.image_height_zero.unwrap_or(true) {
-                if let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
+            if self.options.image_height_zero.unwrap_or(true)
+                && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightImage).as_deref()
-                {
-                    if length.to_px() == Some(0.0) {
+                    && length.to_px() == Some(0.0) {
                         return true;
                     }
-                }
-            }
         }
         false
     }

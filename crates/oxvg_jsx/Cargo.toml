@@ -1,7 +1,7 @@
 [package]
 name = "oxvg_jsx"
 version = "0.0.6"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
@@ -22,10 +22,8 @@ oxc_ast = ["dep:oxc_ast"]
 swc_core = ["dep:swc_core", "dep:swc_ecma_lexer"]
 
 [dependencies]
-oxvg_ast = { workspace = true, default-features = false }
-oxvg_collections = { workspace = true, default-features = false, features = [
-  "serialize",
-] }
+oxvg_ast = { workspace = true }
+oxvg_collections = { workspace = true, features = ["serialize"] }
 oxvg_optimiser = { workspace = true, optional = true }
 oxvg_serialize = { workspace = true }
 

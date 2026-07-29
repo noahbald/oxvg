@@ -197,11 +197,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
                             for child in element.breadth_first() {
                                 let mut href = get_attribute_mut!(child, Href)
                                     .or_else(|| get_attribute_mut!(child, XLinkHref));
-                                if let Some(url) = href.as_deref_mut() {
-                                    if url.as_str() == old_url {
+                                if let Some(url) = href.as_deref_mut()
+                                    && url.as_str() == old_url {
                                         *url = new_id.clone();
                                     }
-                                }
                             }
                         }
                     }

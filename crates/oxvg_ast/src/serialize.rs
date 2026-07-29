@@ -100,11 +100,10 @@ fn serialize_node<'arena, W: Write>(
             }
         }
         node::Type::Text | node::Type::CDataSection => {
-            if let Some(text) = node.text_content() {
-                if !text.is_empty() {
+            if let Some(text) = node.text_content()
+                && !text.is_empty() {
                     xml.write_text(&text, is_first, is_last)?;
                 }
-            }
         }
         node::Type::Style => {
             if let Some(style) = node.style() {
