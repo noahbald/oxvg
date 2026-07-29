@@ -43,14 +43,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveElementsByAttr {
         element: &Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), JobsError<'input>> {
-        if !self.id.is_empty() {
-            if let Some(id) = get_attribute!(element, Id) {
-                if self.id.iter().any(|i| i == &**id) {
+        if !self.id.is_empty()
+            && let Some(id) = get_attribute!(element, Id)
+                && self.id.iter().any(|i| i == &**id) {
                     element.remove();
                     return Ok(());
                 }
-            }
-        }
 
         if !self.class.is_empty() {
             element.class_list().with_iter(|i| {

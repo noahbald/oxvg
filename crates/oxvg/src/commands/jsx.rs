@@ -381,15 +381,14 @@ impl VisitMut for ApplyTemplate {
     fn visit_mut_expr(&mut self, node: &mut Expr) {
         node.visit_mut_children_with(self);
 
-        if let Expr::Ident(ident) = node {
-            if ident.sym == "$jsx" {
+        if let Expr::Ident(ident) = node
+            && ident.sym == "$jsx" {
                 match self.0.jsx.clone() {
                     JSXElementChild::JSXElement(e) => *node = Expr::JSXElement(e),
                     JSXElementChild::JSXFragment(e) => *node = Expr::JSXFragment(e),
                     _ => unreachable!(),
                 }
             }
-        }
     }
 
     fn visit_mut_constructor(&mut self, node: &mut Constructor) {

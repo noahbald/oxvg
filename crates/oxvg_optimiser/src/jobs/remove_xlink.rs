@@ -97,11 +97,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
                 xlink_prefix_stack.push(local.clone());
                 overridden_prefix_stack.push(false);
                 used_in_legacy_element_stack.push(false);
-            } else if xlink_prefix_stack.last() == Some(local) {
-                if let Some(last) = overridden_prefix_stack.last_mut() {
+            } else if xlink_prefix_stack.last() == Some(local)
+                && let Some(last) = overridden_prefix_stack.last_mut() {
                     *last = true;
                 }
-            }
         }
         element.attributes().retain(|attr| {
             !is_attribute!(attr, XLinkActuate | XLinkArcrole | XLinkRole | XLinkType)
@@ -171,12 +170,11 @@ impl<'input> State<'_, 'input> {
             _ => None,
         };
         drop(show);
-        if let Some(target) = target {
-            if target != Target::default() {
+        if let Some(target) = target
+            && target != Target::default() {
                 set_attribute!(element, Target(target));
                 remove_attribute!(element, XLinkShow);
             }
-        }
     }
 
     fn handle_title<'arena>(

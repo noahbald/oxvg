@@ -185,12 +185,11 @@ impl ConvertTransform {
     }
 
     fn transform(&self, transform: &mut SVGTransformList) {
-        if self.collapse_into_one && transform.0.len() > 1 {
-            if let Some(matrix) = transform.to_matrix_2d() {
+        if self.collapse_into_one && transform.0.len() > 1
+            && let Some(matrix) = transform.to_matrix_2d() {
                 log::debug!("collapsing transform to matrix");
                 transform.0 = vec![SVGTransform::Matrix(matrix)];
             }
-        }
         log::debug!(r#"working with data "{transform:?}""#);
 
         self.convert_to_shorts(transform);

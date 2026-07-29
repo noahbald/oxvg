@@ -264,12 +264,11 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
             return Ok(());
         }
 
-        if let Some(style_type) = get_attribute!(element, TypeStyle) {
-            if !style_type.is_empty() && style_type.as_str() != "text/css" {
+        if let Some(style_type) = get_attribute!(element, TypeStyle)
+            && !style_type.is_empty() && style_type.as_str() != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
-        }
 
         let Some(css) = element.first_child().and_then(Node::style) else {
             log::debug!("Not merging style: empty");

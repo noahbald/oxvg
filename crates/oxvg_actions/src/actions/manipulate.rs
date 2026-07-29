@@ -148,7 +148,7 @@ impl<'input> Actor<'input, '_> {
                     style.0.declarations.push(property);
                 }
                 set_attribute!(element, Style(style));
-            };
+            }
         }
         Ok(())
     }

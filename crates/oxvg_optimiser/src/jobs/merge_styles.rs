@@ -70,12 +70,11 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             return Ok(());
         }
 
-        if let Some(style_type) = get_attribute!(element, TypeStyle) {
-            if !style_type.is_empty() && &**style_type != "text/css" {
+        if let Some(style_type) = get_attribute!(element, TypeStyle)
+            && !style_type.is_empty() && &**style_type != "text/css" {
                 log::debug!("Not merging style: unsupported type");
                 return Ok(());
             }
-        }
 
         if context.flags.contains(ContextFlags::within_foreign_object) {
             log::debug!("Not merging style: foreign-object");

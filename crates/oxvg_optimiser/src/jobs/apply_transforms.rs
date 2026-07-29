@@ -123,8 +123,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
         }
         if let Some((css_transform, Mode::Static)) =
             get_computed_style_css!(computed_styles, Transform(None))
-        {
-            if (&css_transform)
+            && (&css_transform)
                 .try_into()
                 .ok()
                 .is_none_or(|css_transform: SVGTransformList| {
@@ -134,7 +133,6 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
                 log::debug!("run: another transform is applied to this element");
                 return Ok(());
             }
-        }
 
         let stroke = get_computed_style!(computed_styles, Stroke);
         if matches!(stroke, Some((_, Mode::Dynamic))) {
@@ -161,11 +159,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
         let matrix = matrix32_to_slice(&matrix);
 
         drop(transform_attr);
-        if let Some((Inheritable::Defined(stroke), Mode::Static)) = stroke {
-            if self.apply_stroked(&matrix, &stroke, stroke_width, element) {
+        if let Some((Inheritable::Defined(stroke), Mode::Static)) = stroke
+            && self.apply_stroked(&matrix, &stroke, stroke_width, element) {
                 return Ok(());
             }
-        }
 
         let Some(mut d) = get_attribute_mut!(element, D) else {
             unreachable!();
@@ -202,11 +199,10 @@ impl ApplyTransforms {
             return true;
         }
 
-        if let Some(vector_effect) = get_attribute!(element, VectorEffect) {
-            if matches!(&*vector_effect, VectorEffect::NonScalingStroke) {
+        if let Some(vector_effect) = get_attribute!(element, VectorEffect)
+            && matches!(&*vector_effect, VectorEffect::NonScalingStroke) {
                 return false;
             }
-        }
 
         let mut scale = f64::sqrt((matrix[0] * matrix[0]) + (matrix[1] * matrix[1])); // hypot
         if let Some(transform_precision) = self.transform_precision {
@@ -257,11 +253,10 @@ fn apply_matrix_to_path_data(path_data: &mut Path, matrix: &[f64; 6]) {
     log::debug!("applying matrix: {matrix:?}");
     let mut start = [0.0; 2];
     let mut cursor = [0.0; 2];
-    if let Some(data) = path_data.0.get_mut(0) {
-        if let Data::MoveBy(args) = data {
+    if let Some(data) = path_data.0.get_mut(0)
+        && let Data::MoveBy(args) = data {
             *data = Data::MoveTo(*args);
         }
-    }
 
     path_data.0.iter_mut().for_each(|data| {
         if let Data::Implicit(_) = data {

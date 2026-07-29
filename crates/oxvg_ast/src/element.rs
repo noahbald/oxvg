@@ -146,11 +146,10 @@ impl<'input, 'arena> Element<'input, 'arena> {
                             }),
                         value,
                     } => {
-                        if let Some(prefix) = prefix {
-                            if prefix == local.as_str() {
+                        if let Some(prefix) = prefix
+                            && prefix == local.as_str() {
                                 return value.clone();
                             }
-                        }
                     }
                     _ => (),
                 }

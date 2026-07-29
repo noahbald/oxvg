@@ -142,11 +142,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             return Ok(());
         }
 
-        if let Some(parent) = element.parent_element() {
-            if is_element!(parent, Defs) {
+        if let Some(parent) = element.parent_element()
+            && is_element!(parent, Defs) {
                 self.effected_defs.borrow_mut().insert(parent.id(), parent);
             }
-        }
 
         gradients_to_detach.insert(element.id(), element.clone());
 
@@ -236,11 +235,9 @@ fn update_color_references(context: &mut Context, color: &Color, url: &str) {
                 url: Url { url: attr_url, .. },
                 ..
             } = &mut *attr_color
-            {
-                if attr_url.starts_with('#') && &attr_url[1..] == url {
+                && attr_url.starts_with('#') && &attr_url[1..] == url {
                     *attr_color = Paint::Color(color.clone());
                 }
-            }
         }
     }
 }
@@ -264,11 +261,9 @@ impl<'i> lightningcss::visitor::Visitor<'i> for VisitPaint<'_> {
             url: Url { url, .. },
             ..
         } = paint
-        {
-            if url.starts_with('#') && &url[1..] == self.url {
+            && url.starts_with('#') && &url[1..] == self.url {
                 *paint = Paint::Color(self.color.clone());
             }
-        }
         Ok(())
     }
 }

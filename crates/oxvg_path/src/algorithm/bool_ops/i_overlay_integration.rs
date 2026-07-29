@@ -185,12 +185,10 @@ pub mod convert {
                     end: p_end,
                     ..
                 }) = actions.last_mut()
-                {
-                    if std::ptr::eq(seg.data, last_seg.data) {
+                    && std::ptr::eq(seg.data, last_seg.data) {
                         *p_end = *b;
                         merged = true;
                     }
-                }
                 if !merged {
                     actions.push(Action::Original {
                         seg,

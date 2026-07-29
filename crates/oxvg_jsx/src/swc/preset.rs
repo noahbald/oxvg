@@ -184,8 +184,8 @@ fn replace_element_conditionally(
                 expr: JSXExpr::JSXEmptyExpr(JSXEmptyExpr { span: DUMMY_SP }),
             }),
         );
-        if let JSXElementChild::JSXElement(element) = &mut original_title {
-            if let Some(JSXAttr { value, .. }) = element
+        if let JSXElementChild::JSXElement(element) = &mut original_title
+            && let Some(JSXAttr { value, .. }) = element
                 .opening
                 .attrs
                 .iter_mut()
@@ -235,7 +235,6 @@ fn replace_element_conditionally(
                     _ => *value = Some(JSXAttrValue::Str(id.into())),
                 }
             }
-        }
         Some((existing, original_title))
     } else {
         None
@@ -407,13 +406,10 @@ fn set_value_recursive(root: &mut JSXElementChild, old_value: &str, new_value: &
                 if let JSXAttrOrSpread::JSXAttr(JSXAttr {
                     value: Some(value), ..
                 }) = attr
-                {
-                    if let JSXAttrValue::Str(str) = &value {
-                        if str.value.as_bytes() == old_value.as_bytes() {
+                    && let JSXAttrValue::Str(str) = &value
+                        && str.value.as_bytes() == old_value.as_bytes() {
                             *value = new_value.clone();
                         }
-                    }
-                }
             }
             for child in &mut element.children {
                 set_value_recursive(child, old_value, new_value);
@@ -440,12 +436,10 @@ fn set_attribute(
             value,
             ..
         }) = attr
-        {
-            if ident.sym == name {
+            && ident.sym == name {
                 *value = Some(new_value);
                 return;
             }
-        }
     }
     if allow_push {
         element

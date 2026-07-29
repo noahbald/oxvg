@@ -371,11 +371,10 @@ fn find_new_xmlns<'a, 'input: 'a>(
     }
     let uri = ns.uri();
     if let Some(prefix) = ns.name() {
-        if namespace_map.get_by_prefix(None) != Some(uri) {
-            if let Some(popped) = namespace_map.insert(Some(prefix), Some(uri)) {
+        if namespace_map.get_by_prefix(None) != Some(uri)
+            && let Some(popped) = namespace_map.insert(Some(prefix), Some(uri)) {
                 popped_ns.push(popped);
             }
-        }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
             attr_id: AttrId::Unknown(QualName {

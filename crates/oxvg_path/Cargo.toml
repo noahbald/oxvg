@@ -1,7 +1,7 @@
 [package]
 name = "oxvg_path"
 version = "0.0.6"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true

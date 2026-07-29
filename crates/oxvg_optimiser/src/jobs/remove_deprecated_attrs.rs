@@ -131,13 +131,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
 
         // # Special cases
         // Removing deprecated xml:lang is safe when the lang attribute exists.
-        if let Some(attr) = element.get_attribute(&AttrId::XmlLang) {
-            if has_attribute!(element, Lang) && !attributes_in_stylesheet.contains_qual(attr.name())
+        if let Some(attr) = element.get_attribute(&AttrId::XmlLang)
+            && has_attribute!(element, Lang) && !attributes_in_stylesheet.contains_qual(attr.name())
             {
                 drop(attr);
                 element.remove_attribute(&AttrId::XmlLang);
             }
-        }
 
         // # General cases
         self.process_attributes(element, &attributes_in_stylesheet);

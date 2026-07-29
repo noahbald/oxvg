@@ -530,8 +530,8 @@ impl SVGTransformList {
                     optimized.push(item.clone());
                 }
                 SVGTransform::Translate(..) => {
-                    if let Some(SVGTransform::Rotate(n, x, y)) = rounded.get(i + 1) {
-                        if *n != 180.0 && *n != -180.0 && *n != 0.0 && *x == 0.0 && *y == 0.0 {
+                    if let Some(SVGTransform::Rotate(n, x, y)) = rounded.get(i + 1)
+                        && *n != 180.0 && *n != -180.0 && *n != 0.0 && *x == 0.0 && *y == 0.0 {
                             log::debug!("merging translate and rotate");
                             let translate = &raw[i];
                             let rotate = &raw[i + 1];
@@ -540,7 +540,6 @@ impl SVGTransformList {
                             skip = true;
                             continue;
                         }
-                    }
                     optimized.push(item.clone());
                 }
                 SVGTransform::Matrix(_) => unreachable!(),
