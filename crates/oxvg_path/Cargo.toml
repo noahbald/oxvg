@@ -14,7 +14,7 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["algorithm", "geometry", "parse", "format", "optimise"]
+default = ["geometry", "parse", "format", "optimise"]
 algorithm = [
   "geometry",
   "dep:geo",
@@ -24,7 +24,7 @@ algorithm = [
   "dep:rstar",
 ]
 format = ["ryu", "itertools"]
-geometry = ["dep:geo-types"]
+geometry = ["dep:geo-types", "dep:geo", "dep:rstar"]
 jsonschema = ["schemars", "serde"]
 napi = ["dep:napi", "dep:napi-derive"]
 optimise = ["format", "bitflags"]

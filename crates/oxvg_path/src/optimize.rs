@@ -1,7 +1,8 @@
 //! Methods for optimizing SVG paths
 
-use crate::{geometry::Tolerance, paths::segment, Path};
+use crate::{Path, geometry::Tolerance, paths::segment};
 
+#[cfg(feature = "algorithm")]
 pub use i_overlay::core::fill_rule::FillRule;
 
 bitflags! {
@@ -113,24 +114,30 @@ impl Path {
     ///
     /// ```
     /// use oxvg_path::Path;
-    /// use oxvg_path::optimize::{FillRule, Options};
+    /// use oxvg_path::optimize::{Options};
     /// use oxvg_path::geometry::Tolerance;
     /// use oxvg_path::parser::Parse as _;
     ///
     /// let mut path = Path::parse_string("M 10,30 L 10,50 L 30 30 H 10").unwrap();
     /// let options = Options::default();
     ///
-    /// path = path.optimize(options, FillRule::NonZero, &Tolerance::default());
+    /// path = path.optimize(options, &Tolerance::default());
     /// assert_eq!(&path.to_string(), "M10 30v20l20-20H10Z");
     /// ```
     #[must_use]
-    pub fn optimize(&self, options: Options, fill_rule: FillRule, tolerance: &Tolerance) -> Path {
+    pub fn optimize(
+        &self,
+        options: Options,
+        #[cfg(feature = "algorithm")] fill_rule: FillRule,
+        tolerance: &Tolerance,
+    ) -> Path {
         let mut segments = segment::Path::from_svg(self, tolerance);
 
         if options.contains(Options::CloseSegments) {
             segments.close_segments();
         }
 
+        #[cfg(feature = "algorithm")]
         if options.contains(Options::UniteSegments) {
             segments = segments.union_with_fill_rule(&segments, fill_rule);
         }

@@ -1,4 +1,3 @@
-use i_overlay::core::fill_rule::FillRule;
 use oxvg_ast::{
     get_computed_style,
     style::{ComputedStyles, Mode},
@@ -11,7 +10,9 @@ use lightningcss::{
     values::shape,
 };
 
-pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> (FillRule, optimize::Options) {
+pub fn gather_optimize_options(
+    computed_styles: &ComputedStyles,
+) -> (shape::FillRule, optimize::Options) {
     let mut options = optimize::Options::all();
 
     let stroke = get_computed_style!(computed_styles, Stroke);
@@ -34,11 +35,11 @@ pub fn gather_optimize_options(computed_styles: &ComputedStyles) -> (FillRule, o
     let overlay_fill_rule = fill_rule
         .as_ref()
         .and_then(|(fill_rule, _)| match fill_rule {
-            Inheritable::Defined(shape::FillRule::Nonzero) => Some(FillRule::NonZero),
-            Inheritable::Defined(shape::FillRule::Evenodd) => Some(FillRule::EvenOdd),
-            _ => None,
+            Inheritable::Defined(fill_rule) => Some(fill_rule),
+            Inheritable::Inherited => None,
         })
-        .unwrap_or_default();
+        .copied()
+        .unwrap_or(shape::FillRule::Nonzero);
     let maybe_has_nonzero = fill_rule.as_ref().is_none_or(|(fill_rule, mode)| {
         *mode == Mode::Dynamic
             || matches!(

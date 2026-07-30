@@ -117,7 +117,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
         let computed_styles = ComputedStyles::default()
             .with_all(element, &context.query_has_stylesheet_result)
             .map_err(JobsError::ComputedStylesError)?;
-        let (fill_rule, options) = gather_optimize_options(&computed_styles);
+        let (_, options) = gather_optimize_options(&computed_styles);
         let options = options & self.into();
         log::debug!("ConvertPathData::run: gained style info {options:?}");
 
@@ -130,7 +130,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertPathData {
             return Ok(());
         }
 
-        *path = path.optimize(options, fill_rule, &self.tolerance);
+        *path = path.optimize(options, &self.tolerance);
         Ok(())
     }
 }
