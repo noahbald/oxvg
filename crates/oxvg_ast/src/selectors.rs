@@ -16,10 +16,10 @@ use oxvg_collections::{
 use oxvg_serialize::ToValue as _;
 use precomputed_hash::PrecomputedHash;
 use selectors::{
+    SelectorList,
     context::SelectorCaches,
     matching,
     parser::{ParseRelative, SelectorParseErrorKind},
-    SelectorList,
 };
 
 use crate::{
@@ -553,11 +553,12 @@ impl selectors::Element for SelectElement<'_, '_> {
         f(prefix_hash.finish() as u32);
 
         if let Some(id) = self.element.get_attribute(&AttrId::Id)
-            && let Attr::Id(id) = &*id {
-                let id_hash = &mut DefaultHasher::default();
-                id.hash(id_hash);
-                f(prefix_hash.finish() as u32);
-            }
+            && let Attr::Id(id) = &*id
+        {
+            let id_hash = &mut DefaultHasher::default();
+            id.hash(id_hash);
+            f(prefix_hash.finish() as u32);
+        }
 
         self.element.class_list().for_each(|class| {
             let class_hash = &mut DefaultHasher::default();

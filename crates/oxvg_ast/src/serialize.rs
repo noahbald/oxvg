@@ -8,7 +8,7 @@ use crate::xmlwriter::XmlWriter;
 pub use crate::xmlwriter::{Indent, Options, Space};
 
 /// The destination to output serialized attribute and CSS values
-pub type Printer<'a, 'b, 'c, W> = lightningcss::printer::Printer<'a, 'b, 'c, W>;
+pub type Printer<'a, 'b, W> = lightningcss::printer::Printer<'a, 'b, W>;
 /// Options that control how attributes and CSS values are serialized
 pub type PrinterOptions<'a> = lightningcss::printer::PrinterOptions<'a>;
 
@@ -57,7 +57,7 @@ pub trait Node<'input, 'arena> {
     /// # Errors
     /// If the serialization or write fails
     fn serialize_into<W: Write>(&'arena self, wr: W, options: Options)
-        -> Result<W, XmlWriterError>;
+    -> Result<W, XmlWriterError>;
 
     /// # Errors
     /// If the underlying serialization fails
@@ -101,9 +101,10 @@ fn serialize_node<'arena, W: Write>(
         }
         node::Type::Text | node::Type::CDataSection => {
             if let Some(text) = node.text_content()
-                && !text.is_empty() {
-                    xml.write_text(&text, is_first, is_last)?;
-                }
+                && !text.is_empty()
+            {
+                xml.write_text(&text, is_first, is_last)?;
+            }
         }
         node::Type::Style => {
             if let Some(style) = node.style() {

@@ -13,5 +13,5 @@ description = "Serializing primitives for SVG"
 workspace = true
 
 [dependencies]
-cssparser_lightningcss = { workspace = true }
+cssparser = { workspace = true }
 lightningcss = { workspace = true }
