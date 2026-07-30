@@ -66,9 +66,7 @@ pub enum Error<'input> {
     },
     #[cfg(feature = "lightningcss")]
     /// An invalid lightningcss value was parsed
-    Lightningcss(
-        cssparser_lightningcss::ParseError<'input, lightningcss::error::ParserError<'input>>,
-    ),
+    Lightningcss(cssparser::ParseError<'input, lightningcss::error::ParserError<'input>>),
     /// An invalid path definition was parsed
     Path(PathError),
 }
@@ -83,22 +81,22 @@ impl std::fmt::Display for Error<'_> {
             Self::ExpectedString { expected, received } => {
                 return f.write_fmt(format_args!(
                     r#"Expected "{expected}" but received "{received}" instead"#
-                ))
+                ));
             }
             Self::ExpectedMatch { expected, received } => {
                 return f.write_fmt(format_args!(
                     "Expected value matching {expected} but received {received} instead"
-                ))
+                ));
             }
             Self::ExpectedChar { expected, received } => {
                 return f.write_fmt(format_args!(
                     "Expected '{expected}' but received '{received}' instead"
-                ))
+                ));
             }
             Self::ExpectedIdent { expected, received } => {
                 return f.write_fmt(format_args!(
                     "Expected {expected} but received `{received}` instead"
-                ))
+                ));
             }
             #[cfg(feature = "lightningcss")]
             Self::Lightningcss(e) => return e.fmt(f),

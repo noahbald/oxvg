@@ -5,7 +5,7 @@ use error::PrinterError;
 pub mod error;
 
 /// The destination to output serialized attribute and CSS values
-pub type Printer<'a, 'b, 'c, W> = lightningcss::printer::Printer<'a, 'b, 'c, W>;
+pub type Printer<'a, 'b, W> = lightningcss::printer::Printer<'a, 'b, W>;
 /// Options that control how attributes and CSS values are serialized
 pub type PrinterOptions<'a> = lightningcss::printer::PrinterOptions<'a>;
 

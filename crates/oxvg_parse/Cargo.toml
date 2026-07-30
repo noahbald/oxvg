@@ -15,8 +15,8 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-lightningcss = ["dep:cssparser_lightningcss", "dep:lightningcss"]
+lightningcss = ["dep:cssparser", "dep:lightningcss"]
 
 [dependencies]
-cssparser_lightningcss = { workspace = true, optional = true }
+cssparser = { workspace = true, optional = true }
 lightningcss = { workspace = true, optional = true }

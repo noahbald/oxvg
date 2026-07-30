@@ -2,9 +2,9 @@
 use lightningcss::media_query::MediaList;
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::{atom::Atom, enum_attr};
 
@@ -417,9 +417,7 @@ pub struct MediaQueryList<'i>(pub MediaList<'i>);
 impl<'input> oxvg_parse::Parse<'input> for MediaQueryList<'input> {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         MediaList::parse(
-            &mut cssparser_lightningcss::Parser::new(
-                &mut cssparser_lightningcss::ParserInput::new(input.take_slice()),
-            ),
+            &mut cssparser::Parser::new(&mut cssparser::ParserInput::new(input.take_slice())),
             &lightningcss::stylesheet::ParserOptions::default(),
         )
         .map(Self)
@@ -707,7 +705,7 @@ impl<'input> Parse<'input> for RefX {
                         return Err(Error::ExpectedIdent {
                             expected: "one of `left` `center` `right` or length",
                             received,
-                        })
+                        });
                     }
                 })
             })
@@ -789,7 +787,7 @@ impl<'input> Parse<'input> for RefY {
                         return Err(Error::ExpectedIdent {
                             expected: "one of `top` `center` `bottom` or length",
                             received,
-                        })
+                        });
                     }
                 })
             })
@@ -1081,7 +1079,7 @@ impl<'input> Parse<'input> for TrueFalse {
                 return Err(Error::ExpectedIdent {
                     expected: "one of `true` `false`",
                     received,
-                })
+                });
             }
         }))
     }
