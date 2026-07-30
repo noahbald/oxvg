@@ -1,15 +1,14 @@
+#[allow(clippy::wildcard_imports)]
+use ls_types::{notification::PublishDiagnostics, *};
 use oxvg_ast::{
     arena::Allocator,
     node::{Ranges, Ref},
-    parse::roxmltree::{parse_with_options, ParsingOptions},
+    parse::roxmltree::{ParsingOptions, parse_with_options},
     visitor::Visitor,
 };
 use oxvg_lint::error::Error;
 use oxvg_lint::{Rules, Severity};
 use tower_lsp_server::jsonrpc::Result;
-use tower_lsp_server::lsp_types::notification::PublishDiagnostics;
-#[allow(clippy::wildcard_imports)]
-use tower_lsp_server::{lsp_types::*, UriExt};
 use tower_lsp_server::{Client, LanguageServer, LspService, Server};
 
 #[derive(Debug)]
@@ -135,6 +134,7 @@ impl LanguageServer for Backend {
                 )),
                 ..ServerCapabilities::default()
             },
+            offset_encoding: None,
         })
     }
 

@@ -123,11 +123,12 @@ pub fn parse_tree<
 ///
 /// If the depth of the tree is too deep
 pub fn parse_with_options<
+    'a,
     T,
     F: for<'input, 'arena> FnOnce(Ref<'input, 'arena>, Allocator<'input, 'arena>) -> T,
 >(
-    source: &str,
-    options: ParsingOptions,
+    source: &'a str,
+    options: ParsingOptions<'a>,
     f: F,
 ) -> Result<T, ParseError> {
     let xml =
@@ -372,9 +373,10 @@ fn find_new_xmlns<'a, 'input: 'a>(
     let uri = ns.uri();
     if let Some(prefix) = ns.name() {
         if namespace_map.get_by_prefix(None) != Some(uri)
-            && let Some(popped) = namespace_map.insert(Some(prefix), Some(uri)) {
-                popped_ns.push(popped);
-            }
+            && let Some(popped) = namespace_map.insert(Some(prefix), Some(uri))
+        {
+            popped_ns.push(popped);
+        }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
             attr_id: AttrId::Unknown(QualName {
