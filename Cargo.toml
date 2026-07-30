@@ -49,31 +49,31 @@ derive_more = "2.0"
 derive-where = "1.2"
 geo = "0.33"
 geo-types = { version = "0.7" }
-getrandom = { version = "0.3" }
+getrandom = "0.4"
 i_float = "3.0"
 i_overlay = "7.0"
 i_shape = "3.0"
-itertools = "0.14"
+itertools = "0.15"
 js-sys = { version = "0.3" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false, features = [
   "visitor",
 ] }
 log = { version = "0.4" }
-lsp-types = "0.97"
+ls-types = "0.0.6"
 napi = { version = "3.8", default-features = false, features = ["napi7"] }
 napi-build = { version = "2.2", default-features = false }
 napi-derive = { version = "3.3" }
 num-traits = "0.2"
 nunny = "0.2"
-oxc_ast = "0.141"
+oxc_ast = "0.142"
 paste = "1.0"
-phf = { version = "0.11", features = ["macros"] }
+phf = { version = "0.14", features = ["macros"] }
 precomputed-hash = "0.1"
 rayon = "1.11"
 rcdom = { package = "markup5ever_rcdom", version = "0.36.0" }
 regex = "1.11"
 robust = "1.2"
-roxmltree = "0.20"
+roxmltree = "0.21"
 rstar = "0.12"
 schemars = { version = "1.2.1" }
 selectors = "0.39"
@@ -82,20 +82,20 @@ serde_json = "1.0"
 serde-wasm-bindgen = "0.6"
 serde_with = "3.15"
 smallvec = "1.13.2"
-string_cache = "0.9"
-swc_core = "46.0"
-swc_ecma_lexer = "25.0"
+string_cache = "0.10"
+swc_core = "75.0"
+swc_ecma_lexer = "42.0"
 tendril = "0.5"
 tokio = "1.48"
-tower-lsp-server = "0.22"
+tower-lsp-server = "0.23"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
 wasm-bindgen = "=0.2.104"
 web-sys = { version = "0.3" }
-xml5ever = "0.38"
+xml5ever = "0.39"
 
 # Developer dependencies
-ctor = "0.2"
+ctor = "1.0"
 criterion = { version = "0.8", features = ["html_reports"] }
 env_logger = "0.11"
 insta = "1.42"

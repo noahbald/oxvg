@@ -99,7 +99,7 @@ impl Extends {
 }
 
 #[cfg(test)]
-#[ctor::ctor]
+#[ctor::ctor(unsafe)]
 fn init_test() {
     let _ = env_logger::builder().is_test(true).try_init();
 }

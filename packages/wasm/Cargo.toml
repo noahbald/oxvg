@@ -36,6 +36,9 @@ oxvg_optimiser = { workspace = true, features = ["wasm", "web_sys"] }
 
 console_error_panic_hook = "0.1.7"
 getrandom = { workspace = true, features = ["wasm_js"] }
+getrandom_v0_3 = { package = "getrandom", version = "^0.3", features = [
+  "wasm_js",
+] }
 roxmltree = { workspace = true }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
