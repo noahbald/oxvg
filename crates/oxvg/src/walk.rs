@@ -44,7 +44,7 @@ pub struct Walk {
     /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
     #[clap(long, short, default_value = "0")]
     pub threads: usize,
-    /// Supresses info logging
+    /// Suppresses info logging
     #[clap(long, default_value = "false")]
     pub quiet: bool,
 }

@@ -3,6 +3,7 @@
 	"version": "0.0.6",
 	"description": "",
 	"main": "index.js",
+	"deprecated": "use `oxvg visual-reression` command instead.",
 	"scripts": {
 		"test": "pnpm run optimise && pnpm run compare",
 		"optimise": "pnpm run optimise:w3c",
