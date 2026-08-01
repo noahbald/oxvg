@@ -18,6 +18,10 @@ path = "src/main.rs"
 test = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+visual-regression = ["dep:skia-safe"]
+render = ["dep:skia-safe"]
 
 [dependencies]
 oxvg_actions = { workspace = true }
@@ -37,11 +41,13 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 etcetera = "0.11"
 ignore = "0.4"
+itertools = { workspace = true }
 log = { workspace = true, features = ["release_max_level_off"] }
 ls-types = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+skia-safe = { version = "0.99", optional = true, features = ["svg"] }
 swc_core = { workspace = true, features = [
   "ecma_ast",
   "ecma_codegen",
@@ -52,3 +58,4 @@ swc_ecma_lexer = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "rt-multi-thread", "macros"] }
 tower-lsp-server = { workspace = true }
 typed-arena = { workspace = true }
+urlencoding = { workspace = true }

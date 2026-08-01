@@ -21,5 +21,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Command::Action(args) => args.run(config).await,
         Command::JSX(args) => args.run(config).await,
+        #[cfg(feature = "visual-regression")]
+        Command::VisualRegression(args) => args.run(config).await,
+        #[cfg(feature = "render")]
+        Command::Render(args) => args.run(config).await,
     }
 }
