@@ -2,8 +2,8 @@ use std::{
     collections::HashSet,
     iter::Peekable,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -158,6 +158,7 @@ impl RunCommand for ActionRun {
                             input: path,
                             destination: output,
                             input_bytes: source.len() as f64,
+                            quiet: self.walk.quiet,
                         };
                         output.output()?;
                         Ok(())

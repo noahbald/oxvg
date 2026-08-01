@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use oxvg_ast::{
@@ -54,6 +54,7 @@ impl RunCommand for Format {
                             input: path,
                             destination: output,
                             input_bytes: source.len() as f64,
+                            quiet: self.walk.quiet,
                         };
                         output.output()?;
                         Ok(())

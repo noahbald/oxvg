@@ -92,6 +92,7 @@ impl Optimise {
                             input: path,
                             destination: output,
                             input_bytes,
+                            quiet: self.walk.quiet,
                         };
                         output.output()?;
                         Ok(())
