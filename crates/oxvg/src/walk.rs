@@ -13,6 +13,7 @@ use oxvg_ast::{node::Ref, serialize::Node as _, xmlwriter::Options};
 type FnVisitor = Box<dyn FnMut(&str, Option<&PathBuf>, Option<&PathBuf>) + Send>;
 
 #[derive(clap::Args, Debug)]
+#[allow(clippy::struct_excessive_bools)]
 /// This will iterate over a set of paths.
 pub struct Walk {
     /// The set of paths to visit
@@ -43,6 +44,9 @@ pub struct Walk {
     /// Sets the approximate number of threads to use. A value of 0 (default) will automatically determine the appropriate number
     #[clap(long, short, default_value = "0")]
     pub threads: usize,
+    /// Suppresses info logging
+    #[clap(long, default_value = "false")]
+    pub quiet: bool,
 }
 
 pub(crate) struct Output<'a, 'input, 'arena> {
@@ -51,6 +55,7 @@ pub(crate) struct Output<'a, 'input, 'arena> {
     pub input: Option<&'a PathBuf>,
     pub destination: Option<&'a PathBuf>,
     pub input_bytes: f64,
+    pub quiet: bool,
 }
 impl Output<'_, '_, '_> {
     #[allow(clippy::unnecessary_debug_formatting)]
@@ -74,9 +79,11 @@ impl Output<'_, '_, '_> {
                 let change = 100.0 * (input_kb - output_kb) / input_kb;
                 let increased = if change < 0.0 { "\x1b[31m" } else { "" };
                 let path = self.input.and_then(|p| p.to_str()).unwrap_or("");
-                println!(
-            "\n\n\x1b[32m{path:?} ({input_kb:.1}KB) -> {output:?} ({output_kb:.1}KB) {increased}({change:.2}%)\x1b[0m"
-                );
+                if !self.quiet {
+                    println!(
+                        "\n\n\x1b[32m{path:?} ({input_kb:.1}KB) -> {output:?} ({output_kb:.1}KB) {increased}({change:.2}%)\x1b[0m"
+                    );
+                }
             }
         } else {
             self.dom.serialize_into(std::io::stdout(), self.options)?;

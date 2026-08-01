@@ -4,7 +4,7 @@ use std::future::Future;
 use clap::{Parser, Subcommand};
 
 use crate::{
-    commands::{Action, Format, Lint, Optimise, JSX},
+    commands::{Action, Format, JSX, Lint, Optimise},
     config::Config,
 };
 
@@ -54,4 +54,10 @@ pub enum Command {
     Action(Action),
     /// Convert SVG documents to JSX
     JSX(JSX),
+    #[cfg(feature = "visual-regression")]
+    /// Visual regression testing for OXVG outputs
+    VisualRegression(crate::commands::VisualRegression),
+    #[cfg(feature = "render")]
+    /// Render SVG documents
+    Render(crate::commands::Render),
 }

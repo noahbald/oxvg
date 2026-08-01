@@ -1,3 +1,9 @@
+> [!WARNING]
+> This package is deprecated.
+>
+> Please compile OXVG with `-F visual-regression` and run `oxvg visual-regression` instead.
+> This package is preserved for now but may be removed at any point.
+
 This is a test suite to evaluate the correctness of OXVG's optimisation presets.
 
 Follows [svgcleaner's method](https://github.com/RazrFalcon/svgcleaner/blob/master/docs/testing_notes.rst)
