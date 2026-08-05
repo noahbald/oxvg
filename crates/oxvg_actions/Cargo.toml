@@ -29,6 +29,7 @@ wasm = [
 oxvg_ast = { workspace = true, features = ["selectors"] }
 oxvg_collections = { workspace = true, features = ["serde"] }
 oxvg_parse = { workspace = true }
+oxvg_path = { workspace = true, features = ["algorithm"] }
 oxvg_serialize = { workspace = true }
 
 lightningcss = { workspace = true }

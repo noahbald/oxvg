@@ -1,16 +1,18 @@
+mod path;
+
 use lightningcss::{declaration::DeclarationBlock, traits::Parse};
 use oxvg_ast::{get_attribute_mut, set_attribute};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
+        Attr, AttrId,
         core_attrs::{Integer, Style},
         list_of::{ListOf, SpaceOrComma},
-        Attr, AttrId,
     },
 };
 use oxvg_parse::Parse as _;
 
-use crate::{state::StateElement, utils::get_oxvg_attr, Action, Actor, Error};
+use crate::{Action, Actor, Error, state::StateElement, utils::get_oxvg_attr};
 
 impl<'input> Actor<'input, '_> {
     /// Sets the attribute to selected elements.

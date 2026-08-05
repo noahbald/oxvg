@@ -2,7 +2,7 @@
 extern crate console_error_panic_hook;
 use oxvg_ast::{arena::Allocator, serialize::Node as _, visitor::Info, xmlwriter::Options};
 use oxvg_collections::{
-    attribute::{core_attrs::Number, AttributeGroup},
+    attribute::{AttributeGroup, core_attrs::Number},
     element::ElementCategory,
 };
 use oxvg_optimiser::{Extends, Jobs};
@@ -15,9 +15,9 @@ type AttrId = oxvg_collections::attribute::AttrId<'static>;
 type Prefix = oxvg_collections::name::Prefix<'static>;
 
 #[cfg(not(feature = "web_sys"))]
-use oxvg_ast::parse::roxmltree::{parse_tree_with_allocator, parse_with_options, ParsingOptions};
+use oxvg_ast::parse::roxmltree::{ParsingOptions, parse_tree_with_allocator, parse_with_options};
 #[cfg(feature = "web_sys")]
-use oxvg_ast::parse::web_sys::{parse, parse_tree_with_allocator, Document};
+use oxvg_ast::parse::web_sys::{Document, parse, parse_tree_with_allocator};
 
 #[wasm_bindgen]
 /// Optimise an SVG document using the provided config
@@ -332,6 +332,17 @@ impl Actor {
         self.actor.class(name)
     }
 
+    /// Intersects selected path definitions.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = pathIntersect)]
+    pub fn path_intersect(&mut self) -> Result<(), Error> {
+        self.actor.path_intersect()
+    }
+
     /// Appends the style to the selected elements style list.
     ///
     /// # Errors
@@ -410,6 +421,7 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
+    #[wasm_bindgen(js_name = skewX)]
     pub fn skew_x(&mut self, angle: Number) -> Result<(), Error> {
         self.actor.skew_x(angle)
     }
@@ -420,6 +432,7 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
+    #[wasm_bindgen(js_name = skewY)]
     pub fn skew_y(&mut self, angle: Number) -> Result<(), Error> {
         self.actor.skew_y(angle)
     }
@@ -468,7 +481,7 @@ impl Actor {
     ///
     /// If serializaton fails.
     pub fn document(&self, minify: Option<bool>) -> Result<String, String> {
-        let options = if matches!(minify, Some(true)) {
+        let options = if minify.unwrap_or(false) {
             Options::default()
         } else {
             Options::original()

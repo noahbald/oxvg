@@ -189,6 +189,10 @@ impl RunCommand for ActionList {
             println!("# Class\n");
             println!(include_str!("../spec/manipulate/class.md"));
         }
+        if parts.is_empty() || parts.contains(PATH_INTERSECT) {
+            println!("# Path Intersect\n");
+            println!(include_str!("../spec/manipulate/path_intersect.md"));
+        }
         if parts.is_empty() || parts.contains(STYLE) {
             println!("# Style\n");
             println!(include_str!("../spec/manipulate/style.md"));
@@ -239,6 +243,7 @@ impl RunCommand for ActionList {
 
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
+const PATH_INTERSECT: &str = "-path-intersect";
 const STYLE: &str = "-style";
 const MATRIX: &str = "-matrix";
 const TRANSLATE: &str = "-translate";
@@ -291,6 +296,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 value: get_part(&mut parts)?,
             },
             CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
+            PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
             STYLE => oxvg_actions::Action::Style {
                 property: get_part(&mut parts)?,
                 value: get_part(&mut parts)?,

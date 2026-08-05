@@ -1,5 +1,5 @@
 //! NAPI bindings for OXVG
-use napi::{bindgen_prelude::Unknown, Error, Status};
+use napi::{Error, Status, bindgen_prelude::Unknown};
 use oxvg_actions::{Action, ActionNapi, DerivedState, DerivedStateNapi};
 use oxvg_ast::{
   arena::Allocator,
@@ -204,6 +204,16 @@ impl Actor {
   #[allow(clippy::needless_pass_by_value)]
   pub fn class(&mut self, name: String) -> napi::Result<()> {
     self.actor.class(&name).map_err(generic_error)
+  }
+
+  /// Intersects selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_intersect(&mut self) -> napi::Result<()> {
+    self.actor.path_intersect().map_err(generic_error)
   }
 
   /// Appends the style to the selected elements style list.
