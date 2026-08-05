@@ -102,7 +102,6 @@ impl Default for Options {
 }
 
 impl Path {
-    // TODO: Optimisation options based on `StyleInfo`
     /// Returns an optimised version of the input path
     ///
     /// Note that depending on the options and style-info given, the optimisation may be lossy.
@@ -125,10 +124,27 @@ impl Path {
     /// assert_eq!(&path.to_string(), "M10 30v20l20-20H10Z");
     /// ```
     #[must_use]
-    pub fn optimize(
+    pub fn optimize(&self, options: Options, tolerance: &Tolerance) -> Path {
+        let mut segments = segment::Path::from_svg(self, tolerance);
+
+        if options.contains(Options::CloseSegments) {
+            segments.close_segments();
+        }
+
+        segments.simplify(options, tolerance);
+
+        segments.to_svg(tolerance, options.contains(Options::SmartArcRounding))
+    }
+
+    /// See [`Path::optimize`].
+    ///
+    /// Returns an optimised version of the input path, including unions when safe to do so.
+    #[must_use]
+    #[cfg(feature = "algorithm")]
+    pub fn optimize_with_fill_rule(
         &self,
         options: Options,
-        #[cfg(feature = "algorithm")] fill_rule: FillRule,
+        fill_rule: FillRule,
         tolerance: &Tolerance,
     ) -> Path {
         let mut segments = segment::Path::from_svg(self, tolerance);
@@ -137,13 +153,20 @@ impl Path {
             segments.close_segments();
         }
 
-        #[cfg(feature = "algorithm")]
-        if options.contains(Options::UniteSegments) {
-            segments = segments.union_with_fill_rule(&segments, fill_rule);
-        }
-
         segments.simplify(options, tolerance);
 
-        segments.to_svg(tolerance, options.contains(Options::SmartArcRounding))
+        let segments_svg = segments.to_svg(tolerance, options.contains(Options::SmartArcRounding));
+        if options.contains(Options::UniteSegments) {
+            let united_segments = segments.union_with_fill_rule(&segments, fill_rule);
+            let united_segments_svg =
+                united_segments.to_svg(tolerance, options.contains(Options::SmartArcRounding));
+            if united_segments_svg.to_string().len() < segments_svg.to_string().len() {
+                united_segments_svg
+            } else {
+                segments_svg
+            }
+        } else {
+            segments_svg
+        }
     }
 }
