@@ -135,29 +135,26 @@ impl Path {
 
         segments.to_svg(tolerance, options.contains(Options::SmartArcRounding))
     }
+}
 
+#[cfg(feature = "algorithm")]
+impl crate::paths::bool::Path {
     /// See [`Path::optimize`].
     ///
     /// Returns an optimised version of the input path, including unions when safe to do so.
     #[must_use]
-    #[cfg(feature = "algorithm")]
-    pub fn optimize_with_fill_rule(
-        &self,
-        options: Options,
-        fill_rule: FillRule,
-        tolerance: &Tolerance,
-    ) -> Path {
-        let mut segments = segment::Path::from_svg(self, tolerance);
-
+    pub fn optimize(mut self, options: Options, tolerance: &Tolerance) -> Path {
         if options.contains(Options::CloseSegments) {
-            segments.close_segments();
+            self.inner.close_segments();
         }
 
-        segments.simplify(options, tolerance);
+        self.inner.simplify(options, tolerance);
 
-        let segments_svg = segments.to_svg(tolerance, options.contains(Options::SmartArcRounding));
+        let segments_svg = self
+            .inner
+            .to_svg(tolerance, options.contains(Options::SmartArcRounding));
         if options.contains(Options::UniteSegments) {
-            let united_segments = segments.union_with_fill_rule(&segments, fill_rule);
+            let united_segments = self.union(&self);
             let united_segments_svg =
                 united_segments.to_svg(tolerance, options.contains(Options::SmartArcRounding));
             if united_segments_svg.to_string().len() < segments_svg.to_string().len() {
