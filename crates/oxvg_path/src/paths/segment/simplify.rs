@@ -368,9 +368,7 @@ impl Path {
                         .pop_if(|command| matches!(command, Data::LineTo(_)))
                         .is_some();
                 } else {
-                    // Line end outside of tolerance; segment must have
-                    // been coerced to `closed` in `Path::optimize`.
-                    segment.closed = false;
+                    // `Z` draws a real edge back to the start and must be kept.
                 }
             } else {
                 segment.closed = false;
@@ -391,6 +389,7 @@ mod test {
         geometry::Tolerance,
         geometry::{Arc, Curve, Point},
         optimize::Options,
+        parser::Parse as _,
         paths::segment::{Data, Path, Segment},
     };
 
@@ -500,5 +499,46 @@ mod test {
                 closed: true,
             }])
         );
+
+        let mut path = Path(vec![Segment {
+            start: Point::ZERO,
+            data: vec![Data::LineTo(Point::new(1.0, 0.0))],
+            closed: true,
+        }]);
+        path.simplify(Options::RemoveCloseLine, &Tolerance::default());
+        assert_eq!(
+            path,
+            Path(vec![Segment {
+                start: Point::ZERO,
+                data: vec![Data::LineTo(Point::new(1.0, 0.0))],
+                closed: true,
+            }])
+        );
+
+        let mut path = Path(vec![Segment {
+            start: Point::ZERO,
+            data: vec![
+                Data::LineTo(Point::new(1.0, 0.0)),
+                Data::LineTo(Point::new(1.0, 1.0)),
+            ],
+            closed: true,
+        }]);
+        path.simplify(Options::RemoveCloseLine, &Tolerance::default());
+        assert_eq!(
+            path,
+            Path(vec![Segment {
+                start: Point::ZERO,
+                data: vec![
+                    Data::LineTo(Point::new(1.0, 0.0)),
+                    Data::LineTo(Point::new(1.0, 1.0)),
+                ],
+                closed: true,
+            }])
+        );
+
+        let path = crate::Path::parse_string("M0 0L1 0Z")
+            .unwrap()
+            .optimize(Options::RemoveCloseLine, &Tolerance::default());
+        assert_eq!(path.to_string(), "M0 0h1Z");
     }
 }
