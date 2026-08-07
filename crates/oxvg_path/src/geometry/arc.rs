@@ -1,9 +1,12 @@
 //! Types for representing elliptical arcs.
-use std::{cell::Cell, f64::consts::PI};
+use std::{
+    cell::Cell,
+    f64::consts::{FRAC_PI_8, PI},
+};
 
 use crate::{
     geometry::{
-        ellipses::Ellipses, Curve, Point, Quadrant, Tolerance, TolerancePrecision, ToleranceSquared,
+        Curve, Point, Quadrant, Tolerance, TolerancePrecision, ToleranceSquared, ellipses::Ellipses,
     },
     math::{self, radius_factor},
 };
@@ -201,8 +204,7 @@ impl Arc {
         debug_assert!(
             self.end_point().distance_squared(end_point) < 5e-2,
             // This is usually caused by bad joins of arc in simplify::Path::join_nodes.
-            // If you encounter this, consider updating the tolerance for small
-            // arcs stricter.
+            // This is a bug, please raise an issue.
             "Memoised end-point ({end_point:?}) out of range of computed end-point({:?}) by {}",
             self.end_point(),
             self.end_point().distance(end_point)
@@ -456,33 +458,106 @@ impl Arc {
         self.ellipses().is_circle(tolerance)
     }
 
+    /// Returns the tangent at the given percentage `t` along the arc.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// );
+    /// assert!(arc.tangent_t(1.0).distance(Point::NEG_Y) < 1e-12);
+    /// ```
+    pub fn tangent_t(&self, t: f64) -> Point {
+        let angle = self.start_angle() + t * self.sweep_angle();
+        let (sin, cos) = angle.sin_cos();
+        let unrotated = Point::new(-self.radii().x * sin, self.radii().y * cos);
+        let rotated = unrotated.rotate_radian(self.x_rotation());
+        let len = rotated.len();
+        if len > 1e-12 {
+            rotated * (self.sweep_angle().signum() / len)
+        } else {
+            Point::ZERO
+        }
+    }
+
     pub(crate) fn is_connected(
         &self,
         other: &Self,
         tolerance: &Tolerance,
         tolerance_squared: ToleranceSquared,
     ) -> bool {
-        let min_sweep = self.sweep_angle().abs().min(other.sweep_angle().abs());
-        if self.radii().x == self.radii().y
-            && other.radii().x == other.radii().y
-            && self.sweep_angle().signum() == other.sweep_angle().signum()
-        {
-            let max_radius = self.radii().x.max(other.radii().x);
-            if min_sweep * max_radius < 10.0 {
-                // Relatively small, relatively round arcs can be regarded as continuous
-                return true;
-            }
+        let self_chord_sq = self.start_point().distance_squared(self.end_point());
+        let other_chord_sq = other.start_point().distance_squared(other.end_point());
+
+        // Scale the sweep angle proportionally to the ratio of the radii before testing
+        // the endpoint invariant, since sweep angle length is relative to the radius.
+        let is_invariant_broken = if self_chord_sq >= other_chord_sq {
+            let scale =
+                (other.radii().x + other.radii().y) / (self.radii().x + self.radii().y).max(1e-9);
+            let converted_sweep = other.sweep_angle() * scale;
+            self.point_at_angle(self.start_angle() + self.sweep_angle() + converted_sweep)
+                .distance_squared(other.end_point())
+                > 1e-2
+        } else {
+            let scale =
+                (self.radii().x + self.radii().y) / (other.radii().x + other.radii().y).max(1e-9);
+            let converted_sweep = self.sweep_angle() * scale;
+            other
+                .point_at_angle(other.start_angle() - converted_sweep)
+                .distance_squared(self.start_point())
+                > 1e-2
+        };
+
+        if is_invariant_broken {
+            return false;
         }
 
+        // Case 1: The arcs are similar relative to size
+        let min_sweep = self.sweep_angle().abs().min(other.sweep_angle().abs());
         let scale = (min_sweep.powi(-1)).max(40.0 * self.radii().len());
         let tolerance_scaled = *tolerance_squared * scale;
-        self.center().distance_squared(other.center()) < tolerance_scaled
+        if self.center().distance_squared(other.center()) < tolerance_scaled
             && self.radii().distance_squared(other.radii()) < tolerance_scaled
             && (
                 // TODO: Check x_rotation affects start_angle
                 (self.radii().x - self.radii().y).abs() < *tolerance_squared
                     || (self.x_rotation() - other.x_rotation()).abs() < tolerance.angular
             )
+        {
+            return true;
+        }
+
+        let lenient_tolerance = tolerance.positional * 30.0;
+        let t1 = self.tangent_t(1.0);
+        let t2 = other.tangent_t(0.0);
+
+        // Case 2: An arc is tiny and relatively tangential
+        let self_is_tiny =
+            self.sweep_angle().abs() < FRAC_PI_8 && self_chord_sq < lenient_tolerance;
+        let other_is_tiny =
+            other.sweep_angle().abs() < FRAC_PI_8 && other_chord_sq < lenient_tolerance;
+
+        if (self_is_tiny || other_is_tiny)
+            && (t1.angle_radians() - t2.angle_radians()).abs() < tolerance.angular * 80.0 {
+                return true;
+            }
+
+        // Case 3: An arc is similarly sized and relatively tangential
+        if self.center().distance_squared(other.center()) < lenient_tolerance
+            && self.radii().distance_squared(other.radii()) < lenient_tolerance
+            && (t1.angle_radians() - t2.angle_radians()).abs()
+                < (tolerance.angular * 8.0).min(100.0)
+            {
+                return true;
+            }
+        false
     }
 
     /// Returns an approximate equivalent of the arc as a bezier curve, if possible.
