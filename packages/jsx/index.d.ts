@@ -644,7 +644,12 @@ export interface ConvertOneStopGradients {
  * Rounding errors may result in slight visual differences.
  */
 export interface ConvertPathData {
-  /** Whether to close unclosed paths segments when safe to do so. */
+  /**
+   * Whether to close unclosed paths segments when safe to do so.
+   *
+   * This is safe to enable if you don't expect consumers to assign strokes
+   * with linecaps.
+   */
   closeSegments: boolean
   /** Whether to boolean unite overlapping segments when safe and optimal to do so (experimental). */
   uniteSegments: boolean
@@ -654,7 +659,11 @@ export interface ConvertPathData {
   removeEmptySegments: boolean
   /** Whether to remove segments where all command args are effectively zero. */
   removeZeroSegments: boolean
-  /** Whether to remove closing lines when safe to do so. */
+  /**
+   * Whether to remove closing lines when safe to do so.
+   *
+   * This is safe to enable if you don't expect consumers to assign strokes.
+   */
   removeCloseLine: boolean
   /** Whether to convert curves and arcs into lines. */
   straightCurves: boolean

@@ -104,7 +104,6 @@ macro_rules! jobs {
                                     convert_path_data.join_nodes = params.get("collapseRepeated").ok().flatten().unwrap_or(convert_path_data.join_nodes);
                                     convert_path_data.remove_empty_segments = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_empty_segments);
                                     convert_path_data.remove_zero_segments = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_zero_segments);
-                                    convert_path_data.remove_close_line = params.get("removeUseless").ok().flatten().unwrap_or(convert_path_data.remove_close_line);
                                     convert_path_data.straight_curves = params.get("straightCurves").ok().flatten().unwrap_or(convert_path_data.straight_curves);
                                     convert_path_data.arc_curves = make_arcs.is_some();
                                     convert_path_data.smart_arc_rounding = params.get("smartArcRounding").ok().flatten().unwrap_or(convert_path_data.smart_arc_rounding);
@@ -180,7 +179,6 @@ macro_rules! jobs {
                                         convert_path_data.join_nodes = params.remove("collapseRepeated").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.join_nodes);
                                         convert_path_data.remove_empty_segments = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_empty_segments);
                                         convert_path_data.remove_zero_segments = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_zero_segments);
-                                        convert_path_data.remove_close_line = params.remove("removeUseless").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.remove_close_line);
                                         convert_path_data.straight_curves = params.remove("straightCurves").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.straight_curves);
                                         convert_path_data.arc_curves = make_arcs.is_some();
                                         convert_path_data.smart_arc_rounding = params.remove("smartArcRounding").map(serde_json::from_value).and_then(Result::ok).unwrap_or(convert_path_data.smart_arc_rounding);
@@ -435,7 +433,7 @@ macro_rules! test_config {
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
     use oxvg_ast::{
-        parse::roxmltree::{parse_with_options, ParsingOptions},
+        parse::roxmltree::{ParsingOptions, parse_with_options},
         serialize::{Node as _, Options, Space},
     };
 

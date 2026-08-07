@@ -45,6 +45,9 @@ use crate::{error::JobsError, utils::style_info::gather_optimize_options};
 pub struct ConvertPathData {
     #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
     /// Whether to close unclosed paths segments when safe to do so.
+    ///
+    /// This is safe to enable if you don't expect consumers to assign strokes
+    /// with linecaps.
     pub close_segments: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
     /// Whether to boolean unite overlapping segments when safe and optimal to do so (experimental).
@@ -58,8 +61,10 @@ pub struct ConvertPathData {
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to remove segments where all command args are effectively zero.
     pub remove_zero_segments: bool,
-    #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
+    #[cfg_attr(feature = "serde", serde(default = "flag_default_false"))]
     /// Whether to remove closing lines when safe to do so.
+    ///
+    /// This is safe to enable if you don't expect consumers to assign strokes.
     pub remove_close_line: bool,
     #[cfg_attr(feature = "serde", serde(default = "flag_default_true"))]
     /// Whether to convert curves and arcs into lines.
@@ -83,7 +88,7 @@ impl Default for ConvertPathData {
             join_nodes: flag_default_true(),
             remove_empty_segments: flag_default_true(),
             remove_zero_segments: flag_default_true(),
-            remove_close_line: flag_default_true(),
+            remove_close_line: flag_default_false(),
             straight_curves: flag_default_true(),
             arc_curves: flag_default_true(),
             smart_arc_rounding: flag_default_true(),

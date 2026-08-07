@@ -140,7 +140,7 @@ test("optimise with config", async () => {
 		      arcCurves: false,
 		      closeSegments: true,
 		      joinNodes: true,
-		      removeCloseLine: true,
+		      removeCloseLine: false,
 		      removeEmptySegments: true,
 		      removeZeroSegments: true,
 		      smartArcRounding: true,
