@@ -4,7 +4,7 @@ use crate::{
     command::{self, ID},
     geometry::{Arc, Curve, Point, Tolerance, TolerancePrecision, ToleranceSquared},
     optimize::Options,
-    paths::segment::{convert::compactest, Data, IterStartCursorItem, Path},
+    paths::segment::{Data, IterStartCursorItem, Path, convert::compactest},
 };
 
 impl Path {
@@ -217,12 +217,13 @@ impl Path {
             });
         }
         if let Some(segment) = self.0.last_mut()
-            && segment.closed {
-                segment.data.pop_if(|command| match command {
-                    Data::LineTo(p) => p.distance_squared(segment.start) < *tolerance_squared,
-                    _ => false,
-                });
-            }
+            && segment.closed
+        {
+            segment.data.pop_if(|command| match command {
+                Data::LineTo(p) => p.distance_squared(segment.start) < *tolerance_squared,
+                _ => false,
+            });
+        }
     }
 
     #[allow(clippy::too_many_lines)]
@@ -295,12 +296,11 @@ impl Path {
                         let current_sweep = current.sweep_angle();
                         let previous_len = previous.len(4);
                         let current_len = current.len(4);
-                        let mut projection = current.clone();
-                        projection.set_start_angle(previous.start_angle());
-                        projection.set_sweep_angle(previous.sweep_angle());
-                        let scale = projection.len(4) / previous_len;
+                        let r_prev = (previous.radii().x + previous.radii().y) * 0.5;
+                        let r_curr = (current.radii().x + current.radii().y) * 0.5;
                         if previous_len >= current_len {
                             // Fit current arc deviation onto previous's ellipse
+                            let scale = r_curr / r_prev.max(1e-9);
                             let converted = current_sweep * scale;
                             previous.set_sweep_angle(previous.sweep_angle() + converted);
                             if previous.is_circle(tolerance) {
@@ -313,17 +313,15 @@ impl Path {
                         } else {
                             let mut current = current.clone();
                             let end_point = current.end_point();
-                            current.set_start_angle(previous.start_angle());
                             // Fit previous arc deviation onto current's ellipse
-                            let converted = prev_sweep * scale.powi(-1);
+                            let scale = r_prev / r_curr.max(1e-9);
+                            let converted = prev_sweep * scale;
+                            current.set_start_angle(current.start_angle() - converted);
                             current.set_sweep_angle(current.sweep_angle() + converted);
-                            if previous.is_circle(tolerance) {
-                                let r1 = previous.radii().x.midpoint(previous.radii().y)
-                                    * previous_len.powi(2);
-                                let r2 = current.radii().x.midpoint(current.radii().y)
-                                    * current_len.powi(2);
-                                let avg_r =
-                                    (r1 + r2) / (previous_len.powi(2) + current_len.powi(2));
+                            if current.is_circle(tolerance) {
+                                let r1 = current.center().distance(start);
+                                let r2 = current.center().distance(end_point);
+                                let avg_r = r1.midpoint(r2);
                                 current.set_radii(Point::splat(avg_r));
                             }
                             current.set_end_point_memo(end_point);
@@ -388,10 +386,12 @@ mod test {
     use std::f64::consts::PI;
 
     use crate::{
-        geometry::Tolerance,
-        geometry::{Arc, Curve, Point},
+        geometry::{Arc, Curve, Point, Tolerance},
         optimize::Options,
-        paths::segment::{Data, Path, Segment},
+        paths::{
+            segment::{Data, Path, Segment},
+            svg,
+        },
     };
 
     #[test]
@@ -463,6 +463,134 @@ mod test {
         assert_eq!(
             path.to_svg(&Tolerance::default(), true).to_string(),
             "M0 0a.5.5 0 0 1 2 0c0-1 0-1 2 0h2"
+        );
+    }
+
+    #[test]
+    fn join_adjacent_arcs_non_continuous() {
+        // Don't join; arcs are relatively distinct
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([0.0, 0.0]),
+            svg::command::Data::ArcTo([4.0, 4.0, 0.0, 0.0, 0.0, -1.5, -5.0]),
+            svg::command::Data::ArcTo([4.0, 4.0, 0.0, 0.0, 0.0, 0.2, -7.3]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(Options::JoinNodes, &Tolerance::default());
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M0 0a4 4 0 0 0-1.5-5A4 4 0 0 0 .2-7.3"
+        );
+    }
+
+    #[test]
+    fn join_tiny_adjacent_arcs_non_continuous() {
+        // Don't join; distant center point creates a kinked end
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([0.0, 0.0]),
+            svg::command::Data::ArcTo([4.0, 4.0, 0.0, 0.0, 0.0, -1.5, -5.0]),
+            svg::command::Data::ArcBy([4.0, 4.0, 0.0, 0.0, 0.0, -1.5e-6, -5e-6]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(Options::JoinNodes, &Tolerance::default());
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M0 0a4 4 0 0 0-1.5-5 4 4 0 0 0 0-.001"
+        );
+    }
+
+    #[test]
+    fn join_tiny_adjacent_arcs_non_continuous_2() {
+        // Don't join; distant center point creates a kinked end
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([84.331, 69.174]),
+            svg::command::Data::ArcBy([14.48, 14.48, 0.0, 0.0, 1.0, -0.819, 4.425]),
+            svg::command::Data::ArcBy([0.478, 0.478, 0.0, 0.0, 0.0, -0.024, 0.147]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(Options::JoinNodes, &Tolerance::default());
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M84.331 69.174a14.5 14.5 0 0 1-.819 4.425.5.5 0 0 0-.024.147"
+        );
+    }
+
+    #[test]
+    fn join_tiny_adjacent_arcs_continuous() {
+        // Do join; distant radius has no effect on continuity
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([0.0, 0.0]),
+            svg::command::Data::ArcTo([4.0, 4.0, 0.0, 0.0, 0.0, -1.5, -5.0]),
+            svg::command::Data::ArcBy([1.0e3, 1.0e3, 0.0, 0.0, 0.0, -6e-6, -5e-6]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(Options::JoinNodes, &Tolerance::default());
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M0 0a4 4 0 0 0-1.5-5 1000 1000 0 0 0-.001-.001"
+        );
+    }
+
+    #[test]
+    fn join_tiny_adjacent_arcs_complex() {
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([15.0, 23.54]),
+            svg::command::Data::CubicBezierBy([-2.017, 0.0, -3.87, -0.7, -5.33, -1.87]),
+            svg::command::Data::CubicBezierBy([-0.032, -0.023, -0.068, -0.052, -0.11, -0.087]),
+            svg::command::Data::CubicBezierBy([0.042, 0.035, 0.078, 0.064, 0.11, 0.087]),
+            svg::command::Data::CubicBezierBy([0.048, 0.04, 0.08, 0.063, 0.08, 0.063]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(
+            Options::JoinNodes | Options::ArcCurves | Options::SmartArcRounding,
+            &Tolerance::default(),
+        );
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M15 23.54a8.5 8.5 0 0 1-5.44-1.957 2 2 0 0 0 .19.15"
+        );
+    }
+
+    #[test]
+    fn join_tiny_adjacent_arcs_complex_2() {
+        let svg_path = svg::Path(vec![
+            svg::command::Data::MoveTo([956.5625, -57.34375]),
+            svg::command::Data::CubicBezierBy([
+                956.54344,
+                -57.401_145,
+                956.52483,
+                -57.438_965,
+                956.5,
+                -57.5,
+            ]),
+            svg::command::Data::CubicBezierBy([
+                955.80665,
+                -59.204_045,
+                953.10185,
+                -64.396_096,
+                951.75,
+                -66.03125,
+            ]),
+        ]);
+
+        let mut path = Path::from_svg(&svg_path, &Tolerance::default());
+        path.simplify(
+            Options::JoinNodes | Options::ArcCurves | Options::SmartArcRounding,
+            &Tolerance::default(),
+        );
+
+        assert_eq!(
+            path.to_svg(&Tolerance::default(), true).to_string(),
+            "M956.563-57.344a817863 817863 0 0 0 956.5-57.5 14866 14866 0 0 0 951.75-66.031"
         );
     }
 
