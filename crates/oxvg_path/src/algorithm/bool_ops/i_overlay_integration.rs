@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use geo::{Coord, LineString};
 use i_float::float::compatible::FloatPointCompatible;
-use rstar::{RTreeObject, AABB};
+use rstar::{AABB, RTreeObject};
 
 use crate::{
     geometry::{Point, Rectangle},
@@ -66,10 +66,10 @@ impl FloatPointCompatible for BoolOpsCoord {
 pub mod convert {
     use geo::{Coord, CoordsIter};
     use itertools::Itertools;
-    use rstar::{RTree, RTreeObject, AABB};
+    use rstar::{AABB, RTree, RTreeObject};
 
     use crate::{
-        geometry::{Line, Point, Rectangle, ToleranceSquared},
+        geometry::{Arc, Line, Point, Rectangle, ToleranceSquared},
         paths::segment,
     };
 
@@ -150,6 +150,36 @@ pub mod convert {
         )
     }
 
+    fn clamp_arc_for_edge(arc: &Arc, a: Point, b: Point) -> Arc {
+        let t1 = arc.t_at(a, ToleranceSquared(1e-3)).unwrap_or(0.0);
+        let t2 = arc.t_at(b, ToleranceSquared(1e-3)).unwrap_or(1.0);
+
+        let arc_a = if t1 <= t2 {
+            arc.clamp_t(t1, t2)
+        } else {
+            arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
+        };
+
+        let arc_b = if t1 <= t2 {
+            let mut b_arc = arc.clone();
+            b_arc.set_start_angle(arc.start_angle() + t1 * arc.sweep_angle());
+            b_arc.set_sweep_angle((t2 - t1 - 1.0) * arc.sweep_angle());
+            b_arc
+        } else {
+            let mut b_arc = arc.clone();
+            b_arc.set_start_angle(arc.start_angle() + t1 * arc.sweep_angle());
+            b_arc.set_sweep_angle((t2 - t1 + 1.0) * arc.sweep_angle());
+            b_arc
+        };
+
+        let mid_m = a.midpoint(b);
+        if arc_a.mid_point().distance_squared(mid_m) <= arc_b.mid_point().distance_squared(mid_m) {
+            arc_a
+        } else {
+            arc_b
+        }
+    }
+
     fn segment_from_ring(ring: Vec<BoolOpsCoord>, r_tree: &RTree<RTreeEntry>) -> segment::Segment {
         enum Action<'a> {
             Original {
@@ -185,10 +215,11 @@ pub mod convert {
                     end: p_end,
                     ..
                 }) = actions.last_mut()
-                    && std::ptr::eq(seg.data, last_seg.data) {
-                        *p_end = *b;
-                        merged = true;
-                    }
+                    && std::ptr::eq(seg.data, last_seg.data)
+                {
+                    *p_end = *b;
+                    merged = true;
+                }
                 if !merged {
                     actions.push(Action::Original {
                         seg,
@@ -225,13 +256,8 @@ pub mod convert {
                             }));
                         }
                         segment::Data::ArcTo(arc) => {
-                            let t1 = arc.t_at(t1, tolerance).unwrap();
-                            let t2 = arc.t_at(t2, tolerance).unwrap();
-                            segment.data.push(segment::Data::ArcTo(if t1 <= t2 {
-                                arc.clamp_t(t1, t2)
-                            } else {
-                                arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
-                            }));
+                            let clamped_arc = clamp_arc_for_edge(arc, t1, t2);
+                            segment.data.push(segment::Data::ArcTo(clamped_arc));
                         }
                     }
                 }

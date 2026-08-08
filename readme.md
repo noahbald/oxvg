@@ -81,7 +81,7 @@ This is a library for parsing, optimising, and serialising path definitions (e.g
 
 Please expect some instability as we may add new features to enable simple manipulations for paths in the future.
 
-### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_jsx)
+### [JSX](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_jsx)
 
 This is a library for parsing SVG, optimising, and transforming it into JSX modules.
 

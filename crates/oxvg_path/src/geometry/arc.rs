@@ -545,18 +545,19 @@ impl Arc {
             other.sweep_angle().abs() < FRAC_PI_8 && other_chord_sq < lenient_tolerance;
 
         if (self_is_tiny || other_is_tiny)
-            && (t1.angle_radians() - t2.angle_radians()).abs() < tolerance.angular * 80.0 {
-                return true;
-            }
+            && (t1.angle_radians() - t2.angle_radians()).abs() < tolerance.angular * 80.0
+        {
+            return true;
+        }
 
         // Case 3: An arc is similarly sized and relatively tangential
         if self.center().distance_squared(other.center()) < lenient_tolerance
             && self.radii().distance_squared(other.radii()) < lenient_tolerance
             && (t1.angle_radians() - t2.angle_radians()).abs()
                 < (tolerance.angular * 8.0).min(100.0)
-            {
-                return true;
-            }
+        {
+            return true;
+        }
         false
     }
 
@@ -709,14 +710,19 @@ impl Arc {
     pub fn t_at(&self, at: Point, tolerance: ToleranceSquared) -> Option<f64> {
         let ellipses = self.ellipses();
         let tolerance = ellipses.ellipse_tolerance(tolerance);
-        let mut angle = self.ellipses().angle_at_point(at, tolerance)?;
-        if self.sweep_angle > 0.0 && angle < 0.0 {
-            angle += 2.0 * PI;
-        } else if self.sweep_angle < 0.0 && angle > 0.0 {
-            angle -= 2.0 * PI;
+        let angle = self.ellipses().angle_at_point(at, tolerance)?;
+        if self.sweep_angle() == 0.0 {
+            return if self.start_point().distance_squared(at) <= *tolerance {
+                Some(0.0)
+            } else {
+                None
+            };
         }
-        let delta = (angle - self.start_angle()) % (2.0 * PI);
-        let t = (delta / self.sweep_angle()).clamp(0.0, 1.0);
+        let target = self.start_angle + 0.5 * self.sweep_angle;
+        let k = ((target - angle) / (2.0 * PI)).round();
+        let adjusted_angle = angle + k * (2.0 * PI);
+        let delta = adjusted_angle - self.start_angle;
+        let t = (delta / self.sweep_angle).clamp(0.0, 1.0);
         if self
             .point_at_angle(self.start_angle() + t * self.sweep_angle())
             .distance_squared(at)

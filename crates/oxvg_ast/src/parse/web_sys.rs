@@ -5,11 +5,11 @@ use lightningcss::stylesheet::{ParserFlags, ParserOptions, StyleSheet};
 use oxvg_collections::{
     attribute::Attr,
     element::ElementId,
-    name::{Prefix, NS},
+    name::{NS, Prefix},
 };
 use web_sys::{
-    wasm_bindgen::{JsCast, JsValue},
     DomParser, SupportedType,
+    wasm_bindgen::{JsCast, JsValue},
 };
 
 use crate::{
@@ -266,7 +266,7 @@ fn parse_attr<'input, 'arena>(
         .map(Into::into)
         .unwrap_or_else(|| NS::SVG.uri().clone());
     let prefix = Prefix::new(ns, prefix.map(Into::into));
-    let name = element.parse_attr_id(&prefix, attr.name().into());
+    let name = element.parse_attr_id(&prefix, attr.local_name().into());
     let value = arena.alloc_str(&attr.value());
     Attr::new(name, value)
 }

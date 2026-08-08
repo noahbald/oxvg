@@ -105,6 +105,9 @@ pretty_assertions = "1.4"
 [profile.dev.package."*"]
 opt-level = 3
 
+[profile.dev.package.oxvg_wasm]
+debug = true
+
 [profile.test.package."*"]
 opt-level = 3
 

@@ -2,9 +2,9 @@ use oxvg_ast::{arena::Allocator, element::Element, node::Ref};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
+        Attr, AttrId,
         core_attrs::Integer,
         list_of::{ListOf, SpaceOrComma},
-        Attr, AttrId,
     },
     name::{Prefix, QualName},
 };
@@ -19,6 +19,7 @@ use crate::actions::ActionNapi;
 use crate::info::InfoNapi;
 
 use crate::{
+    OXVG_PREFIX, OXVG_XMLNS,
     actions::Action,
     error::Error,
     info::Info,
@@ -26,7 +27,6 @@ use crate::{
         assert_oxvg_element, assert_oxvg_xmlns, create_oxvg_attr, create_oxvg_element,
         get_oxvg_attr,
     },
-    OXVG_PREFIX, OXVG_XMLNS,
 };
 
 #[allow(clippy::struct_field_names)]
@@ -240,6 +240,7 @@ impl<'input> Action<'input> {
     // Members
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
+    const PATH_INTERSECT: &'static str = "PathIntersect";
     const STYLE: &'static str = "Style";
     const MATRIX: &'static str = "Matrix";
     const TRANSLATE: &'static str = "Translate";
@@ -252,6 +253,7 @@ impl<'input> Action<'input> {
     const SELECT_MORE: &'static str = "SelectMore";
     const DESELECT: &'static str = "Deselect";
 
+    #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
     fn from_state(element: &Element<'input, '_>) -> Result<Self, Error<'input>> {
         assert_oxvg_element(element, Self::ACTION)?;
 
@@ -262,13 +264,120 @@ impl<'input> Action<'input> {
             assert_oxvg_element(&child, Self::ARG)?;
             Ok(child.text_content().unwrap_or_default())
         });
+        let n_args = |value: Result<Atom<'input>, Error<'input>>| {
+            value.and_then(|value| {
+                value
+                    .as_str()
+                    .parse::<f32>()
+                    .map_err(|_| Error::InvalidStateValue {
+                        name: Self::MATRIX,
+                        value,
+                    })
+            })
+        };
 
         match id.as_str() {
-            Self::SELECT => {
-                let Some(string) = args.next() else {
+            Self::ATTR => {
+                let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Select(string?))
+                let Some(value) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Attr { name, value })
+            }
+            Self::CLASS => {
+                let Some(class) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Class(class))
+            }
+            Self::PATH_INTERSECT => Ok(Self::PathIntersect),
+            Self::STYLE => {
+                let Some(property) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(value) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Style { property, value })
+            }
+            Self::MATRIX => {
+                let mut args = args.map(n_args);
+                let Some(a) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(b) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(c) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(d) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(e) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(f) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Matrix(a, b, c, d, e, f))
+            }
+            Self::TRANSLATE => {
+                let mut args = args.map(n_args);
+                let Some(x) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let y = args.next().transpose()?;
+                Ok(Self::Translate(x, y))
+            }
+            Self::SCALE => {
+                let mut args = args.map(n_args);
+                let Some(x) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let y = args.next().transpose()?;
+                Ok(Self::Scale(x, y))
+            }
+            Self::ROTATE => {
+                let mut args = args.map(n_args);
+                let Some(deg) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let x = args.next().transpose()?;
+                let y = args.next().transpose()?;
+                if x.is_some() && y.is_none() {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                }
+                let origin = x.zip(y);
+                Ok(Self::Rotate(deg, origin))
+            }
+            Self::SKEW_X => {
+                let mut args = args.map(n_args);
+                let Some(x) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::SkewX(x))
+            }
+            Self::SKEW_Y => {
+                let mut args = args.map(n_args);
+                let Some(y) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::SkewY(y))
+            }
+            Self::SELECT => {
+                let Some(string) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Select(string))
+            }
+            Self::SELECT_MORE => {
+                let Some(string) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::SelectMore(string))
             }
             _ => Err(Error::InvalidStateAttribute(id.clone())),
         }
@@ -325,7 +434,7 @@ impl<'input> Action<'input> {
             Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
                 Self::embed_arg(&element, allocator, arg.clone());
             }
-            Self::Forget | Self::Deselect => {}
+            Self::PathIntersect | Self::Forget | Self::Deselect => {}
         }
     }
 
@@ -344,6 +453,7 @@ impl<'input> Action<'input> {
         match self {
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
+            Self::PathIntersect => Self::PATH_INTERSECT,
             Self::Style { .. } => Self::STYLE,
             Self::Matrix(..) => Self::MATRIX,
             Self::Translate(..) => Self::TRANSLATE,
@@ -368,6 +478,7 @@ impl<'input> Action<'input> {
                 value: value.to_string(),
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::PathIntersect => ActionNapi::PathIntersect,
             Self::Style { property, value } => ActionNapi::Style {
                 property: property.to_string(),
                 value: value.to_string(),
@@ -399,6 +510,7 @@ impl<'input> Action<'input> {
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::Style { property, value } => Action::Style {
                 property: property.into(),
                 value: value.into(),

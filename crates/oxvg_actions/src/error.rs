@@ -34,6 +34,8 @@ pub enum Error<'input> {
     },
     /// The `select` action was called with an invalid selector
     InvalidSelector(String),
+    /// An action dependent on computed-styles failed to evaluate
+    ComputedStylesError(String),
 }
 
 impl std::error::Error for Error<'_> {}
@@ -66,6 +68,7 @@ impl std::fmt::Display for Error<'_> {
             Self::InvalidSelector(query) => f.write_fmt(format_args!(
                 "Invalid or unsupported query selector given: `{query}`"
             )),
+            Self::ComputedStylesError(err) => err.fmt(f),
         }
     }
 }
