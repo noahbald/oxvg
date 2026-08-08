@@ -30,8 +30,8 @@
 			"x86_64-pc-windows-msvc"
 		]
 	},
-	"packageManager": "pnpm@10.5.2",
+	"packageManager": "pnpm@11.20.0",
 	"devDependencies": {
-		"@napi-rs/cli": "^3.4.1"
+		"@napi-rs/cli": "^3.8.2"
 	}
 }

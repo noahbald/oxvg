@@ -60,9 +60,9 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
 ] }
 log = { version = "0.4" }
 ls-types = "0.0.6"
-napi = { version = "3.8", default-features = false, features = ["napi7"] }
-napi-build = { version = "2.2", default-features = false }
-napi-derive = { version = "3.3" }
+napi = { version = "3.12", default-features = false, features = ["napi7"] }
+napi-build = { version = "2.4", default-features = false }
+napi-derive = { version = "3.6" }
 num-traits = "0.2"
 nunny = "0.2"
 oxc_ast = "0.142"
@@ -91,7 +91,7 @@ tower-lsp-server = "0.23"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 typed-arena = "2.0"
 urlencoding = "2.1"
-wasm-bindgen = "=0.2.104"
+wasm-bindgen = "=0.2.127"
 web-sys = { version = "0.3" }
 xml5ever = "0.39"
 
