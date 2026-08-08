@@ -37,7 +37,15 @@ importers:
 
   packages/napi/npm/darwin-x64: {}
 
+  packages/napi/npm/linux-arm64-gnu: {}
+
+  packages/napi/npm/linux-arm64-musl: {}
+
   packages/napi/npm/linux-x64-gnu: {}
+
+  packages/napi/npm/linux-x64-musl: {}
+
+  packages/napi/npm/win32-arm64-msvc: {}
 
   packages/napi/npm/win32-x64-msvc: {}
 

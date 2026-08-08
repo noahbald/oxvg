@@ -1,12 +1,12 @@
 {
-  "name": "@oxvg/napi-darwin-x64",
+  "name": "@oxvg/napi-linux-arm64-gnu",
   "version": "0.0.6",
   "cpu": [
-    "x64"
+    "arm64"
   ],
-  "main": "oxvg.darwin-x64.node",
+  "main": "oxvg.linux-arm64-gnu.node",
   "files": [
-    "oxvg.darwin-x64.node"
+    "oxvg.linux-arm64-gnu.node"
   ],
   "description": "",
   "keywords": [],
@@ -17,6 +17,9 @@
     "type": "git"
   },
   "os": [
-    "darwin"
+    "linux"
+  ],
+  "libc": [
+    "glibc"
   ]
 }

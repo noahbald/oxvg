@@ -1,12 +1,12 @@
 {
-  "name": "@oxvg/napi-darwin-x64",
+  "name": "@oxvg/jsx-win32-arm64-msvc",
   "version": "0.0.6",
   "cpu": [
-    "x64"
+    "arm64"
   ],
-  "main": "oxvg.darwin-x64.node",
+  "main": "jsx.win32-arm64-msvc.node",
   "files": [
-    "oxvg.darwin-x64.node"
+    "jsx.win32-arm64-msvc.node"
   ],
   "description": "",
   "keywords": [],
@@ -17,6 +17,6 @@
     "type": "git"
   },
   "os": [
-    "darwin"
+    "win32"
   ]
 }
