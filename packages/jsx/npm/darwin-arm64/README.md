@@ -1,3 +1,3 @@
 # `@oxvg/jsx-darwin-arm64`
 
-This is the **arm64-apple-darwin** binary for `@oxvg/jsx`
+This is the **aarch64-apple-darwin** binary for `@oxvg/jsx`
