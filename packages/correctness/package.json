@@ -5,7 +5,6 @@
 	"main": "index.js",
 	"deprecated": "use `oxvg visual-reression` command instead.",
 	"scripts": {
-		"test": "pnpm run optimise && pnpm run compare",
 		"optimise": "pnpm run optimise:w3c",
 		"optimise:w3c": "cargo run optimise -r -. -o w3c-optimised w3c",
 		"optimise:oxygen": "cargo run optimise -r -. -o oxygen-optimised oxygen",
@@ -24,8 +23,8 @@
 	"keywords": [],
 	"author": "",
 	"license": "MIT",
-	"packageManager": "pnpm@10.5.2",
+	"packageManager": "pnpm@11.20.0",
 	"dependencies": {
-		"@napi-rs/canvas": "^0.1.82"
+		"@napi-rs/canvas": "^1.0.3"
 	}
 }

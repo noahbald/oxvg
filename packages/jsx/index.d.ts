@@ -433,8 +433,7 @@ export interface ApplyTransforms {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface CleanupAttrs {
-  /** Whether to replace `'
-  '` with `' '`. */
+  /** Whether to replace `'\n'` with `' '`. */
   newlines: boolean
   /** Whether to remove whitespace from each end of the value */
   trim: boolean

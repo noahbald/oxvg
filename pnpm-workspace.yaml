@@ -1,5 +1,7 @@
 packages:
   - packages/*
   - packages/napi/npm/**
+allowBuilds:
+  wasm-pack: true
 ignoredBuiltDependencies:
   - wasm-pack

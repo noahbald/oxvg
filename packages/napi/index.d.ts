@@ -6,6 +6,7 @@ export type ActionNapi =
   name: string, /** The value of the attribute */
 value: string }
 | { type: 'Class', field0: string }
+| { type: 'PathIntersect' }
 | { type: 'Style', /** The CSS name of the property */
 property: string, /** The CSS value of the property */
 value: string }
@@ -726,6 +727,14 @@ export declare class Actor {
    */
   class(name: string): void
   /**
+   * Intersects selected path definitions.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  pathIntersect(): void
+  /**
    * Appends the style to the selected elements style list.
    *
    * # Errors
@@ -1039,8 +1048,7 @@ export interface ApplyTransforms {
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
 export interface CleanupAttrs {
-  /** Whether to replace `'
-  '` with `' '`. */
+  /** Whether to replace `'\n'` with `' '`. */
   newlines: boolean
   /** Whether to remove whitespace from each end of the value */
   trim: boolean

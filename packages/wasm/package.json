@@ -46,7 +46,7 @@
 	"keywords": [],
 	"author": "",
 	"license": "MIT",
-	"packageManager": "pnpm@10.5.2",
+	"packageManager": "pnpm@11.20.0",
 	"devDependencies": {
 		"wasm-pack": "^0.15"
 	}
