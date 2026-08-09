@@ -51,6 +51,7 @@ pub enum Command {
     #[command(subcommand)]
     Lint(Lint),
     /// Transform SVG documents
+    #[clap(alias = "actions")]
     Action(Action),
     /// Convert SVG documents to JSX
     JSX(JSX),
