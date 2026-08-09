@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/jsx-linux-arm64-gnu",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "cpu": [
     "arm64"
   ],

@@ -38,7 +38,7 @@ jobs:
         if: ${{ contains(matrix.settings.target, 'musl') }}
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - name: Install msvc-tools
-        if: matrix.settings.target == aarch64-pc-windows-msvc
+        if: matrix.settings.target == 'aarch64-pc-windows-msvc'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm64
@@ -63,6 +63,8 @@ jobs:
           key: ${{ matrix.settings.target }}-cargo-${{ matrix.settings.host }}
       - name: Run tests
         run: cargo test --verbose --workspace --profile release --target=${{ matrix.settings.target }} --exclude oxvg_jsx_napi --exclude oxvg_napi --exclude oxvg_wasm
+        # https://github.com/noahbald/oxvg/issues/261
+        if: matrix.settings.target != 'aarch64-pc-windows-msvc'
       - name: Build
         run: cargo build --verbose --bins --profile release --target=${{ matrix.settings.target }} --package oxvg
       - name: List
