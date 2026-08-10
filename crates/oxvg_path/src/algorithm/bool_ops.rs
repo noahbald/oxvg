@@ -9,7 +9,7 @@ pub(crate) mod i_overlay_integration;
 
 use geo::{Winding, winding_order::WindingOrder};
 use i_overlay::{
-    core::{fill_rule::FillRule, overlay_rule::OverlayRule, solver::Solver},
+    core::{fill_rule::FillRule, solver::Solver},
     float::{
         overlay::{FloatOverlay, OverlayOptions},
         simplify::SimplifyShape,
@@ -24,6 +24,8 @@ use crate::{
     },
     paths::{bool, segment},
 };
+
+pub use i_overlay::core::overlay_rule::OverlayRule;
 
 impl bool::Path {
     /// Wraps the path with the associated fill-rule.

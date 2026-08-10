@@ -5,7 +5,7 @@ use oxvg_ast::{
     style::{self, ComputedStyles},
 };
 use oxvg_collections::attribute::inheritable::Inheritable;
-use oxvg_path::{geometry::Tolerance, paths::segment};
+use oxvg_path::{algorithm::bool_ops::OverlayRule, geometry::Tolerance, paths::segment};
 
 use crate::{Action, Actor, Error};
 
@@ -20,7 +20,28 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/manipulate/path_intersect.md")]
     pub fn path_intersect(&mut self) -> Result<(), Error<'input>> {
-        self.state.record(&Action::PathIntersect, &self.allocator);
+        self.boolean_op(&Action::PathIntersect, OverlayRule::Intersect)
+    }
+
+    /// Unites selected path definitions.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/manipulate/path_union.md")]
+    pub fn path_union(&mut self) -> Result<(), Error<'input>> {
+        self.boolean_op(&Action::PathUnion, OverlayRule::Union)
+    }
+
+    fn boolean_op(
+        &mut self,
+        action: &Action<'input>,
+        overlay_rule: OverlayRule,
+    ) -> Result<(), Error<'input>> {
+        self.state.record(action, &self.allocator);
         let Some(selections) = self.get_selections()? else {
             return Ok(());
         };
@@ -65,7 +86,7 @@ impl<'input> Actor<'input, '_> {
 
             cumulative_path = Some(match cumulative_path {
                 Some(inner) => oxvg_path::paths::bool::Path {
-                    inner: inner.intersection(&segment_path),
+                    inner: inner.boolean_op(&segment_path, overlay_rule),
                     evenodd: true,
                 },
                 None => segment_path,

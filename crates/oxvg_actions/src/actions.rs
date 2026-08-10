@@ -41,6 +41,8 @@ pub enum Action<'input> {
     Class(Atom<'input>),
     /// See [`Actor::path_intersect`]
     PathIntersect,
+    /// See [`Actor::path_union`]
+    PathUnion,
     /// See [`Actor::style`]
     Style {
         /// The CSS name of the property
@@ -85,6 +87,8 @@ pub enum ActionNapi {
     Class(String),
     /// See [`Actor::path_intersect`]
     PathIntersect,
+    /// See [`Actor::path_union`]
+    PathUnion,
     /// See [`Actor::style`]
     Style {
         /// The CSS name of the property
@@ -165,6 +169,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Class(name) => return self.class(&name),
             Action::Style { property, value } => return self.style(&property, &value),
             Action::PathIntersect => return self.path_intersect(),
+            Action::PathUnion => return self.path_union(),
             Action::Matrix(a, b, c, d, e, f) => return self.matrix(a, b, c, d, e, f),
             Action::Translate(x, y) => return self.translate(x, y),
             Action::Scale(x, y) => return self.scale(x, y),

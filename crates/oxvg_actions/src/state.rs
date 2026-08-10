@@ -241,6 +241,7 @@ impl<'input> Action<'input> {
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
     const PATH_INTERSECT: &'static str = "PathIntersect";
+    const PATH_UNION: &'static str = "PathUnion";
     const STYLE: &'static str = "Style";
     const MATRIX: &'static str = "Matrix";
     const TRANSLATE: &'static str = "Translate";
@@ -293,6 +294,7 @@ impl<'input> Action<'input> {
                 Ok(Self::Class(class))
             }
             Self::PATH_INTERSECT => Ok(Self::PathIntersect),
+            Self::PATH_UNION => Ok(Self::PathUnion),
             Self::STYLE => {
                 let Some(property) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
@@ -434,7 +436,7 @@ impl<'input> Action<'input> {
             Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
                 Self::embed_arg(&element, allocator, arg.clone());
             }
-            Self::PathIntersect | Self::Forget | Self::Deselect => {}
+            Self::PathIntersect | Self::PathUnion | Self::Forget | Self::Deselect => {}
         }
     }
 
@@ -454,6 +456,7 @@ impl<'input> Action<'input> {
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
             Self::PathIntersect => Self::PATH_INTERSECT,
+            Self::PathUnion => Self::PATH_UNION,
             Self::Style { .. } => Self::STYLE,
             Self::Matrix(..) => Self::MATRIX,
             Self::Translate(..) => Self::TRANSLATE,
@@ -479,6 +482,7 @@ impl<'input> Action<'input> {
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
             Self::PathIntersect => ActionNapi::PathIntersect,
+            Self::PathUnion => ActionNapi::PathUnion,
             Self::Style { property, value } => ActionNapi::Style {
                 property: property.to_string(),
                 value: value.to_string(),
@@ -511,6 +515,7 @@ impl<'input> Action<'input> {
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
             ActionNapi::PathIntersect => Action::PathIntersect,
+            ActionNapi::PathUnion => Action::PathUnion,
             ActionNapi::Style { property, value } => Action::Style {
                 property: property.into(),
                 value: value.into(),

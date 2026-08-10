@@ -7,6 +7,7 @@ export type ActionNapi =
 value: string }
 | { type: 'Class', field0: string }
 | { type: 'PathIntersect' }
+| { type: 'PathUnion' }
 | { type: 'Style', /** The CSS name of the property */
 property: string, /** The CSS value of the property */
 value: string }
@@ -734,6 +735,14 @@ export declare class Actor {
    * When root element is missing.
    */
   pathIntersect(): void
+  /**
+   * Unites selected path definitions.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  pathUnion(): void
   /**
    * Appends the style to the selected elements style list.
    *
