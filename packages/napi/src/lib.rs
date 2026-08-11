@@ -226,6 +226,16 @@ impl Actor {
     self.actor.path_union().map_err(generic_error)
   }
 
+  /// Subtracts selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_subtract(&mut self) -> napi::Result<()> {
+    self.actor.path_subtract().map_err(generic_error)
+  }
+
   /// Appends the style to the selected elements style list.
   ///
   /// # Errors

@@ -36,6 +36,19 @@ impl<'input> Actor<'input, '_> {
         self.boolean_op(&Action::PathUnion, OverlayRule::Union)
     }
 
+    /// Subtracts selected path definitions.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/manipulate/path_subtract.md")]
+    pub fn path_subtract(&mut self) -> Result<(), Error<'input>> {
+        self.boolean_op(&Action::PathSubtract, OverlayRule::Difference)
+    }
+
     fn boolean_op(
         &mut self,
         action: &Action<'input>,
