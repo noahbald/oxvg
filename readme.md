@@ -21,10 +21,14 @@ brew install oxvg
 ```
 
 ## View commands
-`oxvg --help`
+```sh
+oxvg --help
+```
 
 ## Optimise an SVG
-`oxvg optimise < input.svg > output.svg`
+```sh
+oxvg optimise < input.svg > output.svg
+```
 
 ## 🎯 Tools
 
