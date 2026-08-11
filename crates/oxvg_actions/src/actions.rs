@@ -45,6 +45,8 @@ pub enum Action<'input> {
     PathUnion,
     /// See [`Actor::path_subtract`]
     PathSubtract,
+    /// See [`Actor::path_xor`]
+    PathXor,
     /// See [`Actor::style`]
     Style {
         /// The CSS name of the property
@@ -93,6 +95,8 @@ pub enum ActionNapi {
     PathUnion,
     /// See [`Actor::path_subtract`]
     PathSubtract,
+    /// See [`Actor::path_xor`]
+    PathXor,
     /// See [`Actor::style`]
     Style {
         /// The CSS name of the property
@@ -175,6 +179,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::PathIntersect => return self.path_intersect(),
             Action::PathUnion => return self.path_union(),
             Action::PathSubtract => return self.path_subtract(),
+            Action::PathXor => return self.path_xor(),
             Action::Matrix(a, b, c, d, e, f) => return self.matrix(a, b, c, d, e, f),
             Action::Translate(x, y) => return self.translate(x, y),
             Action::Scale(x, y) => return self.scale(x, y),

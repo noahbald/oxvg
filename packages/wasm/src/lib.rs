@@ -365,6 +365,17 @@ impl Actor {
         self.actor.path_subtract()
     }
 
+    /// XORs selected path definitions.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = pathXor)]
+    pub fn path_xor(&mut self) -> Result<(), Error> {
+        self.actor.path_xor()
+    }
+
     /// Appends the style to the selected elements style list.
     ///
     /// # Errors

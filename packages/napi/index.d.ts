@@ -9,6 +9,7 @@ value: string }
 | { type: 'PathIntersect' }
 | { type: 'PathUnion' }
 | { type: 'PathSubtract' }
+| { type: 'PathXor' }
 | { type: 'Style', /** The CSS name of the property */
 property: string, /** The CSS value of the property */
 value: string }
@@ -752,6 +753,14 @@ export declare class Actor {
    * When root element is missing.
    */
   pathSubtract(): void
+  /**
+   * XORs selected path definitions.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  pathXor(): void
   /**
    * Appends the style to the selected elements style list.
    *

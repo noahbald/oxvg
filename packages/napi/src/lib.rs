@@ -236,6 +236,16 @@ impl Actor {
     self.actor.path_subtract().map_err(generic_error)
   }
 
+  /// XORs selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_xor(&mut self) -> napi::Result<()> {
+    self.actor.path_xor().map_err(generic_error)
+  }
+
   /// Appends the style to the selected elements style list.
   ///
   /// # Errors

@@ -243,6 +243,7 @@ impl<'input> Action<'input> {
     const PATH_INTERSECT: &'static str = "PathIntersect";
     const PATH_UNION: &'static str = "PathUnion";
     const PATH_SUBTRACT: &'static str = "PathSubtract";
+    const PATH_XOR: &'static str = "PathXor";
     const STYLE: &'static str = "Style";
     const MATRIX: &'static str = "Matrix";
     const TRANSLATE: &'static str = "Translate";
@@ -297,6 +298,7 @@ impl<'input> Action<'input> {
             Self::PATH_INTERSECT => Ok(Self::PathIntersect),
             Self::PATH_UNION => Ok(Self::PathUnion),
             Self::PATH_SUBTRACT => Ok(Self::PathSubtract),
+            Self::PATH_XOR => Ok(Self::PathXor),
             Self::STYLE => {
                 let Some(property) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
@@ -441,6 +443,7 @@ impl<'input> Action<'input> {
             Self::PathIntersect
             | Self::PathUnion
             | Self::PathSubtract
+            | Self::PathXor
             | Self::Forget
             | Self::Deselect => {}
         }
@@ -464,6 +467,7 @@ impl<'input> Action<'input> {
             Self::PathIntersect => Self::PATH_INTERSECT,
             Self::PathUnion => Self::PATH_UNION,
             Self::PathSubtract => Self::PATH_SUBTRACT,
+            Self::PathXor => Self::PATH_XOR,
             Self::Style { .. } => Self::STYLE,
             Self::Matrix(..) => Self::MATRIX,
             Self::Translate(..) => Self::TRANSLATE,
@@ -491,6 +495,7 @@ impl<'input> Action<'input> {
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
             Self::PathSubtract => ActionNapi::PathSubtract,
+            Self::PathXor => ActionNapi::PathXor,
             Self::Style { property, value } => ActionNapi::Style {
                 property: property.to_string(),
                 value: value.to_string(),
@@ -525,6 +530,7 @@ impl<'input> Action<'input> {
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,
             ActionNapi::PathSubtract => Action::PathSubtract,
+            ActionNapi::PathXor => Action::PathXor,
             ActionNapi::Style { property, value } => Action::Style {
                 property: property.into(),
                 value: value.into(),

@@ -49,6 +49,19 @@ impl<'input> Actor<'input, '_> {
         self.boolean_op(&Action::PathSubtract, OverlayRule::Difference)
     }
 
+    /// XORs selected path definitions.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/manipulate/path_xor.md")]
+    pub fn path_xor(&mut self) -> Result<(), Error<'input>> {
+        self.boolean_op(&Action::PathXor, OverlayRule::Xor)
+    }
+
     fn boolean_op(
         &mut self,
         action: &Action<'input>,
