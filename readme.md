@@ -17,7 +17,7 @@ cargo install oxvg
 ### Homebrew
 
 ```sh
-brew install OXVG
+brew install oxvg
 ```
 
 ## View commands
