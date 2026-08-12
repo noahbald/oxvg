@@ -22,6 +22,17 @@ pub enum Data {
     ArcTo(Arc),
 }
 
+/// One of the reduced representation of an SVG path command
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DataID {
+    /// A line command
+    LineTo,
+    /// A bezier command
+    CurveTo,
+    /// An arc command
+    ArcTo,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 /// A segment represents some contiguous shape made from a set of commands
 pub struct Segment {
@@ -62,6 +73,15 @@ impl Data {
                 )
                 .with_end_point_memo(start),
             ),
+        }
+    }
+
+    /// Returns the variant of the data item.
+    pub fn id(&self) -> DataID {
+        match self {
+            Data::LineTo(_) => DataID::LineTo,
+            Data::CurveTo(_) => DataID::CurveTo,
+            Data::ArcTo(_) => DataID::ArcTo,
         }
     }
 }

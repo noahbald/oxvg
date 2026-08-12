@@ -458,6 +458,26 @@ impl Arc {
         self.ellipses().is_circle(tolerance)
     }
 
+    /// Returns whether the arc winds clockwise or not.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use oxvg_path::geometry::{Arc, Point, Tolerance};
+    ///
+    /// let arc = Arc::new(
+    ///   Point::ZERO,
+    ///   Point::UNIT,
+    ///   0.0,
+    ///   std::f64::consts::FRAC_PI_2,
+    ///   0.0,
+    /// );
+    /// assert!(arc.is_clockwise());
+    /// ```
+    pub fn is_clockwise(&self) -> bool {
+        self.sweep_angle() >= 0.0
+    }
+
     /// Returns the tangent at the given percentage `t` along the arc.
     ///
     /// # Example
