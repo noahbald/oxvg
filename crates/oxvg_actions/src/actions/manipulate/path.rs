@@ -1,13 +1,13 @@
 use lightningcss::values::shape::FillRule;
 use oxvg_ast::{
     element::Element,
-    get_attribute, get_computed_style, is_element, set_attribute,
+    get_attribute, get_computed_style, has_attribute, is_element, set_attribute,
     style::{self, ComputedStyles},
 };
 use oxvg_collections::attribute::inheritable::Inheritable;
 use oxvg_path::{algorithm::bool_ops::OverlayRule, geometry::Tolerance, paths::segment};
 
-use crate::{Action, Actor, Error};
+use crate::{Action, Actor, Error, state::StateElement, utils::create_oxvg_attr};
 
 impl<'input> Actor<'input, '_> {
     /// Intersects selected path definitions.
@@ -77,27 +77,19 @@ impl<'input> Actor<'input, '_> {
         let mut cumulative_path: Option<oxvg_path::paths::bool::Path> = None;
         let mut previous_element: Option<Element> = None;
         let styles: Vec<_> = style::root(&root).collect();
-        for selection in selections {
-            #[allow(clippy::cast_sign_loss)]
-            let Some(node) = self.allocator.get(selection as usize) else {
-                continue;
-            };
-            let Some(element) = node.element() else {
-                continue;
-            };
-            if !is_element!(element, Path) {
-                continue;
-            }
-            if element.has_child_nodes() {
-                continue;
-            }
-            let Some(path) = get_attribute!(element, D) else {
-                continue;
-            };
-            let segment_path = segment::Path::from_svg(&path, &Tolerance::default());
-            drop(path);
+        #[allow(clippy::cast_sign_loss)]
+        let paths: Vec<_> = selections
+            .iter()
+            .filter_map(|s| self.allocator.get(*s as usize))
+            .filter_map(oxvg_ast::node::Node::element)
+            .filter(|e| !e.has_child_nodes() && is_element!(e, Path) && has_attribute!(e, D))
+            .collect();
+        for path in paths {
+            let d = get_attribute!(path, D).unwrap();
+            let segment_path = segment::Path::from_svg(&d, &Tolerance::default());
+            drop(d);
             let computed_styles = ComputedStyles::default()
-                .with_all(&element, &styles)
+                .with_all(&path, &styles)
                 .map_err(|err| Error::ComputedStylesError(err.to_string()))?;
             let evenodd = get_computed_style!(computed_styles, FillRule)
                 .map(|fill_rule| match fill_rule {
@@ -118,10 +110,10 @@ impl<'input> Actor<'input, '_> {
                 None => segment_path,
             });
 
-            if let Some(element) = previous_element {
-                element.remove();
+            if let Some(previous_element) = previous_element {
+                previous_element.remove();
             }
-            previous_element = Some(element);
+            previous_element = Some(path);
         }
 
         if let (Some(final_element), Some(cumulative_path)) = (previous_element, cumulative_path) {
@@ -138,6 +130,18 @@ impl<'input> Actor<'input, '_> {
             );
         }
 
+        if let Some(selection) = selections.last() {
+            self.state
+                .get_selections(&self.allocator)
+                .set_attribute(create_oxvg_attr(
+                    StateElement::SELECTION_IDS,
+                    #[allow(clippy::cast_sign_loss)]
+                    ((*selection as usize) - selections.len())
+                        .to_string()
+                        .into(),
+                ));
+        }
+        self.state.embed(self.root)?;
         Ok(())
     }
 }
