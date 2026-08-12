@@ -216,6 +216,36 @@ impl Actor {
     self.actor.path_intersect().map_err(generic_error)
   }
 
+  /// Unites selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_union(&mut self) -> napi::Result<()> {
+    self.actor.path_union().map_err(generic_error)
+  }
+
+  /// Subtracts selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_subtract(&mut self) -> napi::Result<()> {
+    self.actor.path_subtract().map_err(generic_error)
+  }
+
+  /// XORs selected path definitions.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn path_xor(&mut self) -> napi::Result<()> {
+    self.actor.path_xor().map_err(generic_error)
+  }
+
   /// Appends the style to the selected elements style list.
   ///
   /// # Errors

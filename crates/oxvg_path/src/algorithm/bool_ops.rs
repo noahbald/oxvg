@@ -9,7 +9,7 @@ pub(crate) mod i_overlay_integration;
 
 use geo::{Winding, winding_order::WindingOrder};
 use i_overlay::{
-    core::{fill_rule::FillRule, overlay_rule::OverlayRule, solver::Solver},
+    core::{fill_rule::FillRule, solver::Solver},
     float::{
         overlay::{FloatOverlay, OverlayOptions},
         simplify::SimplifyShape,
@@ -24,6 +24,8 @@ use crate::{
     },
     paths::{bool, segment},
 };
+
+pub use i_overlay::core::overlay_rule::OverlayRule;
 
 impl bool::Path {
     /// Wraps the path with the associated fill-rule.
@@ -169,7 +171,7 @@ mod test {
     };
 
     #[test]
-    fn unite_evenodd() {
+    fn intersect_evenodd() {
         let background = Path::parse_string("M 2 2h8v8H2z").unwrap();
         let foreground = Path::parse_string(
             "M7 7a4 4 0 1 0 0.001 -0.001zM7.35 7.35 a3.5 3.5 0 1 0 0.001 -0.001z",
@@ -186,6 +188,63 @@ mod test {
         assert_eq!(
             &output.to_string(),
             "M5.833 10a4 4 0 0 1 4.165-4.168l.001.497a3.5 3.5 0 0 0-3.67 3.67Z"
+        );
+    }
+
+    #[test]
+    fn unite_evenodd() {
+        let background = Path::parse_string("M 2 2h8v8H2z").unwrap();
+        let foreground = Path::parse_string(
+            "M7 7a4 4 0 1 0 0.001 -0.001zM7.35 7.35 a3.5 3.5 0 1 0 0.001 -0.001z",
+        )
+        .unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = bool::Path::nonzero(segment::Path::from_svg(&background, tolerance));
+        let foreground = bool::Path::evenodd(segment::Path::from_svg(&foreground, tolerance));
+
+        let output = background.union(&foreground).to_svg(tolerance, false);
+        assert_eq!(
+            &output.to_string(),
+            "M2 10V2h8v3.832A4 4 0 1 1 5.833 10ZM6.33 10A3.5 3.5 0 1 0 10 6.329V10Z"
+        );
+    }
+
+    #[test]
+    fn subtract_evenodd() {
+        let background = Path::parse_string("M 2 2h8v8H2z").unwrap();
+        let foreground = Path::parse_string(
+            "M7 7a4 4 0 1 0 0.001 -0.001zM7.35 7.35 a3.5 3.5 0 1 0 0.001 -0.001z",
+        )
+        .unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = bool::Path::nonzero(segment::Path::from_svg(&background, tolerance));
+        let foreground = bool::Path::evenodd(segment::Path::from_svg(&foreground, tolerance));
+
+        let output = background.difference(&foreground).to_svg(tolerance, false);
+        assert_eq!(
+            &output.to_string(),
+            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166ZM6.33 9.997a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
+        );
+    }
+
+    #[test]
+    fn xor_evenodd() {
+        let background = Path::parse_string("M 2 2h8v8H2z").unwrap();
+        let foreground = Path::parse_string(
+            "M7 7a4 4 0 1 0 0.001 -0.001zM7.35 7.35 a3.5 3.5 0 1 0 0.001 -0.001z",
+        )
+        .unwrap();
+
+        let tolerance = &Tolerance::default();
+        let background = bool::Path::nonzero(segment::Path::from_svg(&background, tolerance));
+        let foreground = bool::Path::evenodd(segment::Path::from_svg(&foreground, tolerance));
+
+        let output = background.xor(&foreground).to_svg(tolerance, false);
+        assert_eq!(
+            &output.to_string(),
+            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166ZM5.834 10.025A4 4 0 0 1 5.833 10h.497A3.5 3.5 0 1 0 10 6.329v-.497a4 4 0 1 1-4.152 4.388ZM6.33 9.997a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
         );
     }
 
@@ -308,7 +367,7 @@ mod test {
         let output = background.union(&foreground).to_svg(tolerance, false);
         assert_eq!(
             output.to_string(),
-            "M5 5.061A5 5 0 0 1 5 5h2.848a5 5 0 0 0 3.559 3.049c6.225 1.593.113 1.914-1.173 1.947q-.085.003-.175.004C10.02 10 10 10 10 10a5 5 0 0 1-4-2l-1-.5h.67a5 5 0 0 1-.668-2.377Z"
+            "M5 5.061A5 5 0 0 1 5 5h2.848a5 5 0 1 1 8.331 1.556c1.453 3.086-4.659 3.407-5.945 3.44q-.085.003-.175.004C10.02 10 10 10 10 10a5 5 0 0 1-4-2l-1-.5h.67a5 5 0 0 1-.668-2.377Z"
         );
     }
 

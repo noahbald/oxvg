@@ -17,7 +17,7 @@ pub struct Source<'a> {
     contour: Vec<Coord<f64>>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoolOpsCoord(Coord<f64>);
 
 struct RTreeEntry<'a> {
@@ -138,54 +138,76 @@ pub mod convert {
                 })
                 .collect(),
         );
+
         segment::Path(
             shapes
                 .into_iter()
                 .flat_map(|shape| {
                     shape
                         .into_iter()
-                        .map(|ring| segment_from_ring(ring, &r_tree))
+                        .map(|ring| segment_from_ring(&ring, &r_tree))
                 })
                 .collect(),
         )
     }
 
-    fn clamp_arc_for_edge(arc: &Arc, a: Point, b: Point) -> Arc {
+    fn clamp_arc_for_edge(arc: &Arc, a: Point, b: Point, near: Option<Point>) -> Arc {
+        const LOOP_EPSILON: f64 = 1e-2;
         let t1 = arc.t_at(a, ToleranceSquared(1e-3)).unwrap_or(0.0);
         let t2 = arc.t_at(b, ToleranceSquared(1e-3)).unwrap_or(1.0);
 
-        let arc_a = if t1 <= t2 {
+        let is_loop = (arc.sweep_angle().abs() - std::f64::consts::TAU).abs() < LOOP_EPSILON;
+        if !is_loop {
+            return if t1 <= t2 {
+                arc.clamp_t(t1, t2)
+            } else {
+                arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
+            };
+        }
+
+        let candidate_base = if t1 <= t2 {
             arc.clamp_t(t1, t2)
         } else {
             arc.reverse().clamp_t(1.0 - t1, 1.0 - t2)
         };
-
-        let arc_b = if t1 <= t2 {
-            let mut b_arc = arc.clone();
-            b_arc.set_start_angle(arc.start_angle() + t1 * arc.sweep_angle());
-            b_arc.set_sweep_angle((t2 - t1 - 1.0) * arc.sweep_angle());
-            b_arc
-        } else {
-            let mut b_arc = arc.clone();
-            b_arc.set_start_angle(arc.start_angle() + t1 * arc.sweep_angle());
-            b_arc.set_sweep_angle((t2 - t1 + 1.0) * arc.sweep_angle());
-            b_arc
+        let candidate_wrapped = {
+            let mut w_arc = arc.clone();
+            w_arc.set_start_angle(arc.start_angle() + t1 * arc.sweep_angle());
+            w_arc.set_sweep_angle(if t1 <= t2 {
+                (t2 - t1 - 1.0) * arc.sweep_angle()
+            } else {
+                (t2 - t1 + 1.0) * arc.sweep_angle()
+            });
+            w_arc
         };
 
-        let mid_m = a.midpoint(b);
-        if arc_a.mid_point().distance_squared(mid_m) <= arc_b.mid_point().distance_squared(mid_m) {
-            arc_a
+        if let Some(near) = near {
+            let t_near = arc.t_at(near, ToleranceSquared(1e-3)).unwrap_or(t1);
+            let (lo, hi) = if t1 <= t2 { (t1, t2) } else { (t2, t1) };
+            let is_within_base = t_near > lo && t_near < hi;
+            if is_within_base {
+                candidate_base
+            } else {
+                candidate_wrapped
+            }
         } else {
-            arc_b
+            let mid_m = a.midpoint(b);
+            let is_within_base = candidate_base.mid_point().distance_squared(mid_m)
+                <= candidate_wrapped.mid_point().distance_squared(mid_m);
+            if is_within_base {
+                candidate_base
+            } else {
+                candidate_wrapped
+            }
         }
     }
 
-    fn segment_from_ring(ring: Vec<BoolOpsCoord>, r_tree: &RTree<RTreeEntry>) -> segment::Segment {
+    fn segment_from_ring(ring: &[BoolOpsCoord], r_tree: &RTree<RTreeEntry>) -> segment::Segment {
         enum Action<'a> {
             Original {
                 seg: &'a Source<'a>,
-                start: Coord,
-                end: Coord,
+                start: usize,
+                end: usize,
             },
             Line {
                 end: Coord,
@@ -206,10 +228,8 @@ pub mod convert {
 
         let mut actions = vec![];
 
-        for (a, b) in ring.into_iter().tuple_windows() {
-            if let Some(seg) = find_matching_segment(*a, *b, r_tree) {
-                let mut merged = false;
-
+        for ((a_i, a), (b_i, b)) in ring.iter().enumerate().tuple_windows() {
+            if let Some(seg) = find_matching_segment(**a, **b, r_tree) {
                 if let Some(Action::Original {
                     seg: last_seg,
                     end: p_end,
@@ -217,18 +237,16 @@ pub mod convert {
                 }) = actions.last_mut()
                     && std::ptr::eq(seg.data, last_seg.data)
                 {
-                    *p_end = *b;
-                    merged = true;
-                }
-                if !merged {
+                    *p_end = b_i;
+                } else {
                     actions.push(Action::Original {
                         seg,
-                        start: *a,
-                        end: *b,
+                        start: a_i,
+                        end: b_i,
                     });
                 }
             } else {
-                actions.push(Action::Line { end: *b });
+                actions.push(Action::Line { end: **b });
             }
         }
 
@@ -239,8 +257,8 @@ pub mod convert {
                     start: p_start,
                     end: p_end,
                 } => {
-                    let t1 = Point(p_start);
-                    let t2 = Point(p_end);
+                    let t1 = Point(*ring[p_start]);
+                    let t2 = Point(*ring[p_end]);
                     match seg.data {
                         segment::Data::LineTo(_) => {
                             segment.data.push(segment::Data::LineTo(t2));
@@ -256,7 +274,12 @@ pub mod convert {
                             }));
                         }
                         segment::Data::ArcTo(arc) => {
-                            let clamped_arc = clamp_arc_for_edge(arc, t1, t2);
+                            let near = if p_end > p_start + 1 {
+                                Some(Point(*ring[p_start.midpoint(p_end)]))
+                            } else {
+                                None
+                            };
+                            let clamped_arc = clamp_arc_for_edge(arc, t1, t2, near);
                             segment.data.push(segment::Data::ArcTo(clamped_arc));
                         }
                     }

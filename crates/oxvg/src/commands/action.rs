@@ -193,6 +193,18 @@ impl RunCommand for ActionList {
             println!("# Path Intersect\n");
             println!(include_str!("../spec/manipulate/path_intersect.md"));
         }
+        if parts.is_empty() || parts.contains(PATH_UNION) {
+            println!("# Path Union\n");
+            println!(include_str!("../spec/manipulate/path_union.md"));
+        }
+        if parts.is_empty() || parts.contains(PATH_SUBTRACT) {
+            println!("# Path Subtract\n");
+            println!(include_str!("../spec/manipulate/path_subtract.md"));
+        }
+        if parts.is_empty() || parts.contains(PATH_XOR) {
+            println!("# Path Xor\n");
+            println!(include_str!("../spec/manipulate/path_xor.md"));
+        }
         if parts.is_empty() || parts.contains(STYLE) {
             println!("# Style\n");
             println!(include_str!("../spec/manipulate/style.md"));
@@ -244,6 +256,9 @@ impl RunCommand for ActionList {
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
 const PATH_INTERSECT: &str = "-path-intersect";
+const PATH_UNION: &str = "-path-union";
+const PATH_SUBTRACT: &str = "-path-subtract";
+const PATH_XOR: &str = "-path-xor";
 const STYLE: &str = "-style";
 const MATRIX: &str = "-matrix";
 const TRANSLATE: &str = "-translate";
@@ -297,6 +312,9 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             },
             CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
             PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
+            PATH_UNION => oxvg_actions::Action::PathUnion,
+            PATH_SUBTRACT => oxvg_actions::Action::PathSubtract,
+            PATH_XOR => oxvg_actions::Action::PathXor,
             STYLE => oxvg_actions::Action::Style {
                 property: get_part(&mut parts)?,
                 value: get_part(&mut parts)?,
