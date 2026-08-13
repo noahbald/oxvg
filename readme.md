@@ -6,12 +6,27 @@ OXVG is the fastest[^1] SVG toolchain for optimisation, linting, transformation,
 
 ## Installation
 
+Install OXVG using the package manger of your choice. 
+
+### Cargo
+
 ```sh
 cargo install oxvg
+```
 
-# View commands
+### Homebrew
+
+```sh
+brew install oxvg
+```
+
+## View commands
+```sh
 oxvg --help
-# Optimise an SVG
+```
+
+## Optimise an SVG
+```sh
 oxvg optimise < input.svg > output.svg
 ```
 
@@ -27,7 +42,9 @@ The following tools are available in a CLI binary.
 
 An SVG [optimiser](https://github.com/noahbald/oxvg/wiki/Optimiser) similar to [SVGO](https://github.com/svg/svgo) is available. It can run [up to 50x faster](https://github.com/noahbald/oxvg/wiki/Benchmarks), especially on larger file-sets.
 
-The optimiser is based on and aims for compatibility with SVGO, but it isn't a 1-for-1 replacement. Some plugins may behave differently. See the [SVGO parity](https://github.com/noahbald/oxvg/wiki/Optimiser#svgo-parity) guide to understand the differences and how to migrate your existing configuration.
+We based the optimiser on SVGO and aim for compatibility with it, but it isn't a 1-for-1 replacement. As a result, some plugins may behave differently.
+
+See the [SVGO parity](https://github.com/noahbald/oxvg/wiki/Optimiser#svgo-parity) guide to understand the differences and instructions for how to migrate your existing configuration.
 
 ```sh
 # or `oxvg optimize`
@@ -42,10 +59,10 @@ https://github.com/user-attachments/assets/b2f54ab5-33de-44e4-aca5-3a269aae4dd6
 > [!TIP]
 > You can try out OXVG actions right in your browser using [Vivec](https://oxvg.noahwbaldwin.me/), an integration of actions into a Vi-like web-editor.
 >
-> It's very early alpha and is limited and rough around the edges.
+> It's still early alpha and rough around the edges with limited functionality.
 -->
 
-[Actions](https://github.com/noahbald/oxvg/wiki/Actions) are a set of commands that can be invoked by a program to manipulate an SVG document or pull information from it.
+[Actions](https://github.com/noahbald/oxvg/wiki/Actions) are a set of commands invoked by a program in order to manipulate an SVG document or pull information from it.
 It is comparable to Inkscape's actions, but without any dependency on the UI or rendering.
 
 ```sh
@@ -54,7 +71,7 @@ cat overlapping-paths.svg | oxvg action -- -select path -path-intersect > merged
 
 ### 🧹 Linter
 
-A basic [linter](https://github.com/noahbald/oxvg/wiki/Linter) similar to svglint or vnu is available to make catching issues in SVG documents much easier. The linter can report SVG issues directly from the command line or through its language-server integration.
+OXVG includes a basic [linter](https://github.com/noahbald/oxvg/wiki/Linter) similar to svglint or vnu to make catching issues in SVG documents much easier. The linter can report SVG issues directly from the command line or through its language-server integration.
 
 ```sh
 # Start language-server
@@ -79,7 +96,7 @@ cat my-file.svg | oxvg jsx --template template.jsx | prettier > my-file.svg.jsx
 
 If you're a Rust developer wanting to work with SVGs in your project, we have a set of crates at your disposal.
 
-OXVG's functionality is split into separate crates that can be used independently, depending whether you need to integrate DOM parsing/traversal, path handling, optimisation, manipulation, etc., into your project.
+OXVG splits functionality into separate crates that you can use independently according to your project's needs. It offers libraries for DOM parsing and traversal, path handling, optimisation, and manipulation.
 
 ### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions) (Unstable[^3])
 
@@ -87,9 +104,9 @@ Actions are programmatic commands for manipulating and inspecting SVG documents.
 
 ### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast)
 
-This crate provides a set of types that can be used to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
+This crate provides a set of types that you can use to implement a DOM similar to that of the browser web standards. Though it's not a 1-to-1 match; it's designed for easily traversing and manipulating the DOM.
 
-There's currently an implementation that can be used with either the xml5ever or the roxmltree parser which can do the following.
+There's currently an implementation suitable for use with either the xml5ever or the roxmltree parser which can do the following.
 
 - Parse and serialise XML, SVG, and HTML documents
 - Commonly used browser API implementations for DOM nodes, elements, attributes, etc.
@@ -104,7 +121,7 @@ This crate provides types for SVG content.
 
 ### [Optimiser](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_optimiser)
 
-This is where the jobs (i.e. SVGO plugins) for our optimiser live and can also be used as a library for use in your applications.
+This is where you'll find the jobs (i.e. SVGO plugins) for our optimiser, which you can also use as a library in your applications.
 
 ### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path) (Unstable[^3])
 
