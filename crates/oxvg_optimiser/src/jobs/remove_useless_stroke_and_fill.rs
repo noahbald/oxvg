@@ -8,7 +8,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{inheritable::Inheritable, AttrId},
+    attribute::{AttrId, inheritable::Inheritable},
     element::ElementCategory,
     is_prefix,
 };
@@ -197,12 +197,12 @@ impl State<'_> {
 
             if let Some((parent_stroke, mode)) = computed_styles.get_inherited("stroke")
                 && matches!(mode, Mode::Static)
-                    && !is_attribute!(parent_stroke, Stroke(Inheritable::Defined(SVGPaint::None)))
-                {
-                    log::debug!("stroke is also inherited, setting to `none`");
-                    set_attribute!(element, Stroke(Inheritable::Defined(SVGPaint::None)));
-                    is_stroke_eq_none = true;
-                }
+                && !is_attribute!(parent_stroke, Stroke(Inheritable::Defined(SVGPaint::None)))
+            {
+                log::debug!("stroke is also inherited, setting to `none`");
+                set_attribute!(element, Stroke(Inheritable::Defined(SVGPaint::None)));
+                is_stroke_eq_none = true;
+            }
         }
 
         if is_stroke_eq_none && self.options.remove_none {

@@ -20,9 +20,9 @@ use inheritable::Inheritable;
 use lightningcss::{
     media_query::{MediaList, MediaQuery},
     properties::{
+        Property, PropertyId,
         font::{AbsoluteFontSize, AbsoluteFontWeight, FontStretchKeyword},
         ui::CursorKeyword,
-        Property, PropertyId,
     },
     values::{
         alpha::AlphaValue,
@@ -2613,7 +2613,7 @@ macro_rules! try_from_into_property {
 
             fn try_from(value: Property<'input>) -> Result<Self, Self::Error> {
                 use lightningcss::properties::custom::{
-                    CustomProperty, CustomPropertyName
+                    CustomProperty, CustomPropertyName, UnparsedProperty,
                 };
                 Ok(match value {
                     $(Property::$name($value$(, $vp)?) $(if $vp == VendorPrefix::None)? => {
@@ -2627,6 +2627,13 @@ macro_rules! try_from_into_property {
                             prefix: Prefix::SVG,
                             local: name.0.into(),
                         }),
+                        value: TokenList(value),
+                    },
+                    Property::Unparsed(UnparsedProperty {
+                        property_id,
+                        value
+                    }) => Attr::CSSUnknown {
+                        attr_id: (&property_id).try_into()?,
                         value: TokenList(value),
                     },
                     _ => return Err(())

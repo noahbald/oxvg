@@ -30,6 +30,7 @@ macro_rules! get_computed_style {
             .and_then(|(attr, mode)| match attr {
                 oxvg_collections::attribute::Attr::$id(inner) => Some((inner, mode)),
                 oxvg_collections::attribute::Attr::Unparsed { .. } => None,
+                oxvg_collections::attribute::Attr::CSSUnknown { .. } => None,
                 _ => unreachable!("{attr:?}"),
             })
     };
