@@ -119,15 +119,17 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 continue;
             };
             if let Some(first) = current_path_data.0.first_mut()
-                && let command::Data::MoveBy(data) = first {
-                    *first = command::Data::MoveTo(*data);
+                && let command::Data::MoveBy(data) = first
+            {
+                *first = command::Data::MoveTo(*data);
 
-                    if let Some(second) = current_path_data.0.get_mut(1)
-                        && second.is_implicit() && second.as_explicit().id() != command::ID::LineTo
-                        {
-                            *second = second.as_explicit().clone();
-                        }
+                if let Some(second) = current_path_data.0.get_mut(1)
+                    && second.is_implicit()
+                    && second.as_explicit().id() != command::ID::LineTo
+                {
+                    *second = second.as_explicit().clone();
                 }
+            }
             drop(current_path_data);
 
             if
@@ -136,15 +138,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                     MarkerStart | MarkerMid | MarkerEnd | ClipPath | Mask
                 )
                 || has_computed_style_css!(computed_styles, MaskImage(None))
-                || get_computed_style!(computed_styles, Fill).is_some_and(|(fill, mode)| {
+                || get_computed_style!(computed_styles, Fill).option().is_some_and(|(fill, mode)| {
                     matches!(mode, Mode::Static)
                         && matches!(fill.option(), Some(SVGPaint::Url { url,.. }) if url.url.starts_with('#'))
                 })
-                || get_computed_style!(computed_styles, Filter).is_some_and(|(filter, mode)| {
+                || get_computed_style!(computed_styles, Filter).option().is_some_and(|(filter, mode)| {
                     matches!(mode, Mode::Static)
                         && matches!(filter, Inheritable::Defined(FilterList::Filters(filters)) if filters.iter().any(|filter| matches!(filter, Filter::Url(url) if url.url.starts_with('#'))))
                 })
-                || get_computed_style!(computed_styles, Stroke).is_some_and(|(stroke, mode)| {
+                || get_computed_style!(computed_styles, Stroke).option().is_some_and(|(stroke, mode)| {
                     matches!(mode, Mode::Static) && matches!(stroke.option(), Some(SVGPaint::Url { url,.. }) if url.url.starts_with('#'))
                 })
             {

@@ -92,11 +92,11 @@ impl<'input> Actor<'input, '_> {
                 .with_all(&path, &styles)
                 .map_err(|err| Error::ComputedStylesError(err.to_string()))?;
             let evenodd = get_computed_style!(computed_styles, FillRule)
-                .map(|fill_rule| match fill_rule {
+                .option()
+                .is_some_and(|fill_rule| match fill_rule {
                     (Inheritable::Defined(FillRule::Nonzero) | Inheritable::Inherited, _) => false,
                     (Inheritable::Defined(FillRule::Evenodd), _) => true,
-                })
-                .unwrap_or(false);
+                });
             let segment_path = oxvg_path::paths::bool::Path {
                 inner: segment_path,
                 evenodd,

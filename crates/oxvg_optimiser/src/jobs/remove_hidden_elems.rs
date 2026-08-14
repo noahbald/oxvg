@@ -16,8 +16,8 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core_attrs::NonWhitespace, inheritable::Inheritable, presentation::LengthPercentage,
-        uncategorised::Radius, Attr,
+        Attr, core_attrs::NonWhitespace, inheritable::Inheritable, presentation::LengthPercentage,
+        uncategorised::Radius,
     },
     element::{ElementId, ElementInfo},
 };
@@ -145,7 +145,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
             .map_err(JobsError::ComputedStylesError)?;
         if self.opacity_zero
             && matches!(
-                get_computed_style!(computed_styles, Opacity),
+                get_computed_style!(computed_styles, Opacity).option(),
                 Some((Inheritable::Defined(AlphaValue(0.0)), Mode::Static))
             )
         {
@@ -165,16 +165,17 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
 impl<'input, 'arena> Data<'input, 'arena> {
     fn remove_element(&self, element: &Element<'input, 'arena>) {
         if let Some(parent) = Element::parent_element(element)
-            && is_element!(parent, Defs) {
-                if let Some(NonWhitespace(id)) = get_attribute!(element, Id).as_deref() {
-                    self.removed_def_ids.borrow_mut().insert(id.clone());
-                }
-                if parent.child_element_count() == 1 {
-                    log::debug!("data: removing parent");
-                    parent.remove();
-                    return;
-                }
+            && is_element!(parent, Defs)
+        {
+            if let Some(NonWhitespace(id)) = get_attribute!(element, Id).as_deref() {
+                self.removed_def_ids.borrow_mut().insert(id.clone());
             }
+            if parent.child_element_count() == 1 {
+                log::debug!("data: removing parent");
+                parent.remove();
+                return;
+            }
+        }
         log::debug!("data: removing element: {element:?}");
         element.remove();
     }
@@ -325,9 +326,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 impl<'input, 'arena> State<'_, 'input, 'arena> {
     fn can_remove_non_rendering_node(&self, element: &Element<'input, 'arena>) -> bool {
         if let Some(id) = get_attribute!(element, Id)
-            && self.data.all_references.borrow().contains(&**id) {
-                return false;
-            }
+            && self.data.all_references.borrow().contains(&**id)
+        {
+            return false;
+        }
         element
             .children_iter()
             .all(|e| self.can_remove_non_rendering_node(&e))
@@ -342,35 +344,39 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         let mut is_hidden = false;
         if self.options.is_hidden.unwrap_or(true)
             && let Some((Inheritable::Defined(Visibility::Hidden), Mode::Static)) =
-                get_computed_style!(computed_styles, Visibility)
-                && !element.breadth_first().any(|child| {
-                    matches!(
-                        get_attribute!(child, Visibility).as_deref(),
-                        Some(Inheritable::Defined(Visibility::Visible) | Inheritable::Inherited)
-                    )
-                }) {
-                    is_hidden = true;
-                }
+                get_computed_style!(computed_styles, Visibility).option()
+            && !element.breadth_first().any(|child| {
+                matches!(
+                    get_attribute!(child, Visibility).as_deref(),
+                    Some(Inheritable::Defined(Visibility::Visible) | Inheritable::Inherited)
+                )
+            })
+        {
+            is_hidden = true;
+        }
 
-        if !is_hidden && self.options.display_none.unwrap_or(true)
+        if !is_hidden
+            && self.options.display_none.unwrap_or(true)
             && let Some((Inheritable::Defined(Display::Keyword(DisplayKeyword::None)), _)) =
-                get_computed_style!(computed_styles, Display)
-            {
-                is_hidden = !is_element!(element, Marker);
-            }
+                get_computed_style!(computed_styles, Display).option()
+        {
+            is_hidden = !is_element!(element, Marker);
+        }
         if is_hidden {
             // Protect references that may use non-visible data
             let references_by_id = self.data.references_by_id.borrow();
             if let Some(id) = get_attribute!(element, Id)
-                && references_by_id.contains_key(id.0.as_str()) {
-                    context.flags.visit_skip();
-                    return false;
-                }
+                && references_by_id.contains_key(id.0.as_str())
+            {
+                context.flags.visit_skip();
+                return false;
+            }
             return !element.breadth_first().any(|child| {
                 if let Some(id) = get_attribute!(child, Id)
-                    && references_by_id.contains_key(id.0.as_str()) {
-                        return true;
-                    }
+                    && references_by_id.contains_key(id.0.as_str())
+                {
+                    return true;
+                }
                 false
             });
         }
@@ -383,28 +389,31 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             && self.options.circle_r_zero.unwrap_or(true)
             && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                 get_attribute!(element, RGeometry).as_deref()
-                && length.to_px() == Some(0.0) {
-                    log::debug!("RemoveHiddenElement: removing hidden ellipse");
-                    element.remove();
-                    return true;
-                }
+            && length.to_px() == Some(0.0)
+        {
+            log::debug!("RemoveHiddenElement: removing hidden ellipse");
+            element.remove();
+            return true;
+        }
 
         if is_element!(element, Ellipse) {
             if self.options.ellipse_rx_zero.unwrap_or(true)
                 && let Some(Radius::LengthPercentage(LengthPercentage(
                     DimensionPercentage::Dimension(length),
                 ))) = get_attribute!(element, RX).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
 
             if self.options.ellipse_ry_zero.unwrap_or(true)
                 && let Some(Radius::LengthPercentage(LengthPercentage(
                     DimensionPercentage::Dimension(length),
                 ))) = get_attribute!(element, RY).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
         }
 
         false
@@ -415,15 +424,17 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             if self.options.rect_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthRect).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
             if self.options.rect_height_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightRect).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
         }
         false
     }
@@ -433,15 +444,17 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             if self.options.pattern_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthPattern).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
             if self.options.pattern_height_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightPattern).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
         }
         false
     }
@@ -451,15 +464,17 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             if self.options.image_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, WidthImage).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
             if self.options.image_height_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
                     get_attribute!(element, HeightImage).as_deref()
-                    && length.to_px() == Some(0.0) {
-                        return true;
-                    }
+                && length.to_px() == Some(0.0)
+            {
+                return true;
+            }
         }
         false
     }
@@ -473,8 +488,8 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
             let Some(d) = get_attribute!(element, D) else {
                 return true;
             };
-            return d.0 .0.is_empty()
-                || (d.0 .0.len() == 1
+            return d.0.0.is_empty()
+                || (d.0.0.len() == 1
                     && !has_computed_style!(computed_styles, MarkerStart)
                     && !has_computed_style!(computed_styles, MarkerEnd));
         }

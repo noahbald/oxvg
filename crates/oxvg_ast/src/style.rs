@@ -25,14 +25,18 @@ use std::collections::HashMap;
 /// Returns the computed presentation attribute for a computed style in [`ComputedStyles`]
 macro_rules! get_computed_style {
     ($computed_style:expr, $id:ident$(,)?) => {
-        $computed_style
-            .get(&oxvg_collections::attribute::AttrId::$id)
-            .and_then(|(attr, mode)| match attr {
-                oxvg_collections::attribute::Attr::$id(inner) => Some((inner, mode)),
-                oxvg_collections::attribute::Attr::Unparsed { .. } => None,
-                oxvg_collections::attribute::Attr::CSSUnknown { .. } => None,
-                _ => unreachable!("{attr:?}"),
-            })
+        match $computed_style.get(&oxvg_collections::attribute::AttrId::$id) {
+            Some((oxvg_collections::attribute::Attr::$id(inner), mode)) => {
+                $crate::style::ComputedStyle::Some((inner, mode))
+            }
+            Some((
+                oxvg_collections::attribute::Attr::Unparsed { .. }
+                | oxvg_collections::attribute::Attr::CSSUnknown { .. },
+                _,
+            )) => $crate::style::ComputedStyle::Unparsed,
+            Some(attr) => unreachable!("{attr:?}"),
+            None => $crate::style::ComputedStyle::None,
+        }
     };
 }
 
@@ -58,6 +62,16 @@ macro_rules! get_computed_style_css {
     };
 }
 
+/// A computed style retrieved from an element.
+pub enum ComputedStyle<T> {
+    /// The computed style on the element along with the mode the style is set.
+    Some((T, Mode)),
+    /// The computed style exists but cannot be represented as an OXVG attribute.
+    Unparsed,
+    /// The computed style does not exist on the element.
+    None,
+}
+
 #[macro_export]
 /// Returns whether the computed presentation attribute exists for a computed style
 macro_rules! has_computed_style_css {
@@ -68,7 +82,7 @@ macro_rules! has_computed_style_css {
 }
 
 #[cfg(feature = "selectors")]
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 /// A mode in which a style can be applied to an element
 pub enum Mode {
     #[default]
@@ -121,6 +135,40 @@ pub fn root<'input, 'arena>(
     root.breadth_first()
         .filter_map(|node| node.first_child())
         .filter_map(|node| node.style().cloned())
+}
+
+impl<T> ComputedStyle<T> {
+    /// Returns a `ComputedStyle` with the inner value as a reference.
+    pub fn as_ref(&self) -> ComputedStyle<&T> {
+        match self {
+            Self::Some((inner, mode)) => ComputedStyle::Some((inner, *mode)),
+            Self::Unparsed => ComputedStyle::Unparsed,
+            Self::None => ComputedStyle::None,
+        }
+    }
+
+    /// Returns an option which is `Some` when the style could be parsed
+    pub fn parsed(self) -> Option<Option<(T, Mode)>> {
+        match self {
+            Self::Some(inner) => Some(Some(inner)),
+            Self::Unparsed => None,
+            Self::None => Some(None),
+        }
+    }
+
+    /// Returns an option which is `Some` when the style is present on the element
+    pub fn entry(self) -> Option<Option<(T, Mode)>> {
+        match self {
+            Self::Some(inner) => Some(Some(inner)),
+            Self::Unparsed => Some(None),
+            Self::None => None,
+        }
+    }
+
+    /// Returns `Some` only when the computed style is present and could be parsed
+    pub fn option(self) -> Option<(T, Mode)> {
+        self.parsed().flatten()
+    }
 }
 
 #[cfg(feature = "selectors")]
@@ -211,7 +259,7 @@ impl<'input> ComputedStyles<'input> {
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         for css in styles {
             for s in &css.borrow().0 {
-                self.with_nested_style(element, s, &mut Vec::new(), 0, &Mode::Static)?;
+                self.with_nested_style(element, s, &mut Vec::new(), 0, Mode::Static)?;
             }
         }
         Ok(self)
@@ -224,7 +272,7 @@ impl<'input> ComputedStyles<'input> {
         style: &rules::CssRule<'input>,
         selector: &mut Vec<String>,
         specificity: u32,
-        #[allow(unused_variables)] mode: &Mode,
+        #[allow(unused_variables)] mode: Mode,
     ) -> Result<(), ComputedStylesError<'input>> {
         use crate::selectors::{SelectElement, Selector};
         use lightningcss::{printer::PrinterOptions, traits::ToCss};
@@ -256,7 +304,7 @@ impl<'input> ComputedStyles<'input> {
             rules::CssRule::Container(rules::container::ContainerRule { rules, .. })
             | rules::CssRule::Media(rules::media::MediaRule { rules, .. }) => {
                 for r in &rules.0 {
-                    self.with_nested_style(element, r, selector, specificity, &Mode::Dynamic)?;
+                    self.with_nested_style(element, r, selector, specificity, Mode::Dynamic)?;
                 }
                 Ok(())
             }
@@ -435,7 +483,7 @@ impl<'input> ComputedStyles<'input> {
         &mut self,
         declarations: &lightningcss::declaration::DeclarationBlock<'input>,
         specificity: u32,
-        mode: &Mode,
+        mode: Mode,
     ) {
         Self::set_declarations(
             &mut self.important_declarations,
@@ -455,7 +503,7 @@ impl<'input> ComputedStyles<'input> {
         record: &mut HashMap<PropertyId<'input>, (u32, Style<'input>)>,
         declarations: &[lightningcss::properties::Property<'input>],
         specificity: u32,
-        mode: &Mode,
+        mode: Mode,
     ) {
         for d in declarations {
             let id = d.property_id();
@@ -468,7 +516,7 @@ impl<'input> ComputedStyles<'input> {
 impl Mode {
     /// # Panics
     /// If attempting to assign attribute to dynamic style
-    fn style<'i>(&self, style: Static<'i>) -> Style<'i> {
+    fn style(self, style: Static<'_>) -> Style<'_> {
         match self {
             Self::Static => Style::Static(style),
             Self::Dynamic => match style {
