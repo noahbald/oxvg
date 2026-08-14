@@ -1,4 +1,5 @@
 def main [output_dir?: path] {
+  # Files are picked from https://svgo.dev/docs/plugins/sortAttrs/ docs
   let destination = if $output_dir == null {
     $env.FILE_PWD
   } else {
