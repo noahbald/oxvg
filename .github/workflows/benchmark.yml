@@ -82,6 +82,15 @@ jobs:
           --manifest-path benchmark-base/Cargo.toml
           --package oxvg_optimiser
 
+      - name: Save generated base benchmark results
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: target/criterion
+          key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+
       - name: Download benchmark inputs
         run: |
           crates/oxvg_optimiser/benches/download_svgs.sh \
@@ -89,7 +98,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --package oxvg_optimiser 2>&1 | tee benchmark-output.txt
+          cargo bench --package oxvg_optimiser | tee benchmark-output.txt
 
       - name: Save main benchmark results
         if: github.event_name == 'push'
