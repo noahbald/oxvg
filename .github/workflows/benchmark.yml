@@ -26,6 +26,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: never
+  CRITERION_HOME: ${{ github.workspace }}/.criterion
 
 jobs:
   benchmark:
@@ -51,7 +52,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            target/criterion
+            .criterion
             crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
 
@@ -100,7 +101,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            target/criterion
+            .criterion
             crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
 
@@ -113,7 +114,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            target/criterion
+            .criterion
             crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.sha }}
 
