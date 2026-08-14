@@ -9,16 +9,16 @@ use oxvg_ast::{
     element::Element,
     get_attribute, get_attribute_mut, get_computed_style, get_computed_style_css, has_attribute,
     is_attribute,
-    style::{ComputedStyles, Mode},
+    style::{ComputedStyle, ComputedStyles, Mode},
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
+    Attr, AttrId,
     core_attrs::SVGTransformList,
     inheritable::Inheritable,
     presentation::{LengthPercentage, VectorEffect},
-    Attr, AttrId,
 };
-use oxvg_path::{command::Data, Path};
+use oxvg_path::{Path, command::Data};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -129,23 +129,29 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
                 .is_none_or(|css_transform: SVGTransformList| {
                     transform.to_matrix_2d() != css_transform.to_matrix_2d()
                 })
-            {
-                log::debug!("run: another transform is applied to this element");
-                return Ok(());
-            }
+        {
+            log::debug!("run: another transform is applied to this element");
+            return Ok(());
+        }
 
         let stroke = get_computed_style!(computed_styles, Stroke);
-        if matches!(stroke, Some((_, Mode::Dynamic))) {
+        if matches!(
+            stroke,
+            ComputedStyle::Some((_, Mode::Dynamic)) | ComputedStyle::Unparsed
+        ) {
             log::debug!("run: cannot handle dynamic stroke");
             return Ok(());
         }
 
         let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
-        if matches!(stroke_width, Some((_, Mode::Dynamic))) {
+        if matches!(
+            stroke_width,
+            ComputedStyle::Some((_, Mode::Dynamic)) | ComputedStyle::Unparsed
+        ) {
             log::debug!("run: cannot handle dynamic stroke_width");
             return Ok(());
         }
-        let stroke_width = stroke_width.map(|(stroke_width, _)| stroke_width);
+        let stroke_width = stroke_width.option().map(|(stroke_width, _)| stroke_width);
 
         let css_transform: TransformList = transform.clone().into();
         let Some(matrix) = css_transform.to_matrix() else {
@@ -159,10 +165,11 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
         let matrix = matrix32_to_slice(&matrix);
 
         drop(transform_attr);
-        if let Some((Inheritable::Defined(stroke), Mode::Static)) = stroke
-            && self.apply_stroked(&matrix, &stroke, stroke_width, element) {
-                return Ok(());
-            }
+        if let Some((Inheritable::Defined(stroke), Mode::Static)) = stroke.option()
+            && self.apply_stroked(&matrix, &stroke, stroke_width, element)
+        {
+            return Ok(());
+        }
 
         let Some(mut d) = get_attribute_mut!(element, D) else {
             unreachable!();
@@ -200,9 +207,10 @@ impl ApplyTransforms {
         }
 
         if let Some(vector_effect) = get_attribute!(element, VectorEffect)
-            && matches!(&*vector_effect, VectorEffect::NonScalingStroke) {
-                return false;
-            }
+            && matches!(&*vector_effect, VectorEffect::NonScalingStroke)
+        {
+            return false;
+        }
 
         let mut scale = f64::sqrt((matrix[0] * matrix[0]) + (matrix[1] * matrix[1])); // hypot
         if let Some(transform_precision) = self.transform_precision {
@@ -254,9 +262,10 @@ fn apply_matrix_to_path_data(path_data: &mut Path, matrix: &[f64; 6]) {
     let mut start = [0.0; 2];
     let mut cursor = [0.0; 2];
     if let Some(data) = path_data.0.get_mut(0)
-        && let Data::MoveBy(args) = data {
-            *data = Data::MoveTo(*args);
-        }
+        && let Data::MoveBy(args) = data
+    {
+        *data = Data::MoveTo(*args);
+    }
 
     path_data.0.iter_mut().for_each(|data| {
         if let Data::Implicit(_) = data {

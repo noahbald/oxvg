@@ -8,7 +8,7 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{inheritable::Inheritable, AttrId},
+    attribute::{AttrId, inheritable::Inheritable},
     element::ElementCategory,
     is_prefix,
 };
@@ -145,7 +145,7 @@ impl State<'_> {
         }
 
         let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
-        let is_stroke_width_zero = stroke_width.is_some_and(|(stroke_width, mode)| {
+        let is_stroke_width_zero = stroke_width.option().is_some_and(|(stroke_width, mode)| {
             if matches!(mode, Mode::Dynamic) {
                 return false;
             }
@@ -164,18 +164,23 @@ impl State<'_> {
         let stroke = get_computed_style!(computed_styles, Stroke);
         let mut is_stroke_eq_none = stroke
             .as_ref()
+            .option()
             .is_some_and(|(stroke, _)| matches!(stroke.option_ref(), Some(SVGPaint::None)));
-        let is_stroke_none =
-            stroke.is_none_or(|(_, mode)| matches!(mode, Mode::Static) && is_stroke_eq_none);
+        let is_stroke_none = stroke
+            .entry()
+            .is_none_or(|stroke| matches!(stroke, Some((_, Mode::Static))) && is_stroke_eq_none);
 
         let stroke_opacity = get_computed_style!(computed_styles, StrokeOpacity);
-        let is_stroke_opacity_zero = stroke_opacity.is_some_and(|(stroke_opacity, mode)| {
-            matches!(mode, Mode::Static)
-                && matches!(stroke_opacity, Inheritable::Defined(AlphaValue(0.0)))
-        });
+        let is_stroke_opacity_zero =
+            stroke_opacity
+                .option()
+                .is_some_and(|(stroke_opacity, mode)| {
+                    matches!(mode, Mode::Static)
+                        && matches!(stroke_opacity, Inheritable::Defined(AlphaValue(0.0)))
+                });
 
         let stroke_width = get_computed_style!(computed_styles, StrokeWidth);
-        let is_stroke_width_zero = stroke_width.is_some_and(|(stroke_width, mode)| {
+        let is_stroke_width_zero = stroke_width.option().is_some_and(|(stroke_width, mode)| {
             if matches!(mode, Mode::Dynamic) {
                 return false;
             }
@@ -197,12 +202,12 @@ impl State<'_> {
 
             if let Some((parent_stroke, mode)) = computed_styles.get_inherited("stroke")
                 && matches!(mode, Mode::Static)
-                    && !is_attribute!(parent_stroke, Stroke(Inheritable::Defined(SVGPaint::None)))
-                {
-                    log::debug!("stroke is also inherited, setting to `none`");
-                    set_attribute!(element, Stroke(Inheritable::Defined(SVGPaint::None)));
-                    is_stroke_eq_none = true;
-                }
+                && !is_attribute!(parent_stroke, Stroke(Inheritable::Defined(SVGPaint::None)))
+            {
+                log::debug!("stroke is also inherited, setting to `none`");
+                set_attribute!(element, Stroke(Inheritable::Defined(SVGPaint::None)));
+                is_stroke_eq_none = true;
+            }
         }
 
         if is_stroke_eq_none && self.options.remove_none {
@@ -221,15 +226,17 @@ impl State<'_> {
         }
 
         let fill = get_computed_style!(computed_styles, Fill);
-        let mut is_fill_eq_none = fill.as_ref().is_some_and(|fill| {
+        let mut is_fill_eq_none = fill.as_ref().option().is_some_and(|fill| {
             matches!(fill, (Inheritable::Defined(SVGPaint::None), Mode::Static))
         });
         let is_fill_none = fill
             .as_ref()
+            .option()
             .is_some_and(|(_, mode)| matches!(mode, Mode::Static) && is_fill_eq_none);
 
         let fill_opacity = get_computed_style!(computed_styles, FillOpacity);
         let is_fill_opacity_zero = fill_opacity
+            .option()
             .is_some_and(|s| matches!(s, (Inheritable::Defined(AlphaValue(0.0)), Mode::Static)));
 
         if is_fill_none || is_fill_opacity_zero {
@@ -240,7 +247,7 @@ impl State<'_> {
                 .attributes()
                 .retain(|attr| !is_prefix!(attr, SVG) || !attr.local_name().starts_with("fill-"));
 
-            if fill.is_none() || !is_fill_eq_none {
+            if fill.entry().is_none() || !is_fill_eq_none {
                 set_attribute!(element, Fill(Inheritable::Defined(SVGPaint::None)));
                 is_fill_eq_none = true;
             }
