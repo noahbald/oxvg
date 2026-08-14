@@ -91,6 +91,7 @@ jobs:
           cargo bench
           --manifest-path benchmark-base/Cargo.toml
           --package oxvg_optimiser
+          --benches
 
       - name: Save generated base benchmark results
         if: >-
@@ -105,7 +106,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --package oxvg_optimiser | tee benchmark-output.txt
+          cargo bench --package oxvg_optimiser --benches | tee benchmark-output.txt
 
       - name: Save main benchmark results
         if: github.event_name == 'push'
