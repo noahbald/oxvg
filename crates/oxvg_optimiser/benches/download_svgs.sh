@@ -28,7 +28,9 @@ download()
   curl \
     --fail \
     --location \
-    --retry 3 \
+    --retry 5 \
+    --retry-all-errors \
+    --retry-delay 10 \
     --show-error \
     --silent \
     --user-agent "oxvg-benchmark/1.0 (+https://github.com/noahbald/oxvg)" \

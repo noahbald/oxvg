@@ -50,8 +50,18 @@ jobs:
         id: benchmark-cache
         uses: actions/cache/restore@v4
         with:
-          path: target/criterion
+          path: |
+            target/criterion
+            crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+
+      - name: Download benchmark inputs
+        if: >-
+          github.event_name == 'push' ||
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        run: |
+          crates/oxvg_optimiser/benches/download_svgs.sh \
+            "$GITHUB_WORKSPACE/crates/oxvg_optimiser/benches"
 
       - name: Check out base revision
         if: >-
@@ -63,13 +73,13 @@ jobs:
           path: benchmark-base
           persist-credentials: false
 
-      - name: Download base benchmark inputs
+      - name: Copy base benchmark inputs
         if: >-
           github.event_name == 'pull_request' &&
           steps.benchmark-cache.outputs.cache-hit != 'true'
         run: >-
-          crates/oxvg_optimiser/benches/download_svgs.sh
-          "$GITHUB_WORKSPACE/benchmark-base/crates/oxvg_optimiser/benches"
+          cp crates/oxvg_optimiser/benches/*.svg
+          benchmark-base/crates/oxvg_optimiser/benches/
 
       - name: Generate missing base benchmark results
         if: >-
@@ -88,13 +98,10 @@ jobs:
           steps.benchmark-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: target/criterion
+          path: |
+            target/criterion
+            crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
-
-      - name: Download benchmark inputs
-        run: |
-          crates/oxvg_optimiser/benches/download_svgs.sh \
-            "$GITHUB_WORKSPACE/crates/oxvg_optimiser/benches"
 
       - name: Run benchmarks
         run: |
@@ -104,7 +111,9 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
-          path: target/criterion
+          path: |
+            target/criterion
+            crates/oxvg_optimiser/benches/*.svg
           key: benchmark-${{ runner.os }}-${{ github.sha }}
 
       - name: Generate report
