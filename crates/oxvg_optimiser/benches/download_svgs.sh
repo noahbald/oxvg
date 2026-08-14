@@ -24,12 +24,14 @@ download()
   destination="$output_dir/$filename"
   temporary="$destination.part"
 
+  echo "Downloading $filename"
   curl \
     --fail \
     --location \
     --retry 3 \
     --show-error \
     --silent \
+    --user-agent "oxvg-benchmark/1.0 (+https://github.com/noahbald/oxvg)" \
     --output "$temporary" \
     "$url"
 
