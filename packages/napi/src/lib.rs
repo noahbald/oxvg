@@ -331,6 +331,16 @@ impl Actor {
     self.actor.skew_y(angle as f32).map_err(generic_error)
   }
 
+  /// Creates a new SVG element and inserts it into the current selection.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn insert(&mut self, qual_name: String) -> napi::Result<()> {
+    self.actor.insert(&qual_name.into()).map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

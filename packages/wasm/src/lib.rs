@@ -470,6 +470,16 @@ impl Actor {
         self.actor.skew_y(angle)
     }
 
+    /// Creates a new SVG element and inserts it into the current selection.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn insert(&mut self, qual_name: &str) -> Result<(), Error> {
+        self.actor.insert(&qual_name.to_string().into())
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

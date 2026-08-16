@@ -84,19 +84,19 @@ impl<'input, 'arena> State<'input, 'arena> {
         let document = element.as_document();
         let state_element = element
             .last_element_child()
-            .filter(|e| assert_oxvg_element(e, StateElement::STATE).is_ok())
+            .filter(|e| assert_oxvg_element(*e, StateElement::STATE).is_ok())
             .unwrap_or_else(|| {
                 document.create_element(create_oxvg_element(StateElement::STATE), allocator)
             });
         let mut state = Self {
-            state: state_element.clone(),
+            state: state_element,
             history: None,
             selection: None,
         };
 
         state_element.remove();
         for element in state_element.children_iter() {
-            state.debed_field(&element)?;
+            state.debed_field(element)?;
         }
 
         Ok(state)
@@ -134,17 +134,17 @@ impl<'input, 'arena> State<'input, 'arena> {
         Ok(())
     }
 
-    fn debed_field(&mut self, element: &Element<'input, 'arena>) -> Result<(), Error<'input>> {
+    fn debed_field(&mut self, element: Element<'input, 'arena>) -> Result<(), Error<'input>> {
         let name = element.qual_name();
         assert_oxvg_xmlns(name.prefix())?;
 
         let field = StateElement::try_from(name.local_name().clone())?;
         match field {
             StateElement::History => {
-                self.history = Some(element.clone());
+                self.history = Some(element);
             }
             StateElement::Selection => {
-                self.selection = Some(element.clone());
+                self.selection = Some(element);
             }
         }
         Ok(())
@@ -152,22 +152,22 @@ impl<'input, 'arena> State<'input, 'arena> {
 
     pub fn record(&mut self, action: &Action<'input>, allocator: &Allocator<'input, 'arena>) {
         let history = self.get_history(allocator);
-        action.embed(&history, allocator);
+        action.embed(history, allocator);
     }
 
     pub fn get_selections(
         &mut self,
         allocator: &Allocator<'input, 'arena>,
     ) -> Element<'input, 'arena> {
-        if let Some(e) = &self.selection {
-            e.clone()
+        if let Some(e) = self.selection {
+            e
         } else {
             let selection = self
                 .state
                 .as_document()
                 .create_element(create_oxvg_element(StateElement::SELECTION), allocator);
             self.state.append_child(*selection);
-            self.selection = Some(selection.clone());
+            self.selection = Some(selection);
             selection
         }
     }
@@ -177,14 +177,14 @@ impl<'input, 'arena> State<'input, 'arena> {
         allocator: &Allocator<'input, 'arena>,
     ) -> Element<'input, 'arena> {
         if let Some(e) = &self.history {
-            e.clone()
+            *e
         } else {
             let history = self
                 .state
                 .as_document()
                 .create_element(create_oxvg_element(StateElement::HISTORY), allocator);
             self.state.append_child(*history);
-            self.history = Some(history.clone());
+            self.history = Some(history);
             history
         }
     }
@@ -213,7 +213,7 @@ impl<'input, 'arena> DerivedState<'input> {
                 .history
                 .iter()
                 .flat_map(Element::children_iter)
-                .map(|e| Action::from_state(&e))
+                .map(Action::from_state)
                 .collect::<Result<Vec<_>, _>>()?,
             info: Info::new(&selection, allocator)?,
             selection,
@@ -251,20 +251,21 @@ impl<'input> Action<'input> {
     const ROTATE: &'static str = "Rotate";
     const SKEW_X: &'static str = "SkewX";
     const SKEW_Y: &'static str = "SkewY";
+    const INSERT: &'static str = "Insert";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
     const DESELECT: &'static str = "Deselect";
 
     #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
-    fn from_state(element: &Element<'input, '_>) -> Result<Self, Error<'input>> {
+    fn from_state(element: Element<'input, '_>) -> Result<Self, Error<'input>> {
         assert_oxvg_element(element, Self::ACTION)?;
 
-        let Some(id) = get_oxvg_attr(element, Self::ID)? else {
+        let Some(id) = get_oxvg_attr(&element, Self::ID)? else {
             return Err(Error::MissingStateAttribute(Self::ID));
         };
         let mut args = element.children_iter().map(|child| {
-            assert_oxvg_element(&child, Self::ARG)?;
+            assert_oxvg_element(child, Self::ARG)?;
             Ok(child.text_content().unwrap_or_default())
         });
         let n_args = |value: Result<Atom<'input>, Error<'input>>| {
@@ -373,6 +374,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::SkewY(y))
             }
+            Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
@@ -385,6 +387,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::SelectMore(string))
             }
+            Self::DESELECT => Ok(Self::Deselect),
             _ => Err(Error::InvalidStateAttribute(id.clone())),
         }
     }
@@ -392,7 +395,7 @@ impl<'input> Action<'input> {
     #[allow(clippy::many_single_char_names)]
     fn embed<'arena>(
         &self,
-        parent: &Element<'input, 'arena>,
+        parent: Element<'input, 'arena>,
         allocator: &Allocator<'input, 'arena>,
     ) {
         let document = parent.as_document();
@@ -410,35 +413,35 @@ impl<'input> Action<'input> {
                 property: arg0,
                 value: arg1,
             } => {
-                Self::embed_arg(&element, allocator, arg0.clone());
-                Self::embed_arg(&element, allocator, arg1.clone());
+                Self::embed_arg(element, allocator, arg0.clone());
+                Self::embed_arg(element, allocator, arg1.clone());
             }
             Self::Matrix(a, b, c, d, e, f) => {
-                Self::embed_arg(&element, allocator, a.to_string().into());
-                Self::embed_arg(&element, allocator, b.to_string().into());
-                Self::embed_arg(&element, allocator, c.to_string().into());
-                Self::embed_arg(&element, allocator, d.to_string().into());
-                Self::embed_arg(&element, allocator, e.to_string().into());
-                Self::embed_arg(&element, allocator, f.to_string().into());
+                Self::embed_arg(element, allocator, a.to_string().into());
+                Self::embed_arg(element, allocator, b.to_string().into());
+                Self::embed_arg(element, allocator, c.to_string().into());
+                Self::embed_arg(element, allocator, d.to_string().into());
+                Self::embed_arg(element, allocator, e.to_string().into());
+                Self::embed_arg(element, allocator, f.to_string().into());
             }
             Self::Translate(x, y) | Self::Scale(x, y) => {
-                Self::embed_arg(&element, allocator, x.to_string().into());
+                Self::embed_arg(element, allocator, x.to_string().into());
                 if let Some(y) = y {
-                    Self::embed_arg(&element, allocator, y.to_string().into());
+                    Self::embed_arg(element, allocator, y.to_string().into());
                 }
             }
             Self::Rotate(angle, origin) => {
-                Self::embed_arg(&element, allocator, angle.to_string().into());
+                Self::embed_arg(element, allocator, angle.to_string().into());
                 if let Some((x, y)) = origin {
-                    Self::embed_arg(&element, allocator, x.to_string().into());
-                    Self::embed_arg(&element, allocator, y.to_string().into());
+                    Self::embed_arg(element, allocator, x.to_string().into());
+                    Self::embed_arg(element, allocator, y.to_string().into());
                 }
             }
             Self::SkewX(arg) | Self::SkewY(arg) => {
-                Self::embed_arg(&element, allocator, arg.to_string().into());
+                Self::embed_arg(element, allocator, arg.to_string().into());
             }
-            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) => {
-                Self::embed_arg(&element, allocator, arg.clone());
+            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) | Self::Insert(arg) => {
+                Self::embed_arg(element, allocator, arg.clone());
             }
             Self::PathIntersect
             | Self::PathUnion
@@ -450,7 +453,7 @@ impl<'input> Action<'input> {
     }
 
     fn embed_arg<'arena>(
-        parent: &Element<'input, 'arena>,
+        parent: Element<'input, 'arena>,
         allocator: &Allocator<'input, 'arena>,
         arg_atom: Atom<'input>,
     ) {
@@ -475,6 +478,7 @@ impl<'input> Action<'input> {
             Self::Rotate(..) => Self::ROTATE,
             Self::SkewX(_) => Self::SKEW_X,
             Self::SkewY(_) => Self::SKEW_Y,
+            Self::Insert(_) => Self::INSERT,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -510,6 +514,7 @@ impl<'input> Action<'input> {
             }
             Self::SkewX(x) => ActionNapi::SkewX(*x as f64),
             Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
+            Self::Insert(name) => ActionNapi::Insert(name.to_string()),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -545,6 +550,7 @@ impl<'input> Action<'input> {
             }
             ActionNapi::SkewX(x) => Action::SkewX(x as f32),
             ActionNapi::SkewY(y) => Action::SkewY(y as f32),
+            ActionNapi::Insert(name) => Action::Insert(name.into()),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

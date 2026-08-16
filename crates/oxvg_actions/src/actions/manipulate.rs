@@ -4,15 +4,10 @@ use lightningcss::{declaration::DeclarationBlock, traits::Parse};
 use oxvg_ast::{get_attribute_mut, set_attribute};
 use oxvg_collections::{
     atom::Atom,
-    attribute::{
-        Attr, AttrId,
-        core_attrs::{Integer, Style},
-        list_of::{ListOf, SpaceOrComma},
-    },
+    attribute::{Attr, AttrId, core_attrs::Style},
 };
-use oxvg_parse::Parse as _;
 
-use crate::{Action, Actor, Error, state::StateElement, utils::get_oxvg_attr};
+use crate::{Action, Actor, Error};
 
 impl<'input> Actor<'input, '_> {
     /// Sets the attribute to selected elements.
@@ -25,13 +20,11 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/attr.md")]
     pub fn attr(&mut self, name: &str, value: &str) -> Result<(), Error<'input>> {
-        self.state.record(
-            &Action::Attr {
-                name: name.to_string().into(),
-                value: value.to_string().into(),
-            },
-            &self.allocator,
-        );
+        self.effect_history(&Action::Attr {
+            name: name.to_string().into(),
+            value: value.to_string().into(),
+        });
+
         let Some(selections) = self.get_selections()? else {
             return Ok(());
         };
@@ -52,7 +45,8 @@ impl<'input> Actor<'input, '_> {
             let attr = Attr::new(attr, value);
             element.set_attribute(attr);
         }
-        Ok(())
+
+        self.effect_document()
     }
 
     /// Toggles the class-name on selected elements.
@@ -66,8 +60,8 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/manipulate/class.md")]
     pub fn class(&mut self, name: &str) -> Result<(), Error<'input>> {
         let name: Atom<'static> = name.to_string().into();
-        self.state
-            .record(&Action::Class(name.clone()), &self.allocator);
+        self.effect_history(&Action::Class(name.clone()));
+
         let Some(selections) = self.get_selections()? else {
             return Ok(());
         };
@@ -82,7 +76,8 @@ impl<'input> Actor<'input, '_> {
             let mut class_list = element.class_list();
             class_list.toggle(name.clone());
         }
-        Ok(())
+
+        self.effect_document()
     }
 
     /// Appends the style to the selected elements style list.
@@ -96,13 +91,11 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/style.md")]
     pub fn style(&mut self, property: &str, value: &str) -> Result<(), Error<'input>> {
-        self.state.record(
-            &Action::Style {
-                property: property.to_string().into(),
-                value: value.to_string().into(),
-            },
-            &self.allocator,
-        );
+        self.effect_history(&Action::Style {
+            property: property.to_string().into(),
+            value: value.to_string().into(),
+        });
+
         let Some(selections) = self.get_selections()? else {
             return Ok(());
         };
@@ -152,25 +145,63 @@ impl<'input> Actor<'input, '_> {
                 set_attribute!(element, Style(style));
             }
         }
-        Ok(())
+
+        self.effect_document()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use oxvg_ast::serialize::Node as _;
+
+    use crate::Actor;
+
+    #[test]
+    fn attr() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.attr("width", "10").unwrap();
+                actor.attr("unknown", "foo").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
     }
 
-    pub(crate) fn get_selections(&mut self) -> Result<Option<Vec<Integer>>, Error<'input>> {
-        Ok(self.get_selections_list()?.map(|s| s.list))
+    #[test]
+    fn class() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.class("my-class").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
     }
 
-    pub(crate) fn get_selections_list(
-        &mut self,
-    ) -> Result<Option<ListOf<Integer, SpaceOrComma>>, Error<'input>> {
-        let selections_element = self.state.get_selections(&self.allocator);
-        if let Some(selections) =
-            get_oxvg_attr(&selections_element.clone(), StateElement::SELECTION_IDS)?
-        {
-            let selections = ListOf::<Integer, SpaceOrComma>::parse_string(&selections)
-                .map_err(|err| Error::ParseError(err.to_string()))?;
-            Ok(Some(selections))
-        } else {
-            Ok(None)
-        }
+    #[test]
+    fn style() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.style("opacity", "0.5").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
     }
 }

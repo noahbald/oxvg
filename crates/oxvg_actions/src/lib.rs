@@ -4,6 +4,7 @@ Similar to Inkscape's actions, can be used to manipulate a document through a CL
 As a library, actions can be used to dispatch changes to a document from an editor.
 */
 mod actions;
+mod effects;
 mod error;
 pub(crate) mod info;
 pub(crate) mod state;

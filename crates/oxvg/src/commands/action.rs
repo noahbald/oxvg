@@ -233,6 +233,10 @@ impl RunCommand for ActionList {
             println!("# Skew Y\n");
             println!(include_str!("../spec/manipulate/skewY.md"));
         }
+        if parts.is_empty() || parts.contains(INSERT) || parts.contains(CREATE_ELEMENT) {
+            println!("# Insert\n");
+            println!(include_str!("../spec/structure/insert.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -266,6 +270,8 @@ const SCALE: &str = "-scale";
 const ROTATE: &str = "-rotate";
 const SKEW_X: &str = "-skewX";
 const SKEW_Y: &str = "-skewY";
+const INSERT: &str = "-insert";
+const CREATE_ELEMENT: &str = "-create-element";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -346,6 +352,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             SKEW_X => oxvg_actions::Action::SkewX(get_part_f32(&mut parts)?),
             SKEW_Y => oxvg_actions::Action::SkewY(get_part_f32(&mut parts)?),
             FORGET => oxvg_actions::Action::Forget,
+            INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert(get_part(&mut parts)?),
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
             DESELECT => oxvg_actions::Action::Deselect,
