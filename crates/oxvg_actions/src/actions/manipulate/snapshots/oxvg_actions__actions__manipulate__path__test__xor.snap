@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/manipulate/path.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me"><path d="M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166ZM5.834 10.025A4 4 0 0 1 5.833 10h.497A3.5 3.5 0 1 0 10 6.329v-.497a4 4 0 1 1-4.152 4.388ZM6.33 9.997a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z" fill-rule="evenodd"/><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>path</oxvg:arg></oxvg:action><oxvg:action oxvg:id="PathXor"/></oxvg:history><oxvg:selection oxvg:ids="4"/></oxvg:state></svg>

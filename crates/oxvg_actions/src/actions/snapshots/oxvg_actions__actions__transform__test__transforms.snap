@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/transform.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me" transform="matrix(1 2 3 4 5 6)translate(1 1)scale(1)rotate(90 1 1)skewX(1)skewY(1)"><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>svg</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Matrix"><oxvg:arg>1</oxvg:arg><oxvg:arg>2</oxvg:arg><oxvg:arg>3</oxvg:arg><oxvg:arg>4</oxvg:arg><oxvg:arg>5</oxvg:arg><oxvg:arg>6</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Translate"><oxvg:arg>1</oxvg:arg><oxvg:arg>1</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Scale"><oxvg:arg>1</oxvg:arg><oxvg:arg>1</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Rotate"><oxvg:arg>90</oxvg:arg><oxvg:arg>1</oxvg:arg><oxvg:arg>1</oxvg:arg></oxvg:action><oxvg:action oxvg:id="SkewX"><oxvg:arg>1</oxvg:arg></oxvg:action><oxvg:action oxvg:id="SkewY"><oxvg:arg>1</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids="1"/></oxvg:state></svg>
