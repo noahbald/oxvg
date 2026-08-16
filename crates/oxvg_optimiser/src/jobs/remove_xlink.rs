@@ -7,10 +7,10 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     atom::Atom,
-    attribute::{uncategorised::Target, xlink::XLinkShow, Attr, AttrId},
+    attribute::{Attr, AttrId, uncategorised::Target, xlink::XLinkShow},
     element::{ElementId, ElementInfo},
     is_prefix,
-    name::{QualName, NS},
+    name::{NS, QualName},
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -57,7 +57,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveXlink {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         State {
@@ -76,7 +76,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut xlink_prefix_stack = self.xlink_prefix_stack.borrow_mut();
@@ -98,9 +98,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
                 overridden_prefix_stack.push(false);
                 used_in_legacy_element_stack.push(false);
             } else if xlink_prefix_stack.last() == Some(local)
-                && let Some(last) = overridden_prefix_stack.last_mut() {
-                    *last = true;
-                }
+                && let Some(last) = overridden_prefix_stack.last_mut()
+            {
+                *last = true;
+            }
         }
         element.attributes().retain(|attr| {
             !is_attribute!(attr, XLinkActuate | XLinkArcrole | XLinkRole | XLinkType)
@@ -118,7 +119,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         element.attributes().retain(|attr| {
@@ -156,7 +157,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
 
 impl<'input> State<'_, 'input> {
     /// Replaces `xlink:show` with `target` when possible
-    fn handle_show(element: &Element<'input, '_>) {
+    fn handle_show(element: Element<'input, '_>) {
         if has_attribute!(element, Target) {
             remove_attribute!(element, XLinkShow);
             return;
@@ -171,14 +172,15 @@ impl<'input> State<'_, 'input> {
         };
         drop(show);
         if let Some(target) = target
-            && target != Target::default() {
-                set_attribute!(element, Target(target));
-                remove_attribute!(element, XLinkShow);
-            }
+            && target != Target::default()
+        {
+            set_attribute!(element, Target(target));
+            remove_attribute!(element, XLinkShow);
+        }
     }
 
     fn handle_title<'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) {
         if element
@@ -200,7 +202,7 @@ impl<'input> State<'_, 'input> {
     }
 
     fn handle_href(
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         used_in_legacy_element: &mut [bool],
         include_legacy: bool,
     ) {

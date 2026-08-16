@@ -34,7 +34,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDoctype {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {

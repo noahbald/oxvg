@@ -114,7 +114,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -123,7 +123,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let attributes_in_stylesheet =
@@ -132,11 +132,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
         // # Special cases
         // Removing deprecated xml:lang is safe when the lang attribute exists.
         if let Some(attr) = element.get_attribute(&AttrId::XmlLang)
-            && has_attribute!(element, Lang) && !attributes_in_stylesheet.contains_qual(attr.name())
-            {
-                drop(attr);
-                element.remove_attribute(&AttrId::XmlLang);
-            }
+            && has_attribute!(element, Lang)
+            && !attributes_in_stylesheet.contains_qual(attr.name())
+        {
+            drop(attr);
+            element.remove_attribute(&AttrId::XmlLang);
+        }
 
         // # General cases
         self.process_attributes(element, &attributes_in_stylesheet);
@@ -146,7 +147,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDeprecatedAttrs {
 }
 
 impl RemoveDeprecatedAttrs {
-    fn process_attributes(&self, element: &Element, attributes_in_stylesheet: &AttrStylesheet) {
+    fn process_attributes(&self, element: Element, attributes_in_stylesheet: &AttrStylesheet) {
         element.attributes().retain(|attr| {
             if attributes_in_stylesheet.contains_qual(attr.name()) {
                 return true;

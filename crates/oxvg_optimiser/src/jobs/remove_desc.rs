@@ -42,7 +42,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDesc {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, Desc) {

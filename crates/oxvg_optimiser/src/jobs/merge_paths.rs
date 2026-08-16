@@ -63,7 +63,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -73,7 +73,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
     #[allow(clippy::too_many_lines)]
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut children = itertools::peek_nth(element.children_iter());
@@ -109,7 +109,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergePaths {
                 continue;
             }
             let computed_styles = ComputedStyles::default()
-                .with_all(&child, &context.query_has_stylesheet_result)
+                .with_all(child, &context.query_has_stylesheet_result)
                 .map_err(JobsError::ComputedStylesError)?;
             let Some(mut current_path_data) =
                 get_attribute_mut!(child, D).map(|d| RefMut::map(d, |path::Path(d, _)| d))

@@ -7,13 +7,13 @@ use oxvg_ast::{
     visitor::{Context, Info, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{path, presentation::LengthPercentage, uncategorised::Radius, AttrId},
+    attribute::{AttrId, path, presentation::LengthPercentage, uncategorised::Radius},
     element::ElementId,
 };
 use oxvg_path::{
+    Path,
     command::Data,
     geometry::{Tolerance, TolerancePrecision},
-    Path,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertShapeToPath {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<oxvg_ast::visitor::PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -149,7 +149,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let name = element.qual_name();
@@ -210,7 +210,7 @@ fn r_px(r: cell::Ref<Radius>) -> Option<f64> {
 }
 impl ConvertShapeToPath {
     fn rect_to_path<'input, 'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
@@ -255,7 +255,7 @@ impl ConvertShapeToPath {
     }
 
     fn line_to_path<'input, 'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
@@ -299,7 +299,7 @@ impl ConvertShapeToPath {
     }
 
     fn poly_to_path<'input, 'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         precision: TolerancePrecision,
         is_polygon: bool,
         info: &Info<'input, 'arena>,
@@ -309,7 +309,7 @@ impl ConvertShapeToPath {
             element.remove();
             return;
         };
-        let mut data = points.0 .0;
+        let mut data = points.0.0;
         if data.len() <= 1 {
             // Remove pointless data ;)
             element.remove();
@@ -327,7 +327,7 @@ impl ConvertShapeToPath {
 
     #[allow(clippy::similar_names)]
     fn circle_to_path<'input, 'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {
@@ -371,7 +371,7 @@ impl ConvertShapeToPath {
 
     #[allow(clippy::similar_names)]
     fn ellipse_to_path<'input, 'arena>(
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         precision: TolerancePrecision,
         info: &Info<'input, 'arena>,
     ) {

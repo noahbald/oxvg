@@ -7,10 +7,10 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
+    AttrId,
     core_attrs::SVGTransformList,
     inheritable,
     transform::{Precision, SVGTransform},
-    AttrId,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertTransform {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_script(document);
@@ -95,7 +95,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertTransform {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if let Some(transform) =
@@ -172,7 +172,7 @@ impl ConvertTransform {
         &self,
         mut transform: RefMut<SVGTransformList>,
         name: &AttrId,
-        element: &Element,
+        element: Element,
     ) {
         log::debug!("transform_attr: found {name} to transform");
 
@@ -185,11 +185,13 @@ impl ConvertTransform {
     }
 
     fn transform(&self, transform: &mut SVGTransformList) {
-        if self.collapse_into_one && transform.0.len() > 1
-            && let Some(matrix) = transform.to_matrix_2d() {
-                log::debug!("collapsing transform to matrix");
-                transform.0 = vec![SVGTransform::Matrix(matrix)];
-            }
+        if self.collapse_into_one
+            && transform.0.len() > 1
+            && let Some(matrix) = transform.to_matrix_2d()
+        {
+            log::debug!("collapsing transform to matrix");
+            transform.0 = vec![SVGTransform::Matrix(matrix)];
+        }
         log::debug!(r#"working with data "{transform:?}""#);
 
         self.convert_to_shorts(transform);

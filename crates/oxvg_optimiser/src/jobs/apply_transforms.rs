@@ -67,7 +67,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -77,7 +77,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !has_attribute!(element, D) {
@@ -190,7 +190,7 @@ impl ApplyTransforms {
         matrix: &[f64; 6],
         stroke: &SVGPaint,
         stroke_width: Option<Inheritable<LengthPercentage>>,
-        element: &Element,
+        element: Element,
     ) -> bool {
         if matches!(stroke, SVGPaint::None) {
             return false;

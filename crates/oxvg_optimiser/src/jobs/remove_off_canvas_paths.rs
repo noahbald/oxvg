@@ -49,7 +49,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveOffCanvasPaths {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -67,7 +67,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if element.is_root() && is_element!(element, Svg) {
@@ -138,7 +138,7 @@ enum GatherViewboxDataError {
     MissingViewbox,
 }
 
-fn gather(element: &Element) -> Result<ViewBox, GatherViewboxDataError> {
+fn gather(element: Element) -> Result<ViewBox, GatherViewboxDataError> {
     let width = get_attribute!(element, WidthSvg);
     let height = get_attribute!(element, HeightSvg);
     let Some(viewbox) = get_attribute!(element, ViewBox) else {
@@ -156,13 +156,13 @@ fn gather(element: &Element) -> Result<ViewBox, GatherViewboxDataError> {
                     height: height
                         .to_px()
                         .ok_or(GatherViewboxDataError::ParseFloatError)?,
-                })
+                });
             }
             _ => return Err(GatherViewboxDataError::MissingViewbox),
         }
     };
 
-    Ok(viewbox.clone())
+    Ok((*viewbox).clone())
 }
 
 #[test]

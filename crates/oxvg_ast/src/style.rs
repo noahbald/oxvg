@@ -130,7 +130,7 @@ pub struct ComputedStyles<'input> {
 
 /// Gathers `<style>` declarations from the document
 pub fn root<'input, 'arena>(
-    root: &Element<'input, 'arena>,
+    root: Element<'input, 'arena>,
 ) -> impl Iterator<Item = RefCell<CssRuleList<'input>>> + use<'input, 'arena> {
     root.breadth_first()
         .filter_map(|node| node.first_child())
@@ -180,7 +180,7 @@ impl<'input> ComputedStyles<'input> {
     /// When styles contain bad selectors
     pub fn with_all(
         self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         styles: &[RefCell<CssRuleList<'input>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         self.with_inline_style(element)
@@ -196,16 +196,16 @@ impl<'input> ComputedStyles<'input> {
     /// When styles contain bad selectors
     pub fn with_inherited(
         mut self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         styles: &[RefCell<CssRuleList<'input>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
-        let Some(parent) = Element::parent_element(element) else {
+        let Some(parent) = Element::parent_element(&element) else {
             return Ok(self);
         };
         if parent.node_type() == node::Type::Document {
             return Ok(self);
         }
-        let parent_styles = ComputedStyles::default().with_all(&parent, styles)?;
+        let parent_styles = ComputedStyles::default().with_all(parent, styles)?;
         self.inherited.extend(parent_styles.inherited);
         self.inherited.extend(
             parent_styles
@@ -254,7 +254,7 @@ impl<'input> ComputedStyles<'input> {
     /// When styles contain bad selectors
     pub fn with_style(
         mut self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         styles: &[RefCell<CssRuleList<'input>>],
     ) -> Result<ComputedStyles<'input>, ComputedStylesError<'input>> {
         for css in styles {
@@ -268,7 +268,7 @@ impl<'input> ComputedStyles<'input> {
     /// Include a style within a style scope
     fn with_nested_style(
         &mut self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         style: &rules::CssRule<'input>,
         selector: &mut Vec<String>,
         specificity: u32,
@@ -293,7 +293,7 @@ impl<'input> ComputedStyles<'input> {
                             selector: r.selectors.clone(),
                         }
                     })?;
-                    if !select.matches_naive(&SelectElement::new(element.clone())) {
+                    if !select.matches_naive(&SelectElement::new(element)) {
                         continue;
                     }
                     self.add_declarations(&r.declarations, specificity + s.specificity(), mode);
@@ -313,7 +313,7 @@ impl<'input> ComputedStyles<'input> {
     }
 
     /// Include styles from a presentable attribute
-    fn with_attribute(self, element: &Element<'input, '_>) -> ComputedStyles<'input> {
+    fn with_attribute(self, element: Element<'input, '_>) -> ComputedStyles<'input> {
         let attr = element
             .attributes()
             .into_iter()
@@ -327,7 +327,7 @@ impl<'input> ComputedStyles<'input> {
         ComputedStyles { attr, ..self }
     }
 
-    fn with_inline_style(self, element: &Element<'input, '_>) -> ComputedStyles<'input> {
+    fn with_inline_style(self, element: Element<'input, '_>) -> ComputedStyles<'input> {
         let Some(style) = get_attribute_mut!(element, Style) else {
             return self;
         };

@@ -11,7 +11,7 @@ use oxvg_collections::{
     atom::Atom,
     attribute::{Attr, AttrId},
     element::ElementId,
-    name::{Prefix, QualName, NS},
+    name::{NS, Prefix, QualName},
 };
 
 use crate::{
@@ -38,7 +38,7 @@ macro_rules! is_element {
     };
 }
 
-#[derive(Clone, Eq)]
+#[derive(Clone, Copy, Eq)]
 /// An XML element type.
 #[repr(transparent)]
 pub struct Element<'input, 'arena>(pub Ref<'input, 'arena>);
@@ -95,7 +95,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
         );
 
         let uri = prefix.ns().uri();
-        let mut container = Some(self.clone());
+        let mut container = Some(*self);
         let mut matching_prefix = None;
         while let Some(inner) = container {
             container = inner.parent_element();
@@ -127,7 +127,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     /// For a given prefix name, finds the namespace URI that the given prefix belongs to be searching for
     /// the closest matching `xmlns` attribute.
     pub fn find_xmlns(&self, prefix: Option<&str>) -> Atom<'input> {
-        let mut container = Some(self.clone());
+        let mut container = Some(*self);
         while let Some(inner) = container {
             container = inner.parent_element();
 
@@ -147,9 +147,10 @@ impl<'input, 'arena> Element<'input, 'arena> {
                         value,
                     } => {
                         if let Some(prefix) = prefix
-                            && prefix == local.as_str() {
-                                return value.clone();
-                            }
+                            && prefix == local.as_str()
+                        {
+                            return value.clone();
+                        }
                     }
                     _ => (),
                 }
@@ -191,7 +192,7 @@ impl<'input, 'arena> Element<'input, 'arena> {
     ///
     /// For other cases, try [`Element::document`]
     pub fn as_document(&self) -> Document<'input, 'arena> {
-        Document(self.clone())
+        Document(*self)
     }
 
     /// Creates an element from an element's parent type.

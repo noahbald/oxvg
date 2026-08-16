@@ -51,7 +51,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupAttrs {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for mut attr in element.attributes().into_iter_mut() {

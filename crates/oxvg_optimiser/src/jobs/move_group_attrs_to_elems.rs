@@ -6,8 +6,8 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
-    inheritable::{self, Inheritable},
     AttrId,
+    inheritable::{self, Inheritable},
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveGroupAttrsToElems {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -52,7 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveGroupAttrsToElems {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, G) {

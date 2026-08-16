@@ -17,8 +17,8 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core_attrs::{Class, Id},
         AttrId,
+        core_attrs::{Class, Id},
     },
     is_prefix,
 };
@@ -90,7 +90,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MinifyStyles {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         State::new(self).start_with_context(document, context)?;
@@ -103,7 +103,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_script(document);
@@ -112,17 +112,17 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if is_element!(element, Style) && element.child_nodes_iter().next().is_some() {
             self.style_elements
                 .borrow_mut()
-                .insert(element.id(), element.clone());
+                .insert(element.id(), element);
         } else if has_attribute!(element, Style) {
             self.elements_with_style
                 .borrow_mut()
-                .insert(element.id(), element.clone());
+                .insert(element.id(), element);
         }
 
         if matches!(self.options.usage, RemoveUnused::False) {
@@ -138,7 +138,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         );
 
         if let Some(id) = get_attribute!(element, Id) {
-            self.ids_usage.borrow_mut().insert(id.clone());
+            self.ids_usage.borrow_mut().insert((*id).clone());
         }
 
         element
@@ -150,7 +150,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn exit_document(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for style_element in self.style_elements.borrow().values() {

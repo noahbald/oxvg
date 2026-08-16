@@ -37,7 +37,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyContainers {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -51,7 +51,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyContainers {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let name = element.qual_name();

@@ -102,7 +102,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Rules {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_script(document);
@@ -133,10 +133,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let mut rule_data = RuleData::new(element, self.reports.borrow_mut());
+        let mut rule_data = RuleData::new(&element, self.reports.borrow_mut());
 
         match &self.rules.no_unknown_elements {
             Severity::Off => {}
@@ -172,7 +172,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut reports = self.reports.borrow_mut();
@@ -195,7 +195,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Reporter<'_, 'input> {
 
     fn exit_document(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if context
@@ -233,7 +233,7 @@ impl<'i> lightningcss::visitor::Visitor<'i> for Reporter<'_, '_> {
     }
 }
 impl<'input> Reporter<'_, 'input> {
-    fn track_id_references(&self, element: &Element<'input, '_>) {
+    fn track_id_references(&self, element: Element<'input, '_>) {
         let mut referenced_ids = self.referenced_ids.borrow_mut();
         let attribute_ranges = element.attribute_ranges();
         for mut attribute in element.attributes().into_iter_mut() {
@@ -254,7 +254,7 @@ impl<'input> Reporter<'_, 'input> {
         }
     }
 
-    fn push_xmlns(&self, element: &Element<'input, '_>) {
+    fn push_xmlns(&self, element: Element<'input, '_>) {
         let mut namespaces = HashSet::new();
         for attr in element.attributes() {
             match &*attr {
@@ -276,7 +276,7 @@ impl<'input> Reporter<'_, 'input> {
         }
         self.xmlns_stack.borrow_mut().push(namespaces);
     }
-    fn track_xmlns(&self, element: &Element<'input, '_>) {
+    fn track_xmlns(&self, element: Element<'input, '_>) {
         let mut xmlns_stack = self.xmlns_stack.borrow_mut();
         let insert = |xmlns_stack: &mut NamespaceStack<'input>,
                       name: Option<Atom<'input>>,

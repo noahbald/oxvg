@@ -46,7 +46,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnusedNS {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -61,12 +61,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
 
     fn document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         _content: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
         document.children_iter().for_each(|e| {
-            root_element(&e, &mut unused_namespaces);
+            root_element(e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);
         Ok(())
@@ -74,7 +74,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
@@ -99,12 +99,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
 
     fn exit_document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut unused_namespaces = self.unused_namespaces.take();
         document.children_iter().for_each(|e| {
-            exit_root_element(&e, &mut unused_namespaces);
+            exit_root_element(e, &mut unused_namespaces);
         });
         self.unused_namespaces.set(unused_namespaces);
         Ok(())
@@ -112,7 +112,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input> {
 }
 
 fn root_element<'input>(
-    element: &Element<'input, '_>,
+    element: Element<'input, '_>,
     unused_namespaces: &mut HashSet<Atom<'input>>,
 ) {
     if !is_element!(element, Svg) {
@@ -134,7 +134,7 @@ fn root_element<'input>(
     }
 }
 
-fn exit_root_element(element: &Element, unused_namespaces: &mut HashSet<Atom>) {
+fn exit_root_element(element: Element, unused_namespaces: &mut HashSet<Atom>) {
     if !is_element!(element, Svg) {
         return;
     }

@@ -53,7 +53,7 @@ macro_rules! jobs {
             /// Runs each job in the config, returning the number of non-skipped jobs
             fn run_jobs<'input, 'arena>(
                 &self,
-                element: &Element<'input, 'arena>,
+                element: Element<'input, 'arena>,
                 info: &Info<'input, 'arena>
             ) -> Result<usize, JobsError<'input>> {
                 let mut count = 0;
@@ -356,7 +356,7 @@ impl Jobs {
             return Ok(());
         };
 
-        let count = self.run_jobs(&root_element, info)?;
+        let count = self.run_jobs(root_element, info)?;
         log::debug!("completed {count} jobs");
         Ok(())
     }

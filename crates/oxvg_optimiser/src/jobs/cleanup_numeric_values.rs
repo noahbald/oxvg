@@ -52,7 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupNumericValues {
 
     fn document(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.float_precision > 5 {
@@ -64,7 +64,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupNumericValues {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         element.attributes().into_iter_mut().for_each(|mut attr| {

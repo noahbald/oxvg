@@ -40,7 +40,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessDefs {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -52,7 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessDefs {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if has_attribute!(element, Id | Class) {
@@ -80,14 +80,14 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessDefs {
 }
 
 fn collect_useful_nodes<'input, 'arena>(
-    element: &Element<'input, 'arena>,
+    element: Element<'input, 'arena>,
     useful_nodes: &mut Vec<Element<'input, 'arena>>,
 ) {
     element.children_iter().for_each(|child| {
         if is_element!(child, Style) || has_attribute!(child, Id | Class) {
             useful_nodes.push(child);
         } else {
-            collect_useful_nodes(&child, useful_nodes);
+            collect_useful_nodes(child, useful_nodes);
         }
     });
 }

@@ -7,7 +7,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{core_attrs::Style, Attr},
+    attribute::{Attr, core_attrs::Style},
     element::ElementId,
 };
 #[cfg(feature = "serde")]
@@ -74,7 +74,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertColors {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(match self.method {
@@ -91,7 +91,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertColors {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let is_masked = is_element!(element, Mask) || element.closest(&ElementId::Mask).is_some();

@@ -72,7 +72,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for AddAttributesToSVGElement {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !element.is_root() || !is_element!(element, Svg) {

@@ -50,7 +50,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Precheck {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut oxvg_ast::visitor::Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.preclean_checks {
@@ -62,7 +62,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Precheck {
 }
 
 impl Precheck {
-    fn check<'input>(element: &Element<'input, '_>) -> Result<(), PrecheckError<'input>> {
+    fn check<'input>(element: Element<'input, '_>) -> Result<(), PrecheckError<'input>> {
         Self::check_for_unsupported_elements(element)?;
         Self::check_for_script_attributes(element)?;
         Self::check_for_conditional_attributes(element)?;
@@ -70,7 +70,7 @@ impl Precheck {
     }
 
     fn check_for_unsupported_elements<'input>(
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
     ) -> Result<(), PrecheckError<'input>> {
         if is_element!(element, Script) {
             Err(PrecheckError::ScriptingNotSupported)
@@ -85,7 +85,7 @@ impl Precheck {
     }
 
     fn check_for_script_attributes<'input>(
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
     ) -> Result<(), PrecheckError<'input>> {
         for attr in element.attributes() {
             if attr
@@ -101,7 +101,7 @@ impl Precheck {
     }
 
     fn check_for_conditional_attributes<'input>(
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
     ) -> Result<(), PrecheckError<'input>> {
         for attr in element.attributes() {
             if attr
@@ -118,14 +118,16 @@ impl Precheck {
     }
 
     fn check_for_external_xlink<'input>(
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
     ) -> Result<(), PrecheckError<'input>> {
         if is_element!(element, A | Image | FontFaceURI | FeImage) {
             return Ok(());
         }
 
         if let Some(xlink_href) = get_attribute!(element, XLinkHref) {
-            return Err(PrecheckError::ReferencesExternalXLink(xlink_href.clone()));
+            return Err(PrecheckError::ReferencesExternalXLink(
+                (*xlink_href).clone(),
+            ));
         }
 
         Ok(())

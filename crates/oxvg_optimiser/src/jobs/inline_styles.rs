@@ -229,7 +229,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for InlineStyles {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         State::new(self).start_with_context(document, context)?;
@@ -242,7 +242,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut referenced_ids = self.referenced_ids.borrow_mut();
@@ -265,10 +265,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         }
 
         if let Some(style_type) = get_attribute!(element, TypeStyle)
-            && !style_type.is_empty() && style_type.as_str() != "text/css" {
-                log::debug!("Not merging style: unsupported type");
-                return Ok(());
-            }
+            && !style_type.is_empty()
+            && style_type.as_str() != "text/css"
+        {
+            log::debug!("Not merging style: unsupported type");
+            return Ok(());
+        }
 
         let Some(css) = element.first_child().and_then(Node::style) else {
             log::debug!("Not merging style: empty");
@@ -282,7 +284,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
         let mut find_removable_tokens = FindRemovableTokens::new(self.options);
         let css = &mut *css.borrow_mut();
-        if let Err(err) = find_removable_tokens.inline_rules(css, &context.root) {
+        if let Err(err) = find_removable_tokens.inline_rules(css, context.root) {
             log::debug!("Not merging style: {err}");
             return Ok(());
         }
@@ -303,7 +305,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
     #[allow(clippy::too_many_lines)]
     fn exit_document(
         &self,
-        _root: &Element<'input, 'arena>,
+        _root: Element<'input, 'arena>,
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let dynamically_referenced = self.dynamically_referenced.borrow();
@@ -312,9 +314,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         #[allow(clippy::mutable_key_type)]
         let grouping = inlined
             .iter()
-            .into_group_map_by(|RemovedToken { element, .. }| {
-                HashableElement::new(element.clone())
-            });
+            .into_group_map_by(|RemovedToken { element, .. }| HashableElement::new(*element));
         for (element, mut group) in grouping {
             group.sort_by_key(|a| a.specificity);
 
@@ -339,7 +339,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
             style_attr.0.visit(&mut InlinePresentationAttributes {
                 state: self,
-                element: (*element).clone(),
+                element: (*element),
             })?;
             if !style_attr.declarations.is_empty() || !style_attr.important_declarations.is_empty()
             {
@@ -384,14 +384,14 @@ impl<'o, 'input, 'arena> FindRemovableTokens<'o, 'input, 'arena> {
     fn inline_rules(
         &mut self,
         stylesheet: &mut CssRuleList<'input>,
-        root: &Element<'input, 'arena>,
+        root: Element<'input, 'arena>,
     ) -> Result<(), anyhow::Error> {
         // First pass to find dynamic tokens, which will skip inlining.
         stylesheet.visit(self)?;
         // Second pass will take matching selectors from the stylesheet
         let mut collect_matching_selectors = CollectMatchingSelectors {
             find_removable_tokens: self,
-            root: root.clone(),
+            root,
         };
         stylesheet.visit(&mut collect_matching_selectors)?;
 
@@ -557,7 +557,7 @@ impl<'input> visitor::Visitor<'input> for CollectMatchingSelectors<'_, '_, 'inpu
             };
             for m in matches {
                 self.find_removable_tokens.inlines.push(RemovedToken {
-                    element: m.clone(),
+                    element: m,
                     tokens: matching_tokens.clone(),
                     specificity: selector.specificity(),
                     declarations: declarations.clone(),
