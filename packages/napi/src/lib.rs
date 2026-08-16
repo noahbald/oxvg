@@ -331,10 +331,24 @@ impl Actor {
     self.actor.skew_y(angle as f32).map_err(generic_error)
   }
 
-  /// Removes OXVG state from the document
+  /// Creates a new SVG element and inserts it into the current selection.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
   #[napi]
-  pub fn forget(&mut self) {
-    self.actor.forget();
+  pub fn insert(&mut self, qual_name: String) -> napi::Result<()> {
+    self.actor.insert(&qual_name.into()).map_err(generic_error)
+  }
+
+  /// Removes OXVG state from the document
+  ///
+  /// # Errors
+  ///
+  /// If the state fails to update
+  #[napi]
+  pub fn forget(&mut self) -> napi::Result<()> {
+    self.actor.forget().map_err(generic_error)
   }
 
   /// Updates the state of the actor to point to the elements matching the given selector.
@@ -365,9 +379,13 @@ impl Actor {
   }
 
   /// Updates the state of the actor to deselected any selected nodes.
+  ///
+  /// # Errors
+  ///
+  /// If the state fails to update
   #[napi]
-  pub fn deselect(&mut self) {
-    self.actor.deselect();
+  pub fn deselect(&mut self) -> napi::Result<()> {
+    self.actor.deselect().map_err(generic_error)
   }
 
   /// Returns the actor's updated document as a string

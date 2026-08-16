@@ -5,10 +5,10 @@ use oxvg_collections::{
     atom::Atom,
     attribute::{Attr, AttrId},
     element::ElementId,
-    name::{Prefix, QualName, NS},
+    name::{NS, Prefix, QualName},
 };
 
-use crate::{error::Error, OXVG_PREFIX, OXVG_XMLNS};
+use crate::{OXVG_PREFIX, OXVG_XMLNS, error::Error};
 
 pub fn is_oxvg_xmlns(prefix: &Prefix) -> bool {
     matches!(
@@ -28,7 +28,7 @@ pub fn assert_oxvg_xmlns(prefix: &Prefix) -> Result<(), Error<'static>> {
 }
 
 pub fn assert_oxvg_element<'input>(
-    element: &Element<'input, '_>,
+    element: Element<'input, '_>,
     local_name: &str,
 ) -> Result<(), Error<'input>> {
     let name = element.qual_name();

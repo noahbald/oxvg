@@ -47,7 +47,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyText {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.text.unwrap_or(true) && is_element!(element, Text) && element.is_empty() {

@@ -130,7 +130,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttrs {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut parsed_attrs = Vec::with_capacity(self.attrs.len());

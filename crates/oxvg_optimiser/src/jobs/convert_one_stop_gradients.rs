@@ -4,7 +4,7 @@ use std::{
 };
 
 use lightningcss::{
-    properties::{custom::TokenOrValue, Property},
+    properties::{Property, custom::TokenOrValue},
     values::url::Url,
     visit_types,
     visitor::Visit,
@@ -19,9 +19,9 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
+        Attr, AttrId,
         core_attrs::{Color, Paint},
         inheritable::Inheritable,
-        Attr, AttrId,
     },
     content_type::ContentType,
     name::{Prefix, QualName},
@@ -64,7 +64,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertOneStopGradients {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -79,7 +79,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -88,16 +88,14 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if has_attribute!(element, XLinkHref) {
             self.xlink_href_count.set(self.xlink_href_count.get() + 1);
         }
         if is_element!(element, Defs) {
-            self.all_defs
-                .borrow_mut()
-                .insert(element.id(), element.clone());
+            self.all_defs.borrow_mut().insert(element.id(), element);
             return Ok(());
         } else if !is_element!(element, LinearGradient | RadialGradient) {
             return Ok(());
@@ -115,20 +113,20 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
                         get_attribute!(element, Id).is_some_and(|id| id.0.as_str() == &href[1..])
                     })
                 } else {
-                    Some(element.clone())
+                    Some(element)
                 }
             } else {
-                Some(element.clone())
+                Some(element)
             }
         } else {
-            Some(element.clone())
+            Some(element)
         };
         drop(href);
 
         let mut gradients_to_detach = self.gradients_to_detach.borrow_mut();
         let Some(effective_node) = effective_node else {
             log::debug!("no effective nodes for gradient");
-            gradients_to_detach.insert(element.id(), element.clone());
+            gradients_to_detach.insert(element.id(), element);
             return Ok(());
         };
 
@@ -143,11 +141,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         }
 
         if let Some(parent) = element.parent_element()
-            && is_element!(parent, Defs) {
-                self.effected_defs.borrow_mut().insert(parent.id(), parent);
-            }
+            && is_element!(parent, Defs)
+        {
+            self.effected_defs.borrow_mut().insert(parent.id(), parent);
+        }
 
-        gradients_to_detach.insert(element.id(), element.clone());
+        gradients_to_detach.insert(element.id(), element);
 
         let color = get_color(context, &effective_stops)?;
         let Some(id) = get_attribute!(element, Id) else {
@@ -164,7 +163,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, Svg) {
@@ -203,18 +202,16 @@ fn get_color<'input, 'arena>(
 ) -> Result<Option<Color>, JobsError<'input>> {
     let effective_stop = effective_stops.first().expect("len should be 1");
     let computed_styles = ComputedStyles::default()
-        .with_all(effective_stop, &context.query_has_stylesheet_result)
+        .with_all(*effective_stop, &context.query_has_stylesheet_result)
         .map_err(JobsError::ComputedStylesError)?;
 
     if let Some((stop_color, Mode::Static)) = computed_styles.get(&AttrId::StopColor) {
         return Ok(match stop_color {
             Attr::StopColor(Inheritable::Defined(color)) => Some(color),
-            Attr::CSSUnknown { value, .. } => {
-                value.0 .0.into_iter().find_map(|token| match token {
-                    TokenOrValue::Color(color) => Some(color),
-                    _ => None,
-                })
-            }
+            Attr::CSSUnknown { value, .. } => value.0.0.into_iter().find_map(|token| match token {
+                TokenOrValue::Color(color) => Some(color),
+                _ => None,
+            }),
             _ => None,
         });
     }
@@ -235,9 +232,11 @@ fn update_color_references(context: &mut Context, color: &Color, url: &str) {
                 url: Url { url: attr_url, .. },
                 ..
             } = &mut *attr_color
-                && attr_url.starts_with('#') && &attr_url[1..] == url {
-                    *attr_color = Paint::Color(color.clone());
-                }
+                && attr_url.starts_with('#')
+                && &attr_url[1..] == url
+            {
+                *attr_color = Paint::Color(color.clone());
+            }
         }
     }
 }
@@ -261,9 +260,11 @@ impl<'i> lightningcss::visitor::Visitor<'i> for VisitPaint<'_> {
             url: Url { url, .. },
             ..
         } = paint
-            && url.starts_with('#') && &url[1..] == self.url {
-                *paint = Paint::Color(self.color.clone());
-            }
+            && url.starts_with('#')
+            && &url[1..] == self.url
+        {
+            *paint = Paint::Color(self.color.clone());
+        }
         Ok(())
     }
 }

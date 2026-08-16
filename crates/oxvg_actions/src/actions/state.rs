@@ -1,30 +1,37 @@
 use oxvg_collections::{
-    atom::Atom,
     attribute::{
+        AttrId,
         core_attrs::Integer,
         list_of::{ListOf, SpaceOrComma},
     },
+    name::{Prefix, QualName},
 };
 use oxvg_parse::Parse as _;
-use oxvg_serialize::{PrinterOptions, ToValue as _};
 
-use crate::{
-    state::StateElement,
-    utils::{create_oxvg_attr, create_oxvg_attr_id, get_oxvg_attr},
-    Action, Actor, Error,
-};
+use crate::{Action, Actor, Error, OXVG_PREFIX, effects::StateEffect};
 
 impl<'input> Actor<'input, '_> {
     /// Removes OXVG state from the document
     ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
     /// # Spec
     ///
     #[doc = include_str!("../spec/state/forget.md")]
-    pub fn forget(&mut self) {
-        self.state.record(&Action::Forget, &self.allocator);
+    pub fn forget(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Forget);
 
-        self.deselect_internal();
-        self.state.state.remove();
+        self.effect_selection(&vec![].into())?;
+        self.effect_state(StateEffect::Remove)?;
+        if let Some(root) = self.root.find_element() {
+            root.remove_attribute(&AttrId::Unknown(QualName {
+                prefix: Prefix::XMLNS,
+                local: OXVG_PREFIX.into(),
+            }));
+        }
+        Ok(())
     }
 
     /// Updates the state of the actor to point to the elements matching the given selector.
@@ -39,19 +46,10 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select.md")]
     pub fn select(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.state
-            .record(&Action::Select(query.to_string().into()), &self.allocator);
+        self.effect_history(&Action::Select(query.to_string().into()));
 
         let selections = self.select_internal(query)?;
-        let selections = selections
-            .to_value_string(PrinterOptions::default())
-            .map_err(|err| Error::SerializeError(err.to_string()))?
-            .into();
-
-        self.state
-            .get_selections(&self.allocator)
-            .set_attribute(create_oxvg_attr(StateElement::SELECTION_IDS, selections));
-        self.state.embed(self.root)
+        self.effect_selection(&selections)
     }
 
     /// Updates the state of the actor to point to the elements matching the given selector,
@@ -67,39 +65,27 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select-more.md")]
     pub fn select_more(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.state.record(
-            &Action::SelectMore(query.to_string().into()),
-            &self.allocator,
-        );
+        self.effect_history(&Action::SelectMore(query.to_string().into()));
 
-        let selections = self.select_internal(query)?;
-        let selections: Atom = selections
-            .to_value_string(PrinterOptions::default())
-            .map_err(|err| Error::SerializeError(err.to_string()))?
-            .into();
-        let state_selections = self.state.get_selections(&self.allocator);
-        let new_selections =
-            match get_oxvg_attr(&state_selections, StateElement::SELECTION_IDS)?.as_deref() {
-                Some(value) => format!("{value},{selections}").into(),
-                None => selections,
-            };
+        let mut selections = self.get_selections_list()?.unwrap_or_default();
+        let new_selections = self.select_internal(query)?;
+        selections.list.extend(new_selections.list);
 
-        state_selections.set_attribute(create_oxvg_attr(
-            StateElement::SELECTION_IDS,
-            new_selections,
-        ));
-        self.state.embed(self.root)
+        self.effect_selection(&selections)
     }
 
     /// Updates the state of the actor to deselected any selected nodes.
     ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
     /// # Spec
     ///
     #[doc = include_str!("../spec/state/deselect.md")]
-    pub fn deselect(&mut self) {
-        self.state.record(&Action::Deselect, &self.allocator);
-
-        self.deselect_internal();
+    pub fn deselect(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Deselect);
+        self.effect_selection(&vec![].into())
     }
 
     fn select_internal(
@@ -117,19 +103,8 @@ impl<'input> Actor<'input, '_> {
                 .map_err(|_| Error::InvalidSelector(query.to_string()))?;
 
             #[allow(clippy::cast_possible_wrap)]
-            let selections: Vec<_> = elements.map(|e| e.id() as Integer).collect();
-
-            Ok(ListOf {
-                list: selections,
-                separator: SpaceOrComma,
-            })
+            Ok(elements.map(|e| e.id() as Integer).collect())
         }
-    }
-
-    fn deselect_internal(&mut self) {
-        self.state
-            .get_selections(&self.allocator)
-            .remove_attribute(&create_oxvg_attr_id(StateElement::SELECTION_IDS));
     }
 }
 
@@ -175,6 +150,45 @@ mod test {
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
 
                 actor.select("7, 9").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn deselect() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <g color="black"/>
+    <g color="BLACK"/>
+    <path fill="rgb(64 64 64)"/>
+    <path fill="rgb(64, 64, 64)"/>
+    <path fill="rgb(86.27451%,86.666667%,87.058824%)"/>
+    <path fill="rgb(-255,100,500)"/>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("path").unwrap();
+                actor.deselect().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn forget() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"/>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("path").unwrap();
+                actor.forget().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

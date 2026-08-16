@@ -247,7 +247,7 @@ impl<'input, 'arena> Select<'input, 'arena> {
     ) -> Select<'input, 'arena> {
         Select {
             inner: element.breadth_first(),
-            scope: Some(element.clone()),
+            scope: Some(*element),
             selector,
             selector_caches: SelectorCaches::default(),
         }
@@ -261,9 +261,9 @@ impl<'input, 'arena> Iterator for Select<'input, 'arena> {
         self.inner.find(|element| {
             self.selector.matches_with_scope_and_cache(
                 &SelectElement {
-                    element: element.clone(),
+                    element: *element,
                 },
-                self.scope.clone(),
+                self.scope,
                 &mut self.selector_caches,
             )
         })

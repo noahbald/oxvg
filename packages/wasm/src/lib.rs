@@ -470,10 +470,24 @@ impl Actor {
         self.actor.skew_y(angle)
     }
 
-    /// Removes OXVG state from the document
+    /// Creates a new SVG element and inserts it into the current selection.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
     #[wasm_bindgen]
-    pub fn forget(&mut self) {
-        self.actor.forget();
+    pub fn insert(&mut self, qual_name: &str) -> Result<(), Error> {
+        self.actor.insert(&qual_name.to_string().into())
+    }
+
+    /// Removes OXVG state from the document
+    ///
+    /// # Errors
+    ///
+    /// If the state fails to update
+    #[wasm_bindgen]
+    pub fn forget(&mut self) -> Result<(), Error> {
+        self.actor.forget()
     }
 
     /// Updates the state of the actor to point to the elements matching the given selector.
@@ -503,9 +517,13 @@ impl Actor {
     }
 
     /// Updates the state of the actor to deselected any selected nodes.
+    ///
+    /// # Errors
+    ///
+    /// If the state fails to update
     #[wasm_bindgen]
-    pub fn deselect(&mut self) {
-        self.actor.deselect();
+    pub fn deselect(&mut self) -> Result<(), Error> {
+        self.actor.deselect()
     }
 
     /// Returns the actor's updated document as a string

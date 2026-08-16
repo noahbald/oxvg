@@ -9,7 +9,7 @@ use oxvg_ast::{
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
-    attribute::{core_attrs::NonWhitespace, Attr, AttrId},
+    attribute::{Attr, AttrId, core_attrs::NonWhitespace},
     content_type::Reference,
 };
 #[cfg(feature = "serde")]
@@ -105,7 +105,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupIds {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -133,7 +133,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.ignore_document {
@@ -146,7 +146,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         let mut track_reference = |reference: &str, attr: &AttrId<'input>| {
             if self.replaceable_ids.contains(reference) {
                 ref_renames.push(RefRename {
-                    element_ref: element.clone(),
+                    element_ref: element,
                     name: attr.clone(),
                     referenced_id: reference.to_string(),
                 });
@@ -174,7 +174,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn exit_document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let remove = self.options.remove;
@@ -260,9 +260,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                 }
             });
         }
-        log::debug!(
-            "CleanupIds::breakdown: replacing: {minified_ids:#?} <-> {used_ids:#?}",
-        );
+        log::debug!("CleanupIds::breakdown: replacing: {minified_ids:#?} <-> {used_ids:#?}");
         if remove {
             for element in root.breadth_first() {
                 element.attributes().retain(|attr| {
@@ -281,7 +279,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 impl<'input, 'arena> State<'_, 'input, 'arena> {
     fn prepare_ignore_document(
         &self,
-        root: &Element<'input, 'arena>,
+        root: Element<'input, 'arena>,
         context_flags: &ContextFlags,
     ) -> bool {
         if self.options.force {
@@ -299,7 +297,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
     /// Prepares tracking of ids for removal/renaming
     /// - Adds non-preserved ids to `self.replaceable_ids`
     /// - Removes any duplicate replaceable ids
-    fn prepare_id_rename(&mut self, root: &Element<'input, 'arena>) {
+    fn prepare_id_rename(&mut self, root: Element<'input, 'arena>) {
         let mut preserved_ids = Vec::new();
         log::debug!(
             "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",

@@ -115,7 +115,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -124,7 +124,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if element
@@ -134,7 +134,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
         {
             self.non_rendered_nodes
                 .borrow_mut()
-                .insert(HashableElement::new(element.clone()));
+                .insert(HashableElement::new(element));
             context.flags.visit_skip();
             return Ok(());
         }
@@ -152,7 +152,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
             if is_element!(element, Path) {
                 self.non_rendered_nodes
                     .borrow_mut()
-                    .insert(HashableElement::new(element.clone()));
+                    .insert(HashableElement::new(element));
                 context.flags.visit_skip();
                 return Ok(());
             }
@@ -163,8 +163,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
 }
 
 impl<'input, 'arena> Data<'input, 'arena> {
-    fn remove_element(&self, element: &Element<'input, 'arena>) {
-        if let Some(parent) = Element::parent_element(element)
+    fn remove_element(&self, element: Element<'input, 'arena>) {
+        if let Some(parent) = Element::parent_element(&element)
             && is_element!(parent, Defs)
         {
             if let Some(NonWhitespace(id)) = get_attribute!(element, Id).as_deref() {
@@ -180,12 +180,12 @@ impl<'input, 'arena> Data<'input, 'arena> {
         element.remove();
     }
 
-    fn ref_element(&self, element: &Element<'input, 'arena>) {
+    fn ref_element(&self, element: Element<'input, 'arena>) {
         match element.qual_name().unaliased() {
             ElementId::Defs => {
                 self.all_defs
                     .borrow_mut()
-                    .insert(HashableElement::new(element.clone()));
+                    .insert(HashableElement::new(element));
             }
             ElementId::Use => {
                 for attr in element.attributes() {
@@ -197,9 +197,9 @@ impl<'input, 'arena> Data<'input, 'arena> {
                     let mut references_by_id = self.references_by_id.borrow_mut();
                     let refs = references_by_id.get_mut(id);
                     match refs {
-                        Some(refs) => refs.push(element.clone()),
+                        Some(refs) => refs.push(element),
                         None => {
-                            references_by_id.insert(id.into(), vec![element.clone()]);
+                            references_by_id.insert(id.into(), vec![element]);
                         }
                     }
                 }
@@ -214,12 +214,11 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveHiddenElems {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         log::debug!("collecting data");
         context.query_has_script(document);
-        let document = &mut document.clone();
         let mut data = Data {
             opacity_zero: self.opacity_zero.unwrap_or(true),
             ..Data::default()
@@ -240,7 +239,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -249,7 +248,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let computed_styles = ComputedStyles::default()
@@ -288,7 +287,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 
     fn exit_document(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for id in &*self.data.removed_def_ids.borrow() {
@@ -305,7 +304,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         );
         if !deoptimized {
             for non_rendered_node in &*self.data.non_rendered_nodes.borrow() {
-                if self.can_remove_non_rendering_node(non_rendered_node) {
+                if self.can_remove_non_rendering_node(**non_rendered_node) {
                     log::debug!("RemoveHiddenElems: remove non-rendered node");
                     non_rendered_node.remove();
                 }
@@ -324,7 +323,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
 }
 
 impl<'input, 'arena> State<'_, 'input, 'arena> {
-    fn can_remove_non_rendering_node(&self, element: &Element<'input, 'arena>) -> bool {
+    fn can_remove_non_rendering_node(&self, element: Element<'input, 'arena>) -> bool {
         if let Some(id) = get_attribute!(element, Id)
             && self.data.all_references.borrow().contains(&**id)
         {
@@ -332,12 +331,12 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         }
         element
             .children_iter()
-            .all(|e| self.can_remove_non_rendering_node(&e))
+            .all(|e| self.can_remove_non_rendering_node(e))
     }
 
     fn is_hidden_style(
         &self,
-        element: &Element,
+        element: Element,
         computed_styles: &ComputedStyles,
         context: &mut Context,
     ) -> bool {
@@ -383,7 +382,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         is_hidden
     }
 
-    fn is_hidden_ellipse(&self, element: &Element<'input, 'arena>) -> bool {
+    fn is_hidden_ellipse(&self, element: Element<'input, 'arena>) -> bool {
         if is_element!(element, Circle)
             && element.is_empty()
             && self.options.circle_r_zero.unwrap_or(true)
@@ -419,7 +418,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         false
     }
 
-    fn is_hidden_rect(&self, element: &Element<'input, 'arena>) -> bool {
+    fn is_hidden_rect(&self, element: Element<'input, 'arena>) -> bool {
         if is_element!(element, Rect) && element.is_empty() {
             if self.options.rect_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
@@ -439,7 +438,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         false
     }
 
-    fn is_hidden_pattern(&self, element: &Element<'input, 'arena>) -> bool {
+    fn is_hidden_pattern(&self, element: Element<'input, 'arena>) -> bool {
         if is_element!(element, Pattern) {
             if self.options.pattern_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
@@ -459,7 +458,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         false
     }
 
-    fn is_hidden_image(&self, element: &Element<'input, 'arena>) -> bool {
+    fn is_hidden_image(&self, element: Element<'input, 'arena>) -> bool {
         if is_element!(element, Image) {
             if self.options.image_width_zero.unwrap_or(true)
                 && let Some(LengthPercentage(DimensionPercentage::Dimension(length))) =
@@ -481,7 +480,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
 
     fn is_hidden_path(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         computed_styles: &ComputedStyles<'input>,
     ) -> bool {
         if self.options.path_empty_d.unwrap_or(true) && is_element!(element, Path) {
@@ -496,7 +495,7 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
         false
     }
 
-    fn is_hidden_poly(&self, element: &Element<'input, 'arena>) -> bool {
+    fn is_hidden_poly(&self, element: Element<'input, 'arena>) -> bool {
         if self.options.polyline_empty_points.unwrap_or(true)
             && is_element!(element, Polyline)
             && !has_attribute!(element, Points)

@@ -70,13 +70,13 @@ impl<'input, 'arena, 'i> Context<'input, 'arena, 'i> {
     }
 
     /// Queries whether a `<script>` element is within the document
-    pub fn query_has_script(&mut self, root: &Element<'_, '_>) {
+    pub fn query_has_script(&mut self, root: Element<'_, '_>) {
         self.flags
             .set(ContextFlags::query_has_script_result, has_scripts(root));
     }
 
     /// Queries whether a `<style>` element is within the document
-    pub fn query_has_stylesheet(&mut self, root: &Element<'input, '_>) {
+    pub fn query_has_stylesheet(&mut self, root: Element<'input, '_>) {
         self.query_has_stylesheet_result = style::root(root).collect();
         self.flags.set(
             ContextFlags::query_has_stylesheet_result,
@@ -137,7 +137,7 @@ pub trait Visitor<'input, 'arena> {
     /// Whether the visitor fails
     fn document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -149,7 +149,7 @@ pub trait Visitor<'input, 'arena> {
     /// Whether the visitor fails
     fn exit_document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -161,7 +161,7 @@ pub trait Visitor<'input, 'arena> {
     /// Whether the visitor fails
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -173,7 +173,7 @@ pub trait Visitor<'input, 'arena> {
     /// Whether the visitor fails
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -230,7 +230,7 @@ pub trait Visitor<'input, 'arena> {
     /// Whether the visitor fails
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(PrepareOutcome::none)
@@ -262,7 +262,7 @@ pub trait Visitor<'input, 'arena> {
             return Ok(PrepareOutcome::none);
         };
         self.start_with_info(
-            &root,
+            root,
             &Info {
                 path,
                 multipass_count: 0,
@@ -278,12 +278,12 @@ pub trait Visitor<'input, 'arena> {
     /// If any of the visitor's methods fail
     fn start_with_info(
         &self,
-        root: &Element<'input, 'arena>,
+        root: Element<'input, 'arena>,
         info: &Info<'input, 'arena>,
         flags: Option<ContextFlags>,
     ) -> Result<PrepareOutcome, Self::Error> {
         let flags = flags.unwrap_or_default();
-        let mut context = Context::new(root.clone(), flags, info);
+        let mut context = Context::new(root, flags, info);
         self.start_with_context(root, &mut context)
     }
 
@@ -293,7 +293,7 @@ pub trait Visitor<'input, 'arena> {
     /// If any of the visitor's methods fail
     fn start_with_context(
         &self,
-        root: &Element<'input, 'arena>,
+        root: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         let prepare_outcome = self.prepare(root, context)?;
@@ -311,7 +311,7 @@ pub trait Visitor<'input, 'arena> {
     /// If any of the visitor's methods fail
     fn visit(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         match element.node_type() {
@@ -354,7 +354,7 @@ pub trait Visitor<'input, 'arena> {
     /// If any of the visitor's methods fail
     fn visit_children(
         &self,
-        parent: &Element<'input, 'arena>,
+        parent: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         parent
@@ -362,7 +362,7 @@ pub trait Visitor<'input, 'arena> {
             .try_for_each(|child| match child.node_type() {
                 node::Type::Document | node::Type::Element => {
                     if let Some(child) = Element::new(child) {
-                        self.visit(&child, context)
+                        self.visit(child, context)
                     } else {
                         Ok(())
                     }
@@ -383,7 +383,7 @@ pub trait Visitor<'input, 'arena> {
 /// - A `<script>` element
 /// - An `onbegin`, `onend`, `on...`, etc. attribute
 /// - A `href="javascript:..."` URL
-pub fn has_scripts(root: &Element<'_, '_>) -> bool {
+pub fn has_scripts(root: Element<'_, '_>) -> bool {
     use oxvg_collections::attribute::{Attr, AttributeGroup};
 
     let event = AttributeGroup::event();

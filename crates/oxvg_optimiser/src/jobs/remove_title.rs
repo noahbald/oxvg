@@ -37,7 +37,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveTitle {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -49,7 +49,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveTitle {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if is_element!(element, Title) {

@@ -2,20 +2,20 @@
 use std::ops::Deref;
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 /// A `' '` delimiter
 pub struct Space;
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 /// A `','` delimiter
 pub struct Comma;
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 /// A `' '` or `','` delimiter
 pub struct SpaceOrComma;
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 /// A `';'` delimiter
 pub struct Semicolon;
 
@@ -205,6 +205,37 @@ pub struct ListOf<T: std::fmt::Debug + PartialEq, S: Separator> {
     pub separator: S,
 }
 
+impl<T: std::fmt::Debug + PartialEq, S: Separator + Default> Default for ListOf<T, S> {
+    fn default() -> Self {
+        Self {
+            list: Vec::default(),
+            separator: S::default(),
+        }
+    }
+}
+
+impl<T: std::fmt::Debug + PartialEq, S: Separator + Default> From<Vec<T>> for ListOf<T, S> {
+    fn from(value: Vec<T>) -> Self {
+        Self {
+            list: value,
+            separator: S::default(),
+        }
+    }
+}
+
+impl<T: std::fmt::Debug + PartialEq, S: Separator + Default> From<T> for ListOf<T, S> {
+    /// Converts to [`ListOf`] containing a single item of the input type.
+    fn from(value: T) -> Self {
+        vec![value].into()
+    }
+}
+
+impl<T: std::fmt::Debug + PartialEq, S: Separator + Default> FromIterator<T> for ListOf<T, S> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Vec::from_iter(iter).into()
+    }
+}
+
 impl<T: Clone + std::fmt::Debug + PartialEq, S: Separator> Clone for ListOf<T, S> {
     fn clone(&self) -> Self {
         Self {
@@ -254,7 +285,7 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
                 return Ok(Self {
                     list: vec![],
                     separator: S::new(),
-                })
+                });
             }
             Err(e) => return Err(e),
         };

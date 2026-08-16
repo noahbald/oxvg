@@ -1,8 +1,8 @@
 use lightningcss::{
     declaration::DeclarationBlock,
     properties::{
-        custom::{CustomProperty, Token, TokenOrValue},
         Property,
+        custom::{CustomProperty, Token, TokenOrValue},
     },
     values::percentage::DimensionPercentage,
     visit_types,
@@ -66,14 +66,14 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupEnableBackground {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if !self.0 {
             return Ok(PrepareOutcome::skip);
         }
         if let Some(root) = document.find_element() {
-            State::new(&root).start_with_context(document, context)?;
+            State::new(root).start_with_context(document, context)?;
         }
         Ok(PrepareOutcome::skip)
     }
@@ -110,7 +110,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let style = get_attribute_mut!(element, Style);
@@ -182,7 +182,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
 }
 
 impl State {
-    fn new(root: &Element) -> Self {
+    fn new(root: Element) -> Self {
         Self {
             contains_filter: root
                 .breadth_first()

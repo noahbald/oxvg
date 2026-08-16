@@ -1,16 +1,26 @@
 use oxvg_ast::{arena::Allocator, node::Ref, serialize::Node};
-use oxvg_collections::{atom::Atom, attribute::core_attrs::Number};
+use oxvg_collections::{
+    atom::Atom,
+    attribute::{
+        core_attrs::{Integer, Number},
+        list_of::{ListOf, SpaceOrComma},
+    },
+};
 
+use oxvg_parse::Parse as _;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
 mod manipulate;
 mod state;
+mod structure;
 mod transform;
 
 use crate::{
+    effects::StateEffect,
     error::Error,
-    state::{DerivedState, State},
+    state::{DerivedState, State, StateElement},
+    utils::get_oxvg_attr,
 };
 
 /// An actor holds a reference to a document to act upon.
@@ -21,7 +31,7 @@ pub struct Actor<'input, 'arena> {
     pub root: Ref<'input, 'arena>,
     /// The allocator associated with the given document
     pub allocator: Allocator<'input, 'arena>,
-    state: State<'input, 'arena>,
+    pub(crate) state: State<'input, 'arena>,
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -66,6 +76,8 @@ pub enum Action<'input> {
     SkewX(Number),
     /// See [`Actor::skew_y`]
     SkewY(Number),
+    /// See [`Actor::insert`]
+    Insert(Atom<'input>),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -116,6 +128,8 @@ pub enum ActionNapi {
     SkewX(f64),
     /// See [`Actor::skew_y`]
     SkewY(f64),
+    /// See [`Actor::insert`]
+    Insert(String),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -150,7 +164,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     /// If serialization fails, or if the document is missing a root element.
     pub fn snapshot(&mut self) -> Result<String, Error<'input>> {
-        self.state.embed(self.root)?;
+        self.effect_state(StateEffect::Embed)?;
         self.root
             .serialize()
             .map_err(|err| Error::SerializeError(err.to_string()))
@@ -173,24 +187,41 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     /// When the associated action fails
     pub fn dispatch(&mut self, action: Action<'input>) -> Result<(), Error<'input>> {
         match action {
-            Action::Attr { name, value } => return self.attr(&name, &value),
-            Action::Class(name) => return self.class(&name),
-            Action::Style { property, value } => return self.style(&property, &value),
-            Action::PathIntersect => return self.path_intersect(),
-            Action::PathUnion => return self.path_union(),
-            Action::PathSubtract => return self.path_subtract(),
-            Action::PathXor => return self.path_xor(),
-            Action::Matrix(a, b, c, d, e, f) => return self.matrix(a, b, c, d, e, f),
-            Action::Translate(x, y) => return self.translate(x, y),
-            Action::Scale(x, y) => return self.scale(x, y),
-            Action::Rotate(angle, origin) => return self.rotate(angle, origin),
-            Action::SkewX(angle) => return self.skew_x(angle),
-            Action::SkewY(angle) => return self.skew_y(angle),
+            Action::Attr { name, value } => self.attr(&name, &value),
+            Action::Class(name) => self.class(&name),
+            Action::Style { property, value } => self.style(&property, &value),
+            Action::PathIntersect => self.path_intersect(),
+            Action::PathUnion => self.path_union(),
+            Action::PathSubtract => self.path_subtract(),
+            Action::PathXor => self.path_xor(),
+            Action::Matrix(a, b, c, d, e, f) => self.matrix(a, b, c, d, e, f),
+            Action::Translate(x, y) => self.translate(x, y),
+            Action::Scale(x, y) => self.scale(x, y),
+            Action::Rotate(angle, origin) => self.rotate(angle, origin),
+            Action::SkewX(angle) => self.skew_x(angle),
+            Action::SkewY(angle) => self.skew_y(angle),
+            Action::Insert(name) => self.insert(&name),
             Action::Forget => self.forget(),
-            Action::Select(query) => return self.select(&query),
-            Action::SelectMore(query) => return self.select_more(&query),
+            Action::Select(query) => self.select(&query),
+            Action::SelectMore(query) => self.select_more(&query),
             Action::Deselect => self.deselect(),
         }
-        Ok(())
+    }
+
+    pub(crate) fn get_selections_list(
+        &mut self,
+    ) -> Result<Option<ListOf<Integer, SpaceOrComma>>, Error<'input>> {
+        let selections_element = self.state.get_selections(&self.allocator);
+        let Some(selections) = get_oxvg_attr(&selections_element, StateElement::SELECTION_IDS)?
+        else {
+            return Ok(None);
+        };
+        ListOf::<Integer, SpaceOrComma>::parse_string(&selections)
+            .map_err(|err| Error::ParseError(err.to_string()))
+            .map(Some)
+    }
+
+    pub(crate) fn get_selections(&mut self) -> Result<Option<Vec<Integer>>, Error<'input>> {
+        Ok(self.get_selections_list()?.map(|s| s.list))
     }
 }

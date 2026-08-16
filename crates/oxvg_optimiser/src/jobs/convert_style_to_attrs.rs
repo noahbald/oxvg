@@ -68,7 +68,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertStyleToAttrs {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let Some(mut styles_attr) = get_attribute_mut!(element, Style) else {

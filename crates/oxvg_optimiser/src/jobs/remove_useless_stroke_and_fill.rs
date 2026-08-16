@@ -58,7 +58,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUselessStrokeAndFill {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         State {
@@ -75,7 +75,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_script(document);
@@ -93,7 +93,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.id_rc_byte.get().is_some() {
@@ -122,7 +122,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if self.id_rc_byte.get().is_some_and(|b| b == element.id()) {
@@ -137,7 +137,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
 impl State<'_> {
     fn remove_stroke<'input>(
         &self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         computed_styles: &ComputedStyles<'input>,
     ) {
         if !self.options.stroke {
@@ -218,7 +218,7 @@ impl State<'_> {
 
     fn remove_fill<'input>(
         &self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         computed_styles: &ComputedStyles<'input>,
     ) {
         if !self.options.fill {

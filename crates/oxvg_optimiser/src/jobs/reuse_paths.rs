@@ -9,12 +9,13 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
+        Attr, AttrId,
         core_attrs::{NonWhitespace, Url},
         inheritable::Inheritable,
-        path, Attr, AttrId,
+        path,
     },
     element::ElementId,
-    name::{Prefix, QualName, NS},
+    name::{NS, Prefix, QualName},
 };
 use oxvg_path::Path;
 use parcel_selectors::parser::Component;
@@ -55,7 +56,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ReusePaths {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -70,7 +71,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -79,7 +80,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         match element.qual_name().unaliased() {
@@ -90,7 +91,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
                         .parent_element()
                         .is_some_and(|parent| is_element!(parent, Svg))
                 {
-                    self.defs.replace(Some(element.clone()));
+                    self.defs.replace(Some(element));
                 }
             }
             ElementId::Use => {
@@ -113,7 +114,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
     #[allow(clippy::too_many_lines)]
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !element.is_root() && !is_element!(element, Svg) {
@@ -127,12 +128,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         let document = context.root.as_document();
         let defs = self.defs.borrow();
         let defs = if let Some(defs) = &*defs {
-            defs.clone()
+            *defs
         } else {
             drop(defs);
             let defs = document.create_element(ElementId::Defs, &context.info.allocator);
             element.insert(0, &defs);
-            self.defs.replace(Some(defs.clone()));
+            self.defs.replace(Some(defs));
             defs
         };
 
@@ -198,9 +199,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
                                 let mut href = get_attribute_mut!(child, Href)
                                     .or_else(|| get_attribute_mut!(child, XLinkHref));
                                 if let Some(url) = href.as_deref_mut()
-                                    && url.as_str() == old_url {
-                                        *url = new_id.clone();
-                                    }
+                                    && url.as_str() == old_url
+                                {
+                                    *url = new_id.clone();
+                                }
                             }
                         }
                     }
@@ -226,7 +228,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 }
 
 impl<'input, 'arena> State<'input, 'arena> {
-    fn add_path(&self, element: &Element<'input, 'arena>) {
+    fn add_path(&self, element: Element<'input, 'arena>) {
         let Some(path::Path(path, _)) = get_attribute!(element, D).as_deref().cloned() else {
             return;
         };
@@ -236,8 +238,8 @@ impl<'input, 'arena> State<'input, 'arena> {
         let mut paths = self.paths.borrow_mut();
         let list = paths.iter_mut().find(|(k, _)| k == &key);
         match list {
-            Some((_, list)) => list.push(element.clone()),
-            None => paths.push((key, vec![element.clone()])),
+            Some((_, list)) => list.push(element),
+            None => paths.push((key, vec![element])),
         }
     }
 }

@@ -45,7 +45,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveAttributesBySelector {
 
     fn document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         _context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         for item in &self.0 {

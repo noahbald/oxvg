@@ -6,8 +6,8 @@ use oxvg_ast::{
     visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{
-    inheritable::{self, Inheritable},
     Attr, AttrId, AttributeInfo,
+    inheritable::{self, Inheritable},
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -59,7 +59,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, G) {
@@ -109,7 +109,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MoveElemsAttrsToGroup {
 }
 
 fn get_common_attributes<'input>(
-    parent: &Element<'input, '_>,
+    parent: Element<'input, '_>,
 ) -> BTreeMap<AttrId<'input>, Attr<'input>> {
     let mut common_attributes: BTreeMap<_, _> = parent
         .first_element_child()

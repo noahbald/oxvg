@@ -1,10 +1,10 @@
 use lightningcss::properties::transform::Matrix;
 use oxvg_ast::{get_attribute_mut, set_attribute};
 use oxvg_collections::attribute::{
+    AttrId,
     core_attrs::Number,
     inheritable::Inheritable,
     transform::{SVGTransform, SVGTransformList},
-    AttrId,
 };
 
 use crate::{Action, Actor, Error};
@@ -29,9 +29,9 @@ impl<'input> Actor<'input, '_> {
         e: Number,
         f: Number,
     ) -> Result<(), Error<'input>> {
-        self.state
-            .record(&Action::Matrix(a, b, c, d, e, f), &self.allocator);
-        self.append_transform(&SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))
+        self.effect_history(&Action::Matrix(a, b, c, d, e, f));
+        self.append_transform(&SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))?;
+        self.effect_document()
     }
 
     /// Appends the `translate` function to the element's `transform` attribute.
@@ -44,8 +44,9 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/translate.md")]
     pub fn translate(&mut self, x: Number, y: Option<Number>) -> Result<(), Error<'input>> {
-        self.state.record(&Action::Translate(x, y), &self.allocator);
-        self.append_transform(&SVGTransform::Translate(x, y.unwrap_or_default()))
+        self.effect_history(&Action::Translate(x, y));
+        self.append_transform(&SVGTransform::Translate(x, y.unwrap_or_default()))?;
+        self.effect_document()
     }
 
     /// Appends the `scale` function to the element's `transform` attribute.
@@ -58,8 +59,9 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/scale.md")]
     pub fn scale(&mut self, x: Number, y: Option<Number>) -> Result<(), Error<'input>> {
-        self.state.record(&Action::Scale(x, y), &self.allocator);
-        self.append_transform(&SVGTransform::Scale(x, y.unwrap_or(x)))
+        self.effect_history(&Action::Scale(x, y));
+        self.append_transform(&SVGTransform::Scale(x, y.unwrap_or(x)))?;
+        self.effect_document()
     }
 
     /// Appends the `rotate` function to the element's `transform` attribute.
@@ -76,8 +78,7 @@ impl<'input> Actor<'input, '_> {
         angle: Number,
         origin: Option<(Number, Number)>,
     ) -> Result<(), Error<'input>> {
-        self.state
-            .record(&Action::Rotate(angle, origin), &self.allocator);
+        self.effect_history(&Action::Rotate(angle, origin));
         let (x, y) = origin.unwrap_or((0.0, 0.0));
         self.append_transform(&SVGTransform::Rotate(angle, x, y))
     }
@@ -106,8 +107,9 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/manipulate/skewY.md")]
     pub fn skew_y(&mut self, angle: Number) -> Result<(), Error<'input>> {
-        self.state.record(&Action::SkewY(angle), &self.allocator);
-        self.append_transform(&SVGTransform::SkewY(angle))
+        self.effect_history(&Action::SkewY(angle));
+        self.append_transform(&SVGTransform::SkewY(angle))?;
+        self.effect_document()
     }
 
     fn append_transform(&mut self, transform: &SVGTransform) -> Result<(), Error<'input>> {
@@ -140,5 +142,33 @@ impl<'input> Actor<'input, '_> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use oxvg_ast::serialize::Node as _;
+
+    use crate::Actor;
+
+    #[test]
+    fn transforms() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.matrix(1.0, 2.0, 3.0, 4.0, 5.0, 6.0).unwrap();
+                actor.translate(1.0, Some(1.0)).unwrap();
+                actor.scale(1.0, Some(1.0)).unwrap();
+                actor.rotate(90.0, Some((1.0, 1.0))).unwrap();
+                actor.skew_x(1.0).unwrap();
+                actor.skew_y(1.0).unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
     }
 }

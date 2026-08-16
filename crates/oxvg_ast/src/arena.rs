@@ -1,6 +1,8 @@
 //! The arena used to allocate nodes
 use std::cell::RefCell;
 
+use itertools::Itertools;
+
 use crate::node::{AllocationID, Node, NodeData, Ref};
 
 /// The inner value of [`Arena`]
@@ -122,7 +124,7 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
             node.id.set(len);
         }
         // Assign ids in order to tree
-        let tree_len = Self::reorder_internal(root, 0);
+        let tree_len = Self::reorder_internal(root, 0) + 1;
         // Reassign ids in order outside of tree
         let mut index = tree_len;
         for node in self {
@@ -132,6 +134,7 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
             }
         }
         // Sort by id
+        debug_assert!(self.iter().map(Node::id).all_unique());
         self.indices.borrow_mut().sort_by(|&a, &b| {
             let a: Ref<'input, 'arena> = unsafe { &*a };
             let b: Ref<'input, 'arena> = unsafe { &*b };
@@ -141,11 +144,17 @@ impl<'input, 'arena> Allocator<'input, 'arena> {
     }
 
     fn reorder_internal(node: Ref<'input, 'arena>, mut id: usize) -> usize {
-        debug_assert!(node.id.get() <= id, "cannot reorder tree with cycles");
+        debug_assert!(id <= node.id.get(), "cannot reorder tree with cycles");
         node.id.set(id);
-        id += 1;
-        for node in node.child_nodes_iter() {
-            id = Self::reorder_internal(node, id);
+        // for node in node.child_nodes_iter() {
+        //     id = Self::reorder_internal(node, id + 1);
+        // }
+        if let Some(mut child) = node.first_child() {
+            id = Self::reorder_internal(child, id + 1);
+            while let Some(sibling) = child.next_sibling() {
+                child = sibling;
+                id = Self::reorder_internal(child, id + 1);
+            }
         }
         id
     }

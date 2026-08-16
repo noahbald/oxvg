@@ -103,7 +103,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for PrefixIds {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if !self.prefix_ids && !self.prefix_class_names {
@@ -115,7 +115,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for PrefixIds {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let mut prefix_generator = GeneratePrefix::new(context.info, &self.prefix, &self.delim);
@@ -190,7 +190,7 @@ impl<'input> lightningcss::visitor::Visitor<'input> for CssVisitor<'_, '_> {
 impl PrefixIds {
     fn prefix_selectors(
         &self,
-        element: &Element,
+        element: Element,
         prefix_generator: &mut GeneratePrefix,
     ) -> Option<()> {
         if element.is_empty() {

@@ -39,7 +39,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -51,7 +51,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, Defs) {
@@ -73,12 +73,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for SortDefsChildren {
             let a_frequency = frequencies.get(a_name);
             let b_frequency = frequencies.get(b_name);
             if let Some(a_frequency) = a_frequency
-                && let Some(b_frequency) = b_frequency {
-                    let frequency_ord = b_frequency.cmp(a_frequency);
-                    if frequency_ord != Ordering::Equal {
-                        return frequency_ord;
-                    }
+                && let Some(b_frequency) = b_frequency
+            {
+                let frequency_ord = b_frequency.cmp(a_frequency);
+                if frequency_ord != Ordering::Equal {
+                    return frequency_ord;
                 }
+            }
             let len_ord = b_name.len().cmp(&a_name.len());
             if len_ord != Ordering::Equal {
                 return len_ord;

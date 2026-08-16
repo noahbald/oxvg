@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/manipulate.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me" class="my-class"><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>svg</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Class"><oxvg:arg>my-class</oxvg:arg></oxvg:action></oxvg:history><oxvg:selection oxvg:ids="1"/></oxvg:state></svg>

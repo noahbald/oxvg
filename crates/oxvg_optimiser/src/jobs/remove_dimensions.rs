@@ -4,7 +4,7 @@ use oxvg_ast::{
     get_attribute, has_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::attribute::{presentation::LengthPercentage, uncategorised::ViewBox, AttrId};
+use oxvg_collections::attribute::{AttrId, presentation::LengthPercentage, uncategorised::ViewBox};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +40,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDimensions {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -52,7 +52,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDimensions {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, Svg) {

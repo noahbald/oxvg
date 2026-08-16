@@ -99,7 +99,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
@@ -144,7 +144,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if context.flags.contains(ContextFlags::within_foreign_object) {
@@ -167,7 +167,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
 }
 
 impl RemoveUnknownsAndDefaults {
-    fn remove_unknown_content(&self, element: &Element) {
+    fn remove_unknown_content(&self, element: Element) {
         if !self.unknown_content {
             return;
         }
@@ -178,7 +178,7 @@ impl RemoveUnknownsAndDefaults {
             element.remove();
         }
 
-        let Some(parent) = Element::parent_element(element) else {
+        let Some(parent) = Element::parent_element(&element) else {
             return;
         };
         if parent.node_type() == node::Type::Document {
@@ -194,7 +194,7 @@ impl RemoveUnknownsAndDefaults {
 
     fn remove_unknown_and_default_attrs<'input>(
         &self,
-        element: &Element<'input, '_>,
+        element: Element<'input, '_>,
         inherited_styles: &ComputedStyles<'input>,
     ) {
         let element_name = element.qual_name();

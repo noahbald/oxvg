@@ -1,0 +1,38 @@
+---
+source: crates/oxvg_actions/src/actions/state.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "path",
+            ),
+        ),
+        Forget,
+    ],
+    selection: [],
+    info: Some(
+        Info {
+            element_id: None,
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    0x0,
+                ),
+                permitted_elements: {},
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    0x0,
+                ),
+                expected_attributes: {},
+                values: {},
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+}

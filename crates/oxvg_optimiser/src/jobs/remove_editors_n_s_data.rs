@@ -46,7 +46,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let uri = element.prefix().ns().uri();

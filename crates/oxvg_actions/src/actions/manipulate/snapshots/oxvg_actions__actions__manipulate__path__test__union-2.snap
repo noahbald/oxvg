@@ -1,0 +1,59 @@
+---
+source: crates/oxvg_actions/src/actions/manipulate/path.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "path",
+            ),
+        ),
+        PathUnion,
+    ],
+    selection: [
+        4,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                Path,
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {
+                    ClipPath,
+                    Marker,
+                    Mask,
+                    Script,
+                    Style,
+                },
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {
+                    D,
+                    ExternalResourcesRequired,
+                    PathLength,
+                },
+                values: {
+                    D: Cow(
+                        "M2 10V2h8v3.832A4 4 0 1 1 5.833 10ZM6.33 10A3.5 3.5 0 1 0 10 6.329V10Z",
+                    ),
+                    FillRule: Cow(
+                        "evenodd",
+                    ),
+                },
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+}

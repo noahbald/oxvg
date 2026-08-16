@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 
-use lightningcss::rules::{media::MediaRule, CssRule, CssRuleList, Location};
+use lightningcss::rules::{CssRule, CssRuleList, Location, media::MediaRule};
 use oxvg_ast::{
     element::Element,
     get_attribute, is_element,
@@ -48,7 +48,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for MergeStyles {
 
     fn prepare(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         if self.0 {
@@ -63,7 +63,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if !is_element!(element, Style) {
@@ -71,10 +71,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         }
 
         if let Some(style_type) = get_attribute!(element, TypeStyle)
-            && !style_type.is_empty() && &**style_type != "text/css" {
-                log::debug!("Not merging style: unsupported type");
-                return Ok(());
-            }
+            && !style_type.is_empty()
+            && &**style_type != "text/css"
+        {
+            log::debug!("Not merging style: unsupported type");
+            return Ok(());
+        }
 
         if context.flags.contains(ContextFlags::within_foreign_object) {
             log::debug!("Not merging style: foreign-object");
@@ -120,7 +122,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         } else {
             drop(first_style);
             element.set_style_content(CssRuleList(css), &context.info.allocator);
-            self.first_style.replace(Some(element.clone()));
+            self.first_style.replace(Some(element));
             log::debug!("Assigned first style");
         }
         Ok(())
@@ -128,7 +130,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
     fn exit_document(
         &self,
-        document: &Element<'input, 'arena>,
+        document: Element<'input, 'arena>,
         context: &Context<'input, 'arena, '_>,
     ) -> Result<(), JobsError<'input>> {
         if !self.is_cdata.get() {

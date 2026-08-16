@@ -8,7 +8,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     atom::Atom,
-    attribute::{inheritable::Inheritable, Attr},
+    attribute::{Attr, inheritable::Inheritable},
     content_type::ContentType,
     element::ElementCategory,
 };
@@ -45,7 +45,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CollapseGroups {
 
     fn prepare(
         &self,
-        _document: &Element<'input, 'arena>,
+        _document: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         Ok(if self.0 {
@@ -57,10 +57,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CollapseGroups {
 
     fn exit_element(
         &self,
-        element: &Element<'input, 'arena>,
+        element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        let Some(parent) = Element::parent_element(element) else {
+        let Some(parent) = Element::parent_element(&element) else {
             return Ok(());
         };
 
@@ -83,7 +83,7 @@ impl Default for CollapseGroups {
     }
 }
 
-fn move_attributes_to_child(element: &Element) {
+fn move_attributes_to_child(element: Element) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
     let mut children = element.children_iter();
@@ -102,10 +102,10 @@ fn move_attributes_to_child(element: &Element) {
         return;
     }
 
-    if is_group_identifiable(element, &first_child) {
+    if is_group_identifiable(element, first_child) {
         log::debug!("collapse_groups: not moving attrs: identifiable");
         return;
-    } else if is_position_visually_unstable(element, &first_child) {
+    } else if is_position_visually_unstable(element, first_child) {
         log::debug!("collapse_groups: not moving attrs: visually unstable");
         return;
     } else if is_node_with_filter(element) {
@@ -118,7 +118,7 @@ fn move_attributes_to_child(element: &Element) {
     for mut attr in attrs.into_iter_mut() {
         let name = attr.name().clone();
         let child_attr = first_child_attrs.get_named_item_mut(&name);
-        if has_animated_attr(&first_child, name.local_name()) {
+        if has_animated_attr(first_child, name.local_name()) {
             log::debug!("collapse_groups: canelled moves: has animated_attr");
             return;
         }
@@ -154,7 +154,7 @@ fn move_attributes_to_child(element: &Element) {
     }
 }
 
-fn flatten_when_all_attributes_moved(element: &Element) {
+fn flatten_when_all_attributes_moved(element: Element) {
     if !element.attributes().is_empty() {
         log::debug!("skipping flatten: has attributes");
         return;
@@ -175,8 +175,8 @@ fn flatten_when_all_attributes_moved(element: &Element) {
     element.flatten();
 }
 
-fn has_animated_attr<'input>(element: &Element<'input, '_>, local_name: &Atom<'input>) -> bool {
-    for child in std::iter::once(element.clone()).chain(element.breadth_first()) {
+fn has_animated_attr<'input>(element: Element<'input, '_>, local_name: &Atom<'input>) -> bool {
+    for child in std::iter::once(element).chain(element.breadth_first()) {
         if child
             .qual_name()
             .categories()
@@ -190,22 +190,22 @@ fn has_animated_attr<'input>(element: &Element<'input, '_>, local_name: &Atom<'i
 }
 
 fn is_group_identifiable<'input, 'arena>(
-    node: &Element<'input, 'arena>,
-    child: &Element<'input, 'arena>,
+    node: Element<'input, 'arena>,
+    child: Element<'input, 'arena>,
 ) -> bool {
     has_attribute!(child, Id) && (!has_attribute!(node, Class) || !has_attribute!(child, Class))
 }
 
 fn is_position_visually_unstable<'input, 'arena>(
-    node: &Element<'input, 'arena>,
-    child: &Element<'input, 'arena>,
+    node: Element<'input, 'arena>,
+    child: Element<'input, 'arena>,
 ) -> bool {
     let is_node_clipping = has_attribute!(node, ClipPath | Mask);
     let is_child_transformed_group = is_element!(child, G) && has_attribute!(child, Transform);
     is_node_clipping || is_child_transformed_group
 }
 
-fn is_node_with_filter(node: &Element) -> bool {
+fn is_node_with_filter(node: Element) -> bool {
     has_attribute!(node, Filter)
         || get_attribute!(node, Style)
             .is_some_and(|style| style.get(&PropertyId::Filter(VendorPrefix::None)).is_some())
