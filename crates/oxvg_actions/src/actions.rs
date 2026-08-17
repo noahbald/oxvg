@@ -78,6 +78,8 @@ pub enum Action<'input> {
     SkewY(Number),
     /// See [`Actor::insert`]
     Insert(Atom<'input>),
+    /// See [`Actor::insert_ns`]
+    InsertNS(Atom<'input>, Atom<'input>),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -130,6 +132,8 @@ pub enum ActionNapi {
     SkewY(f64),
     /// See [`Actor::insert`]
     Insert(String),
+    /// See [`Actor::insert_ns`]
+    InsertNS(String, String),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -201,6 +205,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::SkewX(angle) => self.skew_x(angle),
             Action::SkewY(angle) => self.skew_y(angle),
             Action::Insert(name) => self.insert(&name),
+            Action::InsertNS(uri, name) => self.insert_ns(&uri, &name),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

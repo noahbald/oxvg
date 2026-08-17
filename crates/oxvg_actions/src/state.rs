@@ -252,6 +252,7 @@ impl<'input> Action<'input> {
     const SKEW_X: &'static str = "SkewX";
     const SKEW_Y: &'static str = "SkewY";
     const INSERT: &'static str = "Insert";
+    const INSERT_NS: &'static str = "InsertNS";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -374,6 +375,21 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::SkewY(y))
             }
+            Self::INSERT => {
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Insert(name))
+            }
+            Self::INSERT_NS => {
+                let Some(uri) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::InsertNS(uri, name))
+            }
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -412,7 +428,8 @@ impl<'input> Action<'input> {
             | Self::Style {
                 property: arg0,
                 value: arg1,
-            } => {
+            }
+            | Self::InsertNS(arg0, arg1) => {
                 Self::embed_arg(element, allocator, arg0.clone());
                 Self::embed_arg(element, allocator, arg1.clone());
             }
@@ -479,6 +496,7 @@ impl<'input> Action<'input> {
             Self::SkewX(_) => Self::SKEW_X,
             Self::SkewY(_) => Self::SKEW_Y,
             Self::Insert(_) => Self::INSERT,
+            Self::InsertNS(_, _) => Self::INSERT_NS,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -514,6 +532,7 @@ impl<'input> Action<'input> {
             }
             Self::SkewX(x) => ActionNapi::SkewX(*x as f64),
             Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
+            Self::InsertNS(uri, name) => ActionNapi::InsertNS(uri.to_string(), name.to_string()),
             Self::Insert(name) => ActionNapi::Insert(name.to_string()),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
@@ -551,6 +570,7 @@ impl<'input> Action<'input> {
             ActionNapi::SkewX(x) => Action::SkewX(x as f32),
             ActionNapi::SkewY(y) => Action::SkewY(y as f32),
             ActionNapi::Insert(name) => Action::Insert(name.into()),
+            ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

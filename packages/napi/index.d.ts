@@ -19,6 +19,8 @@ value: string }
 | { type: 'Rotate', field0: number, field1?: [number, number] }
 | { type: 'SkewX', field0: number }
 | { type: 'SkewY', field0: number }
+| { type: 'Insert', field0: string }
+| { type: 'InsertNS', field0: string, field1: string }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -818,7 +820,29 @@ export declare class Actor {
    * When root element is missing.
    */
   skewY(angle: number): void
-  /** Removes OXVG state from the document */
+  /**
+   * Creates a new SVG element and inserts it into the current selection.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  insert(qualName: string): void
+  /**
+   * Creates a new element and inserts it into the current selection.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  insertNS(qualName: string): void
+  /**
+   * Removes OXVG state from the document
+   *
+   * # Errors
+   *
+   * If the state fails to update
+   */
   forget(): void
   /**
    * Updates the state of the actor to point to the elements matching the given selector.
@@ -841,7 +865,13 @@ export declare class Actor {
    * If the query is invalid
    */
   selectMore(query: string): void
-  /** Updates the state of the actor to deselected any selected nodes. */
+  /**
+   * Updates the state of the actor to deselected any selected nodes.
+   *
+   * # Errors
+   *
+   * If the state fails to update
+   */
   deselect(): void
   /**
    * Returns the actor's updated document as a string

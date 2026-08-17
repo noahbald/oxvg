@@ -241,6 +241,10 @@ impl RunCommand for ActionList {
             println!("# Insert\n");
             println!(include_str!("../spec/structure/insert.md"));
         }
+        if parts.is_empty() || parts.contains(INSERT_NS) || parts.contains(CREATE_ELEMENT_NS) {
+            println!("# Insert NS\n");
+            println!(include_str!("../spec/structure/insert_ns.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -276,6 +280,8 @@ const SKEW_X: &str = "-skewX";
 const SKEW_Y: &str = "-skewY";
 const INSERT: &str = "-insert";
 const CREATE_ELEMENT: &str = "-create-element";
+const INSERT_NS: &str = "-insert-ns";
+const CREATE_ELEMENT_NS: &str = "-create-element-ns";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -357,6 +363,9 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             SKEW_Y => oxvg_actions::Action::SkewY(get_part_f32(&mut parts)?),
             FORGET => oxvg_actions::Action::Forget,
             INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert(get_part(&mut parts)?),
+            INSERT_NS | CREATE_ELEMENT_NS => {
+                oxvg_actions::Action::InsertNS(get_part(&mut parts)?, get_part(&mut parts)?)
+            }
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
             DESELECT => oxvg_actions::Action::Deselect,

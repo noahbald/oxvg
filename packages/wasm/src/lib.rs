@@ -480,6 +480,17 @@ impl Actor {
         self.actor.insert(&qual_name.to_string().into())
     }
 
+    /// Creates a new element and inserts it into the current selection.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = insertNS)]
+    pub fn insert_ns(&mut self, qual_name: &str) -> Result<(), Error> {
+        self.actor.insert(&qual_name.to_string().into())
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors
