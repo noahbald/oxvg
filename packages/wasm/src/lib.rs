@@ -491,6 +491,17 @@ impl Actor {
         self.actor.insert(&qual_name.to_string().into())
     }
 
+    /// Creates a deep copy of each selected element and puts it after the selected element.
+    /// Selection moved to copies.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn duplicate(&mut self) -> Result<(), Error> {
+        self.actor.duplicate()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

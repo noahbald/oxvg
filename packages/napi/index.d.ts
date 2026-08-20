@@ -21,6 +21,7 @@ value: string }
 | { type: 'SkewY', field0: number }
 | { type: 'Insert', field0: string }
 | { type: 'InsertNS', field0: string, field1: string }
+| { type: 'Duplicate' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -836,6 +837,15 @@ export declare class Actor {
    * When root element is missing.
    */
   insertNS(qualName: string): void
+  /**
+   * Creates a deep copy of each selected element and puts it after the selected element.
+   * Selection moved to copies.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  duplicate(): void
   /**
    * Removes OXVG state from the document
    *

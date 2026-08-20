@@ -80,6 +80,8 @@ pub enum Action<'input> {
     Insert(Atom<'input>),
     /// See [`Actor::insert_ns`]
     InsertNS(Atom<'input>, Atom<'input>),
+    /// See [`Actor::duplicate`]
+    Duplicate,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -134,6 +136,8 @@ pub enum ActionNapi {
     Insert(String),
     /// See [`Actor::insert_ns`]
     InsertNS(String, String),
+    /// See [`Actor::duplicate`]
+    Duplicate,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -206,6 +210,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::SkewY(angle) => self.skew_y(angle),
             Action::Insert(name) => self.insert(&name),
             Action::InsertNS(uri, name) => self.insert_ns(&uri, &name),
+            Action::Duplicate => self.duplicate(),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

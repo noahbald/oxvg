@@ -67,6 +67,45 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         self.effect_document()
     }
 
+    /// Creates a deep copy of each selected element and puts it after the selected element. Selection moved to copies.
+    ///
+    /// # Errors
+    ///
+    /// When the root element is missing
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/duplicate.md")]
+    pub fn duplicate(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Duplicate);
+
+        let Some(selections) = self.get_selections()? else {
+            return Ok(());
+        };
+        let mut new_selections = Vec::with_capacity(selections.len());
+
+        for selection in selections {
+            let Some(node) = self.allocator.get(selection as usize) else {
+                continue;
+            };
+            let Some(parent) = node.parent_node() else {
+                continue;
+            };
+            let clone = node.clone_node(&self.allocator, true);
+            parent.insert_after(clone, node);
+            new_selections.push(clone);
+        }
+
+        self.effect_selection(
+            &new_selections
+                .into_iter()
+                .map(|n| n.id() as Integer)
+                .collect(),
+        )?;
+        self.effect_tree()?;
+        self.effect_document()
+    }
+
     fn insert_internal(
         &mut self,
         ns: NS<'input>,

@@ -253,6 +253,7 @@ impl<'input> Action<'input> {
     const SKEW_Y: &'static str = "SkewY";
     const INSERT: &'static str = "Insert";
     const INSERT_NS: &'static str = "InsertNS";
+    const DUPLICATE: &'static str = "Duplicate";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -390,6 +391,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::InsertNS(uri, name))
             }
+            Self::DUPLICATE => Ok(Self::Duplicate),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -465,7 +467,8 @@ impl<'input> Action<'input> {
             | Self::PathSubtract
             | Self::PathXor
             | Self::Forget
-            | Self::Deselect => {}
+            | Self::Deselect
+            | Self::Duplicate => {}
         }
     }
 
@@ -497,6 +500,7 @@ impl<'input> Action<'input> {
             Self::SkewY(_) => Self::SKEW_Y,
             Self::Insert(_) => Self::INSERT,
             Self::InsertNS(_, _) => Self::INSERT_NS,
+            Self::Duplicate => Self::DUPLICATE,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -534,6 +538,7 @@ impl<'input> Action<'input> {
             Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
             Self::InsertNS(uri, name) => ActionNapi::InsertNS(uri.to_string(), name.to_string()),
             Self::Insert(name) => ActionNapi::Insert(name.to_string()),
+            Self::Duplicate => ActionNapi::Duplicate,
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -571,6 +576,7 @@ impl<'input> Action<'input> {
             ActionNapi::SkewY(y) => Action::SkewY(y as f32),
             ActionNapi::Insert(name) => Action::Insert(name.into()),
             ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
+            ActionNapi::Duplicate => Action::Duplicate,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

@@ -320,7 +320,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     pub fn insert_after(
         &'arena self,
         new_node: Ref<'input, 'arena>,
-        reference_node: &Ref<'input, 'arena>,
+        reference_node: Ref<'input, 'arena>,
     ) {
         new_node.remove();
         new_node.parent.set(Some(self));
@@ -333,7 +333,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         new_node.next_sibling.set(Some(next_child));
         new_node.previous_sibling.set(Some(reference_node));
         debug_assert_eq!(new_node.parent.get(), Some(self));
-        debug_assert_eq!(new_node.previous_sibling.get(), Some(*reference_node));
+        debug_assert_eq!(new_node.previous_sibling.get(), Some(reference_node));
         debug_assert_eq!(reference_node.next_sibling.get(), Some(new_node));
     }
 
@@ -632,8 +632,18 @@ impl<'input, 'arena> Node<'input, 'arena> {
     /// [Spec](https://dom.spec.whatwg.org/#concept-node-clone)
     /// [MDN | cloneNode](https://developer.mozilla.org/en-US/docs/Web/API/Node/cloneNode)
     #[must_use]
-    pub fn clone_node(&self, allocator: &Allocator<'input, 'arena>) -> Ref<'input, 'arena> {
-        allocator.alloc(self.node_data.clone())
+    pub fn clone_node(
+        &self,
+        allocator: &Allocator<'input, 'arena>,
+        deep: bool,
+    ) -> Ref<'input, 'arena> {
+        let clone = allocator.alloc(self.node_data.clone());
+        if deep {
+            for child in self.child_nodes_iter() {
+                clone.append_child(child.clone_node(allocator, deep));
+            }
+        }
+        clone
     }
 
     /// Returns whether some node is a descendant if the current node.

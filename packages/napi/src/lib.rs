@@ -351,6 +351,17 @@ impl Actor {
     self.actor.insert(&qual_name.into()).map_err(generic_error)
   }
 
+  /// Creates a deep copy of each selected element and puts it after the selected element.
+  /// Selection moved to copies.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn duplicate(&mut self) -> napi::Result<()> {
+    self.actor.duplicate().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

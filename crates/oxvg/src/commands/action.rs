@@ -245,6 +245,10 @@ impl RunCommand for ActionList {
             println!("# Insert NS\n");
             println!(include_str!("../spec/structure/insert_ns.md"));
         }
+        if parts.is_empty() || parts.contains(DUPLICATE) {
+            println!("# Duplicate\n");
+            println!(include_str!("../spec/structure/duplicate.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -282,6 +286,7 @@ const INSERT: &str = "-insert";
 const CREATE_ELEMENT: &str = "-create-element";
 const INSERT_NS: &str = "-insert-ns";
 const CREATE_ELEMENT_NS: &str = "-create-element-ns";
+const DUPLICATE: &str = "-duplicate";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -361,11 +366,12 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             ),
             SKEW_X => oxvg_actions::Action::SkewX(get_part_f32(&mut parts)?),
             SKEW_Y => oxvg_actions::Action::SkewY(get_part_f32(&mut parts)?),
-            FORGET => oxvg_actions::Action::Forget,
             INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert(get_part(&mut parts)?),
             INSERT_NS | CREATE_ELEMENT_NS => {
                 oxvg_actions::Action::InsertNS(get_part(&mut parts)?, get_part(&mut parts)?)
             }
+            DUPLICATE => oxvg_actions::Action::Duplicate,
+            FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
             DESELECT => oxvg_actions::Action::Deselect,
