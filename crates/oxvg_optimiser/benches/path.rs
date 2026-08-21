@@ -1,10 +1,13 @@
 //! Benchmarks for path processing
-use std::time::{Duration, Instant};
+use std::{
+    hint::black_box,
+    time::{Duration, Instant},
+};
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use oxvg_ast::{
     element::Element,
-    parse::roxmltree::{parse_with_options, ParsingOptions},
+    parse::roxmltree::{ParsingOptions, parse_with_options},
     visitor::{Info, Visitor},
 };
 use oxvg_optimiser::ConvertPathData;
@@ -39,11 +42,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                                 ..ParsingOptions::default()
                             },
                             |dom, allocator| {
-                                let mut root = Element::from_parent(dom).unwrap();
+                                let root = Element::from_parent(dom).unwrap();
                                 let job = ConvertPathData::default();
                                 let info = &Info::new(allocator);
                                 let start = Instant::now();
-                                let _ = black_box(job.start_with_info(&mut root, info, None));
+                                let _ = black_box(job.start_with_info(root, info, None));
                                 result += start.elapsed();
                             },
                         )
