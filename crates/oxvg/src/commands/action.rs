@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    future,
     iter::Peekable,
     sync::{
         Arc,
@@ -125,10 +126,13 @@ impl RunCommand for ActionCommands {
 }
 
 impl RunCommand for ActionRun {
-    async fn run(self, _: Config) -> anyhow::Result<()> {
-        let actions = parse(self.command_list)?;
+    fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
+        let actions = match parse(self.command_list) {
+            Ok(actions) => actions,
+            Err(err) => return future::ready(Err(err)),
+        };
         let error = Arc::new(AtomicBool::new(false));
-        self.walk.run(|| {
+        future::ready(self.walk.run(|| {
             let actions = actions.clone();
             let error = Arc::clone(&error);
             let format_options = Options {
@@ -173,12 +177,12 @@ impl RunCommand for ActionRun {
                     Ok(Ok(())) => {}
                 }
             })
-        })
+        }))
     }
 }
 
 impl RunCommand for ActionList {
-    async fn run(self, _: Config) -> anyhow::Result<()> {
+    fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
         if parts.is_empty() || parts.contains(ATTR) {
@@ -253,7 +257,7 @@ impl RunCommand for ActionList {
             println!("# Deselect\n");
             println!(include_str!("../spec/state/deselect.md"));
         }
-        Ok(())
+        future::ready(Ok(()))
     }
 }
 

@@ -1,11 +1,12 @@
 use std::{
     ffi::OsStr,
+    future,
     io::Write as _,
     marker::PhantomData,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
 
@@ -21,14 +22,14 @@ use oxvg_optimiser::Extends;
 
 use roxmltree::ParsingOptions;
 use swc_core::{
-    common::{sync::Lrc, BytePos, SourceMap, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, SourceMap, sync::Lrc},
     ecma::{
         ast::{
             ArrowExpr, BindingIdent, Constructor, Decl, EsVersion, Expr, ExprStmt, Function, Ident,
             IdentName, JSXElementChild, Module, ModuleDecl, ModuleItem, Param, ParamOrTsParamProp,
             Program, Stmt,
         },
-        codegen::{text_writer::JsWriter, Emitter, Node as _},
+        codegen::{Emitter, Node as _, text_writer::JsWriter},
         visit::{VisitMut, VisitMutWith},
     },
 };
@@ -263,12 +264,15 @@ impl TryInto<oxvg_jsx::Config> for JSXConfig {
 impl JSX {}
 
 impl RunCommand for JSX {
-    async fn run(self, config: Config) -> anyhow::Result<()> {
+    fn run(self, config: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let error = Arc::new(AtomicBool::new(false));
         let count = Arc::new(AtomicUsize::new(0));
-        let jsx_config = resolve_config(self.config, &config)?;
+        let jsx_config = match resolve_config(self.config, &config) {
+            Ok(jsx_config) => jsx_config,
+            Err(err) => return future::ready(Err(err)),
+        };
 
-        swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
+        if let Err(err) = swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
             let template_string = self.template.map(std::fs::read_to_string).transpose()?;
             let template_ast = parse_template(template_string)?;
 
@@ -350,13 +354,15 @@ impl RunCommand for JSX {
                     }
                 })
             })
-        })?;
-        if error.load(Ordering::Relaxed) {
+        }) {
+            return future::ready(Err(err));
+        }
+        future::ready(if error.load(Ordering::Relaxed) {
             Err(anyhow::anyhow!("Failed to transform all documents!"))
         } else {
             eprintln!("Created {} files.", count.load(Ordering::Relaxed));
             Ok(())
-        }
+        })
     }
 }
 
@@ -382,13 +388,14 @@ impl VisitMut for ApplyTemplate {
         node.visit_mut_children_with(self);
 
         if let Expr::Ident(ident) = node
-            && ident.sym == "$jsx" {
-                match self.0.jsx.clone() {
-                    JSXElementChild::JSXElement(e) => *node = Expr::JSXElement(e),
-                    JSXElementChild::JSXFragment(e) => *node = Expr::JSXFragment(e),
-                    _ => unreachable!(),
-                }
+            && ident.sym == "$jsx"
+        {
+            match self.0.jsx.clone() {
+                JSXElementChild::JSXElement(e) => *node = Expr::JSXElement(e),
+                JSXElementChild::JSXFragment(e) => *node = Expr::JSXFragment(e),
+                _ => unreachable!(),
             }
+        }
     }
 
     fn visit_mut_constructor(&mut self, node: &mut Constructor) {

@@ -1,3 +1,5 @@
+use std::future;
+
 #[allow(clippy::wildcard_imports)]
 use ls_types::{notification::PublishDiagnostics, *};
 use oxvg_ast::{
@@ -106,8 +108,11 @@ impl Backend {
 }
 
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult {
+    fn initialize(
+        &self,
+        _: InitializeParams,
+    ) -> impl Future<Output = Result<InitializeResult>> + Send {
+        future::ready(Ok(InitializeResult {
             server_info: Some(ServerInfo {
                 name: String::from(NAME),
                 version: Some(env!("CARGO_PKG_VERSION").into()),
@@ -135,7 +140,7 @@ impl LanguageServer for Backend {
                 ..ServerCapabilities::default()
             },
             offset_encoding: None,
-        })
+        }))
     }
 
     async fn initialized(&self, _: InitializedParams) {
@@ -156,8 +161,8 @@ impl LanguageServer for Backend {
         self.lint(&params.text_document.uri, &last.text).await;
     }
 
-    async fn shutdown(&self) -> Result<()> {
-        Ok(())
+    fn shutdown(&self) -> impl Future<Output = Result<()>> + Send {
+        future::ready(Ok(()))
     }
 }
 

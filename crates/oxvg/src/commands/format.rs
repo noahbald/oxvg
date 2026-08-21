@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    future,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use oxvg_ast::{
@@ -30,9 +33,9 @@ pub struct Format {
 }
 
 impl RunCommand for Format {
-    async fn run(self, _config: Config) -> anyhow::Result<()> {
+    fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let error = Arc::new(AtomicBool::new(false));
-        self.walk.run(|| {
+        if let Err(err) = self.walk.run(|| {
             let error = Arc::clone(&error);
             let format_options = Options {
                 indent: self.pretty,
@@ -69,11 +72,13 @@ impl RunCommand for Format {
                     Ok(Ok(())) => {}
                 }
             })
-        })?;
-        if error.load(Ordering::Relaxed) {
+        }) {
+            return future::ready(Err(err));
+        }
+        future::ready(if error.load(Ordering::Relaxed) {
             Err(anyhow::anyhow!("Failed to format all documents!"))
         } else {
             Ok(())
-        }
+        })
     }
 }

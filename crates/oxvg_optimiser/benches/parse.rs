@@ -1,8 +1,11 @@
 //! Benchmarks for running default optimisations
-use std::time::{Duration, Instant};
+use std::{
+    hint::black_box,
+    time::{Duration, Instant},
+};
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use oxvg_ast::parse::roxmltree::{parse_with_options, ParsingOptions};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use oxvg_ast::parse::roxmltree::{ParsingOptions, parse_with_options};
 
 /// # Panics
 /// Hopefully never, maybe if svg can't be parsed
