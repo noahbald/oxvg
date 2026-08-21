@@ -34,7 +34,13 @@ macro_rules! get_computed_style {
                 | oxvg_collections::attribute::Attr::CSSUnknown { .. },
                 _,
             )) => $crate::style::ComputedStyle::Unparsed,
-            Some(attr) => unreachable!("{attr:?}"),
+            Some(attr) => {
+                // Don't include debug formatting in release builds.
+                #[cfg(debug_assertions)]
+                unreachable!("{attr:?}");
+                #[cfg(not(debug_assertions))]
+                unreachable!("computed style did not match");
+            }
             None => $crate::style::ComputedStyle::None,
         }
     };

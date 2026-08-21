@@ -76,7 +76,13 @@ macro_rules! get_attribute {
                 std::cell::Ref::filter_map(attr, |attr| match attr.unaliased() {
                     oxvg_collections::attribute::Attr::$attr(inner) => Some(inner),
                     oxvg_collections::attribute::Attr::Unparsed { .. } => None,
-                    _ => unreachable!("{attr:?} did not match {}", stringify!($attr)),
+                    _ => {
+                      // Don't include debug formatting in release builds.
+                      #[cfg(debug_assertions)]
+                      unreachable!("{attr:?} did not match {}", stringify!($attr));
+                      #[cfg(not(debug_assertions))]
+                      unreachable!("attribute did not match {}", stringify!($attr));
+                    },
                 }).ok()
             })
     };
