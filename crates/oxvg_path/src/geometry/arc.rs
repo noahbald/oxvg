@@ -371,8 +371,8 @@ impl Arc {
         let (sin_phi, cos_phi) = xr.sin_cos();
         let hd_x = (from.x - to.x) * 0.5;
         let hd_y = (from.y - to.y) * 0.5;
-        let hs_x = (from.x + to.x) * 0.5;
-        let hs_y = (from.y + to.y) * 0.5;
+        let hs_x = from.x.midpoint(to.x);
+        let hs_y = from.y.midpoint(to.y);
 
         // F6.5.1
         let p = Point::new(

@@ -427,7 +427,7 @@ impl<'input, 'arena> CollectMatchingSelectors<'_, '_, 'input, 'arena> {
 
         if selector.has_pseudo_element() {
             log::debug!("selector has pseudo-element: {selector:?}");
-            return Some(Vec::with_capacity(0));
+            return Some(Vec::new());
         }
         if selector.has_combinator() {
             return None;

@@ -77,8 +77,8 @@ use std::result;
 
 use lightningcss::rules::CssRuleList;
 use oxvg_collections::atom::Atom;
-use oxvg_collections::attribute::xml::XmlSpace;
 use oxvg_collections::attribute::Attr;
+use oxvg_collections::attribute::xml::XmlSpace;
 use oxvg_collections::element::ElementId;
 use oxvg_serialize::{Printer, PrinterOptions, ToValue as _};
 
@@ -637,9 +637,10 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     pub fn write_attribute(&mut self, attr: &Attr<'_>) -> Result {
         let minify = self.opt.minify;
         if self.opt.trim_whitespace == Space::Auto
-            && let Attr::XmlSpace(space) = attr.unaliased() {
-                self.preserve_whitespaces = matches!(space, XmlSpace::Preserve);
-            }
+            && let Attr::XmlSpace(space) = attr.unaliased()
+        {
+            self.preserve_whitespaces = matches!(space, XmlSpace::Preserve);
+        }
         match attr.prefix().value() {
             Some(prefix) => {
                 self.write_attribute_raw(format_args!("{prefix}:{}", attr.local_name()), |w| {
@@ -750,7 +751,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
     #[inline(never)]
     pub fn write_attribute_raw<F>(&mut self, name: fmt::Arguments, f: F) -> Result
     where
-        F: for<'a> FnOnce(&mut FmtWriter<W>) -> Result,
+        F: FnOnce(&mut FmtWriter<W>) -> Result,
     {
         if self.state != State::Attributes {
             return Err(XmlWriterError::AttributeWrittenBeforeElement);

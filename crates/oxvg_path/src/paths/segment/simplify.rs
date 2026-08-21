@@ -296,8 +296,8 @@ impl Path {
                         let current_sweep = current.sweep_angle();
                         let previous_len = previous.len(4);
                         let current_len = current.len(4);
-                        let r_prev = (previous.radii().x + previous.radii().y) * 0.5;
-                        let r_curr = (current.radii().x + current.radii().y) * 0.5;
+                        let r_prev = previous.radii().x.midpoint(previous.radii().y);
+                        let r_curr = current.radii().x.midpoint(current.radii().y);
                         if previous_len >= current_len {
                             // Fit current arc deviation onto previous's ellipse
                             let scale = r_curr / r_prev.max(1e-9);
