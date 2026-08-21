@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{future, path::PathBuf};
 
 use anyhow::anyhow;
 use oxvg_ast::{
@@ -39,10 +39,13 @@ pub struct Optimise {
 }
 
 impl RunCommand for Optimise {
-    async fn run(self, config: Config) -> anyhow::Result<()> {
-        let config = self.handle_config(config)?;
+    fn run(self, config: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
+        let config = match self.handle_config(config) {
+            Ok(config) => config,
+            Err(err) => return future::ready(Err(err)),
+        };
         let Some(config) = config else {
-            return Ok(());
+            return future::ready(Ok(()));
         };
 
         let jobs = config
@@ -50,7 +53,7 @@ impl RunCommand for Optimise {
             .as_ref()
             .map(config::Optimise::resolve_jobs)
             .unwrap_or_default();
-        self.walk(jobs)
+        future::ready(self.walk(jobs))
     }
 }
 

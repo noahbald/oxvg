@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::{future, path::PathBuf};
 
 use clap::Subcommand;
-use oxvg_lint::{error::LintingError, Rules, Severity};
+use oxvg_lint::{Rules, Severity, error::LintingError};
 
 use crate::{args::RunCommand, config::Config, walk::Walk};
 
@@ -19,8 +19,8 @@ pub struct Check {
     pub level: Severity,
 }
 impl RunCommand for Check {
-    async fn run(self, config: Config) -> anyhow::Result<()> {
-        self.walk(&config.lint.unwrap_or_else(Rules::recommended))
+    fn run(self, config: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
+        future::ready(self.walk(&config.lint.unwrap_or_else(Rules::recommended)))
     }
 }
 impl Check {
