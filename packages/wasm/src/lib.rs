@@ -502,6 +502,17 @@ impl Actor {
         self.actor.duplicate()
     }
 
+    /// Wraps each selected element in the given element. Adjacent selections will be grouped within the
+    /// same element. Selection moved to the created elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn wrap(&mut self, qual_name: &str) -> napi::Result<()> {
+        self.actor.wrap(&qual_name.to_string().into())
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

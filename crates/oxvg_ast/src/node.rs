@@ -707,7 +707,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
     pub fn replace_child(
         &'arena self,
         new_child: Ref<'input, 'arena>,
-        old_child: &Ref<'input, 'arena>,
+        old_child: Ref<'input, 'arena>,
     ) -> Option<Ref<'input, 'arena>> {
         debug_assert_eq!(old_child.parent.get(), Some(self));
         debug_assert!(self.child_nodes_iter().contains(old_child));
@@ -730,7 +730,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         } else {
             self.last_child.set(Some(new_child));
         }
-        Some(*old_child)
+        Some(old_child)
     }
 }
 

@@ -254,6 +254,7 @@ impl<'input> Action<'input> {
     const INSERT: &'static str = "Insert";
     const INSERT_NS: &'static str = "InsertNS";
     const DUPLICATE: &'static str = "Duplicate";
+    const WRAP: &'static str = "Wrap";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -392,6 +393,12 @@ impl<'input> Action<'input> {
                 Ok(Self::InsertNS(uri, name))
             }
             Self::DUPLICATE => Ok(Self::Duplicate),
+            Self::WRAP => {
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Wrap(name))
+            }
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -459,7 +466,11 @@ impl<'input> Action<'input> {
             Self::SkewX(arg) | Self::SkewY(arg) => {
                 Self::embed_arg(element, allocator, arg.to_string().into());
             }
-            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) | Self::Insert(arg) => {
+            Self::Class(arg)
+            | Self::Select(arg)
+            | Self::SelectMore(arg)
+            | Self::Insert(arg)
+            | Self::Wrap(arg) => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
             Self::PathIntersect
@@ -501,6 +512,7 @@ impl<'input> Action<'input> {
             Self::Insert(_) => Self::INSERT,
             Self::InsertNS(_, _) => Self::INSERT_NS,
             Self::Duplicate => Self::DUPLICATE,
+            Self::Wrap(_) => Self::WRAP,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -539,6 +551,7 @@ impl<'input> Action<'input> {
             Self::InsertNS(uri, name) => ActionNapi::InsertNS(uri.to_string(), name.to_string()),
             Self::Insert(name) => ActionNapi::Insert(name.to_string()),
             Self::Duplicate => ActionNapi::Duplicate,
+            Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -577,6 +590,7 @@ impl<'input> Action<'input> {
             ActionNapi::Insert(name) => Action::Insert(name.into()),
             ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
             ActionNapi::Duplicate => Action::Duplicate,
+            ActionNapi::Wrap(name) => Action::Wrap(name.into()),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

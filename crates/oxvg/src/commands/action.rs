@@ -249,6 +249,10 @@ impl RunCommand for ActionList {
             println!("# Duplicate\n");
             println!(include_str!("../spec/structure/duplicate.md"));
         }
+        if parts.is_empty() || parts.contains(WRAP) {
+            println!("# Wrap\n");
+            println!(include_str!("../spec/structure/wrap.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -287,6 +291,7 @@ const CREATE_ELEMENT: &str = "-create-element";
 const INSERT_NS: &str = "-insert-ns";
 const CREATE_ELEMENT_NS: &str = "-create-element-ns";
 const DUPLICATE: &str = "-duplicate";
+const WRAP: &str = "-wrap";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -371,6 +376,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 oxvg_actions::Action::InsertNS(get_part(&mut parts)?, get_part(&mut parts)?)
             }
             DUPLICATE => oxvg_actions::Action::Duplicate,
+            WRAP => oxvg_actions::Action::Wrap(get_part(&mut parts)?),
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),

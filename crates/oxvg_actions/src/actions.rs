@@ -82,6 +82,8 @@ pub enum Action<'input> {
     InsertNS(Atom<'input>, Atom<'input>),
     /// See [`Actor::duplicate`]
     Duplicate,
+    /// See [`Actor::wrap`]
+    Wrap(Atom<'input>),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -138,6 +140,8 @@ pub enum ActionNapi {
     InsertNS(String, String),
     /// See [`Actor::duplicate`]
     Duplicate,
+    /// See [`Actor::wrap`]
+    Wrap(String),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -211,6 +215,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Insert(name) => self.insert(&name),
             Action::InsertNS(uri, name) => self.insert_ns(&uri, &name),
             Action::Duplicate => self.duplicate(),
+            Action::Wrap(name) => self.wrap(&name),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

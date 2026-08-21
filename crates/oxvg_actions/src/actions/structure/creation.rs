@@ -1,4 +1,4 @@
-use oxvg_ast::{element::Element, node::Node};
+use oxvg_ast::{document::Document, element::Element, node::Node};
 use oxvg_collections::{
     atom::Atom,
     attribute::core_attrs::Integer,
@@ -106,11 +106,81 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         self.effect_document()
     }
 
+    /// Wraps each selected element in the given element. Adjacent selections will be grouped within the
+    /// same element. Selection moved to the created elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/wrap.md")]
+    pub fn wrap(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Wrap(qual_name.clone()));
+
+        let Some(new_elements) = self.wrap_internal(NS::SVG, qual_name)? else {
+            return Ok(());
+        };
+
+        self.effect_selection(
+            #[allow(clippy::cast_possible_wrap)]
+            &new_elements
+                .into_iter()
+                .map(|n| n.id() as Integer)
+                .collect(),
+        )?;
+        self.effect_tree()?;
+        self.effect_document()
+    }
+
+    fn wrap_internal(
+        &mut self,
+        ns: NS<'input>,
+        qual_name: &Atom<'input>,
+    ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
+        let Some((selections, document, element)) = self.creation_internal(ns, qual_name)? else {
+            return Ok(None);
+        };
+        let mut new_elements = Vec::with_capacity(selections.len());
+        for selected in selections {
+            let element = document.create_element(element.clone(), &self.allocator);
+            selected.replace_with(*element);
+            element.append(*selected);
+            new_elements.push(element);
+        }
+        Ok(Some(new_elements))
+    }
+
     fn insert_internal(
         &mut self,
         ns: NS<'input>,
         qual_name: &Atom<'input>,
     ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
+        let Some((selections, document, element)) = self.creation_internal(ns, qual_name)? else {
+            return Ok(None);
+        };
+        let mut new_elements = Vec::with_capacity(selections.len());
+        for selected in selections {
+            let element = document.create_element(element.clone(), &self.allocator);
+            new_elements.push(element);
+            selected.append(*element);
+        }
+        Ok(Some(new_elements))
+    }
+
+    fn creation_internal(
+        &mut self,
+        ns: NS<'input>,
+        qual_name: &Atom<'input>,
+    ) -> Result<
+        Option<(
+            Vec<Element<'input, 'arena>>,
+            Document<'input, 'arena>,
+            ElementId<'input>,
+        )>,
+        Error<'input>,
+    > {
         let Some(selections) = self.get_selections()? else {
             return Ok(None);
         };
@@ -134,13 +204,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             .filter_map(|s| self.allocator.get(s as usize))
             .filter_map(Node::element)
             .collect::<Vec<_>>();
-        let mut new_elements = Vec::with_capacity(selections.len());
-        for selected in selections {
-            let element = document.create_element(element.clone(), &self.allocator);
-            new_elements.push(element);
-            selected.append(*element);
-        }
-        Ok(Some(new_elements))
+        Ok(Some((selections, document, element)))
     }
 }
 
