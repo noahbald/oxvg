@@ -1,0 +1,180 @@
+name: benchmark comparison
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/benchmark.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+  pull_request:
+    paths:
+      - ".github/workflows/benchmark.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+
+concurrency:
+  group: benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: never
+  CRITERION_HOME: ${{ github.workspace }}/.criterion
+
+jobs:
+  benchmark:
+    name: benchmark comparison
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: benchmark
+
+      - name: Restore main benchmark results
+        if: github.event_name == 'pull_request'
+        id: benchmark-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .criterion
+            crates/oxvg_optimiser/benches/*.svg
+          key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+
+      - name: Download benchmark inputs
+        if: >-
+          github.event_name == 'push' ||
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        run: |
+          crates/oxvg_optimiser/benches/download_svgs.sh \
+            "$GITHUB_WORKSPACE/crates/oxvg_optimiser/benches"
+
+      - name: Check out base revision
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: benchmark-base
+          persist-credentials: false
+
+      - name: Copy base benchmark inputs
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        run: >-
+          cp crates/oxvg_optimiser/benches/*.svg
+          benchmark-base/crates/oxvg_optimiser/benches/
+
+      - name: Generate missing base benchmark results
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        run: >-
+          cargo bench
+          --manifest-path benchmark-base/Cargo.toml
+          --package oxvg_optimiser
+          --bench '*'
+
+      - name: Save generated base benchmark results
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.benchmark-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .criterion
+            crates/oxvg_optimiser/benches/*.svg
+          key: benchmark-${{ runner.os }}-${{ github.event.pull_request.base.sha }}
+
+      - name: Run benchmarks
+        run: |
+          cargo bench --package oxvg_optimiser --bench '*' | tee benchmark-output.txt
+
+      - name: Save main benchmark results
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .criterion
+            crates/oxvg_optimiser/benches/*.svg
+          key: benchmark-${{ runner.os }}-${{ github.sha }}
+
+      - name: Generate report
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          {
+            echo '<!-- oxvg-benchmark-report -->'
+            echo '## Benchmark comparison'
+            echo
+            printf 'Base `%s` compared with PR `%s` using Criterion saved results.\n' \
+              "${BASE_SHA:0:8}" "${HEAD_SHA:0:8}"
+            echo
+            echo '<details open>'
+            echo '<summary>Criterion output</summary>'
+            echo
+            echo '```text'
+            cat benchmark-output.txt
+            echo '```'
+            echo '</details>'
+          } > benchmark-report.md
+          cat benchmark-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update PR comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'dependabot[bot]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- oxvg-benchmark-report -->";
+            const body = fs.readFileSync("benchmark-report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const previous = comments.find(
+              (comment) =>
+                comment.user.type === "Bot" && comment.body.includes(marker),
+            );
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
