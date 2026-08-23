@@ -1,10 +1,14 @@
 use oxvg_ast::{document::Document, element::Element, node::Node};
 use oxvg_collections::{
     atom::Atom,
-    attribute::core_attrs::Integer,
+    attribute::{
+        Attr,
+        core_attrs::{Integer, NonWhitespace},
+    },
     element::ElementId,
     name::{NS, Prefix},
 };
+use oxvg_parse::Parse;
 
 use crate::{Action, Actor, Error};
 
@@ -119,7 +123,8 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn wrap(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Wrap(qual_name.clone()));
 
-        let Some(new_elements) = self.wrap_internal(NS::SVG, qual_name)? else {
+        let element = self.name_internal(NS::SVG, qual_name);
+        let Some(new_elements) = self.wrap_internal(&element)? else {
             return Ok(());
         };
 
@@ -134,12 +139,55 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         self.effect_document()
     }
 
+    /// Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new use elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing or if random id cannot be generated.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/clone.md")]
+    pub fn clone(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Clone);
+
+        let Some(root) = Element::from_parent(self.root) else {
+            return Ok(());
+        };
+        let document = root.as_document();
+        let Some(new_elements) = self.wrap_internal(&ElementId::Symbol)? else {
+            return Ok(());
+        };
+        let mut use_elements = Vec::with_capacity(new_elements.len());
+        for element in new_elements {
+            let id = format!("#clone{}", getrandom::u64().map_err(|_| Error::GetRandom)?);
+            let id_href = &*self.allocator.alloc_str(&id);
+            let id = &id_href[1..];
+            let r#use = document.create_element(ElementId::Use, &self.allocator);
+            element.set_attribute(Attr::Id(
+                NonWhitespace::parse_string(id).map_err(|e| Error::ParseError(e.to_string()))?,
+            ));
+            r#use.set_attribute(Attr::Href(id_href.into()));
+            element.replace_with(*r#use);
+            root.prepend(*element);
+            use_elements.push(r#use);
+        }
+
+        self.effect_selection(
+            &use_elements
+                .into_iter()
+                .map(|n| n.id() as Integer)
+                .collect(),
+        )?;
+        self.effect_tree()?;
+        self.effect_document()
+    }
+
     fn wrap_internal(
         &mut self,
-        ns: NS<'input>,
-        qual_name: &Atom<'input>,
+        element: &ElementId<'input>,
     ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
-        let Some((selections, document, element)) = self.creation_internal(ns, qual_name)? else {
+        let Some((selections, document)) = self.creation_internal()? else {
             return Ok(None);
         };
         let mut new_elements = Vec::with_capacity(selections.len());
@@ -157,9 +205,10 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         ns: NS<'input>,
         qual_name: &Atom<'input>,
     ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
-        let Some((selections, document, element)) = self.creation_internal(ns, qual_name)? else {
+        let Some((selections, document)) = self.creation_internal()? else {
             return Ok(None);
         };
+        let element = self.name_internal(ns, qual_name);
         let mut new_elements = Vec::with_capacity(selections.len());
         for selected in selections {
             let element = document.create_element(element.clone(), &self.allocator);
@@ -169,25 +218,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         Ok(Some(new_elements))
     }
 
-    fn creation_internal(
-        &mut self,
-        ns: NS<'input>,
-        qual_name: &Atom<'input>,
-    ) -> Result<
-        Option<(
-            Vec<Element<'input, 'arena>>,
-            Document<'input, 'arena>,
-            ElementId<'input>,
-        )>,
-        Error<'input>,
-    > {
-        let Some(selections) = self.get_selections()? else {
-            return Ok(None);
-        };
-        let Some(root) = Element::from_parent(self.root) else {
-            return Ok(None);
-        };
-        let document = root.as_document();
+    fn name_internal(&self, ns: NS<'input>, qual_name: &Atom<'input>) -> ElementId<'input> {
         let (prefix, local_name) = match qual_name.split_once(':') {
             Some((prefix, local_name)) => (
                 Some((*self.allocator.alloc_str(prefix)).into()),
@@ -196,7 +227,20 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             None => (None, qual_name.clone()),
         };
         let prefix = Prefix::new(ns.uri().clone(), prefix);
-        let element = ElementId::new(prefix, local_name);
+        ElementId::new(prefix, local_name)
+    }
+
+    fn creation_internal(
+        &mut self,
+    ) -> Result<Option<(Vec<Element<'input, 'arena>>, Document<'input, 'arena>)>, Error<'input>>
+    {
+        let Some(selections) = self.get_selections()? else {
+            return Ok(None);
+        };
+        let Some(root) = Element::from_parent(self.root) else {
+            return Ok(None);
+        };
+        let document = root.as_document();
 
         #[allow(clippy::cast_sign_loss)]
         let selections = selections
@@ -204,7 +248,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             .filter_map(|s| self.allocator.get(s as usize))
             .filter_map(Node::element)
             .collect::<Vec<_>>();
-        Ok(Some((selections, document, element)))
+        Ok(Some((selections, document)))
     }
 }
 

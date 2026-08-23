@@ -2101,6 +2101,7 @@ dependencies = [
 name = "oxvg_actions"
 version = "0.0.7"
 dependencies = [
+ "getrandom 0.4.3",
  "insta",
  "lightningcss",
  "napi",

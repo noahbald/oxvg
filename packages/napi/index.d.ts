@@ -23,6 +23,7 @@ value: string }
 | { type: 'InsertNS', field0: string, field1: string }
 | { type: 'Duplicate' }
 | { type: 'Wrap', field0: string }
+| { type: 'Clone' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -66,6 +67,625 @@ export interface InfoNapi {
   attributes: AttrModelNapi
   /** The text content common to the selected elements */
   text?: string
+}
+/** r" Specifies which attribute groups an attribute may belong to */
+export declare class AttributeGroup {
+  /** Convert from bits */
+  constructor(bits: number)
+  /** Get the underlying bits */
+  toBits(): number
+}
+
+/** r" Specifies which categories an element may belong to */
+export declare class ElementCategory {
+  /** Convert from bits */
+  constructor(bits: number)
+  /** Get the underlying bits */
+  toBits(): number
+}
+
+/**
+ * Identifies one of an element's attributes.
+ *
+ * [MDN | SVG Attribute reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute)
+ */
+export type AttrIdNapi =
+  | { type: 'AccentHeight' }
+  | { type: 'Accumulate' }
+  | { type: 'Additive' }
+  | { type: 'Alphabetic' }
+  | { type: 'Amplitude' }
+  | { type: 'ArabicForm' }
+  | { type: 'AriaActiveDescendant' }
+  | { type: 'AriaAtomic' }
+  | { type: 'AriaAutocomplete' }
+  | { type: 'AriaBusy' }
+  | { type: 'AriaChecked' }
+  | { type: 'AriaColCount' }
+  | { type: 'AriaColIndex' }
+  | { type: 'AriaColSpan' }
+  | { type: 'AriaControls' }
+  | { type: 'AriaCurrent' }
+  | { type: 'AriaDescribedBy' }
+  | { type: 'AriaDetails' }
+  | { type: 'AriaDisabled' }
+  | { type: 'AriaDropEffect' }
+  | { type: 'AriaErrorMessage' }
+  | { type: 'AriaExpanded' }
+  | { type: 'AriaFlowTo' }
+  | { type: 'AriaGrabbed' }
+  | { type: 'AriaHasPopup' }
+  | { type: 'AriaHidden' }
+  | { type: 'AriaInvalid' }
+  | { type: 'AriaKeyshortcuts' }
+  | { type: 'AriaLabel' }
+  | { type: 'AriaLabelledBy' }
+  | { type: 'AriaLevel' }
+  | { type: 'AriaLive' }
+  | { type: 'AriaModal' }
+  | { type: 'AriaMultiline' }
+  | { type: 'AriaMultiselectable' }
+  | { type: 'AriaOrientation' }
+  | { type: 'AriaOwns' }
+  | { type: 'AriaPlaceholder' }
+  | { type: 'AriaPosInSet' }
+  | { type: 'AriaPressed' }
+  | { type: 'AriaReadonly' }
+  | { type: 'AriaRelevant' }
+  | { type: 'AriaRequired' }
+  | { type: 'AriaRoleDescription' }
+  | { type: 'AriaRowCount' }
+  | { type: 'AriaRowIndex' }
+  | { type: 'AriaRowSpan' }
+  | { type: 'AriaSelected' }
+  | { type: 'AriaSetSize' }
+  | { type: 'AriaSort' }
+  | { type: 'AriaValueMax' }
+  | { type: 'AriaValueMin' }
+  | { type: 'AriaValueNow' }
+  | { type: 'AriaValueText' }
+  | { type: 'Ascent' }
+  | { type: 'AttributeName' }
+  | { type: 'AttributeType' }
+  | { type: 'AutoFocus' }
+  | { type: 'Azimuth' }
+  | { type: 'BaseFrequency' }
+  | { type: 'BaseProfile' }
+  | { type: 'Bbox' }
+  | { type: 'Begin' }
+  | { type: 'Bias' }
+  | { type: 'By' }
+  | { type: 'CalcMode' }
+  | { type: 'CapHeight' }
+  | { type: 'Class' }
+  | { type: 'ClipPathUnits' }
+  | { type: 'ContentScriptType' }
+  | { type: 'ContentStyleType' }
+  | { type: 'CrossOrigin' }
+  | { type: 'CXGeometry' }
+  | { type: 'CXRadialGradient' }
+  | { type: 'CYGeometry' }
+  | { type: 'CYRadialGradient' }
+  | { type: 'D' }
+  | { type: 'Descent' }
+  | { type: 'DiffuseConstant' }
+  | { type: 'Divisor' }
+  | { type: 'Download' }
+  | { type: 'Dur' }
+  | { type: 'DXAltGlyph' }
+  | { type: 'DXFeDropShadow' }
+  | { type: 'DXFeOffset' }
+  | { type: 'DXGlyphRef' }
+  | { type: 'DXText' }
+  | { type: 'DXTSpan' }
+  | { type: 'DYAltGlyph' }
+  | { type: 'DYFeDropShadow' }
+  | { type: 'DYFeOffset' }
+  | { type: 'DYGlyphRef' }
+  | { type: 'DYText' }
+  | { type: 'DYTSpan' }
+  | { type: 'EdgeModeFeConvolveMatrix' }
+  | { type: 'EdgeModeFeGaussianBlur' }
+  | { type: 'Elevation' }
+  | { type: 'End' }
+  | { type: 'Exponent' }
+  | { type: 'ExternalResourcesRequired' }
+  | { type: 'FillAnimate' }
+  | { type: 'FilterRes' }
+  | { type: 'FilterUnits' }
+  | { type: 'Format' }
+  | { type: 'FR' }
+  | { type: 'From' }
+  | { type: 'FX' }
+  | { type: 'FY' }
+  | { type: 'G1' }
+  | { type: 'G2' }
+  | { type: 'GlyphName' }
+  | { type: 'GlyphRef' }
+  | { type: 'GradientTransform' }
+  | { type: 'GradientUnits' }
+  | { type: 'Hanging' }
+  | { type: 'HatchContentUnits' }
+  | { type: 'HatchUnits' }
+  | { type: 'HeightFilter' }
+  | { type: 'HeightForeignObject' }
+  | { type: 'HeightImage' }
+  | { type: 'HeightPattern' }
+  | { type: 'HeightRect' }
+  | { type: 'HeightSvg' }
+  | { type: 'HeightSymbol' }
+  | { type: 'HeightUse' }
+  | { type: 'HeightFe' }
+  | { type: 'HeightMask' }
+  | { type: 'HorizAdvX' }
+  | { type: 'HorizOriginX' }
+  | { type: 'HorizOriginY' }
+  | { type: 'Href' }
+  | { type: 'Hreflang' }
+  | { type: 'Id' }
+  | { type: 'Ideographic' }
+  | { type: 'In' }
+  | { type: 'In2' }
+  | { type: 'Intercept' }
+  | { type: 'K' }
+  | { type: 'K1' }
+  | { type: 'K2' }
+  | { type: 'K3' }
+  | { type: 'K4' }
+  | { type: 'KernelMatrix' }
+  | { type: 'KernelUnitLength' }
+  | { type: 'KeyPoints' }
+  | { type: 'KeySplines' }
+  | { type: 'KeyTimes' }
+  | { type: 'Lang' }
+  | { type: 'LengthAdjust' }
+  | { type: 'LimitingConeAngle' }
+  | { type: 'Local' }
+  | { type: 'MarkerHeight' }
+  | { type: 'MarkerUnits' }
+  | { type: 'MarkerWidth' }
+  | { type: 'MaskContentUnits' }
+  | { type: 'MaskUnits' }
+  | { type: 'Mathematical' }
+  | { type: 'Max' }
+  | { type: 'Media' }
+  | { type: 'Method' }
+  | { type: 'Min' }
+  | { type: 'Mode' }
+  | { type: 'NameColorProfile' }
+  | { type: 'NameFontFace' }
+  | { type: 'NumOctaves' }
+  | { type: 'OffsetStop' }
+  | { type: 'OffsetFe' }
+  | { type: 'OffsetHatchPath' }
+  | { type: 'OnAbort' }
+  | { type: 'OnActivate' }
+  | { type: 'OnBegin' }
+  | { type: 'OnCancel' }
+  | { type: 'OnCanplay' }
+  | { type: 'OnCanplaythrough' }
+  | { type: 'OnChange' }
+  | { type: 'OnClick' }
+  | { type: 'OnClose' }
+  | { type: 'OnCopy' }
+  | { type: 'OnCuechange' }
+  | { type: 'OnCut' }
+  | { type: 'OnDblclick' }
+  | { type: 'OnDrag' }
+  | { type: 'OnDragend' }
+  | { type: 'OnDragenter' }
+  | { type: 'OnDragexit' }
+  | { type: 'OnDragleave' }
+  | { type: 'OnDragover' }
+  | { type: 'OnDragstart' }
+  | { type: 'OnDrop' }
+  | { type: 'OnDurationchange' }
+  | { type: 'OnEmptied' }
+  | { type: 'OnEnd' }
+  | { type: 'OnEnded' }
+  | { type: 'OnError' }
+  | { type: 'OnFocusIn' }
+  | { type: 'OnFocusOut' }
+  | { type: 'OnFocus' }
+  | { type: 'OnInput' }
+  | { type: 'OnInvalid' }
+  | { type: 'OnKeydown' }
+  | { type: 'OnKeypress' }
+  | { type: 'OnKeyup' }
+  | { type: 'OnLoad' }
+  | { type: 'OnLoadeddata' }
+  | { type: 'OnLoadedmetadata' }
+  | { type: 'OnLoadstart' }
+  | { type: 'OnMousedown' }
+  | { type: 'OnMouseenter' }
+  | { type: 'OnMouseleave' }
+  | { type: 'OnMousemove' }
+  | { type: 'OnMouseout' }
+  | { type: 'OnMouseover' }
+  | { type: 'OnMouseup' }
+  | { type: 'OnPaste' }
+  | { type: 'OnPause' }
+  | { type: 'OnPlay' }
+  | { type: 'OnPlaying' }
+  | { type: 'OnProgress' }
+  | { type: 'OnRatechange' }
+  | { type: 'OnRepeat' }
+  | { type: 'OnReset' }
+  | { type: 'OnResize' }
+  | { type: 'OnScroll' }
+  | { type: 'OnSeeked' }
+  | { type: 'OnSeeking' }
+  | { type: 'OnSelect' }
+  | { type: 'OnShow' }
+  | { type: 'OnStalled' }
+  | { type: 'OnSubmit' }
+  | { type: 'OnSuspend' }
+  | { type: 'OnTimeupdate' }
+  | { type: 'OnToggle' }
+  | { type: 'OnUnload' }
+  | { type: 'OnVolumechange' }
+  | { type: 'OnWaiting' }
+  | { type: 'OnWheel' }
+  | { type: 'OnZoom' }
+  | { type: 'OperatorFeComposite' }
+  | { type: 'OperatorFeMorphology' }
+  | { type: 'Order' }
+  | { type: 'Orient' }
+  | { type: 'Orientation' }
+  | { type: 'Origin' }
+  | { type: 'OverlinePosition' }
+  | { type: 'OverlineThickness' }
+  | { type: 'Panose1' }
+  | { type: 'Path' }
+  | { type: 'PathLength' }
+  | { type: 'PatternContentUnits' }
+  | { type: 'PatternTransform' }
+  | { type: 'PatternUnits' }
+  | { type: 'Ping' }
+  | { type: 'Pitch' }
+  | { type: 'Playbackorder' }
+  | { type: 'Points' }
+  | { type: 'PointsAtX' }
+  | { type: 'PointsAtY' }
+  | { type: 'PointsAtZ' }
+  | { type: 'PreserveAlpha' }
+  | { type: 'PreserveAspectRatio' }
+  | { type: 'PrimitiveUnits' }
+  | { type: 'Radius' }
+  | { type: 'ReferrerPolicy' }
+  | { type: 'RefX' }
+  | { type: 'RefY' }
+  | { type: 'Rel' }
+  | { type: 'RenderingIntent' }
+  | { type: 'RepeatCount' }
+  | { type: 'RepeatDur' }
+  | { type: 'RequiredExtensions' }
+  | { type: 'RequiredFeatures' }
+  | { type: 'Restart' }
+  | { type: 'Result' }
+  | { type: 'Role' }
+  | { type: 'RotateText' }
+  | { type: 'RotateAnimate' }
+  | { type: 'RotateHatch' }
+  | { type: 'RX' }
+  | { type: 'RY' }
+  | { type: 'RGeometry' }
+  | { type: 'RRadialGradient' }
+  | { type: 'Scale' }
+  | { type: 'Seed' }
+  | { type: 'Side' }
+  | { type: 'SlopeFont' }
+  | { type: 'SlopeFe' }
+  | { type: 'SolidColor' }
+  | { type: 'SolidOpacity' }
+  | { type: 'Spacing' }
+  | { type: 'SpecularConstant' }
+  | { type: 'SpecularExponent' }
+  | { type: 'SpreadMethod' }
+  | { type: 'StartOffset' }
+  | { type: 'StdDeviationFeDropShadow' }
+  | { type: 'StdDeviationFeGaussianBlur' }
+  | { type: 'Stemh' }
+  | { type: 'Stemv' }
+  | { type: 'StitchTiles' }
+  | { type: 'StrikethroughPosition' }
+  | { type: 'StrikethroughThickness' }
+  | { type: 'String' }
+  | { type: 'Style' }
+  | { type: 'SurfaceScale' }
+  | { type: 'SystemLanguage' }
+  | { type: 'Tabindex' }
+  | { type: 'TableValues' }
+  | { type: 'Target' }
+  | { type: 'TargetX' }
+  | { type: 'TargetY' }
+  | { type: 'TextLength' }
+  | { type: 'Timelinebegin' }
+  | { type: 'Title' }
+  | { type: 'To' }
+  | { type: 'TypeA' }
+  | { type: 'TypeAnimateTransform' }
+  | { type: 'TypeFeColorMatrix' }
+  | { type: 'TypeFeFunc' }
+  | { type: 'TypeFeTurbulence' }
+  | { type: 'TypeScript' }
+  | { type: 'TypeStyle' }
+  | { type: 'U1' }
+  | { type: 'U2' }
+  | { type: 'UnderlinePosition' }
+  | { type: 'UnderlineThickness' }
+  | { type: 'Unicode' }
+  | { type: 'UnicodeRange' }
+  | { type: 'UnitsPerEm' }
+  | { type: 'VAlphabetic' }
+  | { type: 'VHanging' }
+  | { type: 'VIdeographic' }
+  | { type: 'VMathematical' }
+  | { type: 'ValuesFeColorMatrix' }
+  | { type: 'ValuesAnimate' }
+  | { type: 'Version' }
+  | { type: 'VertAdvY' }
+  | { type: 'VertOriginX' }
+  | { type: 'VertOriginY' }
+  | { type: 'ViewBox' }
+  | { type: 'ViewTarget' }
+  | { type: 'WidthFilter' }
+  | { type: 'WidthForeignObject' }
+  | { type: 'WidthImage' }
+  | { type: 'WidthPattern' }
+  | { type: 'WidthRect' }
+  | { type: 'WidthSvg' }
+  | { type: 'WidthSymbol' }
+  | { type: 'WidthUse' }
+  | { type: 'WidthFe' }
+  | { type: 'WidthMask' }
+  | { type: 'Widths' }
+  | { type: 'XAltGlyph' }
+  | { type: 'XCursor' }
+  | { type: 'XFe' }
+  | { type: 'XFePointLight' }
+  | { type: 'XFeSpotLight' }
+  | { type: 'XFilter' }
+  | { type: 'XGeometry' }
+  | { type: 'XGlyphRef' }
+  | { type: 'XHatch' }
+  | { type: 'XMask' }
+  | { type: 'XPattern' }
+  | { type: 'XText' }
+  | { type: 'XTRef' }
+  | { type: 'XHeight' }
+  | { type: 'X1Line' }
+  | { type: 'X1LinearGradient' }
+  | { type: 'X2Line' }
+  | { type: 'X2LinearGradient' }
+  | { type: 'XChannelSelector' }
+  | { type: 'XLinkActuate' }
+  | { type: 'XLinkArcrole' }
+  | { type: 'XLinkHref' }
+  | { type: 'XLinkRole' }
+  | { type: 'XLinkTitle' }
+  | { type: 'XLinkType' }
+  | { type: 'XLinkShow' }
+  | { type: 'XMLNS' }
+  | { type: 'XmlBase' }
+  | { type: 'XmlLang' }
+  | { type: 'XmlSpace' }
+  | { type: 'YAltGlyph' }
+  | { type: 'YCursor' }
+  | { type: 'YFe' }
+  | { type: 'YFePointLight' }
+  | { type: 'YFeSpotLight' }
+  | { type: 'YFilter' }
+  | { type: 'YGeometry' }
+  | { type: 'YGlyphRef' }
+  | { type: 'YHatch' }
+  | { type: 'YMask' }
+  | { type: 'YPattern' }
+  | { type: 'YText' }
+  | { type: 'YTRef' }
+  | { type: 'Y1Line' }
+  | { type: 'Y1LinearGradient' }
+  | { type: 'Y2Line' }
+  | { type: 'Y2LinearGradient' }
+  | { type: 'YChannelSelector' }
+  | { type: 'ZFe' }
+  | { type: 'ZoomAndPan' }
+  | { type: 'AlignmentBaseline' }
+  | { type: 'BaselineShift' }
+  | { type: 'Clip' }
+  | { type: 'ClipPath' }
+  | { type: 'ClipRule' }
+  | { type: 'Color' }
+  | { type: 'ColorInterpolation' }
+  | { type: 'ColorInterpolationFilters' }
+  | { type: 'ColorProfile' }
+  | { type: 'ColorRendering' }
+  | { type: 'Cursor' }
+  | { type: 'Direction' }
+  | { type: 'Display' }
+  | { type: 'DominantBaseline' }
+  | { type: 'EnableBackground' }
+  | { type: 'Fill' }
+  | { type: 'FillOpacity' }
+  | { type: 'FillRule' }
+  | { type: 'Filter' }
+  | { type: 'FloodColor' }
+  | { type: 'FloodOpacity' }
+  | { type: 'Font' }
+  | { type: 'FontFamily' }
+  | { type: 'FontSize' }
+  | { type: 'FontSizeAdjust' }
+  | { type: 'FontStretch' }
+  | { type: 'FontStyle' }
+  | { type: 'FontVariant' }
+  | { type: 'FontWeight' }
+  | { type: 'GlyphOrientationHorizontal' }
+  | { type: 'GlyphOrientationVertical' }
+  | { type: 'ImageRendering' }
+  | { type: 'Kerning' }
+  | { type: 'LetterSpacing' }
+  | { type: 'LightingColor' }
+  | { type: 'MarkerEnd' }
+  | { type: 'MarkerMid' }
+  | { type: 'MarkerStart' }
+  | { type: 'Marker' }
+  | { type: 'Mask' }
+  | { type: 'Opacity' }
+  | { type: 'Overflow' }
+  | { type: 'PaintOrder' }
+  | { type: 'PointerEvents' }
+  | { type: 'ShapeRendering' }
+  | { type: 'StopColor' }
+  | { type: 'StopOpacity' }
+  | { type: 'Stroke' }
+  | { type: 'StrokeDasharray' }
+  | { type: 'StrokeDashoffset' }
+  | { type: 'StrokeLinecap' }
+  | { type: 'StrokeLinejoin' }
+  | { type: 'StrokeMiterlimit' }
+  | { type: 'StrokeOpacity' }
+  | { type: 'StrokeWidth' }
+  | { type: 'TextAnchor' }
+  | { type: 'TextDecoration' }
+  | { type: 'TextRendering' }
+  | { type: 'Transform' }
+  | { type: 'TransformOrigin' }
+  | { type: 'UnicodeBidi' }
+  | { type: 'VectorEffect' }
+  | { type: 'Visibility' }
+  | { type: 'WordSpacing' }
+  | { type: 'WritingMode' }
+  | { type: 'Aliased', /** The prefix assigned to the attribute */
+  prefix: PrefixNapi, /** The associated attribute */
+name: [string, string] }
+| { type: 'Unknown', field0: QualNameNapi }
+
+/**
+ * Identifies an element by it's local-name and namespace
+ *
+ * [MDN | SVG element reference](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element)
+ */
+export type ElementIdNapi =
+  | { type: 'A' }
+  | { type: 'AltGlyph' }
+  | { type: 'AltGlyphDef' }
+  | { type: 'AltGlyphItem' }
+  | { type: 'Animate' }
+  | { type: 'AnimateColor' }
+  | { type: 'AnimateMotion' }
+  | { type: 'AnimateTransform' }
+  | { type: 'Circle' }
+  | { type: 'ClipPath' }
+  | { type: 'ColorProfile' }
+  | { type: 'Cursor' }
+  | { type: 'Defs' }
+  | { type: 'Desc' }
+  | { type: 'Ellipse' }
+  | { type: 'FeBlend' }
+  | { type: 'FeColorMatrix' }
+  | { type: 'FeComponentTransfer' }
+  | { type: 'FeComposite' }
+  | { type: 'FeConvolveMatrix' }
+  | { type: 'FeDiffuseLighting' }
+  | { type: 'FeDisplacementMap' }
+  | { type: 'FeDistantLight' }
+  | { type: 'FeDropShadow' }
+  | { type: 'FeFlood' }
+  | { type: 'FeFuncA' }
+  | { type: 'FeFuncB' }
+  | { type: 'FeFuncG' }
+  | { type: 'FeFuncR' }
+  | { type: 'FeGaussianBlur' }
+  | { type: 'FeImage' }
+  | { type: 'FeMerge' }
+  | { type: 'FeMergeNode' }
+  | { type: 'FeMorphology' }
+  | { type: 'FeOffset' }
+  | { type: 'FePointLight' }
+  | { type: 'FeSpecularLighting' }
+  | { type: 'FeSpotLight' }
+  | { type: 'FeTile' }
+  | { type: 'FeTurbulence' }
+  | { type: 'Filter' }
+  | { type: 'Font' }
+  | { type: 'FontFace' }
+  | { type: 'FontFaceFormat' }
+  | { type: 'FontFaceName' }
+  | { type: 'FontFaceSrc' }
+  | { type: 'FontFaceURI' }
+  | { type: 'ForeignObject' }
+  | { type: 'G' }
+  | { type: 'Glyph' }
+  | { type: 'GlyphRef' }
+  | { type: 'Hatch' }
+  | { type: 'HatchPath' }
+  | { type: 'HKern' }
+  | { type: 'Image' }
+  | { type: 'Line' }
+  | { type: 'LinearGradient' }
+  | { type: 'Marker' }
+  | { type: 'Mask' }
+  | { type: 'Metadata' }
+  | { type: 'MissingGlyph' }
+  | { type: 'MPath' }
+  | { type: 'Path' }
+  | { type: 'Pattern' }
+  | { type: 'Polygon' }
+  | { type: 'Polyline' }
+  | { type: 'RadialGradient' }
+  | { type: 'Rect' }
+  | { type: 'Script' }
+  | { type: 'Set' }
+  | { type: 'SolidColor' }
+  | { type: 'Stop' }
+  | { type: 'Style' }
+  | { type: 'Svg' }
+  | { type: 'Switch' }
+  | { type: 'Symbol' }
+  | { type: 'Text' }
+  | { type: 'TextPath' }
+  | { type: 'Title' }
+  | { type: 'TRef' }
+  | { type: 'TSpan' }
+  | { type: 'Use' }
+  | { type: 'View' }
+  | { type: 'VKern' }
+  | { type: 'Aliased', /** The prefix assigned to the element */
+  prefix: PrefixNapi, /** The associated element */
+name: [string, string] }
+| { type: 'Unknown', field0: QualNameNapi }
+
+/** A namespace for a qualified name's prefix */
+export type NSNapi =
+  | { type: 'SVG' }
+  | { type: 'HTML' }
+  | { type: 'XML' }
+  | { type: 'XMLNS' }
+  | { type: 'XLink' }
+  | { type: 'MathML' }
+  | { type: 'Unknown', field0: string }
+
+/** A prefix for a qualified name, e.g. `xlink` of `xlink:href` */
+export type PrefixNapi =
+  | { type: 'SVG' }
+  | { type: 'HTML' }
+  | { type: 'XML' }
+  | { type: 'XMLNS' }
+  | { type: 'XLink' }
+  | { type: 'MathML' }
+  | { type: 'Unknown', /** The prefix name, e.g. `prefix` of `xmlns:prefix="<url>"` */
+  prefix?: string, /** The unique resource identifier, e.g. `<url>` of `xmlns:prefix="<url>"` */
+ns: NSNapi }
+| { type: 'Aliased', /** The prefix that's being aliased */
+prefix: [string, string], /** The name assigned to the prefix */
+alias?: string }
+
+/** A qualified name used for the names of tags and attributes. */
+export interface QualNameNapi {
+  /** The prefix (e.g. `xlink` of `xlink:href`) of a qualified name. */
+  prefix: PrefixNapi
+  /** The local name (e.g. the `href` of `xlink:href`) of a qualified name. */
+  local: string
 }
 /**
  * An actor holds a reference to a document to act upon.
@@ -237,6 +857,14 @@ export declare class Actor {
    * When root element is missing.
    */
   wrap(qualName: string): void
+  /**
+   * Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new use elements.
+   *
+   * # Errors
+   *
+   * When root element is missing or if random id cannot be generated.
+   */
+  clone(): void
   /**
    * Removes OXVG state from the document
    *
@@ -1816,3 +2444,12 @@ export type XMLNSOrder =
   | { type: 'Alphabetical' }
   | { type: 'Front' }
   | { type: 'Napi' }
+/** Tolerance for converting between SVG, Segments, and Polygons */
+export interface Tolerance {
+  /** The level of tolerance when comparing the error between distances */
+  positional: number
+  /** The level of tolerance when comparing the error between angles */
+  angular: number
+  /** The number of decimal places to round numbers to during processing */
+  precision: number
+}

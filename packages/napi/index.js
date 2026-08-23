@@ -700,6 +700,8 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.AttributeGroup = nativeBinding.AttributeGroup
+module.exports.ElementCategory = nativeBinding.ElementCategory
 module.exports.Actor = nativeBinding.Actor
 module.exports.convertSvgoConfig = nativeBinding.convertSvgoConfig
 module.exports.extend = nativeBinding.extend

@@ -509,8 +509,18 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
-    pub fn wrap(&mut self, qual_name: &str) -> napi::Result<()> {
+    pub fn wrap(&mut self, qual_name: &str) -> Result<(), Error> {
         self.actor.wrap(&qual_name.to_string().into())
+    }
+
+    /// Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new `use` elements.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing or if random id cannot be generated.
+    #[wasm_bindgen]
+    pub fn clone(&mut self) -> Result<(), Error> {
+        self.actor.clone()
     }
 
     /// Removes OXVG state from the document

@@ -373,6 +373,16 @@ impl Actor {
     self.actor.wrap(&qual_name.into()).map_err(generic_error)
   }
 
+  /// Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new use elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing or if random id cannot be generated.
+  #[napi]
+  pub fn clone(&mut self) -> napi::Result<()> {
+    self.actor.clone().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

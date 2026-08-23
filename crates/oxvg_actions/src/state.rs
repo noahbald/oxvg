@@ -255,6 +255,7 @@ impl<'input> Action<'input> {
     const INSERT_NS: &'static str = "InsertNS";
     const DUPLICATE: &'static str = "Duplicate";
     const WRAP: &'static str = "Wrap";
+    const CLONE: &'static str = "Clone";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -399,6 +400,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::Wrap(name))
             }
+            Self::CLONE => Ok(Self::Clone),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -477,6 +479,7 @@ impl<'input> Action<'input> {
             | Self::PathUnion
             | Self::PathSubtract
             | Self::PathXor
+            | Self::Clone
             | Self::Forget
             | Self::Deselect
             | Self::Duplicate => {}
@@ -513,6 +516,7 @@ impl<'input> Action<'input> {
             Self::InsertNS(_, _) => Self::INSERT_NS,
             Self::Duplicate => Self::DUPLICATE,
             Self::Wrap(_) => Self::WRAP,
+            Self::Clone => Self::CLONE,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -552,6 +556,7 @@ impl<'input> Action<'input> {
             Self::Insert(name) => ActionNapi::Insert(name.to_string()),
             Self::Duplicate => ActionNapi::Duplicate,
             Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
+            Self::Clone => ActionNapi::Clone,
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -591,6 +596,7 @@ impl<'input> Action<'input> {
             ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
             ActionNapi::Duplicate => Action::Duplicate,
             ActionNapi::Wrap(name) => Action::Wrap(name.into()),
+            ActionNapi::Clone => Action::Clone,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),
