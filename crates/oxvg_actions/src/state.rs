@@ -259,6 +259,7 @@ impl<'input> Action<'input> {
     const CLONE: &'static str = "Clone";
     const ANCHOR_LINK: &'static str = "AnchorLink";
     const GROUP: &'static str = "Group";
+    const DELETE: &'static str = "Delete";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -411,6 +412,7 @@ impl<'input> Action<'input> {
                 Ok(Self::AnchorLink(href))
             }
             Self::GROUP => Ok(Self::Group),
+            Self::DELETE => Ok(Self::Delete),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -492,6 +494,7 @@ impl<'input> Action<'input> {
             | Self::PathXor
             | Self::Clone
             | Self::Group
+            | Self::Delete
             | Self::Forget
             | Self::Deselect
             | Self::Duplicate => {}
@@ -531,6 +534,7 @@ impl<'input> Action<'input> {
             Self::Clone => Self::CLONE,
             Self::AnchorLink(_) => Self::ANCHOR_LINK,
             Self::Group => Self::GROUP,
+            Self::Delete => Self::DELETE,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -572,8 +576,9 @@ impl<'input> Action<'input> {
             Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
             Self::Clone => ActionNapi::Clone,
             Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
-            Self::Forget => ActionNapi::Forget,
             Self::Group => ActionNapi::Group,
+            Self::Delete => ActionNapi::Delete,
+            Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
             Self::Deselect => ActionNapi::Deselect,
@@ -615,6 +620,7 @@ impl<'input> Action<'input> {
             ActionNapi::Clone => Action::Clone,
             ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
             ActionNapi::Group => Action::Group,
+            ActionNapi::Delete => Action::Delete,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

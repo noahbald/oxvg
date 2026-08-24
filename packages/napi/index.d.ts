@@ -26,6 +26,7 @@ value: string }
 | { type: 'Clone' }
 | { type: 'AnchorLink', field0: string }
 | { type: 'Group' }
+| { type: 'Delete' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -887,6 +888,14 @@ export declare class Actor {
    * When root element is missing.
    */
   group(): void
+  /**
+   * Removes each selected element from the document. Deselects.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  delete(): void
   /**
    * Removes OXVG state from the document
    *

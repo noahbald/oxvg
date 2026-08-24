@@ -548,6 +548,16 @@ impl Actor {
         self.actor.group()
     }
 
+    /// Removes each selected element from the document. Deselects.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn delete(&mut self) -> Result<(), Error> {
+        self.actor.delete()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

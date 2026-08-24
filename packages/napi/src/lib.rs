@@ -407,6 +407,16 @@ impl Actor {
     self.actor.group().map_err(generic_error)
   }
 
+  /// Removes each selected element from the document. Deselects.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn delete(&mut self) -> napi::Result<()> {
+    self.actor.delete().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

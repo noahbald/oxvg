@@ -88,9 +88,11 @@ pub enum Action<'input> {
     Clone,
     /// See [`Actor::anchor_link`]
     AnchorLink(Atom<'input>),
-    /// See [`Actor::forget`]
-    Group,
     /// See [`Actor::group`]
+    Group,
+    /// See [`Actor::delete`]
+    Delete,
+    /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
     Select(Atom<'input>),
@@ -154,6 +156,8 @@ pub enum ActionNapi {
     AnchorLink(String),
     /// See [`Actor::group`]
     Group,
+    /// See [`Actor::delete`]
+    Delete,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -231,6 +235,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Clone => self.clone(),
             Action::AnchorLink(href) => self.anchor_link(&href),
             Action::Group => self.group(),
+            Action::Delete => self.delete(),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),
