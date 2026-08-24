@@ -86,6 +86,8 @@ pub enum Action<'input> {
     Wrap(Atom<'input>),
     /// See [`Actor::clone`]
     Clone,
+    /// See [`Actor::anchor_link`]
+    AnchorLink(Atom<'input>),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -146,6 +148,8 @@ pub enum ActionNapi {
     Wrap(String),
     /// See [`Actor::clone`]
     Clone,
+    /// See [`Actor::anchor_link`]
+    AnchorLink(String),
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -221,6 +225,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Duplicate => self.duplicate(),
             Action::Wrap(name) => self.wrap(&name),
             Action::Clone => self.clone(),
+            Action::AnchorLink(href) => self.anchor_link(&href),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

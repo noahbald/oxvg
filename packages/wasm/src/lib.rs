@@ -523,6 +523,19 @@ impl Actor {
         self.actor.clone()
     }
 
+    /// Wraps each selected element in an
+    /// [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+    /// Adjacent selections will be grouped within the same link. Selection moved to links.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = anchorLink)]
+    pub fn anchor_link(&mut self, href: &str) -> Result<(), Error> {
+        self.actor.anchor_link(&href.to_string().into())
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

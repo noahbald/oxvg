@@ -383,6 +383,18 @@ impl Actor {
     self.actor.clone().map_err(generic_error)
   }
 
+  /// Wraps each selected element in an
+  /// [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+  /// Adjacent selections will be grouped within the same link. Selection moved to links.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn anchor_link(&mut self, href: String) -> napi::Result<()> {
+    self.actor.anchor_link(&href.into()).map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

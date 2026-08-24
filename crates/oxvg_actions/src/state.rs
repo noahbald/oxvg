@@ -256,6 +256,7 @@ impl<'input> Action<'input> {
     const DUPLICATE: &'static str = "Duplicate";
     const WRAP: &'static str = "Wrap";
     const CLONE: &'static str = "Clone";
+    const ANCHOR_LINK: &'static str = "AnchorLink";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -401,6 +402,12 @@ impl<'input> Action<'input> {
                 Ok(Self::Wrap(name))
             }
             Self::CLONE => Ok(Self::Clone),
+            Self::ANCHOR_LINK => {
+                let Some(href) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::AnchorLink(href))
+            }
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -472,7 +479,8 @@ impl<'input> Action<'input> {
             | Self::Select(arg)
             | Self::SelectMore(arg)
             | Self::Insert(arg)
-            | Self::Wrap(arg) => {
+            | Self::Wrap(arg)
+            | Self::AnchorLink(arg) => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
             Self::PathIntersect
@@ -517,6 +525,7 @@ impl<'input> Action<'input> {
             Self::Duplicate => Self::DUPLICATE,
             Self::Wrap(_) => Self::WRAP,
             Self::Clone => Self::CLONE,
+            Self::AnchorLink(_) => Self::ANCHOR_LINK,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -557,6 +566,7 @@ impl<'input> Action<'input> {
             Self::Duplicate => ActionNapi::Duplicate,
             Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
             Self::Clone => ActionNapi::Clone,
+            Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -597,6 +607,7 @@ impl<'input> Action<'input> {
             ActionNapi::Duplicate => Action::Duplicate,
             ActionNapi::Wrap(name) => Action::Wrap(name.into()),
             ActionNapi::Clone => Action::Clone,
+            ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

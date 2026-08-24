@@ -1,4 +1,9 @@
-use oxvg_ast::{document::Document, element::Element, node::Node};
+use oxvg_ast::{
+    document::Document,
+    element::Element,
+    node::{Node, Ref},
+    set_attribute,
+};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
@@ -183,18 +188,107 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         self.effect_document()
     }
 
+    /// Wraps each selected element in an
+    /// [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+    /// Adjacent selections will be grouped within the same link. Selection moved to links.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/anchor_link.md")]
+    pub fn anchor_link(&mut self, href: &Atom<'input>) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::AnchorLink(href.clone()));
+
+        let Some(anchors) = self.wrap_adjacent_internal(&ElementId::A)? else {
+            return Ok(());
+        };
+        for anchor in &anchors {
+            set_attribute!(anchor, Href(href.clone()));
+        }
+
+        self.effect_selection(&anchors.into_iter().map(|a| a.id() as Integer).collect())?;
+        self.effect_tree()?;
+        self.effect_document()
+    }
+
     fn wrap_internal(
         &mut self,
         element: &ElementId<'input>,
     ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
-        let Some((selections, document)) = self.creation_internal()? else {
+        let Some(selections) = self.get_selections()? else {
             return Ok(None);
         };
-        let mut new_elements = Vec::with_capacity(selections.len());
+        #[allow(clippy::cast_sign_loss)]
+        let selections = selections
+            .into_iter()
+            .filter_map(|s| self.allocator.get(s as usize));
+        let Some(root) = Element::from_parent(self.root) else {
+            return Ok(None);
+        };
+        let document = root.as_document();
+
+        let mut new_elements = Vec::new();
         for selected in selections {
+            let Some(parent) = selected.parent_node() else {
+                continue;
+            };
             let element = document.create_element(element.clone(), &self.allocator);
-            selected.replace_with(*element);
-            element.append(*selected);
+            parent.replace_child(*element, selected);
+            element.append(selected);
+            new_elements.push(element);
+        }
+        Ok(Some(new_elements))
+    }
+
+    fn wrap_adjacent_internal(
+        &mut self,
+        element: &ElementId<'input>,
+    ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
+        let Some(selections) = self.get_selections()? else {
+            return Ok(None);
+        };
+        #[allow(clippy::cast_sign_loss)]
+        let selections = selections
+            .into_iter()
+            .filter_map(|s| self.allocator.get(s as usize));
+        let Some(root) = Element::from_parent(self.root) else {
+            return Ok(None);
+        };
+        let document = root.as_document();
+
+        let mut groups: Vec<Vec<Ref<'input, 'arena>>> = Vec::new();
+        for selected in selections {
+            if let Some(last_group) = groups.last_mut() {
+                if selected.previous_sibling() == last_group.last().map(|e| &**e) {
+                    last_group.push(selected);
+                    continue;
+                }
+            }
+            groups.push(vec![selected]);
+        }
+
+        let mut new_elements = Vec::with_capacity(groups.len());
+        for group in groups {
+            let element = document.create_element(element.clone(), &self.allocator);
+            let mut children = group.into_iter();
+            match children
+                .next()
+                .and_then(|n| n.parent_node().map(|p| (p, n)))
+            {
+                Some((parent, child)) => {
+                    parent.replace_child(*element, child);
+                    element.append(child);
+                    parent
+                }
+                None => continue,
+            };
+            for child in children {
+                child.remove();
+                element.append(child);
+            }
             new_elements.push(element);
         }
         Ok(Some(new_elements))

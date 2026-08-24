@@ -24,6 +24,7 @@ value: string }
 | { type: 'Duplicate' }
 | { type: 'Wrap', field0: string }
 | { type: 'Clone' }
+| { type: 'AnchorLink', field0: string }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -865,6 +866,16 @@ export declare class Actor {
    * When root element is missing or if random id cannot be generated.
    */
   clone(): void
+  /**
+   * Wraps each selected element in an
+   * [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+   * Adjacent selections will be grouped within the same link. Selection moved to links.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  anchorLink(href: string): void
   /**
    * Removes OXVG state from the document
    *
