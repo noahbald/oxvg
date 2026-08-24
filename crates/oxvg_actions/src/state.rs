@@ -119,6 +119,7 @@ impl<'input, 'arena> State<'input, 'arena> {
                     }),
                     value: OXVG_XMLNS.into(),
                 });
+                self.state.remove();
                 element.append_child(*self.state);
             }
         } else {

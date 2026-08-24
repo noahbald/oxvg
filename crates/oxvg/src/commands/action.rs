@@ -182,6 +182,7 @@ impl RunCommand for ActionRun {
 }
 
 impl RunCommand for ActionList {
+    #[allow(clippy::too_many_lines)]
     fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 

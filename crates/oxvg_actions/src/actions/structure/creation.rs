@@ -17,6 +17,15 @@ use oxvg_parse::Parse;
 
 use crate::{Action, Actor, Error};
 
+#[cfg(test)]
+#[allow(clippy::unnecessary_wraps)]
+fn getrandom_u64() -> Result<u64, getrandom::Error> {
+    Ok(0)
+}
+#[cfg(not(test))]
+#[allow(non_upper_case_globals)]
+const getrandom_u64: fn() -> Result<u64, getrandom::Error> = getrandom::u64;
+
 impl<'input, 'arena> Actor<'input, 'arena> {
     /// Creates a new SVG element and inserts it into the current selection.
     ///
@@ -30,7 +39,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn insert(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Insert(qual_name.clone()));
 
-        let Some(new_elements) = self.insert_internal(NS::SVG, qual_name)? else {
+        let Some(new_elements) = self.insert_internal(&NS::SVG, qual_name)? else {
             return Ok(());
         };
 
@@ -59,9 +68,9 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         uri: &Atom<'input>,
         qual_name: &Atom<'input>,
     ) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Insert(qual_name.clone()));
+        self.effect_history(&Action::InsertNS(uri.clone(), qual_name.clone()));
 
-        let Some(new_elements) = self.insert_internal(NS::new(uri.clone()), qual_name)? else {
+        let Some(new_elements) = self.insert_internal(&NS::new(uri.clone()), qual_name)? else {
             return Ok(());
         };
 
@@ -94,6 +103,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let mut new_selections = Vec::with_capacity(selections.len());
 
         for selection in selections {
+            #[allow(clippy::cast_sign_loss)]
             let Some(node) = self.allocator.get(selection as usize) else {
                 continue;
             };
@@ -105,6 +115,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             new_selections.push(clone);
         }
 
+        #[allow(clippy::cast_possible_wrap)]
         self.effect_selection(
             &new_selections
                 .into_iter()
@@ -128,8 +139,8 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn wrap(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Wrap(qual_name.clone()));
 
-        let element = self.name_internal(NS::SVG, qual_name);
-        let Some(new_elements) = self.wrap_internal(&element)? else {
+        let element = self.name_internal(&NS::SVG, qual_name);
+        let Some(new_elements) = self.wrap_adjacent_internal(&element)? else {
             return Ok(());
         };
 
@@ -156,7 +167,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     pub fn clone(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Clone);
 
-        let Some(root) = Element::from_parent(self.root) else {
+        let Some(root) = self.root.find_element() else {
             return Ok(());
         };
         let document = root.as_document();
@@ -165,7 +176,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         };
         let mut use_elements = Vec::with_capacity(new_elements.len());
         for element in new_elements {
-            let id = format!("#clone{}", getrandom::u64().map_err(|_| Error::GetRandom)?);
+            let id = format!("#clone{}", getrandom_u64().map_err(|_| Error::GetRandom)?);
             let id_href = &*self.allocator.alloc_str(&id);
             let id = &id_href[1..];
             let r#use = document.create_element(ElementId::Use, &self.allocator);
@@ -178,6 +189,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             use_elements.push(r#use);
         }
 
+        #[allow(clippy::cast_possible_wrap)]
         self.effect_selection(
             &use_elements
                 .into_iter()
@@ -209,6 +221,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             set_attribute!(anchor, Href(href.clone()));
         }
 
+        #[allow(clippy::cast_possible_wrap)]
         self.effect_selection(&anchors.into_iter().map(|a| a.id() as Integer).collect())?;
         self.effect_tree()?;
         self.effect_document()
@@ -232,6 +245,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             return Ok(());
         };
 
+        #[allow(clippy::cast_possible_wrap)]
         self.effect_selection(&groups.into_iter().map(|a| a.id() as Integer).collect())?;
         self.effect_tree()?;
         self.effect_document()
@@ -248,13 +262,13 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let selections = selections
             .into_iter()
             .filter_map(|s| self.allocator.get(s as usize));
-        let Some(root) = Element::from_parent(self.root) else {
+        let Some(root) = self.root.find_element() else {
             return Ok(None);
         };
         let document = root.as_document();
 
         let mut new_elements = Vec::new();
-        for selected in selections {
+        for selected in selections.rev() {
             let Some(parent) = selected.parent_node() else {
                 continue;
             };
@@ -285,7 +299,14 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let mut groups: Vec<Vec<Ref<'input, 'arena>>> = Vec::new();
         for selected in selections {
             if let Some(last_group) = groups.last_mut() {
-                if selected.previous_sibling() == last_group.last().map(|e| &**e) {
+                let last = last_group.last().map(|e| &**e);
+                if selected.previous_sibling() == last
+                    || selected
+                        .element()
+                        .and_then(|e| e.previous_element_sibling())
+                        .map(|e| &**e)
+                        == last
+                {
                     last_group.push(selected);
                     continue;
                 }
@@ -319,7 +340,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
 
     fn insert_internal(
         &mut self,
-        ns: NS<'input>,
+        ns: &NS<'input>,
         qual_name: &Atom<'input>,
     ) -> Result<Option<Vec<Element<'input, 'arena>>>, Error<'input>> {
         let Some((selections, document)) = self.creation_internal()? else {
@@ -335,7 +356,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         Ok(Some(new_elements))
     }
 
-    fn name_internal(&self, ns: NS<'input>, qual_name: &Atom<'input>) -> ElementId<'input> {
+    fn name_internal(&self, ns: &NS<'input>, qual_name: &Atom<'input>) -> ElementId<'input> {
         let (prefix, local_name) = match qual_name.split_once(':') {
             Some((prefix, local_name)) => (
                 Some((*self.allocator.alloc_str(prefix)).into()),
@@ -354,7 +375,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let Some(selections) = self.get_selections()? else {
             return Ok(None);
         };
-        let Some(root) = Element::from_parent(self.root) else {
+        let Some(root) = self.root.find_element() else {
             return Ok(None);
         };
         let document = root.as_document();
@@ -390,6 +411,101 @@ mod test {
                         &"xml:path".into(),
                     )
                     .unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn duplicate() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <text>One</text>
+    <text>Two</text>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("text").unwrap();
+                actor.duplicate().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn wrap() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <text>One</text>
+    <text>Two</text>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("text").unwrap();
+                actor.wrap(&"g".into()).unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn clone() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <text>One</text>
+    <text>Two</text>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("text").unwrap();
+                actor.clone().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn anchor_link() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <text>One</text>
+    <text>Two</text>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("text").unwrap();
+                actor.anchor_link(&"#uri".into()).unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn group() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <text>One</text>
+    <text>Two</text>
+</svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("text").unwrap();
+                actor.group().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

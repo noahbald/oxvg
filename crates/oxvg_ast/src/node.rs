@@ -668,7 +668,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
                 self.append_child(new_node);
             }
         } else if let Some(prev_child) = self.item(index - 1) {
-            self.insert_after(new_node, &prev_child);
+            self.insert_after(new_node, prev_child);
         } else {
             self.append_child(new_node);
         }

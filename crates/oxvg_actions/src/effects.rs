@@ -77,6 +77,10 @@ impl<'input> Actor<'input, '_> {
     /// Must be called at the end of an action. For an action that affects selection, must
     /// be called after [`Actor::effect_selection`].
     pub(crate) fn effect_tree(&mut self) -> Result<(), Error<'input>> {
+        if let Some(root) = self.root.find_element() {
+            self.state.state.remove();
+            root.append_child(*self.state.state);
+        }
         let Some(selection) = self.get_selections_list()? else {
             self.allocator.reorder(self.root);
             return Ok(());
