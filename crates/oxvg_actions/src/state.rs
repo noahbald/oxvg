@@ -257,6 +257,7 @@ impl<'input> Action<'input> {
     const WRAP: &'static str = "Wrap";
     const CLONE: &'static str = "Clone";
     const ANCHOR_LINK: &'static str = "AnchorLink";
+    const GROUP: &'static str = "Group";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -408,6 +409,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::AnchorLink(href))
             }
+            Self::GROUP => Ok(Self::Group),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -488,6 +490,7 @@ impl<'input> Action<'input> {
             | Self::PathSubtract
             | Self::PathXor
             | Self::Clone
+            | Self::Group
             | Self::Forget
             | Self::Deselect
             | Self::Duplicate => {}
@@ -526,6 +529,7 @@ impl<'input> Action<'input> {
             Self::Wrap(_) => Self::WRAP,
             Self::Clone => Self::CLONE,
             Self::AnchorLink(_) => Self::ANCHOR_LINK,
+            Self::Group => Self::GROUP,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -568,6 +572,7 @@ impl<'input> Action<'input> {
             Self::Clone => ActionNapi::Clone,
             Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
             Self::Forget => ActionNapi::Forget,
+            Self::Group => ActionNapi::Group,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
             Self::Deselect => ActionNapi::Deselect,
@@ -608,6 +613,7 @@ impl<'input> Action<'input> {
             ActionNapi::Wrap(name) => Action::Wrap(name.into()),
             ActionNapi::Clone => Action::Clone,
             ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
+            ActionNapi::Group => Action::Group,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

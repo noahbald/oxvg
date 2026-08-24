@@ -25,6 +25,7 @@ value: string }
 | { type: 'Wrap', field0: string }
 | { type: 'Clone' }
 | { type: 'AnchorLink', field0: string }
+| { type: 'Group' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -876,6 +877,16 @@ export declare class Actor {
    * When root element is missing.
    */
   anchorLink(href: string): void
+  /**
+   * Wraps each selected element in a
+   * [group element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g).
+   * Adjacent selections will be grouped within the same element. Selection moved to groups.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  group(): void
   /**
    * Removes OXVG state from the document
    *

@@ -261,6 +261,10 @@ impl RunCommand for ActionList {
             println!("# Anchor Link\n");
             println!(include_str!("../spec/structure/anchor_link.md"));
         }
+        if parts.is_empty() || parts.contains(GROUP) {
+            println!("# Group\n");
+            println!(include_str!("../spec/structure/group.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -302,6 +306,7 @@ const DUPLICATE: &str = "-duplicate";
 const WRAP: &str = "-wrap";
 const CLONE: &str = "-clone";
 const ANCHOR_LINK: &str = "-anchor-link";
+const GROUP: &str = "-group";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -389,6 +394,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             WRAP => oxvg_actions::Action::Wrap(get_part(&mut parts)?),
             CLONE => oxvg_actions::Action::Clone,
             ANCHOR_LINK => oxvg_actions::Action::AnchorLink(get_part(&mut parts)?),
+            GROUP => oxvg_actions::Action::Group,
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),

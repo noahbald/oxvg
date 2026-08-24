@@ -395,6 +395,18 @@ impl Actor {
     self.actor.anchor_link(&href.into()).map_err(generic_error)
   }
 
+  /// Wraps each selected element in a
+  /// [group element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g).
+  /// Adjacent selections will be grouped within the same element. Selection moved to groups.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn group(&mut self) -> napi::Result<()> {
+    self.actor.group().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

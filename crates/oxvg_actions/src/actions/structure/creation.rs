@@ -214,6 +214,29 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         self.effect_document()
     }
 
+    /// Wraps each selected element in a
+    /// [group element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g).
+    /// Adjacent selections will be grouped within the same element. Selection moved to groups.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/group.md")]
+    pub fn group(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Group);
+
+        let Some(groups) = self.wrap_adjacent_internal(&ElementId::G)? else {
+            return Ok(());
+        };
+
+        self.effect_selection(&groups.into_iter().map(|a| a.id() as Integer).collect())?;
+        self.effect_tree()?;
+        self.effect_document()
+    }
+
     fn wrap_internal(
         &mut self,
         element: &ElementId<'input>,
