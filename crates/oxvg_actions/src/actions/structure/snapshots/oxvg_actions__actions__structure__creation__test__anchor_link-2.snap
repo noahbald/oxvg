@@ -1,0 +1,76 @@
+---
+source: crates/oxvg_actions/src/actions/structure/creation.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "text",
+            ),
+        ),
+        AnchorLink(
+            Cow(
+                "#uri",
+            ),
+        ),
+    ],
+    selection: [
+        3,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                A,
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {
+                    A,
+                    AltGlyphDef,
+                    ClipPath,
+                    ColorProfile,
+                    Cursor,
+                    Filter,
+                    Font,
+                    FontFace,
+                    ForeignObject,
+                    Image,
+                    Marker,
+                    Mask,
+                    Pattern,
+                    Script,
+                    Style,
+                    Switch,
+                    Text,
+                    View,
+                },
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {
+                    Class,
+                    Download,
+                    ExternalResourcesRequired,
+                    Href,
+                    Hreflang,
+                    Ping,
+                    ReferrerPolicy,
+                    Rel,
+                    Target,
+                    TypeA,
+                },
+                values: {
+                    Href: Cow(
+                        "#uri",
+                    ),
+                },
+            },
+            text: None,
+        },
+    ),
+}

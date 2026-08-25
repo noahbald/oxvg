@@ -182,6 +182,7 @@ impl RunCommand for ActionRun {
 }
 
 impl RunCommand for ActionList {
+    #[allow(clippy::too_many_lines)]
     fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
@@ -241,6 +242,34 @@ impl RunCommand for ActionList {
             println!("# Insert\n");
             println!(include_str!("../spec/structure/insert.md"));
         }
+        if parts.is_empty() || parts.contains(INSERT_NS) || parts.contains(CREATE_ELEMENT_NS) {
+            println!("# Insert NS\n");
+            println!(include_str!("../spec/structure/insert_ns.md"));
+        }
+        if parts.is_empty() || parts.contains(DUPLICATE) {
+            println!("# Duplicate\n");
+            println!(include_str!("../spec/structure/duplicate.md"));
+        }
+        if parts.is_empty() || parts.contains(WRAP) {
+            println!("# Wrap\n");
+            println!(include_str!("../spec/structure/wrap.md"));
+        }
+        if parts.is_empty() || parts.contains(CLONE) {
+            println!("# Clone\n");
+            println!(include_str!("../spec/structure/clone.md"));
+        }
+        if parts.is_empty() || parts.contains(ANCHOR_LINK) {
+            println!("# Anchor Link\n");
+            println!(include_str!("../spec/structure/anchor_link.md"));
+        }
+        if parts.is_empty() || parts.contains(GROUP) {
+            println!("# Group\n");
+            println!(include_str!("../spec/structure/group.md"));
+        }
+        if parts.is_empty() || parts.contains(DELETE) {
+            println!("# Delete\n");
+            println!(include_str!("../spec/structure/delete.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -276,6 +305,14 @@ const SKEW_X: &str = "-skewX";
 const SKEW_Y: &str = "-skewY";
 const INSERT: &str = "-insert";
 const CREATE_ELEMENT: &str = "-create-element";
+const INSERT_NS: &str = "-insert-ns";
+const CREATE_ELEMENT_NS: &str = "-create-element-ns";
+const DUPLICATE: &str = "-duplicate";
+const WRAP: &str = "-wrap";
+const CLONE: &str = "-clone";
+const ANCHOR_LINK: &str = "-anchor-link";
+const GROUP: &str = "-group";
+const DELETE: &str = "-delete";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -355,8 +392,17 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             ),
             SKEW_X => oxvg_actions::Action::SkewX(get_part_f32(&mut parts)?),
             SKEW_Y => oxvg_actions::Action::SkewY(get_part_f32(&mut parts)?),
-            FORGET => oxvg_actions::Action::Forget,
             INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert(get_part(&mut parts)?),
+            INSERT_NS | CREATE_ELEMENT_NS => {
+                oxvg_actions::Action::InsertNS(get_part(&mut parts)?, get_part(&mut parts)?)
+            }
+            DUPLICATE => oxvg_actions::Action::Duplicate,
+            WRAP => oxvg_actions::Action::Wrap(get_part(&mut parts)?),
+            CLONE => oxvg_actions::Action::Clone,
+            ANCHOR_LINK => oxvg_actions::Action::AnchorLink(get_part(&mut parts)?),
+            GROUP => oxvg_actions::Action::Group,
+            DELETE => oxvg_actions::Action::Delete,
+            FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
             DESELECT => oxvg_actions::Action::Deselect,

@@ -19,6 +19,14 @@ value: string }
 | { type: 'Rotate', field0: number, field1?: [number, number] }
 | { type: 'SkewX', field0: number }
 | { type: 'SkewY', field0: number }
+| { type: 'Insert', field0: string }
+| { type: 'InsertNS', field0: string, field1: string }
+| { type: 'Duplicate' }
+| { type: 'Wrap', field0: string }
+| { type: 'Clone' }
+| { type: 'AnchorLink', field0: string }
+| { type: 'Group' }
+| { type: 'Delete' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -818,7 +826,83 @@ export declare class Actor {
    * When root element is missing.
    */
   skewY(angle: number): void
-  /** Removes OXVG state from the document */
+  /**
+   * Creates a new SVG element and inserts it into the current selection.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  insert(qualName: string): void
+  /**
+   * Creates a new element and inserts it into the current selection.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  insertNS(qualName: string): void
+  /**
+   * Creates a deep copy of each selected element and puts it after the selected element.
+   * Selection moved to copies.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  duplicate(): void
+  /**
+   * Wraps each selected element in the given element. Adjacent selections will be grouped within the
+   * same element. Selection moved to the created elements.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  wrap(qualName: string): void
+  /**
+   * Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new use elements.
+   *
+   * # Errors
+   *
+   * When root element is missing or if random id cannot be generated.
+   */
+  clone(): void
+  /**
+   * Wraps each selected element in an
+   * [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+   * Adjacent selections will be grouped within the same link. Selection moved to links.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  anchorLink(href: string): void
+  /**
+   * Wraps each selected element in a
+   * [group element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g).
+   * Adjacent selections will be grouped within the same element. Selection moved to groups.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  group(): void
+  /**
+   * Removes each selected element from the document. Deselects.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  delete(): void
+  /**
+   * Removes OXVG state from the document
+   *
+   * # Errors
+   *
+   * If the state fails to update
+   */
   forget(): void
   /**
    * Updates the state of the actor to point to the elements matching the given selector.
@@ -841,7 +925,13 @@ export declare class Actor {
    * If the query is invalid
    */
   selectMore(query: string): void
-  /** Updates the state of the actor to deselected any selected nodes. */
+  /**
+   * Updates the state of the actor to deselected any selected nodes.
+   *
+   * # Errors
+   *
+   * If the state fails to update
+   */
   deselect(): void
   /**
    * Returns the actor's updated document as a string

@@ -119,6 +119,7 @@ impl<'input, 'arena> State<'input, 'arena> {
                     }),
                     value: OXVG_XMLNS.into(),
                 });
+                self.state.remove();
                 element.append_child(*self.state);
             }
         } else {
@@ -252,6 +253,13 @@ impl<'input> Action<'input> {
     const SKEW_X: &'static str = "SkewX";
     const SKEW_Y: &'static str = "SkewY";
     const INSERT: &'static str = "Insert";
+    const INSERT_NS: &'static str = "InsertNS";
+    const DUPLICATE: &'static str = "Duplicate";
+    const WRAP: &'static str = "Wrap";
+    const CLONE: &'static str = "Clone";
+    const ANCHOR_LINK: &'static str = "AnchorLink";
+    const GROUP: &'static str = "Group";
+    const DELETE: &'static str = "Delete";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -374,6 +382,37 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::SkewY(y))
             }
+            Self::INSERT => {
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Insert(name))
+            }
+            Self::INSERT_NS => {
+                let Some(uri) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::InsertNS(uri, name))
+            }
+            Self::DUPLICATE => Ok(Self::Duplicate),
+            Self::WRAP => {
+                let Some(name) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::Wrap(name))
+            }
+            Self::CLONE => Ok(Self::Clone),
+            Self::ANCHOR_LINK => {
+                let Some(href) = args.next().transpose()? else {
+                    return Err(Error::MissingStateAttribute(Self::ARG));
+                };
+                Ok(Self::AnchorLink(href))
+            }
+            Self::GROUP => Ok(Self::Group),
+            Self::DELETE => Ok(Self::Delete),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -412,7 +451,8 @@ impl<'input> Action<'input> {
             | Self::Style {
                 property: arg0,
                 value: arg1,
-            } => {
+            }
+            | Self::InsertNS(arg0, arg1) => {
                 Self::embed_arg(element, allocator, arg0.clone());
                 Self::embed_arg(element, allocator, arg1.clone());
             }
@@ -440,15 +480,24 @@ impl<'input> Action<'input> {
             Self::SkewX(arg) | Self::SkewY(arg) => {
                 Self::embed_arg(element, allocator, arg.to_string().into());
             }
-            Self::Class(arg) | Self::Select(arg) | Self::SelectMore(arg) | Self::Insert(arg) => {
+            Self::Class(arg)
+            | Self::Select(arg)
+            | Self::SelectMore(arg)
+            | Self::Insert(arg)
+            | Self::Wrap(arg)
+            | Self::AnchorLink(arg) => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
             Self::PathIntersect
             | Self::PathUnion
             | Self::PathSubtract
             | Self::PathXor
+            | Self::Clone
+            | Self::Group
+            | Self::Delete
             | Self::Forget
-            | Self::Deselect => {}
+            | Self::Deselect
+            | Self::Duplicate => {}
         }
     }
 
@@ -479,6 +528,13 @@ impl<'input> Action<'input> {
             Self::SkewX(_) => Self::SKEW_X,
             Self::SkewY(_) => Self::SKEW_Y,
             Self::Insert(_) => Self::INSERT,
+            Self::InsertNS(_, _) => Self::INSERT_NS,
+            Self::Duplicate => Self::DUPLICATE,
+            Self::Wrap(_) => Self::WRAP,
+            Self::Clone => Self::CLONE,
+            Self::AnchorLink(_) => Self::ANCHOR_LINK,
+            Self::Group => Self::GROUP,
+            Self::Delete => Self::DELETE,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -514,7 +570,14 @@ impl<'input> Action<'input> {
             }
             Self::SkewX(x) => ActionNapi::SkewX(*x as f64),
             Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
+            Self::InsertNS(uri, name) => ActionNapi::InsertNS(uri.to_string(), name.to_string()),
             Self::Insert(name) => ActionNapi::Insert(name.to_string()),
+            Self::Duplicate => ActionNapi::Duplicate,
+            Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
+            Self::Clone => ActionNapi::Clone,
+            Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
+            Self::Group => ActionNapi::Group,
+            Self::Delete => ActionNapi::Delete,
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -551,6 +614,13 @@ impl<'input> Action<'input> {
             ActionNapi::SkewX(x) => Action::SkewX(x as f32),
             ActionNapi::SkewY(y) => Action::SkewY(y as f32),
             ActionNapi::Insert(name) => Action::Insert(name.into()),
+            ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
+            ActionNapi::Duplicate => Action::Duplicate,
+            ActionNapi::Wrap(name) => Action::Wrap(name.into()),
+            ActionNapi::Clone => Action::Clone,
+            ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
+            ActionNapi::Group => Action::Group,
+            ActionNapi::Delete => Action::Delete,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

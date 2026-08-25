@@ -341,6 +341,82 @@ impl Actor {
     self.actor.insert(&qual_name.into()).map_err(generic_error)
   }
 
+  /// Creates a new element and inserts it into the current selection.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn insert_n_s(&mut self, qual_name: String) -> napi::Result<()> {
+    self.actor.insert(&qual_name.into()).map_err(generic_error)
+  }
+
+  /// Creates a deep copy of each selected element and puts it after the selected element.
+  /// Selection moved to copies.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn duplicate(&mut self) -> napi::Result<()> {
+    self.actor.duplicate().map_err(generic_error)
+  }
+
+  /// Wraps each selected element in the given element. Adjacent selections will be grouped within the
+  /// same element. Selection moved to the created elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn wrap(&mut self, qual_name: String) -> napi::Result<()> {
+    self.actor.wrap(&qual_name.into()).map_err(generic_error)
+  }
+
+  /// Wraps each element in `<symbol>` under the root `<svg>` and creates an adjacent `<use>` element, referencing `<symbol>` by a random id. Selects the new use elements.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing or if random id cannot be generated.
+  #[napi]
+  pub fn clone(&mut self) -> napi::Result<()> {
+    self.actor.clone().map_err(generic_error)
+  }
+
+  /// Wraps each selected element in an
+  /// [anchor link element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/a).
+  /// Adjacent selections will be grouped within the same link. Selection moved to links.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn anchor_link(&mut self, href: String) -> napi::Result<()> {
+    self.actor.anchor_link(&href.into()).map_err(generic_error)
+  }
+
+  /// Wraps each selected element in a
+  /// [group element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/g).
+  /// Adjacent selections will be grouped within the same element. Selection moved to groups.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn group(&mut self) -> napi::Result<()> {
+    self.actor.group().map_err(generic_error)
+  }
+
+  /// Removes each selected element from the document. Deselects.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn delete(&mut self) -> napi::Result<()> {
+    self.actor.delete().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

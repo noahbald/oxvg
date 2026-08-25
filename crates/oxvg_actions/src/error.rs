@@ -36,6 +36,8 @@ pub enum Error<'input> {
     InvalidSelector(String),
     /// An action dependent on computed-styles failed to evaluate
     ComputedStylesError(String),
+    /// Could not generate random number
+    GetRandom,
 }
 
 impl std::error::Error for Error<'_> {}
@@ -69,6 +71,7 @@ impl std::fmt::Display for Error<'_> {
                 "Invalid or unsupported query selector given: `{query}`"
             )),
             Self::ComputedStylesError(err) => err.fmt(f),
+            Self::GetRandom => f.write_str("Could not generate random number"),
         }
     }
 }

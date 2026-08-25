@@ -78,6 +78,20 @@ pub enum Action<'input> {
     SkewY(Number),
     /// See [`Actor::insert`]
     Insert(Atom<'input>),
+    /// See [`Actor::insert_ns`]
+    InsertNS(Atom<'input>, Atom<'input>),
+    /// See [`Actor::duplicate`]
+    Duplicate,
+    /// See [`Actor::wrap`]
+    Wrap(Atom<'input>),
+    /// See [`Actor::clone`]
+    Clone,
+    /// See [`Actor::anchor_link`]
+    AnchorLink(Atom<'input>),
+    /// See [`Actor::group`]
+    Group,
+    /// See [`Actor::delete`]
+    Delete,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -130,6 +144,20 @@ pub enum ActionNapi {
     SkewY(f64),
     /// See [`Actor::insert`]
     Insert(String),
+    /// See [`Actor::insert_ns`]
+    InsertNS(String, String),
+    /// See [`Actor::duplicate`]
+    Duplicate,
+    /// See [`Actor::wrap`]
+    Wrap(String),
+    /// See [`Actor::clone`]
+    Clone,
+    /// See [`Actor::anchor_link`]
+    AnchorLink(String),
+    /// See [`Actor::group`]
+    Group,
+    /// See [`Actor::delete`]
+    Delete,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -201,6 +229,13 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::SkewX(angle) => self.skew_x(angle),
             Action::SkewY(angle) => self.skew_y(angle),
             Action::Insert(name) => self.insert(&name),
+            Action::InsertNS(uri, name) => self.insert_ns(&uri, &name),
+            Action::Duplicate => self.duplicate(),
+            Action::Wrap(name) => self.wrap(&name),
+            Action::Clone => self.clone(),
+            Action::AnchorLink(href) => self.anchor_link(&href),
+            Action::Group => self.group(),
+            Action::Delete => self.delete(),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

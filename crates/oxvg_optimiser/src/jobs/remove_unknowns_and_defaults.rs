@@ -138,7 +138,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
             &context.info.allocator,
         );
         log::debug!("replacing processing instruction");
-        parent.replace_child(new_pi, &processing_instruction);
+        parent.replace_child(new_pi, processing_instruction);
         Ok(())
     }
 

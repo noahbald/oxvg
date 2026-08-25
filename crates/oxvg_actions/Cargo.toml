@@ -32,6 +32,7 @@ oxvg_parse = { workspace = true }
 oxvg_path = { workspace = true, features = ["algorithm"] }
 oxvg_serialize = { workspace = true }
 
+getrandom = { workspace = true }
 lightningcss = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }

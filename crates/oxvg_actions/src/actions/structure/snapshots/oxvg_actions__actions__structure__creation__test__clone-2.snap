@@ -1,0 +1,59 @@
+---
+source: crates/oxvg_actions/src/actions/structure/creation.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "text",
+            ),
+        ),
+        Clone,
+    ],
+    selection: [
+        11,
+        9,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                Use,
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {
+                    ClipPath,
+                    Mask,
+                    Script,
+                    Style,
+                },
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {
+                    ExternalResourcesRequired,
+                    HeightUse,
+                    Href,
+                    WidthUse,
+                    XGeometry,
+                    YGeometry,
+                },
+                values: {
+                    Href: Cow(
+                        "#clone0",
+                    ),
+                },
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+}
