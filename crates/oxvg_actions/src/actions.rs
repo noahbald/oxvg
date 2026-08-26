@@ -94,6 +94,8 @@ pub enum Action<'input> {
     Delete,
     /// See [`Actor::flatten`]
     Flatten,
+    /// See [`Actor::front`]
+    Front,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -162,6 +164,8 @@ pub enum ActionNapi {
     Delete,
     /// See [`Actor::flatten`]
     Flatten,
+    /// See [`Actor::front`]
+    Front,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -241,6 +245,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Group => self.group(),
             Action::Delete => self.delete(),
             Action::Flatten => self.flatten(),
+            Action::Front => self.front(),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),

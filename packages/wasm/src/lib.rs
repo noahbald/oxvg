@@ -568,6 +568,16 @@ impl Actor {
         self.actor.flatten()
     }
 
+    /// Moves the selected elements to be in front of all it's siblings.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn front(&mut self) -> Result<(), Error> {
+        self.actor.front()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors
