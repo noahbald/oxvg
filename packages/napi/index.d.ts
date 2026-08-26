@@ -27,6 +27,7 @@ value: string }
 | { type: 'AnchorLink', field0: string }
 | { type: 'Group' }
 | { type: 'Delete' }
+| { type: 'Flatten' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -896,6 +897,14 @@ export declare class Actor {
    * When root element is missing.
    */
   delete(): void
+  /**
+   * Removes the selected elements, replacing itself with it's children. Selection moved to children.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  flatten(): void
   /**
    * Removes OXVG state from the document
    *

@@ -558,6 +558,16 @@ impl Actor {
         self.actor.delete()
     }
 
+    /// Removes the selected elements, replacing itself with it's children. Selection moved to children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn flatten(&mut self) -> Result<(), Error> {
+        self.actor.flatten()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

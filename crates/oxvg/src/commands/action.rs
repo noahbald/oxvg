@@ -270,6 +270,10 @@ impl RunCommand for ActionList {
             println!("# Delete\n");
             println!(include_str!("../spec/structure/delete.md"));
         }
+        if parts.is_empty() || parts.contains(FLATTEN) {
+            println!("# Flatten\n");
+            println!(include_str!("../spec/structure/flatten.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -313,6 +317,7 @@ const CLONE: &str = "-clone";
 const ANCHOR_LINK: &str = "-anchor-link";
 const GROUP: &str = "-group";
 const DELETE: &str = "-delete";
+const FLATTEN: &str = "-flatten";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -402,6 +407,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             ANCHOR_LINK => oxvg_actions::Action::AnchorLink(get_part(&mut parts)?),
             GROUP => oxvg_actions::Action::Group,
             DELETE => oxvg_actions::Action::Delete,
+            FLATTEN => oxvg_actions::Action::Flatten,
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),

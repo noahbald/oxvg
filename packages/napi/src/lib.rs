@@ -417,6 +417,16 @@ impl Actor {
     self.actor.delete().map_err(generic_error)
   }
 
+  /// Removes the selected elements, replacing itself with it's children. Selection moved to children.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn flatten(&mut self) -> napi::Result<()> {
+    self.actor.flatten().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

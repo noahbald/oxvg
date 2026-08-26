@@ -1,0 +1,22 @@
+---
+source: crates/oxvg_actions/src/actions/structure/deletion.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "g",
+            ),
+        ),
+        Flatten,
+    ],
+    selection: [
+        3,
+        4,
+        6,
+        7,
+        9,
+    ],
+    info: None,
+}

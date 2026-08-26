@@ -260,6 +260,7 @@ impl<'input> Action<'input> {
     const ANCHOR_LINK: &'static str = "AnchorLink";
     const GROUP: &'static str = "Group";
     const DELETE: &'static str = "Delete";
+    const FLATTEN: &'static str = "Flatten";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -413,6 +414,7 @@ impl<'input> Action<'input> {
             }
             Self::GROUP => Ok(Self::Group),
             Self::DELETE => Ok(Self::Delete),
+            Self::FLATTEN => Ok(Self::Flatten),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -495,6 +497,7 @@ impl<'input> Action<'input> {
             | Self::Clone
             | Self::Group
             | Self::Delete
+            | Self::Flatten
             | Self::Forget
             | Self::Deselect
             | Self::Duplicate => {}
@@ -535,6 +538,7 @@ impl<'input> Action<'input> {
             Self::AnchorLink(_) => Self::ANCHOR_LINK,
             Self::Group => Self::GROUP,
             Self::Delete => Self::DELETE,
+            Self::Flatten => Self::FLATTEN,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -578,6 +582,7 @@ impl<'input> Action<'input> {
             Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
             Self::Group => ActionNapi::Group,
             Self::Delete => ActionNapi::Delete,
+            Self::Flatten => ActionNapi::Flatten,
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -621,6 +626,7 @@ impl<'input> Action<'input> {
             ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
             ActionNapi::Group => Action::Group,
             ActionNapi::Delete => Action::Delete,
+            ActionNapi::Flatten => Action::Flatten,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),
