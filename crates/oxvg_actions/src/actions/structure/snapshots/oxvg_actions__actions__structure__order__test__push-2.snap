@@ -1,0 +1,49 @@
+---
+source: crates/oxvg_actions/src/actions/structure/order.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [
+        Select(
+            Cow(
+                "two",
+            ),
+        ),
+        Push,
+    ],
+    selection: [
+        4,
+    ],
+    info: Some(
+        Info {
+            element_id: Some(
+                Unknown(
+                    QualName {
+                        prefix: SVG,
+                        local: Cow(
+                            "two",
+                        ),
+                    },
+                ),
+            ),
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    Animation | BasicShape | Container | Descriptive | FilterPrimitive | Gradient | Graphics | GraphicsReferencing | LightSource | NeverRendered | PaintServer | Renderable | Shape | Structural | StructurallyExternal | TextContent | TextContentChild | TransferFunction | Uncategorised,
+                ),
+                permitted_elements: {},
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
+                ),
+                expected_attributes: {},
+                values: {},
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+}

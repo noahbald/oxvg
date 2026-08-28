@@ -578,6 +578,16 @@ impl Actor {
         self.actor.front()
     }
 
+    /// Moves the selected elements to be in front of their next sibling.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn push(&mut self) -> Result<(), Error> {
+        self.actor.push()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

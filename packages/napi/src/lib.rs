@@ -437,6 +437,16 @@ impl Actor {
     self.actor.front().map_err(generic_error)
   }
 
+  /// Moves the selected elements to be in front of their next sibling.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn push(&mut self) -> napi::Result<()> {
+    self.actor.push().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors
