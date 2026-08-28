@@ -66,6 +66,39 @@ impl<'input> Actor<'input, '_> {
         self.effect_tree()?;
         self.effect_document()
     }
+
+    /// Moves the selected elements to be behind their previous sibling.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/pull.md")]
+    pub fn pull(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Pull);
+
+        let Some(selections) = self.get_selections()? else {
+            return Ok(());
+        };
+        #[allow(clippy::cast_sign_loss)]
+        for selection in selections
+            .into_iter()
+            .filter_map(|e| self.allocator.get(e as usize))
+        {
+            let Some(previous_sibling) = selection.previous_sibling() else {
+                continue;
+            };
+            let Some(parent) = selection.parent_node() else {
+                continue;
+            };
+            parent.insert_before(selection, previous_sibling);
+        }
+
+        self.effect_tree()?;
+        self.effect_document()
+    }
 }
 
 #[cfg(test)]
@@ -147,6 +180,22 @@ mod test {
 
                 actor.select("one,two,three").unwrap();
                 actor.push().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn pull() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/><three/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("two").unwrap();
+                actor.pull().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },
