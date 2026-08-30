@@ -286,6 +286,10 @@ impl RunCommand for ActionList {
             println!("# Pull\n");
             println!(include_str!("../spec/structure/pull.md"));
         }
+        if parts.is_empty() || parts.contains(BACK) {
+            println!("# Back\n");
+            println!(include_str!("../spec/structure/back.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -333,6 +337,7 @@ const FLATTEN: &str = "-flatten";
 const FRONT: &str = "-front";
 const PUSH: &str = "-push";
 const PULL: &str = "-pull";
+const BACK: &str = "-back";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -426,6 +431,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             FRONT => oxvg_actions::Action::Front,
             PUSH => oxvg_actions::Action::Push,
             PULL => oxvg_actions::Action::Pull,
+            BACK => oxvg_actions::Action::Back,
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),

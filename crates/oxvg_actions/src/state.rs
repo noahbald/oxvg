@@ -264,6 +264,7 @@ impl<'input> Action<'input> {
     const FRONT: &'static str = "Front";
     const PUSH: &'static str = "Push";
     const PULL: &'static str = "Pull";
+    const BACK: &'static str = "Back";
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
@@ -421,6 +422,7 @@ impl<'input> Action<'input> {
             Self::FRONT => Ok(Self::Front),
             Self::PUSH => Ok(Self::Push),
             Self::PULL => Ok(Self::Pull),
+            Self::BACK => Ok(Self::Back),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
                 let Some(string) = args.next().transpose()? else {
@@ -507,6 +509,7 @@ impl<'input> Action<'input> {
             | Self::Front
             | Self::Push
             | Self::Pull
+            | Self::Back
             | Self::Forget
             | Self::Deselect
             | Self::Duplicate => {}
@@ -551,6 +554,7 @@ impl<'input> Action<'input> {
             Self::Front => Self::FRONT,
             Self::Push => Self::PUSH,
             Self::Pull => Self::PULL,
+            Self::Back => Self::BACK,
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
@@ -598,6 +602,7 @@ impl<'input> Action<'input> {
             Self::Front => ActionNapi::Front,
             Self::Push => ActionNapi::Push,
             Self::Pull => ActionNapi::Pull,
+            Self::Back => ActionNapi::Back,
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
@@ -645,6 +650,7 @@ impl<'input> Action<'input> {
             ActionNapi::Front => Action::Front,
             ActionNapi::Push => Action::Push,
             ActionNapi::Pull => Action::Pull,
+            ActionNapi::Back => Action::Back,
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),

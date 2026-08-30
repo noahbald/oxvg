@@ -598,6 +598,16 @@ impl Actor {
         self.actor.pull()
     }
 
+    /// Moves the selected elements to be behind all of it's siblings.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn back(&mut self) -> Result<(), Error> {
+        self.actor.back()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

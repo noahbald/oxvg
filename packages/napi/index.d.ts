@@ -31,6 +31,7 @@ value: string }
 | { type: 'Front' }
 | { type: 'Push' }
 | { type: 'Pull' }
+| { type: 'Back' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -932,6 +933,14 @@ export declare class Actor {
    * When root element is missing.
    */
   pull(): void
+  /**
+   * Moves the selected elements to be behind all of it's siblings.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  back(): void
   /**
    * Removes OXVG state from the document
    *

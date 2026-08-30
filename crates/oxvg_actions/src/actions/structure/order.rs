@@ -99,6 +99,37 @@ impl<'input> Actor<'input, '_> {
         self.effect_tree()?;
         self.effect_document()
     }
+
+    /// Moves the selected elements to be behind all of it's siblings.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../../spec/structure/back.md")]
+    pub fn back(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Back);
+
+        let Some(selections) = self.get_selections()? else {
+            return Ok(());
+        };
+        #[allow(clippy::cast_sign_loss)]
+        for selection in selections
+            .into_iter()
+            .filter_map(|e| self.allocator.get(e as usize))
+        {
+            let Some(parent) = selection.parent_node() else {
+                continue;
+            };
+            selection.remove();
+            parent.append(selection);
+        }
+
+        self.effect_tree()?;
+        self.effect_document()
+    }
 }
 
 #[cfg(test)]
