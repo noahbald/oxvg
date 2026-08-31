@@ -1,6 +1,4 @@
-use oxvg_collections::attribute::core_attrs::Integer;
-
-use crate::{Action, Actor, Error};
+use crate::{Action, Actor, Error, utils::to_id};
 
 impl<'input> Actor<'input, '_> {
     /// Removes each selected element from the document. Deselects.
@@ -15,14 +13,8 @@ impl<'input> Actor<'input, '_> {
     pub fn delete(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Delete);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .filter_map(|e| self.allocator.get(e as usize))
-        {
+        let selections = self.get_selections()?;
+        for selection in self.get_selection_nodes(selections) {
             selection.remove();
         }
 
@@ -43,17 +35,10 @@ impl<'input> Actor<'input, '_> {
     pub fn flatten(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Flatten);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
+        let selections = self.get_selections()?;
         let mut new_selections = vec![];
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .filter_map(|e| self.allocator.get(e as usize))
-            .filter_map(|e| e.element())
-        {
-            new_selections.extend(selection.child_nodes_iter().map(|e| e.id() as Integer));
+        for selection in self.get_selection_elements(selections) {
+            new_selections.extend(selection.child_nodes_iter().map(to_id));
             selection.flatten();
         }
 

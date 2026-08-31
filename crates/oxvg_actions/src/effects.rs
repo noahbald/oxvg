@@ -15,7 +15,7 @@ use oxvg_serialize::{PrinterOptions, ToValue as _};
 use crate::{
     Action, Actor, Error,
     state::StateElement,
-    utils::{create_oxvg_attr, create_oxvg_attr_id},
+    utils::{create_oxvg_attr, create_oxvg_attr_id, to_id},
 };
 
 #[derive(Clone, Copy)]
@@ -81,19 +81,13 @@ impl<'input> Actor<'input, '_> {
             self.state.state.remove();
             root.append_child(*self.state.state);
         }
-        let Some(selection) = self.get_selections_list()? else {
+        let Some(selection) = self.get_selections()? else {
             self.allocator.reorder(self.root);
             return Ok(());
         };
 
-        #[allow(clippy::cast_sign_loss)]
-        let selections: Vec<_> = selection
-            .list
-            .into_iter()
-            .filter_map(|i| self.allocator.get(i as usize))
-            .collect();
+        let selections: Vec<_> = self.get_selection_nodes(Some(selection)).collect();
         self.allocator.reorder(self.root);
-        #[allow(clippy::cast_possible_wrap)]
-        self.effect_selection(&selections.into_iter().map(|n| n.id() as Integer).collect())
+        self.effect_selection(&selections.into_iter().map(to_id).collect())
     }
 }

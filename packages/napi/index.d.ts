@@ -32,6 +32,8 @@ value: string }
 | { type: 'Push' }
 | { type: 'Pull' }
 | { type: 'Back' }
+| { type: 'StepIn' }
+| { type: 'StepOut' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -941,6 +943,22 @@ export declare class Actor {
    * When root element is missing.
    */
   back(): void
+  /**
+   * Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  stepIn(): void
+  /**
+   * Moves the selected element up to be behind it's parent.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  stepOut(): void
   /**
    * Removes OXVG state from the document
    *

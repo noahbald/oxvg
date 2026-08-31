@@ -25,17 +25,8 @@ impl<'input> Actor<'input, '_> {
             value: value.to_string().into(),
         });
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        for selection in selections {
-            #[allow(clippy::cast_sign_loss)]
-            let Some(node) = self.allocator.get(selection as usize) else {
-                continue;
-            };
-            let Some(element) = node.element() else {
-                continue;
-            };
+        let selections = self.get_selections()?;
+        for element in self.get_selection_elements(selections) {
             let attr = element.parse_attr_id(name);
             if matches!(attr, AttrId::Unknown(_)) {
                 continue;
@@ -62,17 +53,8 @@ impl<'input> Actor<'input, '_> {
         let name: Atom<'static> = name.to_string().into();
         self.effect_history(&Action::Class(name.clone()));
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        for selection in selections {
-            #[allow(clippy::cast_sign_loss)]
-            let Some(node) = self.allocator.get(selection as usize) else {
-                continue;
-            };
-            let Some(element) = node.element() else {
-                continue;
-            };
+        let selections = self.get_selections()?;
+        for element in self.get_selection_elements(selections) {
             let mut class_list = element.class_list();
             class_list.toggle(name.clone());
         }
@@ -96,17 +78,8 @@ impl<'input> Actor<'input, '_> {
             value: value.to_string().into(),
         });
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        for selection in selections {
-            #[allow(clippy::cast_sign_loss)]
-            let Some(node) = self.allocator.get(selection as usize) else {
-                continue;
-            };
-            let Some(element) = node.element() else {
-                continue;
-            };
+        let selections = self.get_selections()?;
+        for element in self.get_selection_elements(selections) {
             if !element.qual_name().is_permitted_attribute(&AttrId::Style) {
                 continue;
             }

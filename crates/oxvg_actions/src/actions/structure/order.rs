@@ -13,15 +13,8 @@ impl<'input> Actor<'input, '_> {
     pub fn front(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Front);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .rev()
-            .filter_map(|e| self.allocator.get(e as usize))
-        {
+        let selections = self.get_selections()?;
+        for selection in self.get_selection_nodes(selections).rev() {
             let Some(parent) = selection.parent_node() else {
                 continue;
             };
@@ -45,15 +38,8 @@ impl<'input> Actor<'input, '_> {
     pub fn push(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Push);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .rev()
-            .filter_map(|e| self.allocator.get(e as usize))
-        {
+        let selections = self.get_selections()?;
+        for selection in self.get_selection_nodes(selections).rev() {
             let Some(next_sibling) = selection.next_sibling() else {
                 continue;
             };
@@ -79,14 +65,8 @@ impl<'input> Actor<'input, '_> {
     pub fn pull(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Pull);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .filter_map(|e| self.allocator.get(e as usize))
-        {
+        let selections = self.get_selections()?;
+        for selection in self.get_selection_nodes(selections) {
             let Some(previous_sibling) = selection.previous_sibling() else {
                 continue;
             };
@@ -112,14 +92,8 @@ impl<'input> Actor<'input, '_> {
     pub fn back(&mut self) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Back);
 
-        let Some(selections) = self.get_selections()? else {
-            return Ok(());
-        };
-        #[allow(clippy::cast_sign_loss)]
-        for selection in selections
-            .into_iter()
-            .filter_map(|e| self.allocator.get(e as usize))
-        {
+        let selections = self.get_selections()?;
+        for selection in self.get_selection_nodes(selections) {
             let Some(parent) = selection.parent_node() else {
                 continue;
             };

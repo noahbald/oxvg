@@ -467,6 +467,26 @@ impl Actor {
     self.actor.back().map_err(generic_error)
   }
 
+  /// Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn step_in(&mut self) -> napi::Result<()> {
+    self.actor.step_in().map_err(generic_error)
+  }
+
+  /// Moves the selected element up to be behind it's parent.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn step_out(&mut self) -> napi::Result<()> {
+    self.actor.step_out().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

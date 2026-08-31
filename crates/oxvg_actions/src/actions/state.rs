@@ -8,7 +8,7 @@ use oxvg_collections::{
 };
 use oxvg_parse::Parse as _;
 
-use crate::{Action, Actor, Error, OXVG_PREFIX, effects::StateEffect};
+use crate::{Action, Actor, Error, OXVG_PREFIX, effects::StateEffect, utils::to_id};
 
 impl<'input> Actor<'input, '_> {
     /// Removes OXVG state from the document
@@ -102,8 +102,7 @@ impl<'input> Actor<'input, '_> {
                 .select(query)
                 .map_err(|_| Error::InvalidSelector(query.to_string()))?;
 
-            #[allow(clippy::cast_possible_wrap)]
-            Ok(elements.map(|e| e.id() as Integer).collect())
+            Ok(elements.map(|e| to_id(*e)).collect())
         }
     }
 }

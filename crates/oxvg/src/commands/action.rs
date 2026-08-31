@@ -290,6 +290,14 @@ impl RunCommand for ActionList {
             println!("# Back\n");
             println!(include_str!("../spec/structure/back.md"));
         }
+        if parts.is_empty() || parts.contains(STEP_IN) {
+            println!("# Step In\n");
+            println!(include_str!("../spec/structure/step_in.md"));
+        }
+        if parts.is_empty() || parts.contains(STEP_OUT) {
+            println!("# Step Out\n");
+            println!(include_str!("../spec/structure/step_out.md"));
+        }
         if parts.is_empty() || parts.contains(FORGET) {
             println!("# Forget\n");
             println!(include_str!("../spec/state/forget.md"));
@@ -338,6 +346,8 @@ const FRONT: &str = "-front";
 const PUSH: &str = "-push";
 const PULL: &str = "-pull";
 const BACK: &str = "-back";
+const STEP_IN: &str = "-step-in";
+const STEP_OUT: &str = "-step-out";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
@@ -432,6 +442,8 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             PUSH => oxvg_actions::Action::Push,
             PULL => oxvg_actions::Action::Pull,
             BACK => oxvg_actions::Action::Back,
+            STEP_IN => oxvg_actions::Action::StepIn,
+            STEP_OUT => oxvg_actions::Action::StepOut,
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),

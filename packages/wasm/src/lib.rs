@@ -608,6 +608,28 @@ impl Actor {
         self.actor.back()
     }
 
+    /// Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = stepIn)]
+    pub fn step_in(&mut self) -> Result<(), Error> {
+        self.actor.step_in()
+    }
+
+    /// Moves the selected element up to be behind it's parent.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = stepOut)]
+    pub fn step_out(&mut self) -> Result<(), Error> {
+        self.actor.step_out()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

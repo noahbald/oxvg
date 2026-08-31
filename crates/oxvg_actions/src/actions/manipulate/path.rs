@@ -7,7 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::attribute::{core_attrs::Integer, inheritable::Inheritable};
 use oxvg_path::{algorithm::bool_ops::OverlayRule, geometry::Tolerance, paths::segment};
 
-use crate::{Action, Actor, Error};
+use crate::{Action, Actor, Error, utils::to_id};
 
 impl<'input> Actor<'input, '_> {
     /// Intersects selected path definitions.
@@ -92,11 +92,8 @@ impl<'input> Actor<'input, '_> {
         let mut cumulative_path: Option<oxvg_path::paths::bool::Path> = None;
         let mut previous_element: Option<Element> = None;
         let styles: Vec<_> = style::root(root).collect();
-        #[allow(clippy::cast_sign_loss)]
-        let paths: Vec<_> = selections
-            .iter()
-            .filter_map(|s| self.allocator.get(*s as usize))
-            .filter_map(oxvg_ast::node::Node::element)
+        let paths: Vec<_> = self
+            .get_selection_elements(Some(selections))
             .filter(|e| !e.has_child_nodes() && is_element!(e, Path) && has_attribute!(e, D))
             .collect();
         for path in paths {
@@ -144,8 +141,7 @@ impl<'input> Actor<'input, '_> {
                 FillRule(Inheritable::Defined(FillRule::Evenodd))
             );
         }
-        #[allow(clippy::cast_possible_wrap)]
-        Ok(previous_element.map(|e| e.id() as Integer))
+        Ok(previous_element.map(|e| to_id(*e)))
     }
 }
 
