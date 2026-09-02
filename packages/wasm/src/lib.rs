@@ -558,6 +558,78 @@ impl Actor {
         self.actor.delete()
     }
 
+    /// Removes the selected elements, replacing itself with it's children. Selection moved to children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn flatten(&mut self) -> Result<(), Error> {
+        self.actor.flatten()
+    }
+
+    /// Moves the selected elements to be in front of all it's siblings.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn front(&mut self) -> Result<(), Error> {
+        self.actor.front()
+    }
+
+    /// Moves the selected elements to be in front of their next sibling.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn push(&mut self) -> Result<(), Error> {
+        self.actor.push()
+    }
+
+    /// Moves the selected elements to be behind their previous sibling.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn pull(&mut self) -> Result<(), Error> {
+        self.actor.pull()
+    }
+
+    /// Moves the selected elements to be behind all of it's siblings.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn back(&mut self) -> Result<(), Error> {
+        self.actor.back()
+    }
+
+    /// Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = stepIn)]
+    pub fn step_in(&mut self) -> Result<(), Error> {
+        self.actor.step_in()
+    }
+
+    /// Moves the selected element up to be behind it's parent.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = stepOut)]
+    pub fn step_out(&mut self) -> Result<(), Error> {
+        self.actor.step_out()
+    }
+
     /// Removes OXVG state from the document
     ///
     /// # Errors

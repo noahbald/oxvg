@@ -1,21 +1,13 @@
-use oxvg_ast::{
-    document::Document,
-    element::Element,
-    node::{Node, Ref},
-    set_attribute,
-};
+use oxvg_ast::{document::Document, element::Element, node::Ref, set_attribute};
 use oxvg_collections::{
     atom::Atom,
-    attribute::{
-        Attr,
-        core_attrs::{Integer, NonWhitespace},
-    },
+    attribute::{Attr, core_attrs::NonWhitespace},
     element::ElementId,
     name::{NS, Prefix},
 };
 use oxvg_parse::Parse;
 
-use crate::{Action, Actor, Error};
+use crate::{Action, Actor, Error, utils::to_id};
 
 #[cfg(test)]
 #[allow(clippy::unnecessary_wraps)]
@@ -43,13 +35,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             return Ok(());
         };
 
-        self.effect_selection(
-            #[allow(clippy::cast_possible_wrap)]
-            &new_elements
-                .into_iter()
-                .map(|n| n.id() as Integer)
-                .collect(),
-        )?;
+        self.effect_selection(&new_elements.into_iter().map(|n| to_id(*n)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -74,13 +60,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             return Ok(());
         };
 
-        self.effect_selection(
-            #[allow(clippy::cast_possible_wrap)]
-            &new_elements
-                .into_iter()
-                .map(|n| n.id() as Integer)
-                .collect(),
-        )?;
+        self.effect_selection(&new_elements.into_iter().map(|n| to_id(*n)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -102,26 +82,16 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         };
         let mut new_selections = Vec::with_capacity(selections.len());
 
-        for selection in selections {
-            #[allow(clippy::cast_sign_loss)]
-            let Some(node) = self.allocator.get(selection as usize) else {
-                continue;
-            };
+        for node in self.get_selection_nodes(Some(selections)) {
             let Some(parent) = node.parent_node() else {
                 continue;
             };
             let clone = node.clone_node(&self.allocator, true);
             parent.insert_after(clone, node);
-            new_selections.push(clone);
+            new_selections.push(to_id(clone));
         }
 
-        #[allow(clippy::cast_possible_wrap)]
-        self.effect_selection(
-            &new_selections
-                .into_iter()
-                .map(|n| n.id() as Integer)
-                .collect(),
-        )?;
+        self.effect_selection(&new_selections.into())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -144,13 +114,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             return Ok(());
         };
 
-        self.effect_selection(
-            #[allow(clippy::cast_possible_wrap)]
-            &new_elements
-                .into_iter()
-                .map(|n| n.id() as Integer)
-                .collect(),
-        )?;
+        self.effect_selection(&new_elements.into_iter().map(|n| to_id(*n)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -189,13 +153,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             use_elements.push(r#use);
         }
 
-        #[allow(clippy::cast_possible_wrap)]
-        self.effect_selection(
-            &use_elements
-                .into_iter()
-                .map(|n| n.id() as Integer)
-                .collect(),
-        )?;
+        self.effect_selection(&use_elements.into_iter().map(|n| to_id(*n)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -221,8 +179,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             set_attribute!(anchor, Href(href.clone()));
         }
 
-        #[allow(clippy::cast_possible_wrap)]
-        self.effect_selection(&anchors.into_iter().map(|a| a.id() as Integer).collect())?;
+        self.effect_selection(&anchors.into_iter().map(|a| to_id(*a)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -245,8 +202,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             return Ok(());
         };
 
-        #[allow(clippy::cast_possible_wrap)]
-        self.effect_selection(&groups.into_iter().map(|a| a.id() as Integer).collect())?;
+        self.effect_selection(&groups.into_iter().map(|a| to_id(*a)).collect())?;
         self.effect_tree()?;
         self.effect_document()
     }
@@ -258,10 +214,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let Some(selections) = self.get_selections()? else {
             return Ok(None);
         };
-        #[allow(clippy::cast_sign_loss)]
-        let selections = selections
-            .into_iter()
-            .filter_map(|s| self.allocator.get(s as usize));
+        let selections = self.get_selection_nodes(Some(selections));
         let Some(root) = self.root.find_element() else {
             return Ok(None);
         };
@@ -287,10 +240,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         let Some(selections) = self.get_selections()? else {
             return Ok(None);
         };
-        #[allow(clippy::cast_sign_loss)]
-        let selections = selections
-            .into_iter()
-            .filter_map(|s| self.allocator.get(s as usize));
+        let selections = self.get_selection_nodes(Some(selections));
         let Some(root) = Element::from_parent(self.root) else {
             return Ok(None);
         };
@@ -380,11 +330,8 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         };
         let document = root.as_document();
 
-        #[allow(clippy::cast_sign_loss)]
-        let selections = selections
-            .into_iter()
-            .filter_map(|s| self.allocator.get(s as usize))
-            .filter_map(Node::element)
+        let selections = self
+            .get_selection_elements(Some(selections))
             .collect::<Vec<_>>();
         Ok(Some((selections, document)))
     }

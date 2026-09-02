@@ -27,6 +27,13 @@ value: string }
 | { type: 'AnchorLink', field0: string }
 | { type: 'Group' }
 | { type: 'Delete' }
+| { type: 'Flatten' }
+| { type: 'Front' }
+| { type: 'Push' }
+| { type: 'Pull' }
+| { type: 'Back' }
+| { type: 'StepIn' }
+| { type: 'StepOut' }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
@@ -896,6 +903,62 @@ export declare class Actor {
    * When root element is missing.
    */
   delete(): void
+  /**
+   * Removes the selected elements, replacing itself with it's children. Selection moved to children.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  flatten(): void
+  /**
+   * Moves the selected elements to be in front of all it's siblings.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  front(): void
+  /**
+   * Moves the selected elements to be in front of their next sibling.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  push(): void
+  /**
+   * Moves the selected elements to be behind their previous sibling.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  pull(): void
+  /**
+   * Moves the selected elements to be behind all of it's siblings.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  back(): void
+  /**
+   * Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  stepIn(): void
+  /**
+   * Moves the selected element up to be behind it's parent.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  stepOut(): void
   /**
    * Removes OXVG state from the document
    *

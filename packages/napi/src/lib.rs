@@ -417,6 +417,76 @@ impl Actor {
     self.actor.delete().map_err(generic_error)
   }
 
+  /// Removes the selected elements, replacing itself with it's children. Selection moved to children.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn flatten(&mut self) -> napi::Result<()> {
+    self.actor.flatten().map_err(generic_error)
+  }
+
+  /// Moves the selected elements to be in front of all it's siblings.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn front(&mut self) -> napi::Result<()> {
+    self.actor.front().map_err(generic_error)
+  }
+
+  /// Moves the selected elements to be in front of their next sibling.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn push(&mut self) -> napi::Result<()> {
+    self.actor.push().map_err(generic_error)
+  }
+
+  /// Moves the selected elements to be behind their previous sibling.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn pull(&mut self) -> napi::Result<()> {
+    self.actor.pull().map_err(generic_error)
+  }
+
+  /// Moves the selected elements to be behind all of it's siblings.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn back(&mut self) -> napi::Result<()> {
+    self.actor.back().map_err(generic_error)
+  }
+
+  /// Moves the selected element into the start of it's next sibling. Does nothing if it's the last child.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn step_in(&mut self) -> napi::Result<()> {
+    self.actor.step_in().map_err(generic_error)
+  }
+
+  /// Moves the selected element up to be behind it's parent.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn step_out(&mut self) -> napi::Result<()> {
+    self.actor.step_out().map_err(generic_error)
+  }
+
   /// Removes OXVG state from the document
   ///
   /// # Errors

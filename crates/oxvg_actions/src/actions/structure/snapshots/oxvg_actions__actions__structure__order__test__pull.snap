@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/structure/order.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me"><two/><one/><three/><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>two</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Pull"/></oxvg:history><oxvg:selection oxvg:ids="2"/></oxvg:state></svg>

@@ -1,4 +1,9 @@
-use oxvg_ast::{arena::Allocator, node::Ref, serialize::Node};
+use oxvg_ast::{
+    arena::Allocator,
+    element::Element,
+    node::{Node, Ref},
+    serialize::Node as _,
+};
 use oxvg_collections::{
     atom::Atom,
     attribute::{
@@ -92,6 +97,20 @@ pub enum Action<'input> {
     Group,
     /// See [`Actor::delete`]
     Delete,
+    /// See [`Actor::flatten`]
+    Flatten,
+    /// See [`Actor::front`]
+    Front,
+    /// See [`Actor::push`]
+    Push,
+    /// See [`Actor::pull`]
+    Pull,
+    /// See [`Actor::back`]
+    Back,
+    /// See [`Actor::step_in`]
+    StepIn,
+    /// See [`Actor::step_out`]
+    StepOut,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -158,6 +177,20 @@ pub enum ActionNapi {
     Group,
     /// See [`Actor::delete`]
     Delete,
+    /// See [`Actor::flatten`]
+    Flatten,
+    /// See [`Actor::front`]
+    Front,
+    /// See [`Actor::push`]
+    Push,
+    /// See [`Actor::pull`]
+    Pull,
+    /// See [`Actor::back`]
+    Back,
+    /// See [`Actor::step_in`]
+    StepIn,
+    /// See [`Actor::step_out`]
+    StepOut,
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
@@ -236,6 +269,13 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::AnchorLink(href) => self.anchor_link(&href),
             Action::Group => self.group(),
             Action::Delete => self.delete(),
+            Action::Flatten => self.flatten(),
+            Action::Front => self.front(),
+            Action::Push => self.push(),
+            Action::Pull => self.pull(),
+            Action::Back => self.back(),
+            Action::StepIn => self.step_in(),
+            Action::StepOut => self.step_out(),
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),
@@ -258,5 +298,24 @@ impl<'input, 'arena> Actor<'input, 'arena> {
 
     pub(crate) fn get_selections(&mut self) -> Result<Option<Vec<Integer>>, Error<'input>> {
         Ok(self.get_selections_list()?.map(|s| s.list))
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    pub(crate) fn get_selection_nodes(
+        &self,
+        selection: Option<Vec<i32>>,
+    ) -> impl DoubleEndedIterator<Item = Ref<'input, 'arena>> {
+        selection
+            .into_iter()
+            .flatten()
+            .filter_map(|i| self.allocator.get(i as usize))
+    }
+
+    pub(crate) fn get_selection_elements(
+        &self,
+        selection: Option<Vec<i32>>,
+    ) -> impl DoubleEndedIterator<Item = Element<'input, 'arena>> {
+        self.get_selection_nodes(selection)
+            .filter_map(Node::element)
     }
 }

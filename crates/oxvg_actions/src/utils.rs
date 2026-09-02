@@ -1,9 +1,9 @@
 use std::cell;
 
-use oxvg_ast::element::Element;
+use oxvg_ast::{element::Element, node::Ref};
 use oxvg_collections::{
     atom::Atom,
-    attribute::{Attr, AttrId},
+    attribute::{Attr, AttrId, core_attrs::Integer},
     element::ElementId,
     name::{NS, Prefix, QualName},
 };
@@ -85,4 +85,9 @@ pub const fn create_oxvg_qual_name(local_name: &'static str) -> QualName<'static
         },
         local: Atom::Static(local_name),
     }
+}
+
+#[allow(clippy::cast_possible_wrap)]
+pub fn to_id(node: Ref) -> Integer {
+    node.id() as Integer
 }
