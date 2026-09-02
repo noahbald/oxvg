@@ -1,6 +1,7 @@
 /target
 
 *.svg
+!crates/oxvg_optimiser/benches/fixtures/*.svg
 node_modules
 dist
 **/benches/criterion

@@ -16,11 +16,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         };
     }
     let files = [
-        file!("./archlinux-logo-dark-scalable.518881f04ca9.svg"),
-        file!("./banner.svg"),
-        file!("./blobs-d.svg"),
-        file!("./Wikipedia-logo-v2.svg"),
-        file!("./Inkscape_About_Screen_Isometric_madness_HdG4la4.svg"),
+        file!("./fixtures/gnome-blobs.svg"),
+        file!("./fixtures/inkscape-isometric-madness.svg"),
+        file!("./fixtures/tldr-banner.svg"),
+        file!("./fixtures/trajans-column.svg"),
     ];
     for (filename, svg) in files {
         c.bench_with_input(BenchmarkId::new("parsing", filename), &svg, |b, svg| {

@@ -7,11 +7,10 @@ import convertPathData from "svgo/plugins/convertPathData.js";
 import presetDefault from "svgo/plugins/preset-default.js";
 
 const files = [
-  "./archlinux-logo-dark-scalable.518881f04ca9.svg",
-  "./banner.svg",
-  "./blobs-d.svg",
-  "./Wikipedia-logo-v2.svg",
-  "./Inkscape_About_Screen_Isometric_madness_HdG4la4.svg",
+  "./fixtures/gnome-blobs.svg",
+  "./fixtures/inkscape-isometric-madness.svg",
+  "./fixtures/tldr-banner.svg",
+  "./fixtures/trajans-column.svg",
 ];
 
 const criterion = new Criterion();
