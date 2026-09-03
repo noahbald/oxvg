@@ -666,6 +666,17 @@ impl Actor {
         self.actor.select_more(query)
     }
 
+    /// Selects the first-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = firstChild)]
+    pub fn first_child(&mut self) -> Result<(), Error> {
+        self.actor.first_child()
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors

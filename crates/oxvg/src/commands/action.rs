@@ -310,6 +310,10 @@ impl RunCommand for ActionList {
             println!("# Select More\n");
             println!(include_str!("../spec/state/select-more.md"));
         }
+        if parts.is_empty() || parts.contains(FIRST_CHILD) {
+            println!("# First Child\n");
+            println!(include_str!("../spec/state/first_child.md"));
+        }
         if parts.is_empty() || parts.contains(DESELECT) {
             println!("# Deselect\n");
             println!(include_str!("../spec/state/deselect.md"));
@@ -351,6 +355,7 @@ const STEP_OUT: &str = "-step-out";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
+const FIRST_CHILD: &str = "-first-child";
 const DESELECT: &str = "-deselect";
 
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
@@ -447,6 +452,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
+            FIRST_CHILD => oxvg_actions::Action::FirstChild,
             DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });

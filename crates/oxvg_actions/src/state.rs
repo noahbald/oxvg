@@ -270,6 +270,7 @@ impl<'input> Action<'input> {
     const FORGET: &'static str = "Forget";
     const SELECT: &'static str = "Select";
     const SELECT_MORE: &'static str = "SelectMore";
+    const FIRST_CHILD: &'static str = "FirstChild";
     const DESELECT: &'static str = "Deselect";
 
     #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
@@ -440,6 +441,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::SelectMore(string))
             }
+            Self::FIRST_CHILD => Ok(Self::FirstChild),
             Self::DESELECT => Ok(Self::Deselect),
             _ => Err(Error::InvalidStateAttribute(id.clone())),
         }
@@ -517,6 +519,7 @@ impl<'input> Action<'input> {
             | Self::StepIn
             | Self::StepOut
             | Self::Forget
+            | Self::FirstChild
             | Self::Deselect
             | Self::Duplicate => {}
         }
@@ -566,6 +569,7 @@ impl<'input> Action<'input> {
             Self::Forget => Self::FORGET,
             Self::Select(_) => Self::SELECT,
             Self::SelectMore(_) => Self::SELECT_MORE,
+            Self::FirstChild => Self::FIRST_CHILD,
             Self::Deselect => Self::DESELECT,
         }
     }
@@ -616,6 +620,7 @@ impl<'input> Action<'input> {
             Self::Forget => ActionNapi::Forget,
             Self::Select(query) => ActionNapi::Select(query.to_string()),
             Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
+            Self::FirstChild => ActionNapi::FirstChild,
             Self::Deselect => ActionNapi::Deselect,
         }
     }
@@ -666,6 +671,7 @@ impl<'input> Action<'input> {
             ActionNapi::Forget => Action::Forget,
             ActionNapi::Select(query) => Action::Select(query.into()),
             ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),
+            ActionNapi::FirstChild => Action::FirstChild,
             ActionNapi::Deselect => Action::Deselect,
         }
     }

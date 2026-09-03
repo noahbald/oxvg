@@ -524,6 +524,16 @@ impl Actor {
     self.actor.select_more(&query).map_err(generic_error)
   }
 
+  /// Selects the first-child of the current selection. Does nothing if the selection has no children.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn first_child(&mut self) -> napi::Result<()> {
+    self.actor.first_child().map_err(generic_error)
+  }
+
   /// Updates the state of the actor to deselected any selected nodes.
   ///
   /// # Errors

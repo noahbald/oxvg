@@ -37,6 +37,7 @@ value: string }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
+| { type: 'FirstChild' }
 | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
@@ -988,6 +989,14 @@ export declare class Actor {
    * If the query is invalid
    */
   selectMore(query: string): void
+  /**
+   * Selects the first-child of the current selection. Does nothing if the selection has no children.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  firstChild(): void
   /**
    * Updates the state of the actor to deselected any selected nodes.
    *
