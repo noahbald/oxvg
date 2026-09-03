@@ -38,6 +38,7 @@ value: string }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
 | { type: 'FirstChild' }
+| { type: 'PreviousSibling' }
 | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
@@ -997,6 +998,14 @@ export declare class Actor {
    * When root element is missing.
    */
   firstChild(): void
+  /**
+   * Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  previousSibling(): void
   /**
    * Updates the state of the actor to deselected any selected nodes.
    *

@@ -534,6 +534,16 @@ impl Actor {
     self.actor.first_child().map_err(generic_error)
   }
 
+  /// Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn previous_sibling(&mut self) -> napi::Result<()> {
+    self.actor.previous_sibling().map_err(generic_error)
+  }
+
   /// Updates the state of the actor to deselected any selected nodes.
   ///
   /// # Errors

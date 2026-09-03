@@ -95,6 +95,27 @@ impl<'input> Actor<'input, '_> {
         self.effect_selection(&new_selections.collect())
     }
 
+    /// Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/previous_sibling.md")]
+    pub fn previous_sibling(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::PreviousSibling);
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.previous_sibling().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors
@@ -186,6 +207,22 @@ mod test {
 
                 actor.select("svg").unwrap();
                 actor.first_child().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn previous_sibling() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("two").unwrap();
+                actor.previous_sibling().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },
