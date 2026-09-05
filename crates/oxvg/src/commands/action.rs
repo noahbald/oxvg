@@ -378,6 +378,7 @@ const LAST_CHILD: &str = "-last-child";
 const PARENT: &str = "-parent";
 const DESELECT: &str = "-deselect";
 
+#[allow(clippy::too_many_lines)]
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
     let mut actions = Vec::with_capacity(
         command_list
