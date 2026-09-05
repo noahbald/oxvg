@@ -125,6 +125,8 @@ pub enum Action<'input> {
     NextSibling,
     /// See [`Actor::last_child`]
     LastChild,
+    /// See [`Actor::parent`]
+    Parent,
     /// See [`Actor::deselect`]
     Deselect,
 }
@@ -213,6 +215,8 @@ pub enum ActionNapi {
     NextSibling,
     /// See [`Actor::last_child`]
     LastChild,
+    /// See [`Actor::parent`]
+    Parent,
     /// See [`Actor::deselect`]
     Deselect,
 }
@@ -299,6 +303,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::PreviousSibling => self.previous_sibling(),
             Action::NextSibling => self.next_sibling(),
             Action::LastChild => self.last_child(),
+            Action::Parent => self.parent(),
             Action::Deselect => self.deselect(),
         }
     }

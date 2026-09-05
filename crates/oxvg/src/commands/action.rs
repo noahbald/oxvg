@@ -326,6 +326,10 @@ impl RunCommand for ActionList {
             println!("# Last Child\n");
             println!(include_str!("../spec/state/last_child.md"));
         }
+        if parts.is_empty() || parts.contains(PARENT) {
+            println!("# Parent\n");
+            println!(include_str!("../spec/state/parent.md"));
+        }
         if parts.is_empty() || parts.contains(DESELECT) {
             println!("# Deselect\n");
             println!(include_str!("../spec/state/deselect.md"));
@@ -371,6 +375,7 @@ const FIRST_CHILD: &str = "-first-child";
 const PREVIOUS_SIBLING: &str = "-previous-sibling";
 const NEXT_SIBLING: &str = "-next-sibling";
 const LAST_CHILD: &str = "-last-child";
+const PARENT: &str = "-parent";
 const DESELECT: &str = "-deselect";
 
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
@@ -471,6 +476,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             PREVIOUS_SIBLING => oxvg_actions::Action::PreviousSibling,
             NEXT_SIBLING => oxvg_actions::Action::NextSibling,
             LAST_CHILD => oxvg_actions::Action::LastChild,
+            PARENT => oxvg_actions::Action::Parent,
             DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });

@@ -164,6 +164,27 @@ impl<'input> Actor<'input, '_> {
         self.effect_selection(&new_selections.collect())
     }
 
+    /// Selects the parent of the current selection. Does nothing if the selection is the root.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/parent.md")]
+    pub fn parent(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Parent);
+
+        let selections = self.get_selections()?;
+        let new_selection = self
+            .get_selection_nodes(selections)
+            .map(|node| node.parent_node().map_or(node, |e| *e))
+            .map(to_id);
+
+        self.effect_selection(&new_selection.collect())
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors
@@ -303,6 +324,22 @@ mod test {
 
                 actor.select("svg").unwrap();
                 actor.last_child().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn parent() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("one").unwrap();
+                actor.parent().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

@@ -564,6 +564,16 @@ impl Actor {
     self.actor.last_child().map_err(generic_error)
   }
 
+  /// Selects the parent of the current selection. Does nothing if the selection is the root.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn parent(&mut self) -> napi::Result<()> {
+    self.actor.parent().map_err(generic_error)
+  }
+
   /// Updates the state of the actor to deselected any selected nodes.
   ///
   /// # Errors

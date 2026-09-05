@@ -274,6 +274,7 @@ impl<'input> Action<'input> {
     const PREVIOUS_SIBLING: &'static str = "PreviousSibling";
     const NEXT_SIBLING: &'static str = "NextSibling";
     const LAST_CHILD: &'static str = "LastChild";
+    const PARENT: &'static str = "Parent";
     const DESELECT: &'static str = "Deselect";
 
     #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
@@ -448,6 +449,7 @@ impl<'input> Action<'input> {
             Self::PREVIOUS_SIBLING => Ok(Self::PreviousSibling),
             Self::NEXT_SIBLING => Ok(Self::NextSibling),
             Self::LAST_CHILD => Ok(Self::LastChild),
+            Self::PARENT => Ok(Self::Parent),
             Self::DESELECT => Ok(Self::Deselect),
             _ => Err(Error::InvalidStateAttribute(id.clone())),
         }
@@ -529,6 +531,7 @@ impl<'input> Action<'input> {
             | Self::PreviousSibling
             | Self::NextSibling
             | Self::LastChild
+            | Self::Parent
             | Self::Deselect
             | Self::Duplicate => {}
         }
@@ -582,6 +585,7 @@ impl<'input> Action<'input> {
             Self::PreviousSibling => Self::PREVIOUS_SIBLING,
             Self::NextSibling => Self::NEXT_SIBLING,
             Self::LastChild => Self::LAST_CHILD,
+            Self::Parent => Self::PARENT,
             Self::Deselect => Self::DESELECT,
         }
     }
@@ -636,6 +640,7 @@ impl<'input> Action<'input> {
             Self::PreviousSibling => ActionNapi::PreviousSibling,
             Self::NextSibling => ActionNapi::NextSibling,
             Self::LastChild => ActionNapi::LastChild,
+            Self::Parent => ActionNapi::Parent,
             Self::Deselect => ActionNapi::Deselect,
         }
     }
@@ -690,6 +695,7 @@ impl<'input> Action<'input> {
             ActionNapi::PreviousSibling => Action::PreviousSibling,
             ActionNapi::NextSibling => Action::NextSibling,
             ActionNapi::LastChild => Action::LastChild,
+            ActionNapi::Parent => Action::Parent,
             ActionNapi::Deselect => Action::Deselect,
         }
     }

@@ -710,6 +710,16 @@ impl Actor {
         self.actor.last_child()
     }
 
+    /// Selects the parent of the current selection. Does nothing if the selection is the root.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn parent(&mut self) -> Result<(), Error> {
+        self.actor.parent()
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors

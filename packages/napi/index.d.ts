@@ -41,6 +41,7 @@ value: string }
 | { type: 'PreviousSibling' }
 | { type: 'NextSibling' }
 | { type: 'LastChild' }
+| { type: 'Parent' }
 | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
@@ -1024,6 +1025,14 @@ export declare class Actor {
    * When root element is missing.
    */
   lastChild(): void
+  /**
+   * Selects the parent of the current selection. Does nothing if the selection is the root.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  parent(): void
   /**
    * Updates the state of the actor to deselected any selected nodes.
    *
