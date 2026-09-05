@@ -1,0 +1,196 @@
+name: size comparison
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/size-report.mjs"
+      - ".github/workflows/size.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+      - "packages/wasm/**"
+  pull_request:
+    paths:
+      - ".github/scripts/size-report.mjs"
+      - ".github/workflows/size.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**"
+      - "packages/wasm/**"
+
+concurrency:
+  group: size-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  size:
+    name: size comparison
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu, wasm32-unknown-unknown
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: size
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build binary
+        run: >-
+          cargo build
+          --bins
+          --package oxvg
+          --profile release
+          --target x86_64-unknown-linux-gnu
+
+      - name: Build wasm
+        run: pnpm --filter @oxvg/wasm build
+
+      - name: Measure sizes
+        run: node .github/scripts/size-report.mjs measure . size-head.json
+
+      - name: Restore main sizes
+        if: github.event_name == 'pull_request'
+        id: size-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: size-base.json
+          key: size-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('.github/workflows/size.yml', '.github/scripts/size-report.mjs') }}
+
+      - name: Check out base revision
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: size-base
+          persist-credentials: false
+
+      - name: Install base dependencies
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        working-directory: size-base
+        run: pnpm install
+
+      - name: Build base binary
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        run: >-
+          cargo build
+          --manifest-path size-base/Cargo.toml
+          --bins
+          --package oxvg
+          --profile release
+          --target x86_64-unknown-linux-gnu
+
+      - name: Build base wasm
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        working-directory: size-base
+        run: pnpm --filter @oxvg/wasm build
+
+      - name: Measure base sizes
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        run: node .github/scripts/size-report.mjs measure size-base size-base.json
+
+      - name: Save generated base sizes
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.size-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: size-base.json
+          key: size-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('.github/workflows/size.yml', '.github/scripts/size-report.mjs') }}
+
+      - name: Reuse main sizes as a future base
+        if: github.event_name == 'push'
+        run: cp size-head.json size-base.json
+
+      - name: Save main sizes
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: size-base.json
+          key: size-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('.github/workflows/size.yml', '.github/scripts/size-report.mjs') }}
+
+      - name: Generate report
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node .github/scripts/size-report.mjs report \
+            size-base.json size-head.json size-report.md
+          cat size-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update PR comment
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'dependabot[bot]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- oxvg-size-report -->";
+            const body = fs.readFileSync("size-report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const previous = comments.find(
+              (comment) =>
+                comment.user.type === "Bot" && comment.body.includes(marker),
+            );
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
