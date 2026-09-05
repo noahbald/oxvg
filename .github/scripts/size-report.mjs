@@ -29,7 +29,7 @@ export function formatBytes(bytes) {
 	if (bytes < 1024 * 1024) {
 		return `${(bytes / 1024).toFixed(1)} KiB`;
 	}
-	return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
+	return `${(bytes / (1024 * 1024)).toFixed(3)} MiB`;
 }
 
 export function formatChange(base, head) {
