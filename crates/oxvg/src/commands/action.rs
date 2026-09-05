@@ -318,6 +318,10 @@ impl RunCommand for ActionList {
             println!("# Previous Sibling\n");
             println!(include_str!("../spec/state/previous_sibling.md"));
         }
+        if parts.is_empty() || parts.contains(NEXT_SIBLING) {
+            println!("# Next Sibling\n");
+            println!(include_str!("../spec/state/next_sibling.md"));
+        }
         if parts.is_empty() || parts.contains(DESELECT) {
             println!("# Deselect\n");
             println!(include_str!("../spec/state/deselect.md"));
@@ -361,6 +365,7 @@ const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
 const FIRST_CHILD: &str = "-first-child";
 const PREVIOUS_SIBLING: &str = "-previous-sibling";
+const NEXT_SIBLING: &str = "-next-sibling";
 const DESELECT: &str = "-deselect";
 
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
@@ -459,6 +464,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
             FIRST_CHILD => oxvg_actions::Action::FirstChild,
             PREVIOUS_SIBLING => oxvg_actions::Action::PreviousSibling,
+            NEXT_SIBLING => oxvg_actions::Action::NextSibling,
             DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });

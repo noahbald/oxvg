@@ -688,6 +688,17 @@ impl Actor {
         self.actor.previous_sibling()
     }
 
+    /// Selects the next-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = nextSibling)]
+    pub fn next_sibling(&mut self) -> Result<(), Error> {
+        self.actor.next_sibling()
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors
