@@ -117,6 +117,16 @@ pub enum Action<'input> {
     Select(Atom<'input>),
     /// See [`Actor::select_more`]
     SelectMore(Atom<'input>),
+    /// See [`Actor::first_child`]
+    FirstChild,
+    /// See [`Actor::previous_sibling`]
+    PreviousSibling,
+    /// See [`Actor::next_sibling`]
+    NextSibling,
+    /// See [`Actor::last_child`]
+    LastChild,
+    /// See [`Actor::parent`]
+    Parent,
     /// See [`Actor::deselect`]
     Deselect,
 }
@@ -197,6 +207,16 @@ pub enum ActionNapi {
     Select(String),
     /// See [`Actor::select_more`]
     SelectMore(String),
+    /// See [`Actor::first_child`]
+    FirstChild,
+    /// See [`Actor::previous_sibling`]
+    PreviousSibling,
+    /// See [`Actor::next_sibling`]
+    NextSibling,
+    /// See [`Actor::last_child`]
+    LastChild,
+    /// See [`Actor::parent`]
+    Parent,
     /// See [`Actor::deselect`]
     Deselect,
 }
@@ -279,6 +299,11 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Forget => self.forget(),
             Action::Select(query) => self.select(&query),
             Action::SelectMore(query) => self.select_more(&query),
+            Action::FirstChild => self.first_child(),
+            Action::PreviousSibling => self.previous_sibling(),
+            Action::NextSibling => self.next_sibling(),
+            Action::LastChild => self.last_child(),
+            Action::Parent => self.parent(),
             Action::Deselect => self.deselect(),
         }
     }

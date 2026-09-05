@@ -666,6 +666,60 @@ impl Actor {
         self.actor.select_more(query)
     }
 
+    /// Selects the first-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = firstChild)]
+    pub fn first_child(&mut self) -> Result<(), Error> {
+        self.actor.first_child()
+    }
+
+    /// Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = previousSibling)]
+    pub fn previous_sibling(&mut self) -> Result<(), Error> {
+        self.actor.previous_sibling()
+    }
+
+    /// Selects the next-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = nextSibling)]
+    pub fn next_sibling(&mut self) -> Result<(), Error> {
+        self.actor.next_sibling()
+    }
+
+    /// Selects the last-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = lastChild)]
+    pub fn last_child(&mut self) -> Result<(), Error> {
+        self.actor.last_child()
+    }
+
+    /// Selects the parent of the current selection. Does nothing if the selection is the root.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn parent(&mut self) -> Result<(), Error> {
+        self.actor.parent()
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors

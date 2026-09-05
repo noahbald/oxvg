@@ -37,6 +37,11 @@ value: string }
 | { type: 'Forget' }
 | { type: 'Select', field0: string }
 | { type: 'SelectMore', field0: string }
+| { type: 'FirstChild' }
+| { type: 'PreviousSibling' }
+| { type: 'NextSibling' }
+| { type: 'LastChild' }
+| { type: 'Parent' }
 | { type: 'Deselect' }
 
 /** The attributes common to the selected elements */
@@ -988,6 +993,46 @@ export declare class Actor {
    * If the query is invalid
    */
   selectMore(query: string): void
+  /**
+   * Selects the first-child of the current selection. Does nothing if the selection has no children.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  firstChild(): void
+  /**
+   * Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  previousSibling(): void
+  /**
+   * Selects the next-sibling of the current selection. Does nothing if the selection is the first-child.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  nextSibling(): void
+  /**
+   * Selects the last-child of the current selection. Does nothing if the selection has no children.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  lastChild(): void
+  /**
+   * Selects the parent of the current selection. Does nothing if the selection is the root.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  parent(): void
   /**
    * Updates the state of the actor to deselected any selected nodes.
    *

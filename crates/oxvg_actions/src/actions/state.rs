@@ -47,6 +47,7 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/state/select.md")]
     pub fn select(&mut self, query: &str) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Select(query.to_string().into()));
+        self.state.state.remove();
 
         let selections = self.select_internal(query)?;
         self.effect_selection(&selections)
@@ -66,12 +67,122 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/state/select-more.md")]
     pub fn select_more(&mut self, query: &str) -> Result<(), Error<'input>> {
         self.effect_history(&Action::SelectMore(query.to_string().into()));
+        self.state.state.remove();
 
         let mut selections = self.get_selections_list()?.unwrap_or_default();
         let new_selections = self.select_internal(query)?;
         selections.list.extend(new_selections.list);
 
         self.effect_selection(&selections)
+    }
+
+    /// Selects the first-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/first_child.md")]
+    pub fn first_child(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::FirstChild);
+        self.state.state.remove();
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.first_child().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
+    /// Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/previous_sibling.md")]
+    pub fn previous_sibling(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::PreviousSibling);
+        self.state.state.remove();
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.previous_sibling().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
+    /// Selects the next-sibling of the current selection. Does nothing if the selection is the first-child.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/next_sibling.md")]
+    pub fn next_sibling(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::NextSibling);
+        self.state.state.remove();
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.next_sibling().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
+    /// Selects the last-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/last_child.md")]
+    pub fn last_child(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::LastChild);
+        self.state.state.remove();
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.last_child().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
+    /// Selects the parent of the current selection. Does nothing if the selection is the root.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/parent.md")]
+    pub fn parent(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Parent);
+
+        let selections = self.get_selections()?;
+        let new_selection = self
+            .get_selection_nodes(selections)
+            .map(|node| node.parent_node().map_or(node, |e| *e))
+            .map(to_id);
+
+        self.effect_selection(&new_selection.collect())
     }
 
     /// Updates the state of the actor to deselected any selected nodes.
@@ -149,6 +260,86 @@ mod test {
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
 
                 actor.select("7, 9").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn first_child() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.first_child().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn previous_sibling() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("two").unwrap();
+                actor.previous_sibling().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn next_sibling() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("one").unwrap();
+                actor.next_sibling().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn last_child() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.last_child().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn parent() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("one").unwrap();
+                actor.parent().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

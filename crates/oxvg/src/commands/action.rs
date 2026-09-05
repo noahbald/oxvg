@@ -310,6 +310,26 @@ impl RunCommand for ActionList {
             println!("# Select More\n");
             println!(include_str!("../spec/state/select-more.md"));
         }
+        if parts.is_empty() || parts.contains(FIRST_CHILD) {
+            println!("# First Child\n");
+            println!(include_str!("../spec/state/first_child.md"));
+        }
+        if parts.is_empty() || parts.contains(PREVIOUS_SIBLING) {
+            println!("# Previous Sibling\n");
+            println!(include_str!("../spec/state/previous_sibling.md"));
+        }
+        if parts.is_empty() || parts.contains(NEXT_SIBLING) {
+            println!("# Next Sibling\n");
+            println!(include_str!("../spec/state/next_sibling.md"));
+        }
+        if parts.is_empty() || parts.contains(LAST_CHILD) {
+            println!("# Last Child\n");
+            println!(include_str!("../spec/state/last_child.md"));
+        }
+        if parts.is_empty() || parts.contains(PARENT) {
+            println!("# Parent\n");
+            println!(include_str!("../spec/state/parent.md"));
+        }
         if parts.is_empty() || parts.contains(DESELECT) {
             println!("# Deselect\n");
             println!(include_str!("../spec/state/deselect.md"));
@@ -351,8 +371,14 @@ const STEP_OUT: &str = "-step-out";
 const FORGET: &str = "-forget";
 const SELECT: &str = "-select";
 const SELECT_MORE: &str = "-select-more";
+const FIRST_CHILD: &str = "-first-child";
+const PREVIOUS_SIBLING: &str = "-previous-sibling";
+const NEXT_SIBLING: &str = "-next-sibling";
+const LAST_CHILD: &str = "-last-child";
+const PARENT: &str = "-parent";
 const DESELECT: &str = "-deselect";
 
+#[allow(clippy::too_many_lines)]
 fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'static>>> {
     let mut actions = Vec::with_capacity(
         command_list
@@ -447,6 +473,11 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             FORGET => oxvg_actions::Action::Forget,
             SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
             SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
+            FIRST_CHILD => oxvg_actions::Action::FirstChild,
+            PREVIOUS_SIBLING => oxvg_actions::Action::PreviousSibling,
+            NEXT_SIBLING => oxvg_actions::Action::NextSibling,
+            LAST_CHILD => oxvg_actions::Action::LastChild,
+            PARENT => oxvg_actions::Action::Parent,
             DESELECT => oxvg_actions::Action::Deselect,
             _ => return Err(anyhow::anyhow!("Unknown action `{action}`")),
         });

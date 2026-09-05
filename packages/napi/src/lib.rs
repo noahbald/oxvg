@@ -524,6 +524,56 @@ impl Actor {
     self.actor.select_more(&query).map_err(generic_error)
   }
 
+  /// Selects the first-child of the current selection. Does nothing if the selection has no children.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn first_child(&mut self) -> napi::Result<()> {
+    self.actor.first_child().map_err(generic_error)
+  }
+
+  /// Selects the previous-sibling of the current selection. Does nothing if the selection is the first-child.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn previous_sibling(&mut self) -> napi::Result<()> {
+    self.actor.previous_sibling().map_err(generic_error)
+  }
+
+  /// Selects the next-sibling of the current selection. Does nothing if the selection is the first-child.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn next_sibling(&mut self) -> napi::Result<()> {
+    self.actor.next_sibling().map_err(generic_error)
+  }
+
+  /// Selects the last-child of the current selection. Does nothing if the selection has no children.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn last_child(&mut self) -> napi::Result<()> {
+    self.actor.last_child().map_err(generic_error)
+  }
+
+  /// Selects the parent of the current selection. Does nothing if the selection is the root.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn parent(&mut self) -> napi::Result<()> {
+    self.actor.parent().map_err(generic_error)
+  }
+
   /// Updates the state of the actor to deselected any selected nodes.
   ///
   /// # Errors
