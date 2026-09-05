@@ -6,21 +6,26 @@ import { gzipSync } from "node:zlib";
 /** Marker used to find and update a previous report comment */
 export const MARKER = "<!-- oxvg-size-report -->";
 
+/** Target the reported binary is built for, overridable to measure a local build */
+export const DEFAULT_TARGET = "x86_64-unknown-linux-gnu";
+
 /** Release artifacts to measure, by path relative to a checkout */
-export const ARTIFACTS = [
-	{
-		label: "oxvg (x86_64-unknown-linux-gnu)",
-		path: "target/x86_64-unknown-linux-gnu/release/oxvg",
-	},
-	{
-		label: "oxvg_wasm_bg.wasm (web)",
-		path: "packages/wasm/dist/oxvg_wasm_bg.wasm",
-	},
-	{
-		label: "oxvg_wasm_bg.wasm (node)",
-		path: "packages/wasm/dist/node/oxvg_wasm_bg.wasm",
-	},
-];
+export function artifacts(target = DEFAULT_TARGET) {
+	return [
+		{
+			label: `oxvg (${target})`,
+			path: `target/${target}/release/oxvg`,
+		},
+		{
+			label: "oxvg_wasm_bg.wasm (web)",
+			path: "packages/wasm/dist/oxvg_wasm_bg.wasm",
+		},
+		{
+			label: "oxvg_wasm_bg.wasm (node)",
+			path: "packages/wasm/dist/node/oxvg_wasm_bg.wasm",
+		},
+	];
+}
 
 export function formatBytes(bytes) {
 	if (bytes < 1024) {
@@ -75,9 +80,9 @@ export function renderReport({ base, head, baseSha, headSha }) {
 	].join("\n");
 }
 
-export function measure(root) {
+export function measure(root, target = DEFAULT_TARGET) {
 	const sizes = {};
-	for (const { label, path } of ARTIFACTS) {
+	for (const { label, path } of artifacts(target)) {
 		const file = join(root, path);
 		let contents;
 		try {
@@ -97,7 +102,8 @@ function main([command, ...args]) {
 	switch (command) {
 		case "measure": {
 			const [root, out] = args;
-			writeFileSync(out, `${JSON.stringify(measure(root), null, "\t")}\n`);
+			const sizes = measure(root, env.SIZE_TARGET || DEFAULT_TARGET);
+			writeFileSync(out, `${JSON.stringify(sizes, null, "\t")}\n`);
 			return;
 		}
 		case "report": {

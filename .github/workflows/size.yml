@@ -30,6 +30,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: never
+  # Read by both the cargo builds and the report script
+  SIZE_TARGET: x86_64-unknown-linux-gnu
 
 jobs:
   size:
@@ -44,7 +46,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-gnu, wasm32-unknown-unknown
+          targets: ${{ env.SIZE_TARGET }}, wasm32-unknown-unknown
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -69,7 +71,7 @@ jobs:
           --bins
           --package oxvg
           --profile release
-          --target x86_64-unknown-linux-gnu
+          --target "$SIZE_TARGET"
 
       - name: Build wasm
         run: pnpm --filter @oxvg/wasm build
@@ -112,7 +114,7 @@ jobs:
           --bins
           --package oxvg
           --profile release
-          --target x86_64-unknown-linux-gnu
+          --target "$SIZE_TARGET"
 
       - name: Build base wasm
         if: >-

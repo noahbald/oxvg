@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 
 import {
-	ARTIFACTS,
+	artifacts,
+	DEFAULT_TARGET,
 	formatBytes,
 	formatChange,
 	measure,
@@ -92,10 +93,33 @@ describe("renderReport", () => {
 	});
 });
 
+describe("artifacts", () => {
+	test("measures the linux binary by default", () => {
+		assert.deepStrictEqual(artifacts()[0], {
+			label: `oxvg (${DEFAULT_TARGET})`,
+			path: `target/${DEFAULT_TARGET}/release/oxvg`,
+		});
+	});
+
+	test("follows the target it is given", () => {
+		assert.deepStrictEqual(artifacts("aarch64-apple-darwin")[0], {
+			label: "oxvg (aarch64-apple-darwin)",
+			path: "target/aarch64-apple-darwin/release/oxvg",
+		});
+	});
+
+	test("measures the same wasm regardless of target", () => {
+		assert.deepStrictEqual(
+			artifacts("aarch64-apple-darwin").slice(1),
+			artifacts().slice(1),
+		);
+	});
+});
+
 describe("measure", () => {
 	test("names the artifact a build failed to produce", () => {
 		assert.throws(() => measure("nowhere"), {
-			message: `Expected a build to have produced \`${join("nowhere", ARTIFACTS[0].path)}\``,
+			message: `Expected a build to have produced \`${join("nowhere", artifacts()[0].path)}\``,
 		});
 	});
 });
