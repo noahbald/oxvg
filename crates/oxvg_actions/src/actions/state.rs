@@ -137,6 +137,27 @@ impl<'input> Actor<'input, '_> {
         self.effect_selection(&new_selections.collect())
     }
 
+    /// Selects the last-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/state/last_child.md")]
+    pub fn last_child(&mut self) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::LastChild);
+
+        let selections = self.get_selections()?;
+        let new_selections = self
+            .get_selection_nodes(selections)
+            .map(|node| node.last_child().unwrap_or(node))
+            .map(to_id);
+
+        self.effect_selection(&new_selections.collect())
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors
@@ -260,6 +281,22 @@ mod test {
 
                 actor.select("one").unwrap();
                 actor.next_sibling().unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn last_child() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><one/><two/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.select("svg").unwrap();
+                actor.last_child().unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

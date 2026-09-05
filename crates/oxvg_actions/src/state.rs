@@ -273,6 +273,7 @@ impl<'input> Action<'input> {
     const FIRST_CHILD: &'static str = "FirstChild";
     const PREVIOUS_SIBLING: &'static str = "PreviousSibling";
     const NEXT_SIBLING: &'static str = "NextSibling";
+    const LAST_CHILD: &'static str = "LastChild";
     const DESELECT: &'static str = "Deselect";
 
     #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
@@ -446,6 +447,7 @@ impl<'input> Action<'input> {
             Self::FIRST_CHILD => Ok(Self::FirstChild),
             Self::PREVIOUS_SIBLING => Ok(Self::PreviousSibling),
             Self::NEXT_SIBLING => Ok(Self::NextSibling),
+            Self::LAST_CHILD => Ok(Self::LastChild),
             Self::DESELECT => Ok(Self::Deselect),
             _ => Err(Error::InvalidStateAttribute(id.clone())),
         }
@@ -526,6 +528,7 @@ impl<'input> Action<'input> {
             | Self::FirstChild
             | Self::PreviousSibling
             | Self::NextSibling
+            | Self::LastChild
             | Self::Deselect
             | Self::Duplicate => {}
         }
@@ -578,6 +581,7 @@ impl<'input> Action<'input> {
             Self::FirstChild => Self::FIRST_CHILD,
             Self::PreviousSibling => Self::PREVIOUS_SIBLING,
             Self::NextSibling => Self::NEXT_SIBLING,
+            Self::LastChild => Self::LAST_CHILD,
             Self::Deselect => Self::DESELECT,
         }
     }
@@ -631,6 +635,7 @@ impl<'input> Action<'input> {
             Self::FirstChild => ActionNapi::FirstChild,
             Self::PreviousSibling => ActionNapi::PreviousSibling,
             Self::NextSibling => ActionNapi::NextSibling,
+            Self::LastChild => ActionNapi::LastChild,
             Self::Deselect => ActionNapi::Deselect,
         }
     }
@@ -684,6 +689,7 @@ impl<'input> Action<'input> {
             ActionNapi::FirstChild => Action::FirstChild,
             ActionNapi::PreviousSibling => Action::PreviousSibling,
             ActionNapi::NextSibling => Action::NextSibling,
+            ActionNapi::LastChild => Action::LastChild,
             ActionNapi::Deselect => Action::Deselect,
         }
     }

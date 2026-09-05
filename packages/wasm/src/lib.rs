@@ -699,6 +699,17 @@ impl Actor {
         self.actor.next_sibling()
     }
 
+    /// Selects the last-child of the current selection. Does nothing if the selection has no children.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = lastChild)]
+    pub fn last_child(&mut self) -> Result<(), Error> {
+        self.actor.last_child()
+    }
+
     /// Updates the state of the actor to deselected any selected nodes.
     ///
     /// # Errors
