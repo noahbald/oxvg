@@ -22,8 +22,8 @@ describe("formatBytes", () => {
 	});
 
 	test("uses mebibytes from a mebibyte", () => {
-		assert.strictEqual(formatBytes(1024 * 1024), "1.00 MiB");
-		assert.strictEqual(formatBytes(5 * 1024 * 1024 + 512 * 1024), "5.50 MiB");
+		assert.strictEqual(formatBytes(1024 * 1024), "1.000 MiB");
+		assert.strictEqual(formatBytes(5 * 1024 * 1024 + 512 * 1024), "5.500 MiB");
 	});
 });
 
