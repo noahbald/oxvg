@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_shape_to_path.rs
+expression: "test_config(r#\"{ \"convertShapeToPath\": { \"convertArcs\": true } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep the circle, the ellipse isn't selected by local-name in the stylesheet -->\n    <style>circle{fill:red}</style>\n    <ellipse cx=\"10\" cy=\"10\" rx=\"5\" ry=\"4\"/>\n    <circle cx=\"10\" cy=\"10\" r=\"5\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep the circle, the ellipse isn't selected by local-name in the stylesheet -->
+    <style>
+        circle{fill:red}
+    </style>
+    <path d="M10 6A5 4 0 1 0 10 14 5 4 0 1 0 10 6Z"/>
+    <circle cx="10" cy="10" r="5"/>
+</svg>
