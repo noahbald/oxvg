@@ -181,7 +181,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_> {
             }
 
             ElementId::Ellipse
-                if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Circle) =>
+                if convert_arcs && !self.referenced_shapes.contains(ReferencedShapes::Ellipse) =>
             {
                 ConvertShapeToPath::ellipse_to_path(element, precision, context.info);
             }
@@ -507,6 +507,30 @@ fn convert_shape_to_path() -> anyhow::Result<()> {
   <defs>
     <rect id="rect1" width="120" height="120" />
   </defs>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertShapeToPath": { "convertArcs": true } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep the ellipse, it's selected by local-name in the stylesheet -->
+    <style>ellipse{fill:red}</style>
+    <ellipse cx="10" cy="10" rx="5" ry="4"/>
+    <circle cx="10" cy="10" r="5"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertShapeToPath": { "convertArcs": true } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep the circle, the ellipse isn't selected by local-name in the stylesheet -->
+    <style>circle{fill:red}</style>
+    <ellipse cx="10" cy="10" rx="5" ry="4"/>
+    <circle cx="10" cy="10" r="5"/>
 </svg>"#
         ),
     )?);
