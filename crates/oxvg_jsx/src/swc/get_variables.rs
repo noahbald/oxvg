@@ -3,7 +3,7 @@ use std::io::Write;
 
 use itertools::Itertools as _;
 use swc_core::{
-    common::{sync::Lrc, SourceMap, SyntaxContext, DUMMY_SP},
+    common::{DUMMY_SP, SourceMap, SyntaxContext, sync::Lrc},
     ecma::{
         ast::{
             ArrowExpr, AssignPatProp, BindingIdent, BlockStmtOrExpr, CallExpr, Callee, Decl,
@@ -16,7 +16,7 @@ use swc_core::{
             TsTypeParamInstantiation, TsTypeRef, TsUnionOrIntersectionType, VarDecl, VarDeclKind,
             VarDeclarator,
         },
-        codegen::{text_writer::JsWriter, to_code, Emitter, Node},
+        codegen::{Emitter, Node, text_writer::JsWriter, to_code},
     },
 };
 
@@ -385,9 +385,10 @@ impl Variables {
                 })
             } else {
                 if let Some(n) = &opts.named_export
-                    && Ident::verify_symbol(n).is_err() {
-                        return Err(ConfigError::InvalidIdent(n.clone()));
-                    }
+                    && Ident::verify_symbol(n).is_err()
+                {
+                    return Err(ConfigError::InvalidIdent(n.clone()));
+                }
                 ModuleDecl::ExportNamed(NamedExport {
                     span: DUMMY_SP,
                     specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {

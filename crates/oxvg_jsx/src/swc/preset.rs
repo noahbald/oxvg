@@ -10,12 +10,12 @@ use swc_core::{
         Number, SpreadElement,
     },
 };
-use swc_ecma_lexer::{common::parser::Parser as _, Lexer, Parser, StringInput, Syntax};
+use swc_ecma_lexer::{Lexer, Parser, StringInput, Syntax, common::parser::Parser as _};
 
 use crate::{
+    BuildError, Config,
     config::{ExpandProps, Icon},
     error::{ConfigError, Error},
-    BuildError, Config,
 };
 
 /// Mutates the given root JSX element based on the given config.
@@ -203,38 +203,38 @@ fn replace_element_conditionally(
                         false
                     }
                 })
-            {
-                match value {
-                    Some(JSXAttrValue::Str(s)) => {
-                        *value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+        {
+            match value {
+                Some(JSXAttrValue::Str(s)) => {
+                    *value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                        span: DUMMY_SP,
+                        expr: JSXExpr::Expr(Box::new(Expr::Bin(BinExpr {
                             span: DUMMY_SP,
-                            expr: JSXExpr::Expr(Box::new(Expr::Bin(BinExpr {
-                                span: DUMMY_SP,
-                                op: BinaryOp::LogicalOr,
-                                left: Box::new(Expr::Ident(id.into())),
-                                right: Box::new(Expr::Lit(Lit::Str(s.clone()))),
-                            }))),
-                        }));
-                        existing_id.clone_from(value);
-                    }
-                    Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                        expr: JSXExpr::Expr(e),
-                        ..
-                    })) => {
-                        *value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                            span: DUMMY_SP,
-                            expr: JSXExpr::Expr(Box::new(Expr::Bin(BinExpr {
-                                span: DUMMY_SP,
-                                op: BinaryOp::LogicalOr,
-                                left: Box::new(Expr::Ident(id.into())),
-                                right: e.clone(),
-                            }))),
-                        }));
-                        existing_id.clone_from(value);
-                    }
-                    _ => *value = Some(JSXAttrValue::Str(id.into())),
+                            op: BinaryOp::LogicalOr,
+                            left: Box::new(Expr::Ident(id.into())),
+                            right: Box::new(Expr::Lit(Lit::Str(s.clone()))),
+                        }))),
+                    }));
+                    existing_id.clone_from(value);
                 }
+                Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                    expr: JSXExpr::Expr(e),
+                    ..
+                })) => {
+                    *value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                        span: DUMMY_SP,
+                        expr: JSXExpr::Expr(Box::new(Expr::Bin(BinExpr {
+                            span: DUMMY_SP,
+                            op: BinaryOp::LogicalOr,
+                            left: Box::new(Expr::Ident(id.into())),
+                            right: e.clone(),
+                        }))),
+                    }));
+                    existing_id.clone_from(value);
+                }
+                _ => *value = Some(JSXAttrValue::Str(id.into())),
             }
+        }
         Some((existing, original_title))
     } else {
         None
@@ -407,9 +407,10 @@ fn set_value_recursive(root: &mut JSXElementChild, old_value: &str, new_value: &
                     value: Some(value), ..
                 }) = attr
                     && let JSXAttrValue::Str(str) = &value
-                        && str.value.as_bytes() == old_value.as_bytes() {
-                            *value = new_value.clone();
-                        }
+                    && str.value.as_bytes() == old_value.as_bytes()
+                {
+                    *value = new_value.clone();
+                }
             }
             for child in &mut element.children {
                 set_value_recursive(child, old_value, new_value);
@@ -436,10 +437,11 @@ fn set_attribute(
             value,
             ..
         }) = attr
-            && ident.sym == name {
-                *value = Some(new_value);
-                return;
-            }
+            && ident.sym == name
+        {
+            *value = Some(new_value);
+            return;
+        }
     }
     if allow_push {
         element

@@ -3,7 +3,7 @@
 mod get_variables;
 mod preset;
 
-use crate::{config::State, error::BuildError, utils::attr_to_jsx_str, Config};
+use crate::{Config, config::State, error::BuildError, utils::attr_to_jsx_str};
 
 use convert_case::{Case, Casing as _};
 use oxvg_ast::{
@@ -16,7 +16,7 @@ use oxvg_collections::{attribute::Attr, content_type::ContentType};
 
 use lightningcss::{
     printer::PrinterOptions,
-    properties::{custom::CustomPropertyName, PropertyId},
+    properties::{PropertyId, custom::CustomPropertyName},
     traits::ToCss as _,
     values::{length::LengthValue, percentage::DimensionPercentage},
 };
@@ -31,7 +31,7 @@ use swc_core::{
     },
 };
 
-pub use get_variables::{default_template, Variables};
+pub use get_variables::{Variables, default_template};
 pub use preset::preset;
 
 /// Converts a node reference to a SWC representation of [`JSXElementChild`].

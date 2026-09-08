@@ -154,6 +154,8 @@ impl Default for Icon {
 
 /// A template function to write the resulting document after processing is completed.
 #[derive(Clone)]
+// FIXME: remove when rustfmt no longer panics on these generics
+#[rustfmt::skip]
 pub enum Template<
     W: Write,
     FA: FnOnce(&mut W, VariablesAST, TemplateContext) -> Result<(), TemplateError> = TemplateAST<W>,
@@ -321,7 +323,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            component_name: "SvgComponent".into()
+            component_name: "SvgComponent".into(),
         }
     }
 }

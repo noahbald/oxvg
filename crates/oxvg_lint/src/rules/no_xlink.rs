@@ -1,5 +1,5 @@
 use oxvg_collections::{
-    attribute::{xlink::XLinkShow, Attr},
+    attribute::{Attr, xlink::XLinkShow},
     is_prefix,
 };
 use rayon::prelude::*;
@@ -49,9 +49,9 @@ pub fn no_xlink(
 mod test {
     use super::no_xlink;
     use crate::{
+        Severity,
         error::{NoXLinkProblem, Problem},
         rules::RuleData,
-        Severity,
     };
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{

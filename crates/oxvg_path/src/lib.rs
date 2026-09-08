@@ -38,4 +38,4 @@ pub mod optimize;
 pub mod parser;
 pub mod paths;
 
-pub use paths::svg::{command, Path};
+pub use paths::svg::{Path, command};

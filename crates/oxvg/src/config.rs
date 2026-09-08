@@ -1,7 +1,7 @@
 //! Types for the configuration file usable by OXVG
 use std::{env::current_dir, fs::read_to_string, path::PathBuf};
 
-use etcetera::{choose_base_strategy, BaseStrategy};
+use etcetera::{BaseStrategy, choose_base_strategy};
 use oxvg_lint::Rules;
 use oxvg_optimiser::Extends;
 use serde::{Deserialize, Serialize};

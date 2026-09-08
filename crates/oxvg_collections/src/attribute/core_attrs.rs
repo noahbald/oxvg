@@ -19,9 +19,9 @@ pub use lightningcss::{
 };
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::atom::Atom;
 
@@ -221,7 +221,7 @@ impl<'input> Parse<'input> for Frequency {
                 return Err(Error::ExpectedIdent {
                     expected: "one of `Hz` `KHz`",
                     received,
-                })
+                });
             }
         })
     }
@@ -428,8 +428,8 @@ impl ToValue for TokenList<'_> {
         W: std::fmt::Write,
     {
         use lightningcss::properties::{
-            custom::{CustomProperty, CustomPropertyName},
             Property,
+            custom::{CustomProperty, CustomPropertyName},
         };
         Property::Custom(CustomProperty {
             name: CustomPropertyName::Unknown("".into()),

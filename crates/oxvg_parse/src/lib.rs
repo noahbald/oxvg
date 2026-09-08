@@ -110,7 +110,7 @@ impl<'input> Parser<'input> {
     pub fn take_matches<F: FnMut(char) -> bool>(&mut self, f: F) -> &'input str {
         let cursor = self.cursor();
         self.skip_matches(f);
-        
+
         (self.slice_from(cursor)) as _
     }
 

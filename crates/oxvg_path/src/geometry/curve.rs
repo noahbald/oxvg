@@ -1,5 +1,5 @@
 //! Types for representing bezier curves.
-use crate::geometry::{line::Intersection, Line, Point, Tolerance, ToleranceSquared};
+use crate::geometry::{Line, Point, Tolerance, ToleranceSquared, line::Intersection};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// A cubic bezier curve.
@@ -545,11 +545,7 @@ impl Curve {
             }
         }
 
-        if best_dist_sq <= tol_sq {
-            best_t
-        } else {
-            None
-        }
+        if best_dist_sq <= tol_sq { best_t } else { None }
     }
 
     /// Returns an equivalent curve spanning from the end point to the start.

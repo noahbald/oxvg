@@ -51,13 +51,13 @@ pub fn no_unknown_attributes(
 #[cfg(test)]
 mod test {
     use super::no_unknown_attributes;
-    use crate::{error::Problem, rules::RuleData, Severity};
+    use crate::{Severity, error::Problem, rules::RuleData};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{
         atom::Atom,
         attribute::{Attr, AttrId},
         element::ElementId,
-        name::{Prefix, QualName, NS},
+        name::{NS, Prefix, QualName},
     };
 
     const UNKNOWN_ELEMENT: ElementId<'static> = ElementId::Unknown(QualName {

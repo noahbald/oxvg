@@ -9,9 +9,9 @@ use lightningcss::{
 };
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, PrinterOptions, ToValue};
+use oxvg_serialize::{Printer, PrinterOptions, ToValue, error::PrinterError};
 
 use super::core_attrs::{Angle, Number};
 
@@ -531,15 +531,19 @@ impl SVGTransformList {
                 }
                 SVGTransform::Translate(..) => {
                     if let Some(SVGTransform::Rotate(n, x, y)) = rounded.get(i + 1)
-                        && *n != 180.0 && *n != -180.0 && *n != 0.0 && *x == 0.0 && *y == 0.0 {
-                            log::debug!("merging translate and rotate");
-                            let translate = &raw[i];
-                            let rotate = &raw[i + 1];
-                            optimized
-                                .push(SVGTransform::merge_translate_and_rotate(translate, rotate));
-                            skip = true;
-                            continue;
-                        }
+                        && *n != 180.0
+                        && *n != -180.0
+                        && *n != 0.0
+                        && *x == 0.0
+                        && *y == 0.0
+                    {
+                        log::debug!("merging translate and rotate");
+                        let translate = &raw[i];
+                        let rotate = &raw[i + 1];
+                        optimized.push(SVGTransform::merge_translate_and_rotate(translate, rotate));
+                        skip = true;
+                        continue;
+                    }
                     optimized.push(item.clone());
                 }
                 SVGTransform::Matrix(_) => unreachable!(),

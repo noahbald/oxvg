@@ -2,9 +2,9 @@
 use lightningcss::values::number::CSSNumber;
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::enum_attr;
 
@@ -308,9 +308,10 @@ impl<'input> Parse<'input> for RepeatCount {
             })
             .or_else(|_| Number::parse(input).map(Self::Number))?;
         if let Self::Number(number) = result
-            && number <= 0.0 {
-                return Err(Error::InvalidRange);
-            }
+            && number <= 0.0
+        {
+            return Err(Error::InvalidRange);
+        }
         Ok(result)
     }
 }

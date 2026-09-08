@@ -1,6 +1,6 @@
 use oxvg_collections::attribute::{
-    path::{Path, Points},
     Attr, AttrId,
+    path::{Path, Points},
 };
 use rayon::prelude::*;
 
@@ -53,11 +53,11 @@ pub fn no_invalid_attributes(
 #[cfg(test)]
 mod test {
     use super::no_invalid_attributes;
-    use crate::{error::Problem, rules::RuleData, Severity};
+    use crate::{Severity, error::Problem, rules::RuleData};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{
         atom::Atom,
-        attribute::{path::Path, Attr, AttrId},
+        attribute::{Attr, AttrId, path::Path},
     };
 
     const ATTR_ID: AttrId<'static> = AttrId::Path;

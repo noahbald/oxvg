@@ -52,14 +52,14 @@ pub fn no_deprecated(
 mod test {
     use super::no_deprecated;
     use crate::{
+        Severity,
         error::{DeprecatedProblem, Problem},
         rules::RuleData,
-        Severity,
     };
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{
         atom::Atom,
-        attribute::{uncategorised::ViewBox, xml::XmlSpace, Attr, AttrId},
+        attribute::{Attr, AttrId, uncategorised::ViewBox, xml::XmlSpace},
         element::ElementId,
     };
 

@@ -1,5 +1,5 @@
 #[cfg(not(feature = "js_sys"))]
-use dashmap::{mapref::one::Ref, DashMap};
+use dashmap::{DashMap, mapref::one::Ref};
 #[cfg(not(feature = "js_sys"))]
 use std::sync::LazyLock;
 #[cfg(feature = "js_sys")]
