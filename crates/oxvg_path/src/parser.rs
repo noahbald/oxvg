@@ -1,7 +1,7 @@
 //! Types used for parsing a string of path data.
-use crate::{command, Path};
+use crate::{Path, command};
 
-pub use oxvg_parse::{error::PathError, Parse};
+pub use oxvg_parse::{Parse, error::PathError};
 
 /// An error that can occur while parsing path data
 pub type Error = PathError;
@@ -160,10 +160,10 @@ impl command::Data {
             command::ID::MoveTo => return Ok(Self::MoveTo([a, b])),
             command::ID::MoveBy => return Ok(Self::MoveBy([a, b])),
             command::ID::SmoothQuadraticBezierTo => {
-                return Ok(Self::SmoothQuadraticBezierTo([a, b]))
+                return Ok(Self::SmoothQuadraticBezierTo([a, b]));
             }
             command::ID::SmoothQuadraticBezierBy => {
-                return Ok(Self::SmoothQuadraticBezierBy([a, b]))
+                return Ok(Self::SmoothQuadraticBezierBy([a, b]));
             }
             _ => {}
         }
@@ -217,10 +217,9 @@ fn test_path_parse() {
     insta::assert_snapshot!(Path::parse_string("m-0,1a 25,25 -30 0,1 0,0").unwrap());
 
     // Should parse implicit
-    insta::assert_snapshot!(Path::parse_string(
-        "M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005"
-    )
-    .unwrap());
+    insta::assert_snapshot!(
+        Path::parse_string("M 10,50 C 1,2 3,4 5,6.5 .1 .2 .3 .4 .5 -.05176e-005").unwrap()
+    );
 
     // Should parse minified
     insta::assert_snapshot!(Path::parse_string("M10 50C1 2 3 4 5 6.5.1.2.3.4.5-5.176e-7").unwrap());
@@ -235,8 +234,7 @@ fn test_path_parse() {
     insta::assert_snapshot!(Path::parse_string("m-0,1a20.8 20.8 0 0 0 5.2.6").unwrap());
 
     // Parse implicit arc
-    insta::assert_snapshot!(Path::parse_string(
-        "m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8"
-    )
-    .unwrap());
+    insta::assert_snapshot!(
+        Path::parse_string("m-0,1a29.6 29.6 0 01-2 1.5 151.6 151.6 0 01-2.6 1.8").unwrap()
+    );
 }

@@ -35,7 +35,7 @@ pub fn no_unused_xmlns<'input>(
 #[cfg(test)]
 mod test {
     use super::no_unused_xmlns;
-    use crate::{error::Problem, Severity};
+    use crate::{Severity, error::Problem};
     use oxvg_collections::atom::Atom;
     use std::collections::HashSet;
 

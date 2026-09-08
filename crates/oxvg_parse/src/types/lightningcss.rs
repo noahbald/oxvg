@@ -28,7 +28,7 @@ use lightningcss::{
     },
 };
 
-use crate::{error::Error, Parse, Parser};
+use crate::{Parse, Parser, error::Error};
 
 macro_rules! impl_type {
     ($ty:ty) => {

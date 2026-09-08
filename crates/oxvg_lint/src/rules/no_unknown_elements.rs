@@ -43,7 +43,7 @@ pub fn no_unknown_elements(
 #[cfg(test)]
 mod test {
     use super::no_unknown_elements;
-    use crate::{error::Problem, rules::RuleData, Severity};
+    use crate::{Severity, error::Problem, rules::RuleData};
     use oxvg_collections::element::ElementId;
 
     const PARENT_ELEMENT: Option<ElementId<'static>> = Some(ElementId::Svg);

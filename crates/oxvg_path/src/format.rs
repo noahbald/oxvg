@@ -1,5 +1,5 @@
 //! Formatting implementations
-use crate::{command::Data, Path};
+use crate::{Path, command::Data};
 
 pub(crate) fn format<'a>(
     mut iter: impl ExactSizeIterator<Item = &'a Data>,

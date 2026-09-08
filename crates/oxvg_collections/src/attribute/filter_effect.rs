@@ -1,8 +1,8 @@
 //! Filter effect attributes as specified in [filter-effects](https://drafts.fxtf.org/filter-effects/)
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::{atom::Atom, enum_attr};
 

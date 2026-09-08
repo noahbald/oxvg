@@ -332,11 +332,7 @@ impl Point {
     /// ```
     #[must_use]
     pub fn leftmost(self, other: Self) -> Self {
-        if self.x <= other.x {
-            self
-        } else {
-            other
-        }
+        if self.x <= other.x { self } else { other }
     }
 
     /// Returns the point farthest to the right
@@ -353,11 +349,7 @@ impl Point {
     /// ```
     #[must_use]
     pub fn rightmost(self, other: Self) -> Self {
-        if self.x > other.x {
-            self
-        } else {
-            other
-        }
+        if self.x > other.x { self } else { other }
     }
 
     /// Returns the distance between two points.
@@ -647,11 +639,7 @@ impl Point {
     #[must_use]
     pub fn orth(&self, from: Self) -> Self {
         let o = Self::new(-self.y, self.x);
-        if o.dot(-from) < 0.0 {
-            -o
-        } else {
-            o
-        }
+        if o.dot(-from) < 0.0 { -o } else { o }
     }
 
     /// Returns the point `t` percentage between this point and the other, as a number

@@ -2,18 +2,18 @@
 use std::{collections::HashMap, io::Write as _, marker::PhantomData};
 
 use oxvg_jsx::{
+  Config,
   config::{
     ExpandProps, ExportType, Icon, JSXRuntime, JsxRuntimeImport, State, Template, TemplateAST,
     TemplateContext, VariablesString,
   },
   error::TemplateError,
-  Config,
 };
 use oxvg_optimiser::Jobs;
 
 use napi::{
-  bindgen_prelude::{FnArgs, Function},
   Status,
+  bindgen_prelude::{FnArgs, Function},
 };
 
 #[macro_use]

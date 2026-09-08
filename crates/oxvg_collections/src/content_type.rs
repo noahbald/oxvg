@@ -9,9 +9,9 @@ use super::attribute::aria::{
     AriaOrientation, AriaRelevant, AriaSort, IDReference, Role, Tristate,
 };
 use super::attribute::core_attrs::{
-    Angle, Anything, Boolean, Class, Color, Frequency, FuncIRI, Id, Integer, Length, Name,
+    Angle, Anything, Boolean, Class, Color, Frequency, FuncIRI, IRI, Id, Integer, Length, Name,
     NonWhitespace, Number, NumberOptionalNumber, Opacity, Paint, Percentage, SVGTransformList,
-    Style, Time, TokenList, Url, IRI,
+    Style, Time, TokenList, Url,
 };
 use super::attribute::filter_effect::{
     ChannelSelector, EdgeMode, In, OperatorFeComposite, OperatorFeMorphology,
@@ -222,14 +222,14 @@ impl<'input> ContentType<'_, 'input> {
                 StrokeDasharray::Values(values) => values.is_empty(),
                 StrokeDasharray::None => false,
             },
-            Self::TokenList(token_list) => token_list.0 .0.is_empty(),
+            Self::TokenList(token_list) => token_list.0.0.is_empty(),
             Self::In(value) => match &**value {
                 In::Reference(value) => value.is_empty(),
                 _ => false,
             },
             Self::MediaQueryList(media_query_list) => media_query_list.0.media_queries.is_empty(),
-            Self::Path(path) => path.0 .0.is_empty(),
-            Self::Points(points) => points.0 .0.is_empty(),
+            Self::Path(path) => path.0.0.is_empty(),
+            Self::Points(points) => points.0.0.is_empty(),
             Self::Target(target) => match &**target {
                 Target::XMLName(value) => value.is_empty(),
                 _ => false,
@@ -628,7 +628,7 @@ impl<'input> ContentType<'_, 'input> {
         if let Self::Points(points) = self {
             let factor = 10.0_f64.powi(float_precision);
             let round_float = |n: &mut f64| *n = (*n * factor).round() / factor;
-            for point in &mut points.0 .0 {
+            for point in &mut points.0.0 {
                 point.args_mut().iter_mut().for_each(round_float);
             }
             return;

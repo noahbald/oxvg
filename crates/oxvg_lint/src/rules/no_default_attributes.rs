@@ -31,9 +31,9 @@ pub fn no_default_attributes(
 #[cfg(test)]
 mod test {
     use super::no_default_attributes;
-    use crate::{error::Problem, rules::RuleData, Severity};
+    use crate::{Severity, error::Problem, rules::RuleData};
     use oxvg_ast::node::Ranges;
-    use oxvg_collections::attribute::{uncategorised::Target, Attr, AttrId};
+    use oxvg_collections::attribute::{Attr, AttrId, uncategorised::Target};
 
     const ATTR_NOT_DEFAULT: Attr = Attr::Target(Target::_Blank);
     const ATTR_DEFAULT: Attr = Attr::Target(Target::_Self);

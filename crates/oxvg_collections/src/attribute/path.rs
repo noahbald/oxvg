@@ -2,9 +2,9 @@
 use std::ops::Deref;
 
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 type InvalidRemainingContent<'input> = Option<&'input str>;
 

@@ -1,5 +1,5 @@
 //! Parsing for number values
-use crate::{error::Error, Parse, Parser};
+use crate::{Parse, Parser, error::Error};
 
 impl<'input> Parse<'input> for f64 {
     fn parse(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {

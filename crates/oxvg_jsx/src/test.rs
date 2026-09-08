@@ -3,11 +3,12 @@ use std::{collections::HashMap, io::Write, marker::PhantomData};
 use pretty_assertions::assert_eq;
 
 use crate::{
+    Config,
     config::{
         ExpandProps, ExportType, Icon, JSXRuntime, JsxRuntimeImport, Template, VariablesString,
     },
     error::TemplateError,
-    transform, Config,
+    transform,
 };
 
 fn test(input: &str, expected: &str) {

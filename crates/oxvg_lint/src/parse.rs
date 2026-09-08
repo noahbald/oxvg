@@ -9,8 +9,8 @@ use oxvg_ast::{
 };
 
 use crate::{
-    error::{LintingError, Report},
     Rules, Severity,
+    error::{LintingError, Report},
 };
 
 struct StdoutWriter {

@@ -31,7 +31,7 @@ pub fn no_unused_ids<'a, 'input>(
 #[cfg(test)]
 mod test {
     use super::no_unused_ids;
-    use crate::{error::Problem, Severity};
+    use crate::{Severity, error::Problem};
     use oxvg_ast::node::Ranges;
     use oxvg_collections::atom::Atom;
     use std::collections::{HashMap, HashSet};

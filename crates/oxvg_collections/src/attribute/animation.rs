@@ -1,8 +1,8 @@
 //! Animation attribute types as specified in [animations](https://svgwg.org/specs/animations/)
 #[cfg(feature = "parse")]
-use oxvg_parse::{error::Error, Parse, Parser};
+use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
-use oxvg_serialize::{error::PrinterError, Printer, ToValue};
+use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::{atom::Atom, enum_attr};
 

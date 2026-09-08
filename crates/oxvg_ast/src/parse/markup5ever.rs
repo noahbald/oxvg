@@ -17,7 +17,7 @@ use oxvg_collections::{
     name::{Prefix, QualName},
 };
 use xml5ever::{
-    driver::{parse_document, XmlParseOpts},
+    driver::{XmlParseOpts, parse_document},
     interface::{NodeOrText, QuirksMode, TreeSink},
     tendril::TendrilSink,
 };
@@ -327,10 +327,12 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
             NodeOrText::AppendNode(node) => {
                 parent.append_child(node);
                 self.add_xmlns(&node);
-                debug_assert!(parent
-                    .last_child
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, node)));
+                debug_assert!(
+                    parent
+                        .last_child
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, node))
+                );
             }
             NodeOrText::AppendText(text) => {
                 if text.is_empty() {
@@ -348,10 +350,12 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
                 }
                 let node = self.new_node(NodeData::Text(RefCell::new(Some(text.into()))));
                 parent.append_child(node);
-                debug_assert!(parent
-                    .last_child
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, node)));
+                debug_assert!(
+                    parent
+                        .last_child
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, node))
+                );
             }
         }
     }
@@ -363,14 +367,17 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
         match new_node {
             NodeOrText::AppendNode(node) => {
                 parent.insert_before(node, sibling);
-                debug_assert!(sibling
-                    .previous_sibling
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, node)));
-                debug_assert!(node
-                    .next_sibling
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, *sibling)));
+                debug_assert!(
+                    sibling
+                        .previous_sibling
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, node))
+                );
+                debug_assert!(
+                    node.next_sibling
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, *sibling))
+                );
             }
             NodeOrText::AppendText(mut text) => {
                 text.pop_front_char_run(char::is_whitespace);
@@ -380,14 +387,17 @@ impl<'input, 'arena> TreeSink for Sink<'_, 'input, 'arena> {
                 }
                 let node = self.new_node(NodeData::Text(RefCell::new(Some(text.into()))));
                 parent.insert_before(node, sibling);
-                debug_assert!(sibling
-                    .previous_sibling
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, node)));
-                debug_assert!(node
-                    .next_sibling
-                    .get()
-                    .is_some_and(|child| std::ptr::eq(child, *sibling)));
+                debug_assert!(
+                    sibling
+                        .previous_sibling
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, node))
+                );
+                debug_assert!(
+                    node.next_sibling
+                        .get()
+                        .is_some_and(|child| std::ptr::eq(child, *sibling))
+                );
             }
         }
     }

@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["*.snap"]
+extend-exclude = ["*.snap", "LICENSES/"]
 
 [default.extend-identifiers]
 PNGs = "PNGs"

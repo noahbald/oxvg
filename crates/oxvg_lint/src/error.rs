@@ -8,7 +8,7 @@ use std::{
 
 use oxvg_collections::{atom::Atom, attribute::AttrId, element::ElementId};
 
-use crate::{utils::naive_range, Severity};
+use crate::{Severity, utils::naive_range};
 
 #[derive(Debug)]
 /// Errors that may occur while linting

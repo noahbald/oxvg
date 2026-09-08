@@ -260,9 +260,7 @@ impl<'input, 'arena> Iterator for Select<'input, 'arena> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.find(|element| {
             self.selector.matches_with_scope_and_cache(
-                &SelectElement {
-                    element: *element,
-                },
+                &SelectElement { element: *element },
                 self.scope,
                 &mut self.selector_caches,
             )
