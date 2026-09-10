@@ -183,8 +183,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         }
 
         for element_with_style in self.elements_with_style.borrow().values() {
-            let mut style_sheet =
-                get_attribute_mut!(element_with_style, Style).expect("element without style used");
+            // An unparseable inline style is left as-is rather than failing the job
+            let Some(mut style_sheet) = get_attribute_mut!(element_with_style, Style) else {
+                continue;
+            };
 
             minify_style::style(&mut style_sheet.0);
             if style_sheet.0.is_empty() {
@@ -481,6 +483,17 @@ fn minify_styles() -> anyhow::Result<()> {
             background: #fff;
         }
     </style>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "minifyStyles": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- unparseable inline styles are left alone, not panicked on -->
+    <rect style="display:none !ie" width="1" height="1"/>
+    <rect style="*display:none" width="1" height="1"/>
 </svg>"#
         ),
     )?);

@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/minify_styles.rs
+expression: "test_config(r#\"{ \"minifyStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 50\">\n    <!-- unparseable inline styles are left alone, not panicked on -->\n    <rect style=\"display:none !ie\" width=\"1\" height=\"1\"/>\n    <rect style=\"*display:none\" width=\"1\" height=\"1\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <!-- unparseable inline styles are left alone, not panicked on -->
+    <rect style="display:none !ie" width="1" height="1"/>
+    <rect style="*display:none" width="1" height="1"/>
+</svg>
