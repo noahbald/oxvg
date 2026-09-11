@@ -302,6 +302,15 @@ impl Actor {
         self.actor.derive_state()
     }
 
+    /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+    ///
+    /// # Errors
+    ///
+    /// When the clipboard fails to serialize
+    pub fn clipboard(&self) -> Result<Option<String>, Error> {
+        self.actor.derive_clipboard()
+    }
+
     /// Executes the given action and it's arguments upon the document.
     ///
     /// # Errors

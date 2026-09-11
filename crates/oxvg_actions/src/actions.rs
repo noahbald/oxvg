@@ -276,6 +276,19 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         DerivedState::from_state(&self.state, &self.allocator)
     }
 
+    /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+    ///
+    /// # Errors
+    ///
+    /// When the clipboard fails to serialize
+    pub fn derive_clipboard(&self) -> Result<Option<String>, Error<'static>> {
+        self.state
+            .clipboard
+            .map(|e| e.serialize())
+            .transpose()
+            .map_err(|e| Error::SerializeError(e.to_string()))
+    }
+
     #[allow(clippy::many_single_char_names)]
     /// Executes the given action and it's arguments upon the document.
     ///

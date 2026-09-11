@@ -171,6 +171,15 @@ impl Actor {
       .map_err(generic_error)
   }
 
+  /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+  ///
+  /// # Errors
+  ///
+  /// When the clipboard fails to serialize
+  pub fn clipboard(&self) -> napi::Result<Option<String>> {
+    self.actor.derive_clipboard().map_err(generic_error)
+  }
+
   /// Executes the given action and it's arguments upon the document.
   ///
   /// # Errors
