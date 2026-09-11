@@ -183,7 +183,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
         }
 
         for element_with_style in self.elements_with_style.borrow().values() {
-            // An unparseable inline style is left as-is rather than failing the job
+            // An unparsable inline style is left as-is rather than failing the job
             let Some(mut style_sheet) = get_attribute_mut!(element_with_style, Style) else {
                 continue;
             };
@@ -491,7 +491,7 @@ fn minify_styles() -> anyhow::Result<()> {
         r#"{ "minifyStyles": {} }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
-    <!-- unparseable inline styles are left alone, not panicked on -->
+    <!-- unparsable inline styles are left alone, not panicked on -->
     <rect style="display:none !ie" width="1" height="1"/>
     <rect style="*display:none" width="1" height="1"/>
 </svg>"#
