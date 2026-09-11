@@ -184,6 +184,17 @@ impl Actor {
       .map_err(generic_error)
   }
 
+  /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
+  /// copy of selected elements to <oxvg:clipboard>.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn copy(&mut self) -> napi::Result<()> {
+    self.actor.copy().map_err(generic_error)
+  }
+
   /// Sets the attribute to selected elements.
   ///
   /// # Errors

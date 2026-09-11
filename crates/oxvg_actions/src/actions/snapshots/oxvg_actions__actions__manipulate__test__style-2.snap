@@ -93,4 +93,5 @@ DerivedState {
             text: None,
         },
     ),
+    ui: None,
 }

@@ -312,6 +312,17 @@ impl Actor {
         self.actor.dispatch(action)
     }
 
+    /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
+    /// copy of selected elements to <oxvg:clipboard>.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn copy(&mut self) -> Result<(), Error> {
+        self.actor.copy()
+    }
+
     /// Sets the attribute to selected elements.
     ///
     /// # Errors

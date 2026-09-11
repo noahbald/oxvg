@@ -43,7 +43,7 @@ pub fn assert_oxvg_element<'input>(
 pub fn get_oxvg_attr<'a, 'input>(
     element: &'a Element<'input, '_>,
     local_name: &'static str,
-) -> Result<Option<cell::Ref<'a, Atom<'input>>>, Error<'input>> {
+) -> Result<Option<cell::Ref<'a, Atom<'input>>>, Error<'static>> {
     let attr = element
         .attributes()
         .get_named_item(&AttrId::Unknown(create_oxvg_qual_name(local_name)));

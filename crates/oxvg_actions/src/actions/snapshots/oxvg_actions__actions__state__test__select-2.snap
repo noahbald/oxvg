@@ -51,4 +51,5 @@ DerivedState {
             ),
         },
     ),
+    ui: None,
 }

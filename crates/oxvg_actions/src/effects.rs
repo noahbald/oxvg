@@ -3,6 +3,7 @@
 //! Some code style rules regarding effects:
 //! - Effect should be called only for action methods, not in utility functions used by actions.
 //! - Effects should called when all relevant actions make an effect, as specified in `./spec/`.
+use oxvg_ast::node::Ref;
 use oxvg_collections::{
     atom::Atom,
     attribute::{
@@ -14,6 +15,7 @@ use oxvg_serialize::{PrinterOptions, ToValue as _};
 
 use crate::{
     Action, Actor, Error,
+    actions::UIAction,
     state::StateElement,
     utils::{create_oxvg_attr, create_oxvg_attr_id, to_id},
 };
@@ -24,7 +26,7 @@ pub(crate) enum StateEffect {
     Embed,
 }
 
-impl<'input> Actor<'input, '_> {
+impl<'input, 'arena> Actor<'input, 'arena> {
     /// Should be called for direct state manipulation
     pub(crate) fn effect_state(&mut self, effect: StateEffect) -> Result<(), Error<'input>> {
         match effect {
@@ -38,6 +40,7 @@ impl<'input> Actor<'input, '_> {
 
     /// Must be called at the start of an action that affects history.
     pub(crate) fn effect_history(&mut self, action: &Action<'input>) {
+        self.state.ui.inspect(|ui| ui.remove());
         self.state.record(action, &self.allocator);
     }
 
@@ -89,5 +92,33 @@ impl<'input> Actor<'input, '_> {
         let selections: Vec<_> = self.get_selection_nodes(Some(selection)).collect();
         self.allocator.reorder(self.root);
         self.effect_selection(&selections.into_iter().map(to_id).collect())
+    }
+
+    /// Must be called at the end of an action that effects clipboard.
+    pub(crate) fn effect_clipboard(
+        &mut self,
+        nodes: Vec<Ref<'input, 'arena>>,
+    ) -> Result<(), Error<'input>> {
+        let clipboard = self.state.get_clipboard(&self.allocator);
+
+        clipboard.replace_children(
+            nodes
+                .into_iter()
+                .map(|node| node.clone_node(&self.allocator, true)),
+        );
+
+        self.effect_state(StateEffect::Embed)
+    }
+
+    /// Must be called after an action effects history.
+    pub(crate) fn effect_ui(&mut self, action: UIAction) -> Result<(), Error<'input>> {
+        let ui = self.state.get_ui(&self.allocator);
+
+        ui.set_attribute(create_oxvg_attr(
+            StateElement::UI_ACTION,
+            action.to_string().into(),
+        ));
+
+        self.effect_state(StateEffect::Embed)
     }
 }
