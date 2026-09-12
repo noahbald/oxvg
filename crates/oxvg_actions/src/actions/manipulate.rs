@@ -23,7 +23,7 @@ impl<'input> Actor<'input, '_> {
         self.effect_history(&Action::Attr {
             name: name.to_string().into(),
             value: value.to_string().into(),
-        });
+        })?;
 
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
@@ -51,13 +51,42 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/manipulate/class.md")]
     pub fn class(&mut self, name: &str) -> Result<(), Error<'input>> {
         let name: Atom<'static> = name.to_string().into();
-        self.effect_history(&Action::Class(name.clone()));
+        self.effect_history(&Action::Class(name.clone()))?;
 
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
             let mut class_list = element.class_list();
             class_list.toggle(name.clone());
         }
+
+        self.effect_document()
+    }
+
+    #[cfg(feature = "optimise")]
+    /// Runs a set of optimisation jobs upon the document, accepts a JSON string matching the "optimisation"
+    /// option in [oxvgrc.json](https://github.com/noahbald/oxvg/wiki/Configuration). Also has the effect
+    /// of the "Forget" action.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    ///
+    /// # Spec
+    ///
+    #[doc = include_str!("../spec/manipulate/optimise.md")]
+    pub fn optimise(
+        &mut self,
+        jobs: Option<Box<oxvg_optimiser::Jobs>>,
+    ) -> Result<(), Error<'input>> {
+        self.effect_history(&Action::Optimise(jobs.clone()))?;
+
+        self.state.state.remove();
+        jobs.unwrap_or_default()
+            .run(
+                self.root,
+                &oxvg_ast::visitor::Info::new(self.allocator.clone()),
+            )
+            .map_err(|e| Error::JobsError(e.to_string()))?;
 
         self.effect_document()
     }
@@ -76,7 +105,7 @@ impl<'input> Actor<'input, '_> {
         self.effect_history(&Action::Style {
             property: property.to_string().into(),
             value: value.to_string().into(),
-        });
+        })?;
 
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
@@ -171,6 +200,22 @@ mod test {
 
                 actor.select("svg").unwrap();
                 actor.style("opacity", "0.5").unwrap();
+                insta::assert_snapshot!(actor.root.serialize().unwrap());
+                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[cfg(feature = "optimise")]
+    fn optimise() {
+        oxvg_ast::parse::roxmltree::parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>"#,
+            |root, allocator| {
+                let mut actor = Actor::new(root, allocator).unwrap();
+
+                actor.optimise(None).unwrap();
                 insta::assert_snapshot!(actor.root.serialize().unwrap());
                 insta::assert_debug_snapshot!(actor.derive_state().unwrap());
             },

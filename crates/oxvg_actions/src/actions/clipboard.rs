@@ -12,7 +12,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/ui/copy.md")]
     pub fn copy(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Copy);
+        self.effect_history(&Action::Copy)?;
 
         let selections = self.get_selections()?;
 
@@ -32,7 +32,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/ui/paste.md")]
     pub fn paste(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Paste);
+        self.effect_history(&Action::Paste)?;
 
         let clipboard = self.state.get_clipboard(&self.allocator);
         let selections = self.get_selections()?;

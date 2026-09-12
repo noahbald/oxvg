@@ -11,7 +11,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/delete.md")]
     pub fn delete(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Delete);
+        self.effect_history(&Action::Delete)?;
 
         let selections = self.get_selections()?;
         for selection in self.get_selection_nodes(selections) {
@@ -33,7 +33,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/flatten.md")]
     pub fn flatten(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Flatten);
+        self.effect_history(&Action::Flatten)?;
 
         let selections = self.get_selections()?;
         let mut new_selections = vec![];

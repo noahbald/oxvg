@@ -13,7 +13,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/step_in.md")]
     pub fn step_in(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::StepIn);
+        self.effect_history(&Action::StepIn)?;
 
         let selections = self.get_selections()?;
         for node in self.get_selection_nodes(selections) {
@@ -38,7 +38,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/step_out.md")]
     pub fn step_out(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::StepOut);
+        self.effect_history(&Action::StepOut)?;
 
         let selections = self.get_selections()?;
         for node in self.get_selection_nodes(selections) {

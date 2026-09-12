@@ -11,7 +11,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/front.md")]
     pub fn front(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Front);
+        self.effect_history(&Action::Front)?;
 
         let selections = self.get_selections()?;
         for selection in self.get_selection_nodes(selections).rev() {
@@ -36,7 +36,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/push.md")]
     pub fn push(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Push);
+        self.effect_history(&Action::Push)?;
 
         let selections = self.get_selections()?;
         for selection in self.get_selection_nodes(selections).rev() {
@@ -63,7 +63,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/pull.md")]
     pub fn pull(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Pull);
+        self.effect_history(&Action::Pull)?;
 
         let selections = self.get_selections()?;
         for selection in self.get_selection_nodes(selections) {
@@ -90,7 +90,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/structure/back.md")]
     pub fn back(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Back);
+        self.effect_history(&Action::Back)?;
 
         let selections = self.get_selections()?;
         for selection in self.get_selection_nodes(selections) {

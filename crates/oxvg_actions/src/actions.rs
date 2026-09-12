@@ -57,6 +57,9 @@ pub enum Action<'input> {
     },
     /// See [`Actor::class`]
     Class(Atom<'input>),
+    #[cfg(feature = "optimise")]
+    /// See [`Actor::optimise`]
+    Optimise(Option<Box<oxvg_optimiser::Jobs>>),
     /// See [`Actor::paste`]
     Paste,
     /// See [`Actor::path_intersect`]
@@ -137,6 +140,7 @@ pub enum Action<'input> {
 }
 
 #[cfg(feature = "napi")]
+#[allow(clippy::large_enum_variant, reason = "`Box` not supported")]
 #[napi]
 /// An action is a method that an actor can execute upon a document
 pub enum ActionNapi {
@@ -151,6 +155,9 @@ pub enum ActionNapi {
     },
     /// See [`Actor::class`]
     Class(String),
+    #[cfg(feature = "optimise")]
+    /// See [`Actor::optimise`]
+    Optimise(Option<oxvg_optimiser::Jobs>),
     /// See [`Actor::paste`]
     Paste,
     /// See [`Actor::path_intersect`]
@@ -305,6 +312,8 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Attr { name, value } => self.attr(&name, &value),
             Action::Class(name) => self.class(&name),
             Action::Style { property, value } => self.style(&property, &value),
+            #[cfg(feature = "optimise")]
+            Action::Optimise(jobs) => self.optimise(jobs),
             Action::Paste => self.paste(),
             Action::PathIntersect => self.path_intersect(),
             Action::PathUnion => self.path_union(),

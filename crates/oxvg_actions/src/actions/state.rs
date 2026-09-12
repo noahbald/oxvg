@@ -21,7 +21,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/forget.md")]
     pub fn forget(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Forget);
+        self.effect_history(&Action::Forget)?;
 
         self.effect_selection(&vec![].into())?;
         self.effect_state(StateEffect::Remove)?;
@@ -46,7 +46,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select.md")]
     pub fn select(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Select(query.to_string().into()));
+        self.effect_history(&Action::Select(query.to_string().into()))?;
         self.state.state.remove();
 
         let selections = self.select_internal(query)?;
@@ -66,7 +66,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select-more.md")]
     pub fn select_more(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::SelectMore(query.to_string().into()));
+        self.effect_history(&Action::SelectMore(query.to_string().into()))?;
         self.state.state.remove();
 
         let mut selections = self.get_selections_list()?.unwrap_or_default();
@@ -86,7 +86,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/first_child.md")]
     pub fn first_child(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::FirstChild);
+        self.effect_history(&Action::FirstChild)?;
         self.state.state.remove();
 
         let selections = self.get_selections()?;
@@ -108,7 +108,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/previous_sibling.md")]
     pub fn previous_sibling(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::PreviousSibling);
+        self.effect_history(&Action::PreviousSibling)?;
         self.state.state.remove();
 
         let selections = self.get_selections()?;
@@ -130,7 +130,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/next_sibling.md")]
     pub fn next_sibling(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::NextSibling);
+        self.effect_history(&Action::NextSibling)?;
         self.state.state.remove();
 
         let selections = self.get_selections()?;
@@ -152,7 +152,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/last_child.md")]
     pub fn last_child(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::LastChild);
+        self.effect_history(&Action::LastChild)?;
         self.state.state.remove();
 
         let selections = self.get_selections()?;
@@ -174,7 +174,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/parent.md")]
     pub fn parent(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Parent);
+        self.effect_history(&Action::Parent)?;
 
         let selections = self.get_selections()?;
         let new_selection = self
@@ -195,7 +195,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/deselect.md")]
     pub fn deselect(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Deselect);
+        self.effect_history(&Action::Deselect)?;
         self.effect_selection(&vec![].into())
     }
 

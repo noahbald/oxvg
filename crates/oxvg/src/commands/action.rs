@@ -198,6 +198,10 @@ impl RunCommand for ActionList {
             println!("# Class\n");
             println!(include_str!("../spec/manipulate/class.md"));
         }
+        if parts.is_empty() || parts.contains(OPTIMISE) || parts.contains(OPTIMIZE) {
+            println!("# Optimise\n");
+            println!(include_str!("../spec/manipulate/optimise.md"));
+        }
         if parts.is_empty() || parts.contains(PASTE) {
             println!("# Paste\n");
             println!(include_str!("../spec/ui/paste.md"));
@@ -349,6 +353,8 @@ impl RunCommand for ActionList {
 const COPY: &str = "-copy";
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
+const OPTIMISE: &str = "-optimise";
+const OPTIMIZE: &str = "-optimize";
 const PASTE: &str = "-paste";
 const PATH_INTERSECT: &str = "-path-intersect";
 const PATH_UNION: &str = "-path-union";
@@ -404,6 +410,13 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 .ok_or_else(|| anyhow::anyhow!("`{action}` missing query"))
                 .map(Atom::from)
         };
+        let get_part_peek = |parts: &mut Peekable<std::vec::IntoIter<String>>| {
+            if parts.peek().is_some() {
+                parts.next().map(Atom::from)
+            } else {
+                None
+            }
+        };
         let get_part_f32 =
             |parts: &mut Peekable<std::vec::IntoIter<String>>| -> anyhow::Result<f32> {
                 f32::parse_string(get_part(parts)?.as_str()).map_err(|err| anyhow::anyhow!("{err}"))
@@ -430,6 +443,12 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 value: get_part(&mut parts)?,
             },
             CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
+            OPTIMISE | OPTIMIZE => oxvg_actions::Action::Optimise(
+                get_part_peek(&mut parts)
+                    .map(|p| serde_json::from_str(p.as_str()))
+                    .transpose()?
+                    .map(Box::new),
+            ),
             PASTE => oxvg_actions::Action::Paste,
             PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
             PATH_UNION => oxvg_actions::Action::PathUnion,

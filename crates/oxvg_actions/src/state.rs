@@ -165,9 +165,13 @@ impl<'input, 'arena> State<'input, 'arena> {
         Ok(())
     }
 
-    pub fn record(&mut self, action: &Action<'input>, allocator: &Allocator<'input, 'arena>) {
+    pub fn record(
+        &mut self,
+        action: &Action<'input>,
+        allocator: &Allocator<'input, 'arena>,
+    ) -> Result<(), Error<'static>> {
         let history = self.get_history(allocator);
-        action.embed(history, allocator);
+        action.embed(history, allocator)
     }
 
     pub fn get_selections(
@@ -286,6 +290,8 @@ impl<'input> Action<'input> {
     const COPY: &'static str = "Copy";
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
+    #[cfg(feature = "optimise")]
+    const OPTIMISE: &'static str = "Optimise";
     const PASTE: &'static str = "Paste";
     const PATH_INTERSECT: &'static str = "PathIntersect";
     const PATH_UNION: &'static str = "PathUnion";
@@ -362,6 +368,17 @@ impl<'input> Action<'input> {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
                 Ok(Self::Class(class))
+            }
+            #[cfg(feature = "optimise")]
+            Self::OPTIMISE => {
+                if let Some(jobs) = args.next().transpose()? {
+                    Ok(Self::Optimise(Some(Box::new(
+                        serde_json::from_str(jobs.as_str())
+                            .map_err(|e| Error::InvalidOptimiseConfig(e.to_string()))?,
+                    ))))
+                } else {
+                    Ok(Self::Optimise(None))
+                }
             }
             Self::PASTE => Ok(Self::Paste),
             Self::PATH_INTERSECT => Ok(Self::PathIntersect),
@@ -508,7 +525,7 @@ impl<'input> Action<'input> {
         &self,
         parent: Element<'input, 'arena>,
         allocator: &Allocator<'input, 'arena>,
-    ) {
+    ) -> Result<(), Error<'static>> {
         let document = parent.as_document();
 
         let element = document.create_element(create_oxvg_element(Self::ACTION), allocator);
@@ -560,6 +577,18 @@ impl<'input> Action<'input> {
             | Self::AnchorLink(arg) => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
+            #[cfg(feature = "optimise")]
+            Self::Optimise(jobs) => {
+                if let Some(jobs) = jobs {
+                    Self::embed_arg(
+                        element,
+                        allocator,
+                        serde_json::to_string(jobs)
+                            .map_err(|e| Error::SerializeError(e.to_string()))?
+                            .into(),
+                    );
+                }
+            }
             Self::Copy
             | Self::Paste
             | Self::PathIntersect
@@ -585,6 +614,7 @@ impl<'input> Action<'input> {
             | Self::Deselect
             | Self::Duplicate => {}
         }
+        Ok(())
     }
 
     fn embed_arg<'arena>(
@@ -603,6 +633,8 @@ impl<'input> Action<'input> {
             Self::Copy => Self::COPY,
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
+            #[cfg(feature = "optimise")]
+            Self::Optimise(_) => Self::OPTIMISE,
             Self::Paste => Self::PASTE,
             Self::PathIntersect => Self::PATH_INTERSECT,
             Self::PathUnion => Self::PATH_UNION,
@@ -653,6 +685,8 @@ impl<'input> Action<'input> {
                 value: value.to_string(),
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
+            #[cfg(feature = "optimise")]
+            Self::Optimise(jobs) => ActionNapi::Optimise(jobs.as_deref().cloned()),
             Self::Paste => ActionNapi::Paste,
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
@@ -710,6 +744,8 @@ impl<'input> Action<'input> {
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
+            #[cfg(feature = "optimise")]
+            ActionNapi::Optimise(jobs) => Action::Optimise(jobs.map(Box::new)),
             ActionNapi::Paste => Action::Paste,
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,

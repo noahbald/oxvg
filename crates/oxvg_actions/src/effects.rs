@@ -39,9 +39,9 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     }
 
     /// Must be called at the start of an action that affects history.
-    pub(crate) fn effect_history(&mut self, action: &Action<'input>) {
+    pub(crate) fn effect_history(&mut self, action: &Action<'input>) -> Result<(), Error<'static>> {
         self.state.ui.inspect(|ui| ui.remove());
-        self.state.record(action, &self.allocator);
+        self.state.record(action, &self.allocator)
     }
 
     // TODO: pub fn clipboard
