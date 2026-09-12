@@ -57,6 +57,8 @@ pub enum Action<'input> {
     },
     /// See [`Actor::class`]
     Class(Atom<'input>),
+    /// See [`Actor::paste`]
+    Paste,
     /// See [`Actor::path_intersect`]
     PathIntersect,
     /// See [`Actor::path_union`]
@@ -149,6 +151,8 @@ pub enum ActionNapi {
     },
     /// See [`Actor::class`]
     Class(String),
+    /// See [`Actor::paste`]
+    Paste,
     /// See [`Actor::path_intersect`]
     PathIntersect,
     /// See [`Actor::path_union`]
@@ -301,6 +305,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::Attr { name, value } => self.attr(&name, &value),
             Action::Class(name) => self.class(&name),
             Action::Style { property, value } => self.style(&property, &value),
+            Action::Paste => self.paste(),
             Action::PathIntersect => self.path_intersect(),
             Action::PathUnion => self.path_union(),
             Action::PathSubtract => self.path_subtract(),

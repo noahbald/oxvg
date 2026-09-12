@@ -2,10 +2,12 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
+  | { type: 'Copy' }
   | { type: 'Attr', /** The qualified name of the attribute */
   name: string, /** The value of the attribute */
 value: string }
 | { type: 'Class', field0: string }
+| { type: 'Paste' }
 | { type: 'PathIntersect' }
 | { type: 'PathUnion' }
 | { type: 'PathSubtract' }
@@ -70,6 +72,8 @@ export interface DerivedStateNapi {
   selection: Array<number>
   /** The information shared by elements matching the elements in `oxvg:selection` */
   info?: InfoNapi
+  /** A UI result caused by the most recent action */
+  ui?: UIAction
 }
 
 /** The information shared by elements matching the elements in `oxvg:selection` */
@@ -82,6 +86,12 @@ export interface InfoNapi {
   attributes: AttrModelNapi
   /** The text content common to the selected elements */
   text?: string
+}
+
+/** An action result that requires additional handling from the client. */
+export declare const enum UIAction {
+  /** The client should copy the SVG contents of `oxvg:clipboard` to the system clipboard. */
+  Copy = 0
 }
 /** r" Specifies which attribute groups an attribute may belong to */
 export declare class AttributeGroup {
@@ -734,6 +744,15 @@ export declare class Actor {
    */
   dispatch(action: ActionNapi): void
   /**
+   * Copy the selected element(s) to clipboard, separated by newline. Adds deep
+   * copy of selected elements to <oxvg:clipboard>.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  copy(): void
+  /**
    * Sets the attribute to selected elements.
    *
    * # Errors
@@ -749,6 +768,15 @@ export declare class Actor {
    * When root element is missing.
    */
   class(name: string): void
+  /**
+   * Uses the content in `<oxvg:clipboard>`. If empty, does nothing. Selects the root of the
+   * pasted tree.
+   *
+   * # Errors
+   *
+   * When root element is missing.
+   */
+  paste(): void
   /**
    * Intersects selected path definitions.
    *

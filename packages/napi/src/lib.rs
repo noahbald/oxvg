@@ -226,6 +226,17 @@ impl Actor {
     self.actor.class(&name).map_err(generic_error)
   }
 
+  /// Uses the content in `<oxvg:clipboard>`. If empty, does nothing. Selects the root of the
+  /// pasted tree.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn paste(&mut self) -> napi::Result<()> {
+    self.actor.paste().map_err(generic_error)
+  }
+
   /// Intersects selected path definitions.
   ///
   /// # Errors

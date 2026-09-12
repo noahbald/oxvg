@@ -286,6 +286,7 @@ impl<'input> Action<'input> {
     const COPY: &'static str = "Copy";
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
+    const PASTE: &'static str = "Paste";
     const PATH_INTERSECT: &'static str = "PathIntersect";
     const PATH_UNION: &'static str = "PathUnion";
     const PATH_SUBTRACT: &'static str = "PathSubtract";
@@ -362,6 +363,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::Class(class))
             }
+            Self::PASTE => Ok(Self::Paste),
             Self::PATH_INTERSECT => Ok(Self::PathIntersect),
             Self::PATH_UNION => Ok(Self::PathUnion),
             Self::PATH_SUBTRACT => Ok(Self::PathSubtract),
@@ -559,6 +561,7 @@ impl<'input> Action<'input> {
                 Self::embed_arg(element, allocator, arg.clone());
             }
             Self::Copy
+            | Self::Paste
             | Self::PathIntersect
             | Self::PathUnion
             | Self::PathSubtract
@@ -600,6 +603,7 @@ impl<'input> Action<'input> {
             Self::Copy => Self::COPY,
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
+            Self::Paste => Self::PASTE,
             Self::PathIntersect => Self::PATH_INTERSECT,
             Self::PathUnion => Self::PATH_UNION,
             Self::PathSubtract => Self::PATH_SUBTRACT,
@@ -649,6 +653,7 @@ impl<'input> Action<'input> {
                 value: value.to_string(),
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::Paste => ActionNapi::Paste,
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
             Self::PathSubtract => ActionNapi::PathSubtract,
@@ -705,6 +710,7 @@ impl<'input> Action<'input> {
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::Paste => Action::Paste,
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,
             ActionNapi::PathSubtract => Action::PathSubtract,

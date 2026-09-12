@@ -198,6 +198,10 @@ impl RunCommand for ActionList {
             println!("# Class\n");
             println!(include_str!("../spec/manipulate/class.md"));
         }
+        if parts.is_empty() || parts.contains(PASTE) {
+            println!("# Paste\n");
+            println!(include_str!("../spec/ui/paste.md"));
+        }
         if parts.is_empty() || parts.contains(PATH_INTERSECT) {
             println!("# Path Intersect\n");
             println!(include_str!("../spec/manipulate/path_intersect.md"));
@@ -345,6 +349,7 @@ impl RunCommand for ActionList {
 const COPY: &str = "-copy";
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
+const PASTE: &str = "-paste";
 const PATH_INTERSECT: &str = "-path-intersect";
 const PATH_UNION: &str = "-path-union";
 const PATH_SUBTRACT: &str = "-path-subtract";
@@ -425,6 +430,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 value: get_part(&mut parts)?,
             },
             CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
+            PASTE => oxvg_actions::Action::Paste,
             PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
             PATH_UNION => oxvg_actions::Action::PathUnion,
             PATH_SUBTRACT => oxvg_actions::Action::PathSubtract,

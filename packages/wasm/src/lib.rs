@@ -352,6 +352,17 @@ impl Actor {
         self.actor.class(name)
     }
 
+    /// Uses the content in `<oxvg:clipboard>`. If empty, does nothing. Selects the root of the
+    /// pasted tree.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn paste(&mut self) -> Result<(), Error> {
+        self.actor.paste()
+    }
+
     /// Intersects selected path definitions.
     ///
     /// # Errors
