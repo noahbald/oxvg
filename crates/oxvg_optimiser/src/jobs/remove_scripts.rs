@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::error::JobsError;
+use crate::{error::JobsError, utils::is_executable_url::is_exectable_url};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -83,7 +83,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
             let (Attr::Href(href) | Attr::XLinkHref(href)) = attr.unaliased() else {
                 return false;
             };
-            href.trim_start().starts_with("javascript:")
+            is_exectable_url(href)
         });
         if !is_href_js {
             return Ok(());
@@ -156,6 +156,29 @@ fn remove_scripts() -> anyhow::Result<()> {
   </a>
   <a uwu:href="javascript:(() => { alert('uwu') })();">
     <text y="30">uwu</text>
+  </a>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:uwu="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+  <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">
+    <text y="10">HTML</text>
+  </a>
+  <a uwu:href="DATA:application/xhtml+xml;charset=utf-8,%3Cscript%3Ealert(1)%3C/script%3E">
+    <text y="20">XHTML</text>
+  </a>
+  <a href="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9ImFsZXJ0KDEpIi8+">
+    <text y="30">SVG</text>
+  </a>
+  <a href="data:image/png;base64,iVBORw0KGgo=">
+    <text y="40">PNG</text>
+  </a>
+  <a href="vbscript:msgbox(1)">
+    <text y="50">VBScript</text>
   </a>
 </svg>"#
         ),

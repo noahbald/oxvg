@@ -1,0 +1,22 @@
+pub fn is_exectable_url(url: &str) -> bool {
+    let Some((prefix, data)) = url.trim_start().split_once(':') else {
+        return false;
+    };
+    let normalised_value = prefix.to_lowercase();
+    dbg!(&normalised_value);
+
+    if matches!(normalised_value.as_str(), "javascript" | "vbscript") {
+        return true;
+    }
+    if normalised_value.as_str() == "data" {
+        let Some((media_type, _)) = data.split_once(|char| matches!(char, ',' | ';')) else {
+            return false;
+        };
+        matches!(
+            media_type.trim(),
+            "application/xhtml+xml" | "image/svg+xml" | "text/html"
+        )
+    } else {
+        false
+    }
+}
