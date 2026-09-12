@@ -1,16 +1,18 @@
 use oxvg_ast::{
     element::Element,
     is_element, node,
-    visitor::{Context, PrepareOutcome, Visitor},
+    serialize::PrinterOptions,
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{Attr, AttributeGroup};
+use oxvg_serialize::ToValue;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::error::JobsError;
+use crate::{error::JobsError, utils::is_executable_url::is_executable_url};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -52,7 +54,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
     fn element(
         &self,
         element: Element<'input, 'arena>,
-        _context: &mut Context<'input, 'arena, '_>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if is_element!(element, Script) {
             log::debug!("removing script");
@@ -66,6 +68,21 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
                 .attribute_group()
                 .intersects(AttributeGroup::event())
         });
+        if context.flags.contains(ContextFlags::within_foreign_object) {
+            element.attributes().retain(|attr| {
+                let local_name = attr.local_name().as_str();
+                !local_name.starts_with("on")
+                    && local_name != "srcdoc"
+                    && !(matches!(
+                        local_name,
+                        "action" | "data" | "formaction" | "href" | "src"
+                    ) && attr
+                        .to_value_string(PrinterOptions::default())
+                        .ok()
+                        .as_deref()
+                        .is_some_and(is_executable_url))
+            });
+        }
 
         Ok(())
     }
@@ -83,7 +100,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
             let (Attr::Href(href) | Attr::XLinkHref(href)) = attr.unaliased() else {
                 return false;
             };
-            href.trim_start().starts_with("javascript:")
+            is_executable_url(href)
         });
         if !is_href_js {
             return Ok(());
@@ -97,6 +114,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn remove_scripts() -> anyhow::Result<()> {
     use crate::test_config;
 
@@ -157,6 +175,75 @@ fn remove_scripts() -> anyhow::Result<()> {
   <a uwu:href="javascript:(() => { alert('uwu') })();">
     <text y="30">uwu</text>
   </a>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:uwu="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+  <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">
+    <text y="10">HTML</text>
+  </a>
+  <a uwu:href="DATA:application/xhtml+xml;charset=utf-8,%3Cscript%3Ealert(1)%3C/script%3E">
+    <text y="20">XHTML</text>
+  </a>
+  <a href="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9ImFsZXJ0KDEpIi8+">
+    <text y="30">SVG</text>
+  </a>
+  <a href="data:image/png;base64,iVBORw0KGgo=">
+    <text y="40">PNG</text>
+  </a>
+  <a href="vbscript:msgbox(1)">
+    <text y="50">VBScript</text>
+  </a>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:custom="https://example.com/custom">
+  <foreignObject width="300" height="300">
+    <xhtml:iframe srcdoc="&lt;script&gt;alert(document.domain)&lt;/script&gt;" src="https://example.com/content"/>
+    <xhtml:form action="javascript:alert(document.domain)" class="form"/>
+    <xhtml:object data="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;" title="Object"/>
+    <xhtml:div onbeforetoggle="alert(1)" style="color: red">Visual HTML</xhtml:div>
+    <xhtml:script>alert(1)</xhtml:script>
+  </foreignObject>
+  <svg:foreignObject width="300" height="300">
+    <xhtml:button formaction="vbscript:msgbox(1)">Button</xhtml:button>
+  </svg:foreignObject>
+  <custom:foreignObject srcdoc="Custom data">Non-executable custom content</custom:foreignObject>
+  <text>Safe SVG content</text>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:custom="https://example.com/custom">
+  <svg:a xlink:href="javascript:alert(1)">
+    <text y="10">Prefixed anchor</text>
+  </svg:a>
+  <alias:a xmlns:alias="http://www.w3.org/2000/svg" href="javascript:alert(1)">
+    <text y="20">Locally declared prefix</text>
+  </alias:a>
+  <a href="java&#9;script:alert(1)">
+    <text y="30">Tab</text>
+  </a>
+  <a href="java&#10;script:alert(1)">
+    <text y="40">Line feed</text>
+  </a>
+  <a href="java&#13;script:alert(1)">
+    <text y="50">Carriage return</text>
+  </a>
+  <custom:a href="javascript:alert(1)">
+    <text y="60">Custom anchor</text>
+  </custom:a>
 </svg>"#
         ),
     )?);
