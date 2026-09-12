@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-use crate::{error::JobsError, utils::is_executable_url::is_exectable_url};
+use crate::{error::JobsError, utils::is_executable_url::is_executable_url};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
@@ -80,7 +80,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
                         .to_value_string(PrinterOptions::default())
                         .ok()
                         .as_deref()
-                        .map_or(false, is_exectable_url))
+                        .is_some_and(is_executable_url))
             });
         }
 
@@ -100,7 +100,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
             let (Attr::Href(href) | Attr::XLinkHref(href)) = attr.unaliased() else {
                 return false;
             };
-            is_exectable_url(href)
+            is_executable_url(href)
         });
         if !is_href_js {
             return Ok(());
@@ -114,6 +114,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn remove_scripts() -> anyhow::Result<()> {
     use crate::test_config;
 
@@ -217,6 +218,32 @@ fn remove_scripts() -> anyhow::Result<()> {
   </svg:foreignObject>
   <custom:foreignObject srcdoc="Custom data">Non-executable custom content</custom:foreignObject>
   <text>Safe SVG content</text>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:custom="https://example.com/custom">
+  <svg:a xlink:href="javascript:alert(1)">
+    <text y="10">Prefixed anchor</text>
+  </svg:a>
+  <alias:a xmlns:alias="http://www.w3.org/2000/svg" href="javascript:alert(1)">
+    <text y="20">Locally declared prefix</text>
+  </alias:a>
+  <a href="java&#9;script:alert(1)">
+    <text y="30">Tab</text>
+  </a>
+  <a href="java&#10;script:alert(1)">
+    <text y="40">Line feed</text>
+  </a>
+  <a href="java&#13;script:alert(1)">
+    <text y="50">Carriage return</text>
+  </a>
+  <custom:a href="javascript:alert(1)">
+    <text y="60">Custom anchor</text>
+  </custom:a>
 </svg>"#
         ),
     )?);

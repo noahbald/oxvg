@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_scripts.rs
+expression: "test_config(r#\"{ \"removeScripts\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:custom=\"https://example.com/custom\">\n  <svg:a xlink:href=\"javascript:alert(1)\">\n    <text y=\"10\">Prefixed anchor</text>\n  </svg:a>\n  <alias:a xmlns:alias=\"http://www.w3.org/2000/svg\" href=\"javascript:alert(1)\">\n    <text y=\"20\">Locally declared prefix</text>\n  </alias:a>\n  <a href=\"java&#9;script:alert(1)\">\n    <text y=\"30\">Tab</text>\n  </a>\n  <a href=\"java&#10;script:alert(1)\">\n    <text y=\"40\">Line feed</text>\n  </a>\n  <a href=\"java&#13;script:alert(1)\">\n    <text y=\"50\">Carriage return</text>\n  </a>\n  <custom:a href=\"javascript:alert(1)\">\n    <text y=\"60\">Custom anchor</text>\n  </custom:a>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:custom="https://example.com/custom">
+    <text xmlns:svg="http://www.w3.org/2000/svg" y="10">Prefixed anchor</text>
+    <text xmlns:alias="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" y="20">Locally declared prefix</text>
+    <text xmlns:svg="http://www.w3.org/2000/svg" y="30">Tab</text>
+    <text xmlns:svg="http://www.w3.org/2000/svg" y="40">Line feed</text>
+    <text xmlns:svg="http://www.w3.org/2000/svg" y="50">Carriage return</text>
+    <custom:a xmlns:svg="http://www.w3.org/2000/svg" href="javascript:alert(1)">
+        <text xmlns:svg="http://www.w3.org/2000/svg" y="60">Custom anchor</text>
+    </custom:a>
+</svg>
