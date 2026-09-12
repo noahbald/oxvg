@@ -19,4 +19,5 @@ DerivedState {
         9,
     ],
     info: None,
+    ui: None,
 }

@@ -20,7 +20,7 @@ use crate::info::InfoNapi;
 
 use crate::{
     OXVG_PREFIX, OXVG_XMLNS,
-    actions::Action,
+    actions::{Action, UIAction},
     error::Error,
     info::Info,
     utils::{
@@ -33,9 +33,9 @@ use crate::{
 pub(crate) struct State<'input, 'arena> {
     pub state: Element<'input, 'arena>,
     pub history: Option<Element<'input, 'arena>>,
-    // TODO: pub ui: Vec<UIAction>,
+    pub ui: Option<Element<'input, 'arena>>,
     pub selection: Option<Element<'input, 'arena>>,
-    // TODO: pub clipboard: Option<Element<'input, 'arena>>,
+    pub clipboard: Option<Element<'input, 'arena>>,
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -51,6 +51,8 @@ pub struct DerivedState<'input> {
     pub selection: Vec<usize>,
     /// The information shared by elements matching the elements in `oxvg:selection`
     pub info: Option<Info<'input>>,
+    /// A UI result caused by the most recent action
+    pub ui: Option<UIAction>,
     // TODO: issues: Vec<Issue>,
 }
 
@@ -64,12 +66,16 @@ pub struct DerivedStateNapi {
     pub selection: Vec<u32>,
     /// The information shared by elements matching the elements in `oxvg:selection`
     pub info: Option<InfoNapi>,
+    /// A UI result caused by the most recent action
+    pub ui: Option<UIAction>,
     // TODO: issues: Vec<Issue>,
 }
 
 pub(crate) enum StateElement {
     History,
+    UI,
     Selection,
+    Clipboard,
 }
 
 impl<'input, 'arena> State<'input, 'arena> {
@@ -91,7 +97,9 @@ impl<'input, 'arena> State<'input, 'arena> {
         let mut state = Self {
             state: state_element,
             history: None,
+            ui: None,
             selection: None,
+            clipboard: None,
         };
 
         state_element.remove();
@@ -144,8 +152,14 @@ impl<'input, 'arena> State<'input, 'arena> {
             StateElement::History => {
                 self.history = Some(element);
             }
+            StateElement::UI => {
+                self.ui = Some(element);
+            }
             StateElement::Selection => {
                 self.selection = Some(element);
+            }
+            StateElement::Clipboard => {
+                self.clipboard = Some(element);
             }
         }
         Ok(())
@@ -160,33 +174,57 @@ impl<'input, 'arena> State<'input, 'arena> {
         &mut self,
         allocator: &Allocator<'input, 'arena>,
     ) -> Element<'input, 'arena> {
-        if let Some(e) = self.selection {
-            e
-        } else {
-            let selection = self
-                .state
-                .as_document()
-                .create_element(create_oxvg_element(StateElement::SELECTION), allocator);
-            self.state.append_child(*selection);
-            self.selection = Some(selection);
-            selection
-        }
+        Self::get_state_element(
+            allocator,
+            self.state,
+            &mut self.selection,
+            StateElement::SELECTION,
+        )
     }
 
     pub fn get_history(
         &mut self,
         allocator: &Allocator<'input, 'arena>,
     ) -> Element<'input, 'arena> {
-        if let Some(e) = &self.history {
+        Self::get_state_element(
+            allocator,
+            self.state,
+            &mut self.history,
+            StateElement::HISTORY,
+        )
+    }
+
+    pub fn get_clipboard(
+        &mut self,
+        allocator: &Allocator<'input, 'arena>,
+    ) -> Element<'input, 'arena> {
+        Self::get_state_element(
+            allocator,
+            self.state,
+            &mut self.clipboard,
+            StateElement::CLIPBOARD,
+        )
+    }
+
+    pub fn get_ui(&mut self, allocator: &Allocator<'input, 'arena>) -> Element<'input, 'arena> {
+        Self::get_state_element(allocator, self.state, &mut self.ui, StateElement::_UI)
+    }
+
+    fn get_state_element(
+        allocator: &Allocator<'input, 'arena>,
+        state: Element<'input, 'arena>,
+        memo: &mut Option<Element<'input, 'arena>>,
+        name: &'static str,
+    ) -> Element<'input, 'arena> {
+        if let Some(e) = memo {
             *e
         } else {
-            let history = self
-                .state
+            let clipboard = state
                 .as_document()
-                .create_element(create_oxvg_element(StateElement::HISTORY), allocator);
-            self.state.append_child(*history);
-            self.history = Some(history);
-            history
+                .create_element(create_oxvg_element(name), allocator);
+            state.append_child(*clipboard);
+            *memo = Some(clipboard);
+            clipboard
         }
     }
 }
@@ -218,6 +256,11 @@ impl<'input, 'arena> DerivedState<'input> {
                 .collect::<Result<Vec<_>, _>>()?,
             info: Info::new(&selection, allocator)?,
             selection,
+            ui: state
+                .ui
+                .filter(|&ui| ui.parent_node().is_some())
+                .map(UIAction::from_state)
+                .transpose()?,
         })
     }
 
@@ -228,6 +271,7 @@ impl<'input, 'arena> DerivedState<'input> {
             history: self.history.iter().map(Action::to_napi).collect(),
             selection: self.selection.iter().map(|n| *n as u32).collect(),
             info: self.info.as_ref().map(Info::to_napi),
+            ui: self.ui,
         }
     }
 }
@@ -239,8 +283,10 @@ impl<'input> Action<'input> {
     const ARG: &'static str = "arg";
     const ID: &'static str = "id";
     // Members
+    const COPY: &'static str = "Copy";
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
+    const PASTE: &'static str = "Paste";
     const PATH_INTERSECT: &'static str = "PathIntersect";
     const PATH_UNION: &'static str = "PathUnion";
     const PATH_SUBTRACT: &'static str = "PathSubtract";
@@ -301,6 +347,7 @@ impl<'input> Action<'input> {
         };
 
         match id.as_str() {
+            Self::COPY => Ok(Self::Copy),
             Self::ATTR => {
                 let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
@@ -316,6 +363,7 @@ impl<'input> Action<'input> {
                 };
                 Ok(Self::Class(class))
             }
+            Self::PASTE => Ok(Self::Paste),
             Self::PATH_INTERSECT => Ok(Self::PathIntersect),
             Self::PATH_UNION => Ok(Self::PathUnion),
             Self::PATH_SUBTRACT => Ok(Self::PathSubtract),
@@ -512,7 +560,9 @@ impl<'input> Action<'input> {
             | Self::AnchorLink(arg) => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
-            Self::PathIntersect
+            Self::Copy
+            | Self::Paste
+            | Self::PathIntersect
             | Self::PathUnion
             | Self::PathSubtract
             | Self::PathXor
@@ -550,8 +600,10 @@ impl<'input> Action<'input> {
 
     fn name(&self) -> &'static str {
         match self {
+            Self::Copy => Self::COPY,
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
+            Self::Paste => Self::PASTE,
             Self::PathIntersect => Self::PATH_INTERSECT,
             Self::PathUnion => Self::PATH_UNION,
             Self::PathSubtract => Self::PATH_SUBTRACT,
@@ -595,11 +647,13 @@ impl<'input> Action<'input> {
     /// Converts to a napi-compatible type
     pub fn to_napi(&self) -> ActionNapi {
         match self {
+            Self::Copy => ActionNapi::Copy,
             Self::Attr { name, value } => ActionNapi::Attr {
                 name: name.to_string(),
                 value: value.to_string(),
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::Paste => ActionNapi::Paste,
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
             Self::PathSubtract => ActionNapi::PathSubtract,
@@ -650,11 +704,13 @@ impl<'input> Action<'input> {
     /// Converts to a napi-compatible type
     pub fn from_napi(other: ActionNapi) -> Action<'static> {
         match other {
+            ActionNapi::Copy => Action::Copy,
             ActionNapi::Attr { name, value } => Action::Attr {
                 name: name.into(),
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::Paste => Action::Paste,
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,
             ActionNapi::PathSubtract => Action::PathSubtract,
@@ -706,11 +762,16 @@ impl StateElement {
     pub const HISTORY: &'static str = "history";
     pub const SELECTION: &'static str = "selection";
     pub const SELECTION_IDS: &'static str = "ids";
+    pub const CLIPBOARD: &'static str = "clipboard";
+    pub const _UI: &'static str = "ui";
+    pub const UI_ACTION: &'static str = "action";
 
     pub fn _as_str(&self) -> &'static str {
         match self {
             Self::History => Self::HISTORY,
             Self::Selection => Self::SELECTION,
+            Self::Clipboard => Self::CLIPBOARD,
+            Self::UI => Self::_UI,
         }
     }
 }
@@ -722,6 +783,8 @@ impl<'input> TryFrom<Atom<'input>> for StateElement {
         Ok(match value.as_str() {
             Self::HISTORY => Self::History,
             Self::SELECTION => Self::Selection,
+            Self::CLIPBOARD => Self::Clipboard,
+            Self::_UI => Self::UI,
             _ => return Err(Error::InvalidStateElement(value)),
         })
     }

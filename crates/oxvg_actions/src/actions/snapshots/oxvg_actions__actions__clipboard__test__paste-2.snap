@@ -1,38 +1,24 @@
 ---
-source: crates/oxvg_actions/src/actions/manipulate.rs
+source: crates/oxvg_actions/src/actions/clipboard.rs
 expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
         Select(
             Cow(
-                "svg",
+                "g",
             ),
         ),
-        Attr {
-            name: Cow(
-                "width",
-            ),
-            value: Cow(
-                "10",
-            ),
-        },
-        Attr {
-            name: Cow(
-                "unknown",
-            ),
-            value: Cow(
-                "foo",
-            ),
-        },
+        Copy,
+        Paste,
     ],
     selection: [
-        1,
+        3,
     ],
     info: Some(
         Info {
             element_id: Some(
-                Svg,
+                G,
             ),
             content_model: ContentModel {
                 permitted_categories: ElementCategory(
@@ -64,41 +50,15 @@ DerivedState {
                     AnimationAddition | AnimationAttributeTarget | AnimationEvent | AnimationTargetElement | AnimationTiming | AnimationValue | Aria | ConditionalProcessing | Core | DocumentEvent | DocumentElementEvent | FilterPrimitive | GraphicalEvent | GlobalEvent | Presentation | TransferFunction | XLink,
                 ),
                 expected_attributes: {
-                    BaseProfile,
-                    ContentScriptType,
-                    ContentStyleType,
                     ExternalResourcesRequired,
-                    HeightSvg,
-                    Playbackorder,
-                    PreserveAspectRatio,
-                    Timelinebegin,
-                    Version,
-                    ViewBox,
-                    WidthSvg,
-                    XGeometry,
-                    YGeometry,
-                    ZoomAndPan,
                 },
-                values: {
-                    WidthSvg: Cow(
-                        "10",
-                    ),
-                    XMLNS: Cow(
-                        "http://www.w3.org/2000/svg",
-                    ),
-                    Unknown(
-                        QualName {
-                            prefix: XMLNS,
-                            local: Cow(
-                                "oxvg",
-                            ),
-                        },
-                    ): Cow(
-                        "https://oxvg.noahwbaldwin.me",
-                    ),
-                },
+                values: {},
             },
-            text: None,
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
         },
     ),
     ui: None,

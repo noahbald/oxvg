@@ -700,6 +700,7 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.UIAction = nativeBinding.UIAction
 module.exports.AttributeGroup = nativeBinding.AttributeGroup
 module.exports.ElementCategory = nativeBinding.ElementCategory
 module.exports.Actor = nativeBinding.Actor

@@ -1,0 +1,5 @@
+---
+source: crates/oxvg_actions/src/actions/clipboard.rs
+expression: actor.root.serialize().unwrap()
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me"><oxvg:state><oxvg:history><oxvg:action oxvg:id="Select"><oxvg:arg>svg</oxvg:arg></oxvg:action><oxvg:action oxvg:id="Copy"/></oxvg:history><oxvg:selection oxvg:ids="1"/><oxvg:clipboard><svg xmlns="http://www.w3.org/2000/svg" xmlns:oxvg="https://oxvg.noahwbaldwin.me"/></oxvg:clipboard><oxvg:ui oxvg:action="copy"/></oxvg:state></svg>

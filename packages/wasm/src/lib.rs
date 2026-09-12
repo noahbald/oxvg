@@ -302,6 +302,15 @@ impl Actor {
         self.actor.derive_state()
     }
 
+    /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+    ///
+    /// # Errors
+    ///
+    /// When the clipboard fails to serialize
+    pub fn clipboard(&self) -> Result<Option<String>, Error> {
+        self.actor.derive_clipboard()
+    }
+
     /// Executes the given action and it's arguments upon the document.
     ///
     /// # Errors
@@ -310,6 +319,17 @@ impl Actor {
     #[wasm_bindgen]
     pub fn dispatch(&mut self, action: Action) -> Result<(), Error> {
         self.actor.dispatch(action)
+    }
+
+    /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
+    /// copy of selected elements to <oxvg:clipboard>.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn copy(&mut self) -> Result<(), Error> {
+        self.actor.copy()
     }
 
     /// Sets the attribute to selected elements.
@@ -330,6 +350,17 @@ impl Actor {
     #[wasm_bindgen]
     pub fn class(&mut self, name: &str) -> Result<(), Error> {
         self.actor.class(name)
+    }
+
+    /// Uses the content in `<oxvg:clipboard>`. If empty, does nothing. Selects the root of the
+    /// pasted tree.
+    ///
+    /// # Errors
+    ///
+    /// When root element is missing.
+    #[wasm_bindgen]
+    pub fn paste(&mut self) -> Result<(), Error> {
+        self.actor.paste()
     }
 
     /// Intersects selected path definitions.

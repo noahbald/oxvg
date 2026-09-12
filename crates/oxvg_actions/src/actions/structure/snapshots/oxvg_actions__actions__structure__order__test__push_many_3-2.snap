@@ -39,4 +39,5 @@ DerivedState {
             ),
         },
     ),
+    ui: None,
 }

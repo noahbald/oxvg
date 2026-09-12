@@ -1,5 +1,5 @@
 ---
-source: crates/oxvg_actions/src/actions/manipulate.rs
+source: crates/oxvg_actions/src/actions/clipboard.rs
 expression: actor.derive_state().unwrap()
 ---
 DerivedState {
@@ -9,22 +9,7 @@ DerivedState {
                 "svg",
             ),
         ),
-        Attr {
-            name: Cow(
-                "width",
-            ),
-            value: Cow(
-                "10",
-            ),
-        },
-        Attr {
-            name: Cow(
-                "unknown",
-            ),
-            value: Cow(
-                "foo",
-            ),
-        },
+        Copy,
     ],
     selection: [
         1,
@@ -80,9 +65,6 @@ DerivedState {
                     ZoomAndPan,
                 },
                 values: {
-                    WidthSvg: Cow(
-                        "10",
-                    ),
                     XMLNS: Cow(
                         "http://www.w3.org/2000/svg",
                     ),
@@ -101,5 +83,7 @@ DerivedState {
             text: None,
         },
     ),
-    ui: None,
+    ui: Some(
+        Copy,
+    ),
 }

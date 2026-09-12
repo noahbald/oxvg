@@ -16,6 +16,7 @@ use oxvg_parse::Parse as _;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
+mod clipboard;
 mod manipulate;
 mod state;
 mod structure;
@@ -25,7 +26,7 @@ use crate::{
     effects::StateEffect,
     error::Error,
     state::{DerivedState, State, StateElement},
-    utils::get_oxvg_attr,
+    utils::{assert_oxvg_element, get_oxvg_attr},
 };
 
 /// An actor holds a reference to a document to act upon.
@@ -45,6 +46,8 @@ pub struct Actor<'input, 'arena> {
 #[derive(Debug, Clone)]
 /// An action is a method that an actor can execute upon a document
 pub enum Action<'input> {
+    /// See [`Actor::copy`]
+    Copy,
     /// See [`Actor::attr`]
     Attr {
         /// The qualified name of the attribute
@@ -54,6 +57,8 @@ pub enum Action<'input> {
     },
     /// See [`Actor::class`]
     Class(Atom<'input>),
+    /// See [`Actor::paste`]
+    Paste,
     /// See [`Actor::path_intersect`]
     PathIntersect,
     /// See [`Actor::path_union`]
@@ -135,6 +140,8 @@ pub enum Action<'input> {
 #[napi]
 /// An action is a method that an actor can execute upon a document
 pub enum ActionNapi {
+    /// See [`Actor::copy`]
+    Copy,
     /// See [`Actor::attr`]
     Attr {
         /// The qualified name of the attribute
@@ -144,6 +151,8 @@ pub enum ActionNapi {
     },
     /// See [`Actor::class`]
     Class(String),
+    /// See [`Actor::paste`]
+    Paste,
     /// See [`Actor::path_intersect`]
     PathIntersect,
     /// See [`Actor::path_union`]
@@ -221,6 +230,17 @@ pub enum ActionNapi {
     Deselect,
 }
 
+/// An action result that requires additional handling from the client.
+#[cfg_attr(feature = "wasm", derive(Tsify))]
+#[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "napi", napi)]
+#[derive(Debug, Copy, Clone)]
+pub enum UIAction {
+    /// The client should copy the SVG contents of `oxvg:clipboard` to the system clipboard.
+    Copy,
+}
+
 impl<'input, 'arena> Actor<'input, 'arena> {
     /// Creates a new actor with a reference to the document. The state of the actor will be
     /// derived from the document's `oxvg:state` element.
@@ -260,6 +280,19 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         DerivedState::from_state(&self.state, &self.allocator)
     }
 
+    /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+    ///
+    /// # Errors
+    ///
+    /// When the clipboard fails to serialize
+    pub fn derive_clipboard(&self) -> Result<Option<String>, Error<'static>> {
+        self.state
+            .clipboard
+            .map(|e| e.serialize())
+            .transpose()
+            .map_err(|e| Error::SerializeError(e.to_string()))
+    }
+
     #[allow(clippy::many_single_char_names)]
     /// Executes the given action and it's arguments upon the document.
     ///
@@ -268,9 +301,11 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     /// When the associated action fails
     pub fn dispatch(&mut self, action: Action<'input>) -> Result<(), Error<'input>> {
         match action {
+            Action::Copy => self.copy(),
             Action::Attr { name, value } => self.attr(&name, &value),
             Action::Class(name) => self.class(&name),
             Action::Style { property, value } => self.style(&property, &value),
+            Action::Paste => self.paste(),
             Action::PathIntersect => self.path_intersect(),
             Action::PathUnion => self.path_union(),
             Action::PathSubtract => self.path_subtract(),
@@ -342,5 +377,46 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ) -> impl DoubleEndedIterator<Item = Element<'input, 'arena>> {
         self.get_selection_nodes(selection)
             .filter_map(Node::element)
+    }
+}
+
+impl UIAction {
+    const COPY: &'static str = "copy";
+
+    pub(crate) fn from_state<'input>(element: Element<'input, '_>) -> Result<Self, Error<'input>> {
+        assert_oxvg_element(element, StateElement::_UI)?;
+
+        let Some(action) = get_oxvg_attr(&element, StateElement::UI_ACTION)? else {
+            return Err(Error::MissingStateAttribute(StateElement::UI_ACTION));
+        };
+
+        Ok(match action.as_str() {
+            Self::COPY => Self::Copy,
+            _ => {
+                return Err(Error::InvalidStateValue {
+                    name: StateElement::UI_ACTION,
+                    value: action.clone(),
+                });
+            }
+        })
+    }
+}
+
+impl std::fmt::Display for UIAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Copy => f.write_str(Self::COPY),
+        }
+    }
+}
+
+impl TryFrom<&str> for UIAction {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Self::COPY => Self::Copy,
+            _ => return Err(()),
+        })
     }
 }

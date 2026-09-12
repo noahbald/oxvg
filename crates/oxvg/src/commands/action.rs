@@ -186,6 +186,10 @@ impl RunCommand for ActionList {
     fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
+        if parts.is_empty() || parts.contains(COPY) {
+            println!("# Copy\n");
+            println!(include_str!("../spec/ui/copy.md"));
+        }
         if parts.is_empty() || parts.contains(ATTR) {
             println!("# Attribute\n");
             println!(include_str!("../spec/manipulate/attr.md"));
@@ -193,6 +197,10 @@ impl RunCommand for ActionList {
         if parts.is_empty() || parts.contains(CLASS) {
             println!("# Class\n");
             println!(include_str!("../spec/manipulate/class.md"));
+        }
+        if parts.is_empty() || parts.contains(PASTE) {
+            println!("# Paste\n");
+            println!(include_str!("../spec/ui/paste.md"));
         }
         if parts.is_empty() || parts.contains(PATH_INTERSECT) {
             println!("# Path Intersect\n");
@@ -338,8 +346,10 @@ impl RunCommand for ActionList {
     }
 }
 
+const COPY: &str = "-copy";
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
+const PASTE: &str = "-paste";
 const PATH_INTERSECT: &str = "-path-intersect";
 const PATH_UNION: &str = "-path-union";
 const PATH_SUBTRACT: &str = "-path-subtract";
@@ -414,11 +424,13 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             return Err(anyhow::anyhow!("Expected command name, found {action}"));
         }
         actions.push(match action.as_str() {
+            COPY => oxvg_actions::Action::Copy,
             ATTR => oxvg_actions::Action::Attr {
                 name: get_part(&mut parts)?,
                 value: get_part(&mut parts)?,
             },
             CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
+            PASTE => oxvg_actions::Action::Paste,
             PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
             PATH_UNION => oxvg_actions::Action::PathUnion,
             PATH_SUBTRACT => oxvg_actions::Action::PathSubtract,

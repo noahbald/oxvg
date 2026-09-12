@@ -171,6 +171,15 @@ impl Actor {
       .map_err(generic_error)
   }
 
+  /// Returns the contents of the clipboard based on the `oxvg:clipboard` embedded in the document.
+  ///
+  /// # Errors
+  ///
+  /// When the clipboard fails to serialize
+  pub fn clipboard(&self) -> napi::Result<Option<String>> {
+    self.actor.derive_clipboard().map_err(generic_error)
+  }
+
   /// Executes the given action and it's arguments upon the document.
   ///
   /// # Errors
@@ -182,6 +191,17 @@ impl Actor {
       .actor
       .dispatch(Action::from_napi(action))
       .map_err(generic_error)
+  }
+
+  /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
+  /// copy of selected elements to <oxvg:clipboard>.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn copy(&mut self) -> napi::Result<()> {
+    self.actor.copy().map_err(generic_error)
   }
 
   /// Sets the attribute to selected elements.
@@ -204,6 +224,17 @@ impl Actor {
   #[allow(clippy::needless_pass_by_value)]
   pub fn class(&mut self, name: String) -> napi::Result<()> {
     self.actor.class(&name).map_err(generic_error)
+  }
+
+  /// Uses the content in `<oxvg:clipboard>`. If empty, does nothing. Selects the root of the
+  /// pasted tree.
+  ///
+  /// # Errors
+  ///
+  /// When root element is missing.
+  #[napi]
+  pub fn paste(&mut self) -> napi::Result<()> {
+    self.actor.paste().map_err(generic_error)
   }
 
   /// Intersects selected path definitions.
