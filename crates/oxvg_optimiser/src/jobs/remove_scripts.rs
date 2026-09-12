@@ -1,9 +1,11 @@
 use oxvg_ast::{
     element::Element,
     is_element, node,
-    visitor::{Context, PrepareOutcome, Visitor},
+    serialize::PrinterOptions,
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::{Attr, AttributeGroup};
+use oxvg_serialize::ToValue;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -52,7 +54,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
     fn element(
         &self,
         element: Element<'input, 'arena>,
-        _context: &mut Context<'input, 'arena, '_>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         if is_element!(element, Script) {
             log::debug!("removing script");
@@ -66,6 +68,21 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveScripts {
                 .attribute_group()
                 .intersects(AttributeGroup::event())
         });
+        if context.flags.contains(ContextFlags::within_foreign_object) {
+            element.attributes().retain(|attr| {
+                let local_name = attr.local_name().as_str();
+                !local_name.starts_with("on")
+                    && local_name != "srcdoc"
+                    && !(matches!(
+                        local_name,
+                        "action" | "data" | "formaction" | "href" | "src"
+                    ) && attr
+                        .to_value_string(PrinterOptions::default())
+                        .ok()
+                        .as_deref()
+                        .map_or(false, is_exectable_url))
+            });
+        }
 
         Ok(())
     }
@@ -180,6 +197,26 @@ fn remove_scripts() -> anyhow::Result<()> {
   <a href="vbscript:msgbox(1)">
     <text y="50">VBScript</text>
   </a>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeScripts": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:custom="https://example.com/custom">
+  <foreignObject width="300" height="300">
+    <xhtml:iframe srcdoc="&lt;script&gt;alert(document.domain)&lt;/script&gt;" src="https://example.com/content"/>
+    <xhtml:form action="javascript:alert(document.domain)" class="form"/>
+    <xhtml:object data="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;" title="Object"/>
+    <xhtml:div onbeforetoggle="alert(1)" style="color: red">Visual HTML</xhtml:div>
+    <xhtml:script>alert(1)</xhtml:script>
+  </foreignObject>
+  <svg:foreignObject width="300" height="300">
+    <xhtml:button formaction="vbscript:msgbox(1)">Button</xhtml:button>
+  </svg:foreignObject>
+  <custom:foreignObject srcdoc="Custom data">Non-executable custom content</custom:foreignObject>
+  <text>Safe SVG content</text>
 </svg>"#
         ),
     )?);

@@ -1,0 +1,26 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_scripts.rs
+expression: "test_config(r#\"{ \"removeScripts\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\" xmlns:custom=\"https://example.com/custom\">\n  <foreignObject width=\"300\" height=\"300\">\n    <xhtml:iframe srcdoc=\"&lt;script&gt;alert(document.domain)&lt;/script&gt;\" src=\"https://example.com/content\"/>\n    <xhtml:form action=\"javascript:alert(document.domain)\" class=\"form\"/>\n    <xhtml:object data=\"data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;\" title=\"Object\"/>\n    <xhtml:div onbeforetoggle=\"alert(1)\" style=\"color: red\">Visual HTML</xhtml:div>\n    <xhtml:script>alert(1)</xhtml:script>\n  </foreignObject>\n  <svg:foreignObject width=\"300\" height=\"300\">\n    <xhtml:button formaction=\"vbscript:msgbox(1)\">Button</xhtml:button>\n  </svg:foreignObject>\n  <custom:foreignObject srcdoc=\"Custom data\">Non-executable custom content</custom:foreignObject>\n  <text>Safe SVG content</text>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:custom="https://example.com/custom">
+    <foreignObject xmlns:svg="http://www.w3.org/2000/svg" width="300" height="300">
+        <xhtml:iframe xmlns:svg="http://www.w3.org/2000/svg" src="https://example.com/content"/>
+        <xhtml:form xmlns:svg="http://www.w3.org/2000/svg" class="form"/>
+        <xhtml:object xmlns:svg="http://www.w3.org/2000/svg" title="Object"/>
+        <xhtml:div xmlns:svg="http://www.w3.org/2000/svg" style="color:red">
+            Visual HTML
+        </xhtml:div>
+        <xhtml:script xmlns:svg="http://www.w3.org/2000/svg">
+            alert(1)
+        </xhtml:script>
+    </foreignObject>
+    <foreignObject xmlns:svg="http://www.w3.org/2000/svg" width="300" height="300">
+        <xhtml:button xmlns:svg="http://www.w3.org/2000/svg">
+            Button
+        </xhtml:button>
+    </foreignObject>
+    <custom:foreignObject xmlns:svg="http://www.w3.org/2000/svg" srcdoc="Custom data">
+        Non-executable custom content
+    </custom:foreignObject>
+    <text xmlns:svg="http://www.w3.org/2000/svg">Safe SVG content</text>
+</svg>
