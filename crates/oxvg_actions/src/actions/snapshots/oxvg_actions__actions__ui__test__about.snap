@@ -1,0 +1,37 @@
+---
+source: crates/oxvg_actions/src/actions/ui.rs
+expression: actor.derive_state().unwrap()
+---
+DerivedState {
+    history: [],
+    selection: [],
+    info: Some(
+        Info {
+            element_id: None,
+            content_model: ContentModel {
+                permitted_categories: ElementCategory(
+                    0x0,
+                ),
+                permitted_elements: {},
+            },
+            attributes: AttrModel {
+                expected_attribute_groups: AttributeGroup(
+                    0x0,
+                ),
+                expected_attributes: {},
+                values: {},
+            },
+            text: Some(
+                Static(
+                    "",
+                ),
+            ),
+        },
+    ),
+    ui: Some(
+        Dialog {
+            heading: "About OXVG",
+            body: "OXVG (0.0.7) is the fastest SVG toolchain for optimisation, linting, transformation, and manipulation.\n\nCreated by Noah Baldwin\n\n- [GitHub](https://github.com/noahbald/oxvg)\n- [License](https://github.com/noahbald/oxvg/blob/main/LICENSE)",
+        },
+    ),
+}

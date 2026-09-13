@@ -116,8 +116,21 @@ impl<'input, 'arena> Actor<'input, 'arena> {
 
         ui.set_attribute(create_oxvg_attr(
             StateElement::UI_ACTION,
-            action.to_string().into(),
+            action.name().into(),
         ));
+        match action {
+            UIAction::Copy => {}
+            UIAction::Dialog { heading, body } => {
+                ui.set_attribute(create_oxvg_attr(
+                    StateElement::UI_ACTION_DIALOG_HEADING,
+                    heading.into(),
+                ));
+                ui.set_attribute(create_oxvg_attr(
+                    StateElement::UI_ACTION_DIALOG_BODY,
+                    body.into(),
+                ));
+            }
+        }
 
         self.effect_state(StateEffect::Embed)
     }

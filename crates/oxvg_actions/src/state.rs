@@ -275,7 +275,7 @@ impl<'input, 'arena> DerivedState<'input> {
             history: self.history.iter().map(Action::to_napi).collect(),
             selection: self.selection.iter().map(|n| *n as u32).collect(),
             info: self.info.as_ref().map(Info::to_napi),
-            ui: self.ui,
+            ui: self.ui.clone(),
         }
     }
 }
@@ -287,6 +287,7 @@ impl<'input> Action<'input> {
     const ARG: &'static str = "arg";
     const ID: &'static str = "id";
     // Members
+    const ABOUT: &'static str = "About";
     const COPY: &'static str = "Copy";
     const ATTR: &'static str = "Attr";
     const CLASS: &'static str = "Class";
@@ -353,6 +354,7 @@ impl<'input> Action<'input> {
         };
 
         match id.as_str() {
+            Self::ABOUT => Ok(Self::About),
             Self::COPY => Ok(Self::Copy),
             Self::ATTR => {
                 let Some(name) = args.next().transpose()? else {
@@ -589,7 +591,8 @@ impl<'input> Action<'input> {
                     );
                 }
             }
-            Self::Copy
+            Self::About
+            | Self::Copy
             | Self::Paste
             | Self::PathIntersect
             | Self::PathUnion
@@ -630,6 +633,7 @@ impl<'input> Action<'input> {
 
     fn name(&self) -> &'static str {
         match self {
+            Self::About => Self::ABOUT,
             Self::Copy => Self::COPY,
             Self::Attr { .. } => Self::ATTR,
             Self::Class(_) => Self::CLASS,
@@ -677,8 +681,13 @@ impl<'input> Action<'input> {
     #[cfg(feature = "napi")]
     #[allow(clippy::many_single_char_names)]
     /// Converts to a napi-compatible type
+    ///
+    /// # Panics
+    ///
+    /// If attempting to convert `Optimise` action.
     pub fn to_napi(&self) -> ActionNapi {
         match self {
+            Self::About => ActionNapi::About,
             Self::Copy => ActionNapi::Copy,
             Self::Attr { name, value } => ActionNapi::Attr {
                 name: name.to_string(),
@@ -686,7 +695,7 @@ impl<'input> Action<'input> {
             },
             Self::Class(name) => ActionNapi::Class(name.to_string()),
             #[cfg(feature = "optimise")]
-            Self::Optimise(jobs) => ActionNapi::Optimise(jobs.as_deref().cloned()),
+            Self::Optimise(_) => panic!("unsupported"),
             Self::Paste => ActionNapi::Paste,
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
@@ -738,14 +747,13 @@ impl<'input> Action<'input> {
     /// Converts to a napi-compatible type
     pub fn from_napi(other: ActionNapi) -> Action<'static> {
         match other {
+            ActionNapi::About => Action::About,
             ActionNapi::Copy => Action::Copy,
             ActionNapi::Attr { name, value } => Action::Attr {
                 name: name.into(),
                 value: value.into(),
             },
             ActionNapi::Class(name) => Action::Class(name.into()),
-            #[cfg(feature = "optimise")]
-            ActionNapi::Optimise(jobs) => Action::Optimise(jobs.map(Box::new)),
             ActionNapi::Paste => Action::Paste,
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,
@@ -801,6 +809,8 @@ impl StateElement {
     pub const CLIPBOARD: &'static str = "clipboard";
     pub const _UI: &'static str = "ui";
     pub const UI_ACTION: &'static str = "action";
+    pub const UI_ACTION_DIALOG_HEADING: &'static str = "dialog-heading";
+    pub const UI_ACTION_DIALOG_BODY: &'static str = "dialog-body";
 
     pub fn _as_str(&self) -> &'static str {
         match self {

@@ -186,6 +186,10 @@ impl RunCommand for ActionList {
     fn run(self, _: Config) -> impl Future<Output = anyhow::Result<()>> + Send {
         let parts: HashSet<_> = self.command_list.into_iter().collect();
 
+        if parts.is_empty() || parts.contains(ABOUT) {
+            println!("# About\n");
+            println!(include_str!("../spec/ui/about.md"));
+        }
         if parts.is_empty() || parts.contains(COPY) {
             println!("# Copy\n");
             println!(include_str!("../spec/ui/copy.md"));
@@ -350,6 +354,7 @@ impl RunCommand for ActionList {
     }
 }
 
+const ABOUT: &str = "-about";
 const COPY: &str = "-copy";
 const ATTR: &str = "-attr";
 const CLASS: &str = "-class";
@@ -437,6 +442,7 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             return Err(anyhow::anyhow!("Expected command name, found {action}"));
         }
         actions.push(match action.as_str() {
+            ABOUT => oxvg_actions::Action::About,
             COPY => oxvg_actions::Action::Copy,
             ATTR => oxvg_actions::Action::Attr {
                 name: get_part(&mut parts)?,

@@ -321,6 +321,16 @@ impl Actor {
         self.actor.dispatch(action)
     }
 
+    /// Returns version and application info
+    ///
+    /// # Errors
+    ///
+    /// Never
+    #[wasm_bindgen]
+    pub fn about(&mut self) -> Result<(), Error> {
+        self.actor.about()
+    }
+
     /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
     /// copy of selected elements to <oxvg:clipboard>.
     ///

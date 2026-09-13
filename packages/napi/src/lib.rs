@@ -193,6 +193,16 @@ impl Actor {
       .map_err(generic_error)
   }
 
+  /// Returns version and application info
+  ///
+  /// # Errors
+  ///
+  /// Never
+  #[napi]
+  pub fn about(&mut self) -> napi::Result<()> {
+    self.actor.about().map_err(generic_error)
+  }
+
   /// Copy the selected element(s) to clipboard, separated by newline. Adds deep
   /// copy of selected elements to <oxvg:clipboard>.
   ///
