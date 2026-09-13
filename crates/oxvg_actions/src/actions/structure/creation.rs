@@ -29,7 +29,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/insert.md")]
     pub fn insert(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Insert(qual_name.clone()));
+        self.effect_history(&Action::Insert(qual_name.clone()))?;
 
         let Some(new_elements) = self.insert_internal(&NS::SVG, qual_name)? else {
             return Ok(());
@@ -54,7 +54,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
         uri: &Atom<'input>,
         qual_name: &Atom<'input>,
     ) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::InsertNS(uri.clone(), qual_name.clone()));
+        self.effect_history(&Action::InsertNS(uri.clone(), qual_name.clone()))?;
 
         let Some(new_elements) = self.insert_internal(&NS::new(uri.clone()), qual_name)? else {
             return Ok(());
@@ -75,7 +75,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/duplicate.md")]
     pub fn duplicate(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Duplicate);
+        self.effect_history(&Action::Duplicate)?;
 
         let Some(selections) = self.get_selections()? else {
             return Ok(());
@@ -107,7 +107,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/wrap.md")]
     pub fn wrap(&mut self, qual_name: &Atom<'input>) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Wrap(qual_name.clone()));
+        self.effect_history(&Action::Wrap(qual_name.clone()))?;
 
         let element = self.name_internal(&NS::SVG, qual_name);
         let Some(new_elements) = self.wrap_adjacent_internal(&element)? else {
@@ -129,7 +129,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/clone.md")]
     pub fn clone(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Clone);
+        self.effect_history(&Action::Clone)?;
 
         let Some(root) = self.root.find_element() else {
             return Ok(());
@@ -170,7 +170,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/anchor_link.md")]
     pub fn anchor_link(&mut self, href: &Atom<'input>) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::AnchorLink(href.clone()));
+        self.effect_history(&Action::AnchorLink(href.clone()))?;
 
         let Some(anchors) = self.wrap_adjacent_internal(&ElementId::A)? else {
             return Ok(());
@@ -196,7 +196,7 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     ///
     #[doc = include_str!("../../spec/structure/group.md")]
     pub fn group(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Group);
+        self.effect_history(&Action::Group)?;
 
         let Some(groups) = self.wrap_adjacent_internal(&ElementId::G)? else {
             return Ok(());

@@ -20,7 +20,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/manipulate/path_intersect.md")]
     pub fn path_intersect(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::PathIntersect);
+        self.effect_history(&Action::PathIntersect)?;
         if let Some(selection) = self.boolean_op(OverlayRule::Intersect)? {
             self.effect_selection(&selection.into())?;
         }
@@ -38,7 +38,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/manipulate/path_union.md")]
     pub fn path_union(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::PathUnion);
+        self.effect_history(&Action::PathUnion)?;
         if let Some(selection) = self.boolean_op(OverlayRule::Union)? {
             self.effect_selection(&selection.into())?;
         }
@@ -56,7 +56,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/manipulate/path_subtract.md")]
     pub fn path_subtract(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::PathSubtract);
+        self.effect_history(&Action::PathSubtract)?;
         if let Some(selection) = self.boolean_op(OverlayRule::Difference)? {
             self.effect_selection(&selection.into())?;
         }
@@ -74,7 +74,7 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../../spec/manipulate/path_xor.md")]
     pub fn path_xor(&mut self) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::PathXor);
+        self.effect_history(&Action::PathXor)?;
         if let Some(selection) = self.boolean_op(OverlayRule::Xor)? {
             self.effect_selection(&selection.into())?;
         }

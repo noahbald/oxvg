@@ -24,7 +24,7 @@ visual-regression = ["dep:skia-safe"]
 render = ["dep:skia-safe"]
 
 [dependencies]
-oxvg_actions = { workspace = true }
+oxvg_actions = { workspace = true, features = ["optimise"] }
 oxvg_ast = { workspace = true, features = [
   "roxmltree",
   "selectors",

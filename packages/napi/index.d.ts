@@ -2,6 +2,7 @@
 /* eslint-disable */
 /** An action is a method that an actor can execute upon a document */
 export type ActionNapi =
+  | { type: 'About' }
   | { type: 'Copy' }
   | { type: 'Attr', /** The qualified name of the attribute */
   name: string, /** The value of the attribute */
@@ -89,10 +90,9 @@ export interface InfoNapi {
 }
 
 /** An action result that requires additional handling from the client. */
-export declare const enum UIAction {
-  /** The client should copy the SVG contents of `oxvg:clipboard` to the system clipboard. */
-  Copy = 0
-}
+export type UIAction =
+  | { type: 'Copy' }
+  | { type: 'Dialog', heading: string, body: string }
 /** r" Specifies which attribute groups an attribute may belong to */
 export declare class AttributeGroup {
   /** Convert from bits */
@@ -743,6 +743,14 @@ export declare class Actor {
    * If the action fails
    */
   dispatch(action: ActionNapi): void
+  /**
+   * Returns version and application info
+   *
+   * # Errors
+   *
+   * Never
+   */
+  about(): void
   /**
    * Copy the selected element(s) to clipboard, separated by newline. Adds deep
    * copy of selected elements to <oxvg:clipboard>.

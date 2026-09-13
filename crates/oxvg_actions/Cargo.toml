@@ -15,7 +15,13 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-napi = ["dep:napi", "dep:napi-derive", "oxvg_collections/napi"]
+default = []
+napi = [
+  "dep:napi",
+  "dep:napi-derive",
+  "oxvg_collections/napi",
+  "oxvg_optimiser/napi",
+]
 serde = ["dep:serde", "dep:serde_json", "oxvg_collections/serde"]
 wasm = [
   "serde",
@@ -24,10 +30,12 @@ wasm = [
   "dep:tsify",
   "oxvg_collections/wasm",
 ]
+optimise = ["dep:serde_json", "dep:oxvg_optimiser"]
 
 [dependencies]
 oxvg_ast = { workspace = true, features = ["selectors"] }
-oxvg_collections = { workspace = true, features = ["serde"] }
+oxvg_collections = { workspace = true }
+oxvg_optimiser = { workspace = true, optional = true, features = ["serde"] }
 oxvg_parse = { workspace = true }
 oxvg_path = { workspace = true, features = ["algorithm"] }
 oxvg_serialize = { workspace = true }

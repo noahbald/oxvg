@@ -2108,6 +2108,7 @@ dependencies = [
  "napi-derive",
  "oxvg_ast",
  "oxvg_collections",
+ "oxvg_optimiser",
  "oxvg_parse",
  "oxvg_path",
  "oxvg_serialize",

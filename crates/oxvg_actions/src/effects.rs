@@ -39,9 +39,9 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     }
 
     /// Must be called at the start of an action that affects history.
-    pub(crate) fn effect_history(&mut self, action: &Action<'input>) {
+    pub(crate) fn effect_history(&mut self, action: &Action<'input>) -> Result<(), Error<'static>> {
         self.state.ui.inspect(|ui| ui.remove());
-        self.state.record(action, &self.allocator);
+        self.state.record(action, &self.allocator)
     }
 
     // TODO: pub fn clipboard
@@ -116,8 +116,21 @@ impl<'input, 'arena> Actor<'input, 'arena> {
 
         ui.set_attribute(create_oxvg_attr(
             StateElement::UI_ACTION,
-            action.to_string().into(),
+            action.name().into(),
         ));
+        match action {
+            UIAction::Copy => {}
+            UIAction::Dialog { heading, body } => {
+                ui.set_attribute(create_oxvg_attr(
+                    StateElement::UI_ACTION_DIALOG_HEADING,
+                    heading.into(),
+                ));
+                ui.set_attribute(create_oxvg_attr(
+                    StateElement::UI_ACTION_DIALOG_BODY,
+                    body.into(),
+                ));
+            }
+        }
 
         self.effect_state(StateEffect::Embed)
     }

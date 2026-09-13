@@ -21,6 +21,7 @@ mod manipulate;
 mod state;
 mod structure;
 mod transform;
+mod ui;
 
 use crate::{
     effects::StateEffect,
@@ -46,6 +47,8 @@ pub struct Actor<'input, 'arena> {
 #[derive(Debug, Clone)]
 /// An action is a method that an actor can execute upon a document
 pub enum Action<'input> {
+    /// See [`Actor::about`]
+    About,
     /// See [`Actor::copy`]
     Copy,
     /// See [`Actor::attr`]
@@ -57,6 +60,9 @@ pub enum Action<'input> {
     },
     /// See [`Actor::class`]
     Class(Atom<'input>),
+    #[cfg(feature = "optimise")]
+    /// See [`Actor::optimise`]
+    Optimise(Option<Box<oxvg_optimiser::Jobs>>),
     /// See [`Actor::paste`]
     Paste,
     /// See [`Actor::path_intersect`]
@@ -140,6 +146,8 @@ pub enum Action<'input> {
 #[napi]
 /// An action is a method that an actor can execute upon a document
 pub enum ActionNapi {
+    /// See [`Actor::about`]
+    About,
     /// See [`Actor::copy`]
     Copy,
     /// See [`Actor::attr`]
@@ -235,10 +243,14 @@ pub enum ActionNapi {
 #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "napi", napi)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum UIAction {
     /// The client should copy the SVG contents of `oxvg:clipboard` to the system clipboard.
     Copy,
+    Dialog {
+        heading: String,
+        body: String,
+    },
 }
 
 impl<'input, 'arena> Actor<'input, 'arena> {
@@ -301,10 +313,13 @@ impl<'input, 'arena> Actor<'input, 'arena> {
     /// When the associated action fails
     pub fn dispatch(&mut self, action: Action<'input>) -> Result<(), Error<'input>> {
         match action {
+            Action::About => self.about(),
             Action::Copy => self.copy(),
             Action::Attr { name, value } => self.attr(&name, &value),
             Action::Class(name) => self.class(&name),
             Action::Style { property, value } => self.style(&property, &value),
+            #[cfg(feature = "optimise")]
+            Action::Optimise(jobs) => self.optimise(jobs),
             Action::Paste => self.paste(),
             Action::PathIntersect => self.path_intersect(),
             Action::PathUnion => self.path_union(),
@@ -382,6 +397,14 @@ impl<'input, 'arena> Actor<'input, 'arena> {
 
 impl UIAction {
     const COPY: &'static str = "copy";
+    const DIALOG: &'static str = "dialog";
+
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Copy => Self::COPY,
+            Self::Dialog { .. } => Self::DIALOG,
+        }
+    }
 
     pub(crate) fn from_state<'input>(element: Element<'input, '_>) -> Result<Self, Error<'input>> {
         assert_oxvg_element(element, StateElement::_UI)?;
@@ -392,6 +415,18 @@ impl UIAction {
 
         Ok(match action.as_str() {
             Self::COPY => Self::Copy,
+            Self::DIALOG => Self::Dialog {
+                heading: get_oxvg_attr(&element, StateElement::UI_ACTION_DIALOG_HEADING)?
+                    .ok_or(Error::MissingStateAttribute(
+                        StateElement::UI_ACTION_DIALOG_HEADING,
+                    ))?
+                    .to_string(),
+                body: get_oxvg_attr(&element, StateElement::UI_ACTION_DIALOG_BODY)?
+                    .ok_or(Error::MissingStateAttribute(
+                        StateElement::UI_ACTION_DIALOG_BODY,
+                    ))?
+                    .to_string(),
+            },
             _ => {
                 return Err(Error::InvalidStateValue {
                     name: StateElement::UI_ACTION,
@@ -399,14 +434,6 @@ impl UIAction {
                 });
             }
         })
-    }
-}
-
-impl std::fmt::Display for UIAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Copy => f.write_str(Self::COPY),
-        }
     }
 }
 

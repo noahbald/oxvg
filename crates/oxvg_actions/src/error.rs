@@ -38,6 +38,12 @@ pub enum Error<'input> {
     ComputedStylesError(String),
     /// Could not generate random number
     GetRandom,
+    #[cfg(feature = "optimise")]
+    /// Could not parse optimise config
+    InvalidOptimiseConfig(String),
+    #[cfg(feature = "optimise")]
+    /// Error generated while running optimise job
+    JobsError(String),
 }
 
 impl std::error::Error for Error<'_> {}
@@ -72,6 +78,10 @@ impl std::fmt::Display for Error<'_> {
             )),
             Self::ComputedStylesError(err) => err.fmt(f),
             Self::GetRandom => f.write_str("Could not generate random number"),
+            #[cfg(feature = "optimise")]
+            Self::InvalidOptimiseConfig(err) => err.fmt(f),
+            #[cfg(feature = "optimise")]
+            Self::JobsError(err) => f.write_str(err),
         }
     }
 }
