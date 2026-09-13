@@ -470,7 +470,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyho
 #[test]
 fn test_jobs() -> anyhow::Result<()> {
     test_config(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "foo": "bar" }
         } }"#,
         None,

@@ -14,22 +14,19 @@ use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
 extern crate napi_derive;
 
-fn validate_jobs_object<'env>(
-  env: &Env,
-  config: Option<Object<'env>>,
-) -> napi::Result<Option<Jobs>> {
-  if let Some(config) = config.as_ref() {
-    if let Some(invalid_key) = Object::keys(config)?
+fn validate_jobs_object(env: &Env, config: Option<Object>) -> napi::Result<Option<Jobs>> {
+  if let Some(config) = config.as_ref()
+    && let Some(invalid_key) = Object::keys(config)?
       .iter()
       .map(String::as_str)
       .find(|k| !Jobs::is_valid_key_camel(k))
-    {
-      return Err(Error::new(
-        Status::GenericFailure,
-        format!("Detected invalid optimise key: {invalid_key}"),
-      ));
-    }
+  {
+    return Err(Error::new(
+      Status::GenericFailure,
+      format!("Detected invalid optimise key: {invalid_key}"),
+    ));
   }
+
   config
     .map(|j| unsafe { Jobs::from_napi_value(env.raw(), j.raw()) })
     .transpose()
@@ -73,10 +70,10 @@ fn validate_jobs_object<'env>(
 ///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
 /// );
 /// ```
-pub fn optimise<'env>(
+pub fn optimise(
   env: &Env,
   svg: String,
-  #[napi(ts_arg_type = "Jobs | undefined | null")] config: Option<Object<'env>>,
+  #[napi(ts_arg_type = "Jobs | undefined | null")] config: Option<Object>,
 ) -> napi::Result<String> {
   let config = validate_jobs_object(env, config)?.unwrap_or_default();
   parse(&svg, |dom, allocator| {
