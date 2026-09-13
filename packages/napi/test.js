@@ -40,25 +40,45 @@ test("optimise basic svg", () => {
 	assert.equal(result, `<svg xmlns="http://www.w3.org/2000/svg"/>`);
 });
 
-test("optimise with config", async () => {
-	const result = optimise(
-		`<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- Should convert to currentColor -->
-    <g color="black"/>
-    <g color="BLACK"/>
-    <g color="none"/>
-    <path fill="rgb(64, 64, 64)"/>
-    <path fill="rgb(86.27451%,86.666667%,87.058824%)"/>
-    <path fill="rgb(-255,100,500)"/>
-    <path fill="none"/>
-</svg>`,
-		{ convertColors: { method: { type: "CurrentColor" } } },
-	);
+describe("optimise", async () => {
+	test("optimise with config", async () => {
+		const result = optimise(
+			`<svg xmlns="http://www.w3.org/2000/svg">
+	    <!-- Should convert to currentColor -->
+	    <g color="black"/>
+	    <g color="BLACK"/>
+	    <g color="none"/>
+	    <path fill="rgb(64, 64, 64)"/>
+	    <path fill="rgb(86.27451%,86.666667%,87.058824%)"/>
+	    <path fill="rgb(-255,100,500)"/>
+	    <path fill="none"/>
+	</svg>`,
+			{ convertColors: { method: { type: "CurrentColor" } } },
+		);
 
-	assert.equal(
-		result,
-		`<svg xmlns="http://www.w3.org/2000/svg"><!-- Should convert to currentColor --><g color="currentColor"/><g color="currentColor"/><g color="none"/><path fill="currentColor"/><path fill="currentColor"/><path fill="currentColor"/><path fill="none"/></svg>`,
-	);
+		assert.equal(
+			result,
+			`<svg xmlns="http://www.w3.org/2000/svg"><!-- Should convert to currentColor --><g color="currentColor"/><g color="currentColor"/><g color="none"/><path fill="currentColor"/><path fill="currentColor"/><path fill="currentColor"/><path fill="none"/></svg>`,
+		);
+	})
+
+	
+	await test("optimise with invalid config", () => {
+		assert.throws(() => optimise(
+			`<svg xmlns="http://www.w3.org/2000/svg">
+	    <!-- Should convert to currentColor -->
+	    <g color="black"/>
+	    <g color="BLACK"/>
+	    <g color="none"/>
+	    <path fill="rgb(64, 64, 64)"/>
+	    <path fill="rgb(86.27451%,86.666667%,87.058824%)"/>
+	    <path fill="rgb(-255,100,500)"/>
+	    <path fill="none"/>
+	</svg>`,
+			// @ts-expect-error
+			{ unknown: { method: { type: "CurrentColor" } } },
+		), { message: "Detected invalid optimise key: unknown" });
+	})
 
 	await describe("convertSvgoConfig", () => {
 		test("nullish falls back to default", () => {
@@ -111,7 +131,7 @@ test("optimise with config", async () => {
 		});
 
 		test("convertPathData", () => {
-			const result =convertSvgoConfig([
+			const result = convertSvgoConfig([
 				{
 					name: "convertPathData",
 					params: {

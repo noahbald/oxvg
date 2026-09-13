@@ -1,5 +1,8 @@
 //! NAPI bindings for OXVG
-use napi::{Error, Status, bindgen_prelude::Unknown};
+use napi::{
+  Env, Error, JsValue, Status,
+  bindgen_prelude::{FromNapiValue, Object, Unknown},
+};
 use oxvg_actions::{Action, ActionNapi, DerivedState, DerivedStateNapi};
 use oxvg_ast::{
   arena::Allocator,
@@ -10,6 +13,27 @@ use oxvg_ast::{
 use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
 extern crate napi_derive;
+
+fn validate_jobs_object<'env>(
+  env: &Env,
+  config: Option<Object<'env>>,
+) -> napi::Result<Option<Jobs>> {
+  if let Some(config) = config.as_ref() {
+    if let Some(invalid_key) = Object::keys(config)?
+      .iter()
+      .map(String::as_str)
+      .find(|k| !Jobs::is_valid_key_camel(k))
+    {
+      return Err(Error::new(
+        Status::GenericFailure,
+        format!("Detected invalid optimise key: {invalid_key}"),
+      ));
+    }
+  }
+  config
+    .map(|j| unsafe { Jobs::from_napi_value(env.raw(), j.raw()) })
+    .transpose()
+}
 
 #[napi]
 #[allow(clippy::needless_pass_by_value)]
@@ -49,8 +73,12 @@ extern crate napi_derive;
 ///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
 /// );
 /// ```
-pub fn optimise(svg: String, config: Option<Jobs>) -> napi::Result<String> {
-  let config = config.unwrap_or_default();
+pub fn optimise<'env>(
+  env: &Env,
+  svg: String,
+  #[napi(ts_arg_type = "Jobs | undefined | null")] config: Option<Object<'env>>,
+) -> napi::Result<String> {
+  let config = validate_jobs_object(env, config)?.unwrap_or_default();
   parse(&svg, |dom, allocator| {
     config
       .run(dom, &Info::new(allocator))

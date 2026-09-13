@@ -242,6 +242,12 @@ macro_rules! jobs {
                 Ok(())
             }
 
+            /// Validates whether an unparsed object key is valid.
+            pub fn is_valid_key_camel(key: &str) -> bool {
+                let key_snake = Self::from_svgo_plugin_to_snake_case(key);
+                matches!(key_snake.as_str(), $(stringify!($name))|+)
+            }
+
             fn from_svgo_plugin_to_snake_case(name: &str) -> String {
                 let caps = name.chars().filter(|char| char.is_uppercase()).count();
                 let mut snake = String::with_capacity(name.len() + caps);
