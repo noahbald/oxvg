@@ -27,6 +27,7 @@ macro_rules! jobs {
         #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
         #[allow(clippy::unsafe_derive_deserialize)]
         #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+        #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
         #[derive(Clone, Debug)]
         #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
         /// Each task for optimising an SVG document.
@@ -240,6 +241,12 @@ macro_rules! jobs {
                     self.apply_transforms = Some(ApplyTransforms::default());
                 }
                 Ok(())
+            }
+
+            /// Validates whether an unparsed object key is valid.
+            pub fn is_valid_key_camel(key: &str) -> bool {
+                let key_snake = Self::from_svgo_plugin_to_snake_case(key);
+                matches!(key_snake.as_str(), $(stringify!($name))|+)
             }
 
             fn from_svgo_plugin_to_snake_case(name: &str) -> String {
@@ -463,7 +470,7 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyho
 #[test]
 fn test_jobs() -> anyhow::Result<()> {
     test_config(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "foo": "bar" }
         } }"#,
         None,

@@ -136,21 +136,21 @@ fn add_classes_to_svg() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(crate::test_config!(
-        r#"{ "addClassesToSvg": {
+        r#"{ "addClassesToSVGElement": {
             "classNames": ["mySvg", "size-big"]
         } }"#,
         comment: "Should add classes when passed as a classNames Array"
     )?);
 
     insta::assert_snapshot!(crate::test_config!(
-        r#"{ "addClassesToSvg": {
+        r#"{ "addClassesToSVGElement": {
             "className": "mySvg"
         } }"#,
         comment: "Should add class when passed as a className String"
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "addClassesToSvg": {
+        r#"{ "addClassesToSVGElement": {
             "className": "mySvg size-big"
         } }"#,
         Some(

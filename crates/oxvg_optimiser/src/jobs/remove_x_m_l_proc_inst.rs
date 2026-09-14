@@ -68,7 +68,7 @@ fn remove_x_m_l_proc_inst() -> anyhow::Result<()> {
     use crate::test_config;
 
     insta::assert_snapshot!(test_config(
-        r#"{ "removeXmlProcInst": true }"#,
+        r#"{ "removeXMLProcInst": true }"#,
         Some(
             r#"<?xml version="1.0" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg">
@@ -79,7 +79,7 @@ fn remove_x_m_l_proc_inst() -> anyhow::Result<()> {
 
     // FIXME: Correctly retained, but serializer uses default PI
     insta::assert_snapshot!(test_config(
-        r#"{ "removeXmlProcInst": true }"#,
+        r#"{ "removeXMLProcInst": true }"#,
         Some(
             r#"<?xml-stylesheet href="style.css" type="text/css"?>
 <svg xmlns="http://www.w3.org/2000/svg">

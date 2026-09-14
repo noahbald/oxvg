@@ -4,12 +4,14 @@
 	"type": "module",
 	"description": "",
 	"files": [
+		"dist/oxvg_wasm.d.ts",
+		"dist/oxvg_wasm.js",
 		"dist/oxvg_wasm_bg.wasm",
 		"dist/oxvg_wasm_bg.wasm.d.ts",
-		"dist/oxvg_wasm.js",
-		"dist/node/oxvg_wasm.js",
+		"dist/node/oxvg_wasm.d.ts",
+		"dist/node/oxvg_wasm.cjs",
 		"dist/node/oxvg_wasm_bg.wasm",
-		"dist/oxvg_wasm.d.ts"
+		"dist/node/oxvg_wasm_bg.wasm.d.ts"
 	],
 	"exports": {
 		".": {

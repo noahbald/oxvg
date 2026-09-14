@@ -103,7 +103,7 @@ fn add_attributes_to_s_v_g_element() -> anyhow::Result<()> {
     //
     // TODO: Maybe we can add a post-processor to remove trailing `=""`
     insta::assert_snapshot!(test_config!(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "data-icon": "", "className={classes}": "" }
         } }"#,
         comment: "Add multiple attributes without value"
@@ -113,21 +113,21 @@ fn add_attributes_to_s_v_g_element() -> anyhow::Result<()> {
     // SVGO: `<svg data-icon />`
     // OXVG: `<svg data-icon="" />`
     insta::assert_snapshot!(test_config!(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "data-icon": "" }
         } }"#,
         comment: "Add single attribute without value"
     )?);
 
     insta::assert_snapshot!(test_config!(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "focusable": "false", "data-image": "icon" }
         } }"#,
         comment: "Add multiple attributes with values"
     )?);
 
     insta::assert_snapshot!(test_config(
-        r#"{ "addAttributesToSvgElement": {
+        r#"{ "addAttributesToSVGElement": {
             "attributes": { "data-icon": "" }
         } }"#,
         Some(
