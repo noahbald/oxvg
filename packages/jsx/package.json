@@ -1,6 +1,6 @@
 {
 	"name": "@oxvg/jsx",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "",
 	"main": "index.js",
 	"types": "index.d.ts",

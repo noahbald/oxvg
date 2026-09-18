@@ -2069,7 +2069,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -2099,7 +2099,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_actions"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "getrandom 0.4.3",
  "insta",
@@ -2121,7 +2121,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "bitflags 2.13.1",
  "bytecount",
@@ -2151,7 +2151,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -2175,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_jsx"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "clap",
  "convert_case 0.11.0",
@@ -2195,7 +2195,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_jsx_napi"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "napi",
  "napi-build",
@@ -2210,7 +2210,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_lint"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "bytecount",
  "clap",
@@ -2226,7 +2226,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_napi"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "napi",
  "napi-build",
@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "bitflags 2.13.1",
@@ -2281,7 +2281,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_parse"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2289,7 +2289,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "bitflags 2.13.1",
  "geo",
@@ -2318,7 +2318,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_serialize"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2326,7 +2326,7 @@ dependencies = [
 
 [[package]]
 name = "oxvg_wasm"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "console_error_panic_hook",
  "getrandom 0.3.4",

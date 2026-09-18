@@ -68,6 +68,7 @@ macro_rules! get_computed_style_css {
     };
 }
 
+#[cfg(feature = "selectors")]
 /// A computed style retrieved from an element.
 pub enum ComputedStyle<T> {
     /// The computed style on the element along with the mode the style is set.
@@ -143,6 +144,7 @@ pub fn root<'input, 'arena>(
         .filter_map(|node| node.style().cloned())
 }
 
+#[cfg(feature = "selectors")]
 impl<T> ComputedStyle<T> {
     /// Returns a `ComputedStyle` with the inner value as a reference.
     pub fn as_ref(&self) -> ComputedStyle<&T> {
