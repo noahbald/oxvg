@@ -31,7 +31,7 @@ DerivedState {
     ui: Some(
         Dialog {
             heading: "About OXVG",
-            body: "OXVG (0.0.7) is the fastest SVG toolchain for optimisation, linting, transformation, and manipulation.\n\nCreated by Noah Baldwin\n\n- [GitHub](https://github.com/noahbald/oxvg)\n- [License](https://github.com/noahbald/oxvg/blob/main/LICENSE)",
+            body: "OXVG (0.0.8) is the fastest SVG toolchain for optimisation, linting, transformation, and manipulation.\n\nCreated by Noah Baldwin\n\n- [GitHub](https://github.com/noahbald/oxvg)\n- [License](https://github.com/noahbald/oxvg/blob/main/LICENSE)",
         },
     ),
 }
