@@ -427,10 +427,10 @@ impl<W: Write> fmt::Write for FmtWriter<W> {
             .expect("You must have set self.escape to Some(…) before using the formatter!")
         {
             Escape::AttributeValue => self.write_escaped(s, true),
-            Escape::Text => self.write_escaped(s, false),
+            Escape::Text | Escape::Style => self.write_escaped(s, false),
             // We don't bother escaping double hyphen (--) in comment as it's
             // unlikely to ever happen, and even libxml2 does not do it.
-            Escape::Comment | Escape::CData | Escape::Style => self.writer.write_all(s.as_bytes()),
+            Escape::Comment | Escape::CData => self.writer.write_all(s.as_bytes()),
         };
         if let Err(error) = error.as_ref() {
             self.error_kind = Some(error.kind());
