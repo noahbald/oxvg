@@ -523,3 +523,16 @@ fn parse_roxmltree() {
     })
     .unwrap();
 }
+
+#[test]
+fn serialize_escapes_parsed_style_content() {
+    use crate::serialize::Node;
+
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><style>.icon { content: "&amp;&lt;"; }</style></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert!(output.contains("&amp;&lt;"));
+    roxmltree::Document::parse(&output).unwrap();
+}
