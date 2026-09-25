@@ -221,6 +221,7 @@ macro_rules! jobs {
                 Ok(oxvg_config)
             }
 
+            #[cfg(any(feature = "serde", feature = "napi"))]
             fn set_svgo_plugin_string(&mut self, svgo_name: &str) -> Result<(), ()> {
                 if svgo_name == "preset-default" {
                     macro_rules! is_default {

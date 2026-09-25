@@ -17,6 +17,12 @@ fn test(input: &str, expected: &str) {
 fn test_config(config: &Config, input: &str, expected: &str) {
     test_template(config, None, input, expected);
 }
+fn normalise(code: &str) -> String {
+    let allocator = oxc_allocator::Allocator::new();
+    let parsed = oxc_parser::Parser::new(&allocator, code, oxc_span::SourceType::tsx()).parse();
+    oxc_codegen::Codegen::new().build(&parsed.program).code
+}
+#[cfg(feature = "swc_core")]
 fn test_template(
     config: &Config,
     template: Option<&Template<Vec<u8>>>,
@@ -42,7 +48,36 @@ fn test_template(
         })
         .unwrap()
     });
-    assert_eq!(code, expected);
+    assert_eq!(normalise(&code), expected);
+}
+#[cfg(feature = "oxc_ast")]
+fn test_template<'alloc>(
+    config: &Config,
+    template: Option<&Template<Vec<u8>>>,
+    input: &str,
+    expected: &str,
+) {
+    let code = oxvg_ast::parse::roxmltree::parse(input, |root, allocator| {
+        let oxc_allocator = oxc_allocator::Allocator::new();
+        let builder = oxc_ast::builder::AstBuilder::new(&oxc_allocator);
+        let mut buf = Vec::new();
+        transform(
+            root,
+            allocator,
+            Some(Config {
+                oxvg: Some(false),
+                ..config.clone()
+            }),
+            None,
+            template.cloned(),
+            &mut buf,
+            &builder,
+        )
+        .unwrap();
+        String::from_utf8(buf).unwrap()
+    })
+    .unwrap();
+    assert_eq!(normalise(&code), expected);
 }
 
 #[test]
@@ -53,7 +88,7 @@ fn test_default() {
   <rect x="25" y="36" width="48" height="1" aria-label="Test" class="rect"></rect>
 </svg>"#,
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg viewBox="0 0 100 100" {...props}><rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect"/></svg>;
+const SvgComponent = (props) => <svg viewBox="0 0 100 100" {...props}><rect x={25} y={36} width={48} height={1} aria-label="Test" className="rect" /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -65,12 +100,12 @@ export default SvgComponent;
 </svg>
 "#,
         r##"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><rect style={{
-        fill: "red",
-        stroke: "#ff0",
-        fontFamily: "Helvetica",
-        "--foo-bar": "test"
-    }}/></svg>;
+const SvgComponent = (props) => <svg {...props}><rect style={{
+	fill: "red",
+	stroke: "#ff0",
+	fontFamily: "Helvetica",
+	"--foo-bar": "test"
+}} /></svg>;
 export default SvgComponent;
 "##,
     );
@@ -86,7 +121,7 @@ fn with_title_overwrite_existing() {
         },
         r#"<svg aria-labelledby="title"><title id="title">test</title><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId })=><svg aria-labelledby={titleId}>{title === undefined ? <title id={titleId || "title"}>test</title> : <title id={titleId || "title"}>{title}</title>}<g/></svg>;
+const SvgComponent = ({ title, titleId }) => <svg aria-labelledby={titleId}>{title === undefined ? <title id={titleId || "title"}>test</title> : <title id={titleId || "title"}>{title}</title>}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -102,7 +137,7 @@ fn with_desc_overwrite_existing() {
         },
         r#"<svg aria-describedby="desc"><desc id="desc">test</desc><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = ({ desc, descId })=><svg aria-describedby={descId}>{desc === undefined ? <desc id={descId || "desc"}>test</desc> : <desc id={descId || "desc"}>{desc}</desc>}<g/></svg>;
+const SvgComponent = ({ desc, descId }) => <svg aria-describedby={descId}>{desc === undefined ? <desc id={descId || "desc"}>test</desc> : <desc id={descId || "desc"}>{desc}</desc>}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -119,7 +154,7 @@ fn with_title_and_desc_overwrite_existing() {
         },
         r#"<svg aria-labelledby="title" aria-describedby="desc"><title id="title">t</title><desc id="desc">d</desc><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId, desc, descId })=><svg aria-labelledby={titleId} aria-describedby={descId}>{title === undefined ? <title id={titleId || "title"}>t</title> : <title id={titleId || "title"}>{title}</title>}{desc === undefined ? <desc id={descId || "desc"}>d</desc> : <desc id={descId || "desc"}>{desc}</desc>}<g/></svg>;
+const SvgComponent = ({ title, titleId, desc, descId }) => <svg aria-labelledby={titleId} aria-describedby={descId}>{title === undefined ? <title id={titleId || "title"}>t</title> : <title id={titleId || "title"}>{title}</title>}{desc === undefined ? <desc id={descId || "desc"}>d</desc> : <desc id={descId || "desc"}>{desc}</desc>}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -134,7 +169,7 @@ fn with_dimensions_false() {
         },
         r#"<svg width="100" height="100" viewBox="0 0 100 100"><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg viewBox="0 0 100 100" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg viewBox="0 0 100 100" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -149,7 +184,7 @@ fn with_icon_bool() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg width="1em" height="1em" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg width="1em" height="1em" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -166,7 +201,7 @@ fn with_icon_bool_native() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
-const SvgComponent = (props)=><Svg width={24} height={24} {...props}><G/></Svg>;
+const SvgComponent = (props) => <Svg width={24} height={24} {...props}><G /></Svg>;
 export default SvgComponent;
 "#,
     );
@@ -181,7 +216,7 @@ fn with_icon_string() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg width="2em" height="2em" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg width="2em" height="2em" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -196,7 +231,7 @@ fn with_icon_number() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg width={24} height={24} {...props}><g/></svg>;
+const SvgComponent = (props) => <svg width={24} height={24} {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -211,9 +246,9 @@ fn with_icon_and_expand_props_and_dimensions() {
             dimensions: Some(true),
             ..Default::default()
         },
-        r##"<svg a="#000" b="#fff"/>"##,
+        r##"<svg a="#000" b="#fff" />"##,
         r##"import * as React from "react";
-const SvgComponent = (props)=><svg a="#000" b="#fff" width="1em" height="1em" {...props}/>;
+const SvgComponent = (props) => <svg a="#000" b="#fff" width="1em" height="1em" {...props} />;
 export default SvgComponent;
 "##,
     );
@@ -231,7 +266,7 @@ fn with_svg_props_new_attribute() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg data-testid="icon" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg data-testid="icon" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -249,7 +284,7 @@ fn with_svg_props_override_existing() {
         },
         r#"<svg viewBox="0 0 100 100"><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg viewBox="0 0 24 24" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg viewBox="0 0 24 24" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -267,7 +302,7 @@ fn with_svg_props_expression_value() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg tabIndex={tabIndex} {...props}><g/></svg>;
+const SvgComponent = (props) => <svg tabIndex={tabIndex} {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -285,7 +320,7 @@ fn with_replace_attr_values() {
         },
         r##"<svg><rect fill="#000" /><path stroke="#000" /></svg>"##,
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><rect fill="currentColor"/><path stroke="currentColor"/></svg>;
+const SvgComponent = (props) => <svg {...props}><rect fill="currentColor" /><path stroke="currentColor" /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -300,7 +335,7 @@ fn with_expand_props_start() {
         },
         r#"<svg viewBox="0 0 10 10"><g /></svg>"#,
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props} viewBox="0 0 10 10"><g/></svg>;
+const SvgComponent = (props) => <svg {...props} viewBox="0 0 10 10"><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -315,7 +350,7 @@ fn jsx_runtime_classic_preact() {
         },
         "<svg><g /></svg>",
         r#"import { h } from "preact/compat";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -333,7 +368,7 @@ fn with_native_and_title_prop() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import Svg, { G, Title } from "react-native-svg";
-const SvgComponent = ({ title, titleId })=><Svg aria-labelledby={titleId}>{title ? <Title id={titleId}>{title}</Title> : null}<G/></Svg>;
+const SvgComponent = ({ title, titleId }) => <Svg aria-labelledby={titleId}>{title ? <Title id={titleId}>{title}</Title> : null}<G /></Svg>;
 export default SvgComponent;
 "#,
     );
@@ -353,7 +388,7 @@ fn with_native_ref_memo_and_expand_props() {
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
 import { forwardRef, memo } from "react";
-const SvgComponent = (props, ref)=><Svg ref={ref} {...props}><G/></Svg>;
+const SvgComponent = (props, ref) => <Svg ref={ref} {...props}><G /></Svg>;
 const ForwardRef = forwardRef(SvgComponent);
 const Memo = memo(ForwardRef);
 export default Memo;
@@ -374,10 +409,10 @@ fn with_typescript_default_template() {
         r#"import * as React from "react";
 import { SVGProps } from "react";
 interface SvgComponentProps {
-    title?: string;
-    titleId?: string;
+	title?: string;
+	titleId?: string;
 }
-const SvgComponent = ({ title, titleId, ...props }: SVGProps<SVGSVGElement> & SvgComponentProps)=><svg aria-labelledby={titleId} {...props}>{title ? <title id={titleId}>{title}</title> : null}<g/></svg>;
+const SvgComponent = ({ title, titleId, ...props }: SVGProps<SVGSVGElement> & SvgComponentProps) => <svg aria-labelledby={titleId} {...props}>{title ? <title id={titleId}>{title}</title> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -397,10 +432,10 @@ fn with_typescript_native_default_template() {
         r#"import * as React from "react";
 import Svg, { SVGProps, G, Title } from "react-native-svg";
 interface SvgComponentProps {
-    title?: string;
-    titleId?: string;
+	title?: string;
+	titleId?: string;
 }
-const SvgComponent = ({ title, titleId, ...props }: SVGProps<SVGSVGElement> & SvgComponentProps)=><Svg aria-labelledby={titleId} {...props}>{title ? <Title id={titleId}>{title}</Title> : null}<G/></Svg>;
+const SvgComponent = ({ title, titleId, ...props }: SVGProps<SVGSVGElement> & SvgComponentProps) => <Svg aria-labelledby={titleId} {...props}>{title ? <Title id={titleId}>{title}</Title> : null}<G /></Svg>;
 export default SvgComponent;
 "#,
     );
@@ -415,7 +450,7 @@ fn with_export_type_named_no_named_export() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export { SvgComponent };
 "#,
     );
@@ -434,7 +469,7 @@ fn with_expand_props_and_svg_props() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg className="icon" {...props}><g/></svg>;
+const SvgComponent = (props) => <svg className="icon" {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -457,7 +492,7 @@ fn jsx_runtime_classic_default_specifier() {
         },
         "<svg><g /></svg>",
         r#"import h from "hyperapp-jsx-pragma";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -479,7 +514,7 @@ fn jsx_runtime_classic_namespace() {
         },
         "<svg><g /></svg>",
         r#"import * as Preact from "preact";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -501,7 +536,7 @@ fn jsx_runtime_classic_specifier() {
         },
         "<svg><g /></svg>",
         r#"import { h } from "preact";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -515,7 +550,7 @@ fn jsx_runtime_automatic() {
             ..Default::default()
         },
         "<svg><g /></svg>",
-        r"const SvgComponent = (props)=><svg {...props}><g/></svg>;
+        r"const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 ",
     );
@@ -530,7 +565,7 @@ fn jsx_runtime_classic() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -556,7 +591,7 @@ fn specify_import_source() {
         "<svg><g /></svg>",
         r#"import { forwardRef, memo } from "preact/compat";
 import { h } from "preact";
-const SvgComponent = (props, ref)=><svg ref={ref} {...props}><g/></svg>;
+const SvgComponent = (props, ref) => <svg ref={ref} {...props}><g /></svg>;
 const ForwardRef = forwardRef(SvgComponent);
 const Memo = memo(ForwardRef);
 export default Memo;
@@ -583,8 +618,8 @@ export default MyComponent
         )),
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const MyComponent = () => <svg {...props}><g/></svg>
-export default MyComponent
+const MyComponent = () => <svg {...props}><g /></svg>;
+export default MyComponent;
 "#,
     );
 }
@@ -608,8 +643,8 @@ export default MyComponent
         )),
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const MyComponent = () => <main>{<svg {...props}><g/></svg>}</main>
-export default MyComponent
+const MyComponent = () => <main>{<svg {...props}><g /></svg>}</main>;
+export default MyComponent;
 "#,
     );
 }
@@ -633,8 +668,8 @@ export default MyComponent
         )),
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const MyComponent = (props: React.SVGProps<SVGSVGElement>) => <svg {...props}><g/></svg>
-export default MyComponent
+const MyComponent = (props: React.SVGProps<SVGSVGElement>) => <svg {...props}><g /></svg>;
+export default MyComponent;
 "#,
     );
 }
@@ -660,10 +695,10 @@ export default MyComponent
         )),
         "<svg><g /></svg>",
         r"/**
- * Comment
- */
-const MyComponent = () => <svg {...props}><g/></svg>
-export default MyComponent
+* Comment
+*/
+const MyComponent = () => <svg {...props}><g /></svg>;
+export default MyComponent;
 ",
     );
 }
@@ -706,14 +741,13 @@ export const {component_name}: React.FC<Props> = ({{ x }}) => {{
             PhantomData,
         )),
         "<svg><g /></svg>",
-        r#"
-import * as React from "react";
-
-
-interface Props { x?: string }
-export const SvgComponent: React.FC<Props> = ({ x }) => {
-  return (<svg><g/></svg>);
+        r#"import * as React from "react";
+interface Props {
+	x?: string;
 }
+export const SvgComponent: React.FC<Props> = ({ x }) => {
+	return <svg><g /></svg>;
+};
 export default SvgComponent;
 "#,
     );
@@ -724,7 +758,7 @@ fn transforms_whole_program() {
     test(
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -740,7 +774,7 @@ fn with_desc_prop() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ desc, descId })=><svg aria-describedby={descId}>{desc ? <desc id={descId}>{desc}</desc> : null}<g/></svg>;
+const SvgComponent = ({ desc, descId }) => <svg aria-describedby={descId}>{desc ? <desc id={descId}>{desc}</desc> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -756,7 +790,7 @@ fn with_desc_prop_and_expand_props() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ desc, descId, ...props })=><svg aria-describedby={descId} {...props}>{desc ? <desc id={descId}>{desc}</desc> : null}<g/></svg>;
+const SvgComponent = ({ desc, descId, ...props }) => <svg aria-describedby={descId} {...props}>{desc ? <desc id={descId}>{desc}</desc> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -771,7 +805,7 @@ fn with_expand_props() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -787,7 +821,7 @@ fn with_memo_option() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import { memo } from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 const Memo = memo(SvgComponent);
 export default Memo;
 "#,
@@ -804,7 +838,7 @@ fn with_named_export_and_export_type_option() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = (props)=><svg {...props}><g/></svg>;
+const SvgComponent = (props) => <svg {...props}><g /></svg>;
 export { SvgComponent as ReactComponent };
 "#,
     );
@@ -824,7 +858,7 @@ fn with_native_and_expand_props_option() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
-const SvgComponent = (props)=><Svg {...props}><G/></Svg>;
+const SvgComponent = (props) => <Svg {...props}><G /></Svg>;
 export default SvgComponent;
 "#,
     );
@@ -840,7 +874,7 @@ fn with_native_option() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
-const SvgComponent = (props)=><Svg {...props}><G/></Svg>;
+const SvgComponent = (props) => <Svg {...props}><G /></Svg>;
 export default SvgComponent;
 "#,
     );
@@ -859,7 +893,7 @@ fn with_native_ref_and_expand_props_option() {
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
 import { forwardRef } from "react";
-const SvgComponent = (props, ref)=><Svg ref={ref} {...props}><G/></Svg>;
+const SvgComponent = (props, ref) => <Svg ref={ref} {...props}><G /></Svg>;
 const ForwardRef = forwardRef(SvgComponent);
 export default ForwardRef;
 "#,
@@ -879,7 +913,7 @@ fn with_native_and_ref_option() {
         r#"import * as React from "react";
 import Svg, { G } from "react-native-svg";
 import { forwardRef } from "react";
-const SvgComponent = (_, ref)=><Svg ref={ref}><G/></Svg>;
+const SvgComponent = (_, ref) => <Svg ref={ref}><G /></Svg>;
 const ForwardRef = forwardRef(SvgComponent);
 export default ForwardRef;
 "#,
@@ -897,7 +931,7 @@ fn with_ref_and_expand_props() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import { forwardRef } from "react";
-const SvgComponent = (props, ref)=><svg ref={ref} {...props}><g/></svg>;
+const SvgComponent = (props, ref) => <svg ref={ref} {...props}><g /></svg>;
 const ForwardRef = forwardRef(SvgComponent);
 export default ForwardRef;
 "#,
@@ -915,7 +949,7 @@ fn with_ref_option() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import { forwardRef } from "react";
-const SvgComponent = (_, ref)=><svg ref={ref}><g/></svg>;
+const SvgComponent = (_, ref) => <svg ref={ref}><g /></svg>;
 const ForwardRef = forwardRef(SvgComponent);
 export default ForwardRef;
 "#,
@@ -933,7 +967,7 @@ fn with_title_prop_desc_prop_and_expand_props() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId, desc, descId, ...props })=><svg aria-labelledby={titleId} aria-describedby={descId} {...props}>{title ? <title id={titleId}>{title}</title> : null}{desc ? <desc id={descId}>{desc}</desc> : null}<g/></svg>;
+const SvgComponent = ({ title, titleId, desc, descId, ...props }) => <svg aria-labelledby={titleId} aria-describedby={descId} {...props}>{title ? <title id={titleId}>{title}</title> : null}{desc ? <desc id={descId}>{desc}</desc> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -949,7 +983,7 @@ fn with_title_prop() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId })=><svg aria-labelledby={titleId}>{title ? <title id={titleId}>{title}</title> : null}<g/></svg>;
+const SvgComponent = ({ title, titleId }) => <svg aria-labelledby={titleId}>{title ? <title id={titleId}>{title}</title> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -966,7 +1000,7 @@ fn with_title_prop_and_desc_prop() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId, desc, descId })=><svg aria-labelledby={titleId} aria-describedby={descId}>{title ? <title id={titleId}>{title}</title> : null}{desc ? <desc id={descId}>{desc}</desc> : null}<g/></svg>;
+const SvgComponent = ({ title, titleId, desc, descId }) => <svg aria-labelledby={titleId} aria-describedby={descId}>{title ? <title id={titleId}>{title}</title> : null}{desc ? <desc id={descId}>{desc}</desc> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -982,7 +1016,7 @@ fn with_title_prop_and_expand_props() {
         },
         "<svg><g /></svg>",
         r#"import * as React from "react";
-const SvgComponent = ({ title, titleId, ...props })=><svg aria-labelledby={titleId} {...props}>{title ? <title id={titleId}>{title}</title> : null}<g/></svg>;
+const SvgComponent = ({ title, titleId, ...props }) => <svg aria-labelledby={titleId} {...props}>{title ? <title id={titleId}>{title}</title> : null}<g /></svg>;
 export default SvgComponent;
 "#,
     );
@@ -1000,7 +1034,7 @@ fn with_both_memo_and_ref_option() {
         "<svg><g /></svg>",
         r#"import * as React from "react";
 import { forwardRef, memo } from "react";
-const SvgComponent = (_, ref)=><svg ref={ref}><g/></svg>;
+const SvgComponent = (_, ref) => <svg ref={ref}><g /></svg>;
 const ForwardRef = forwardRef(SvgComponent);
 const Memo = memo(ForwardRef);
 export default Memo;

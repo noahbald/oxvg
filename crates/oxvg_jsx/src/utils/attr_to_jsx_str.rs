@@ -11,7 +11,7 @@ pub fn attr_to_jsx_str<'input>(attr: &AttrId<'input>) -> Result<Atom<'input>, Bu
     if attr.prefix().value() != attr.unaliased().prefix().value() {
         return Err(BuildError::UnknownXMLPrefixAttr(attr.clone()));
     }
-    Ok(match attr {
+    Ok(Atom::Static(match attr {
         // HTML
         AttrId::AutoFocus => "autoFocus",
         AttrId::Class => "className",
@@ -296,6 +296,5 @@ pub fn attr_to_jsx_str<'input>(attr: &AttrId<'input>) -> Result<Atom<'input>, Bu
                 }
             }
         }
-    }
-    .into())
+    }))
 }

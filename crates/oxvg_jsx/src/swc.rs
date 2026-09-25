@@ -3,7 +3,12 @@
 mod get_variables;
 mod preset;
 
-use crate::{Config, config::State, error::BuildError, utils::attr_to_jsx_str};
+use crate::{
+    Config,
+    config::State,
+    error::BuildError,
+    utils::{attr_filter_map, attr_to_jsx_str},
+};
 
 use convert_case::{Case, Casing as _};
 use oxvg_ast::{
@@ -151,51 +156,7 @@ pub fn element_to_jsx<'input>(
         attrs: element
             .attributes()
             .into_iter()
-            .filter_map(|a| match attr_to_jsx(&a) {
-                Ok(a) => Some(Ok(a)),
-                // These errors are okay, just emit warning and drop the attribute.
-                Err(BuildError::UnsupportedXMLNS(uri)) => {
-                    if config.warn() {
-                        eprintln!(
-                            "Warning: dropped `xmlns:{}=\"{uri}\"` namespace from {}",
-                            a.name(),
-                            if let Some(state) = state {
-                                state.component_name.as_str()
-                            } else {
-                                "document"
-                            }
-                        );
-                    }
-                    None
-                }
-                Err(BuildError::UnknownXMLPrefixAttr(name)) => {
-                    if config.warn() {
-                        eprintln!(
-                            "Warning: dropped `{name}` attribute from {}",
-                            if let Some(state) = state {
-                                state.component_name.as_str()
-                            } else {
-                                "document"
-                            }
-                        );
-                    }
-                    None
-                }
-                Err(BuildError::InvalidJSXName(attr)) => {
-                    if config.warn() {
-                        eprintln!(
-                            "Warning: dropped `{attr}` attribute from {}. It is not a valid attribute of `{name}`.",
-                            if let Some(state) = state {
-                                state.component_name.as_str()
-                            } else {
-                                "document"
-                            },
-                        );
-                    }
-                    None
-                }
-                Err(err) => Some(Err(err)),
-            })
+            .filter_map(|a| attr_filter_map(&a, name, config, state, attr_to_jsx))
             .collect::<Result<Vec<_>, BuildError>>()?,
         self_closing: !element.has_child_nodes(),
         span: DUMMY_SP,
@@ -231,20 +192,30 @@ fn attr_to_jsx<'input>(attr: &Attr<'input>) -> Result<JSXAttrOrSpread, BuildErro
             DUMMY_SP,
         )),
         span: DUMMY_SP,
-        value: Some(attr_value_to_svg(attr)?),
+        value: attr_value_to_svg(attr)?,
     }))
 }
 
-fn attr_value_to_svg<'input>(attr: &Attr<'input>) -> Result<JSXAttrValue, BuildError<'input>> {
-    Ok(match attr.value() {
-        ContentType::TrueFalse(value) => JSXAttrValue::JSXExprContainer(JSXExprContainer {
-            span: DUMMY_SP,
-            expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Bool(value.0.into())))),
-        }),
+fn attr_value_to_svg<'input>(
+    attr: &Attr<'input>,
+) -> Result<Option<JSXAttrValue>, BuildError<'input>> {
+    Ok(Some(match attr.value() {
+        ContentType::TrueFalse(value) => {
+            if value.0 {
+                return Ok(None);
+            }
+            JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                span: DUMMY_SP,
+                expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Bool(value.0.into())))),
+            })
+        }
         ContentType::TrueFalseUndefined(value) => {
             JSXAttrValue::JSXExprContainer(JSXExprContainer {
                 span: DUMMY_SP,
                 expr: JSXExpr::Expr(Box::new(Expr::Lit(if let Some(bool) = &value.0 {
+                    if bool.0 {
+                        return Ok(None);
+                    }
                     Lit::Bool(bool.0.into())
                 } else {
                     Lit::Str("undefined".into())
@@ -309,5 +280,5 @@ fn attr_value_to_svg<'input>(attr: &Attr<'input>) -> Result<JSXAttrValue, BuildE
                 .map_err(|_| BuildError::PrinterError)?
                 .into(),
         ),
-    })
+    }))
 }

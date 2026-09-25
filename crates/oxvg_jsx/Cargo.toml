@@ -14,15 +14,21 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["swc_core", "optimise"]
+default = ["optimise"]
 clap = ["dep:clap"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_optimiser/napi"]
 optimise = ["dep:oxvg_optimiser"]
-oxc_ast = ["dep:oxc_ast"]
+oxc_ast = [
+  "dep:oxc_allocator",
+  "dep:oxc_ast",
+  "dep:oxc_codegen",
+  "dep:oxc_parser",
+  "dep:oxc_syntax",
+]
 swc_core = ["dep:swc_core", "dep:swc_ecma_lexer"]
 
 [dependencies]
-oxvg_ast = { workspace = true }
+oxvg_ast = { workspace = true, features = ["range"] }
 oxvg_collections = { workspace = true, features = ["serialize"] }
 oxvg_optimiser = { workspace = true, optional = true }
 oxvg_serialize = { workspace = true }
@@ -33,7 +39,11 @@ itertools = { workspace = true }
 lightningcss = { workspace = true }
 napi = { workspace = true, optional = true }
 napi-derive = { workspace = true, optional = true }
+oxc_allocator = { workspace = true, optional = true }
 oxc_ast = { workspace = true, optional = true }
+oxc_codegen = { workspace = true, optional = true }
+oxc_parser = { workspace = true, optional = true }
+oxc_syntax = { workspace = true, optional = true }
 swc_core = { workspace = true, optional = true, features = [
   "ecma_ast",
   "ecma_codegen",
@@ -42,6 +52,22 @@ swc_core = { workspace = true, optional = true, features = [
 swc_ecma_lexer = { workspace = true, optional = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
 oxvg_ast = { workspace = true, features = ["serialize", "roxmltree"] }
+oxc_allocator = { workspace = true }
+oxc_ast = { workspace = true }
+oxc_codegen = { workspace = true }
+oxc_parser = { workspace = true }
+oxc_span = { workspace = true }
 
 pretty_assertions = { workspace = true }
+
+[[bench]]
+name = "transform_swc"
+harness = false
+required-features = ["swc_core"]
+
+[[bench]]
+name = "transform_oxc"
+harness = false
+required-features = ["oxc_ast"]

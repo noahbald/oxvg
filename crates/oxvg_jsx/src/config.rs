@@ -6,7 +6,6 @@ use std::marker::PhantomData;
 #[cfg(feature = "optimise")]
 use oxvg_optimiser::Jobs;
 
-#[cfg(feature = "swc_core")]
 use crate::error::TemplateError;
 
 #[derive(Default, Clone)]
@@ -152,6 +151,7 @@ impl Default for Icon {
     }
 }
 
+#[cfg(feature = "swc_core")]
 /// A template function to write the resulting document after processing is completed.
 #[derive(Clone)]
 // FIXME: remove when rustfmt no longer panics on these generics
@@ -166,10 +166,32 @@ pub enum Template<
     /// Write string chunks to the writer.
     String(FS, PhantomData<W>),
 }
+#[cfg(feature = "oxc_ast")]
+/// A template function to write the resulting document after processing is completed.
+#[derive(Clone, Copy)]
+// FIXME: remove when rustfmt no longer panics on these generics
+#[rustfmt::skip]
+pub enum Template<
+    W: Write,
+    FA: = TemplateAST<W>,
+    FS: FnOnce(&mut W, VariablesString, TemplateContext) -> Result<(), TemplateError> = TemplateString<W>
+> {
+    /// Write AST chunks to the writer.
+    AST(FA, PhantomData<W>),
+    /// Write string chunks to the writer.
+    String(FS, PhantomData<W>),
+}
 
+#[cfg(feature = "swc_core")]
 impl<W: Write> Default for Template<W> {
     fn default() -> Self {
         Self::AST(crate::swc::default_template, PhantomData)
+    }
+}
+#[cfg(feature = "oxc_ast")]
+impl<W: Write> Default for Template<W> {
+    fn default() -> Self {
+        Self::AST(crate::oxc::default_template, PhantomData)
     }
 }
 
@@ -177,10 +199,20 @@ impl<W: Write> Default for Template<W> {
 /// A function to join the variables (i.e. the JSX chunks) into a JSX document.
 pub type TemplateAST<W> =
     fn(w: &mut W, variables: VariablesAST, context: TemplateContext) -> Result<(), TemplateError>;
+#[cfg(feature = "oxc_ast")]
+/// A function to join the variables (i.e. the JSX chunks) into a JSX document.
+pub type TemplateAST<W> = for<'alloc> fn(
+    w: &mut W,
+    variables: VariablesAST<'alloc>,
+    context: TemplateContext,
+) -> Result<(), TemplateError>;
 
 #[cfg(feature = "swc_core")]
 /// A set of JSX parts to be passed to a template function.
 pub type VariablesAST = crate::swc::Variables;
+#[cfg(feature = "oxc_ast")]
+/// A set of JSX parts to be passed to a template function.
+pub type VariablesAST<'input> = crate::oxc::Variables<'input>;
 
 /// A function to join the variables (i.e. the JSX chunks) into a JSX document.
 pub type TemplateString<W> = fn(

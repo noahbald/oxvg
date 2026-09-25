@@ -65,7 +65,12 @@ napi-build = { version = "2.4", default-features = false }
 napi-derive = { version = "3.6" }
 num-traits = "0.2"
 nunny = "0.2"
+oxc_allocator = "0.142"
 oxc_ast = "0.142"
+oxc_codegen = "0.142"
+oxc_parser = "0.142"
+oxc_span = "0.142"
+oxc_syntax = "0.142"
 paste = "1.0"
 phf = { version = "0.14", features = ["macros"] }
 precomputed-hash = "0.1"
