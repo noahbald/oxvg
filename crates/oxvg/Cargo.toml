@@ -22,6 +22,11 @@ test = false
 default = []
 visual-regression = ["dep:skia-safe"]
 render = ["dep:skia-safe"]
+jsonschema = [
+  "dep:schemars",
+  "oxvg_lint/jsonschema",
+  "oxvg_optimiser/jsonschema",
+]
 
 [dependencies]
 oxvg_actions = { workspace = true, features = ["optimise"] }
@@ -47,6 +52,7 @@ ls-types = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+schemars = { workspace = true, optional = true }
 skia-safe = { version = "0.99", optional = true, features = ["svg"] }
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -59,3 +65,10 @@ tokio = { workspace = true, features = ["io-std", "rt-multi-thread", "macros"] }
 tower-lsp-server = { workspace = true }
 typed-arena = { workspace = true }
 urlencoding = { workspace = true }
+
+[dev-dependencies]
+schemars = { workspace = true }
+
+[[example]]
+name = "schema"
+required-features = ["jsonschema"]

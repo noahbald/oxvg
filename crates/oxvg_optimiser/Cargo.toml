@@ -17,6 +17,7 @@ workspace = true
 default = ["serde"]
 clap = ["dep:clap"]
 js_sys = ["dep:js-sys"]
+jsonschema = ["schemars", "serde", "oxvg_path/jsonschema"]
 serde = ["dep:serde", "dep:serde_json", "dep:serde_with", "oxvg_path/serde"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_path/napi"]
 wasm = [
@@ -47,6 +48,7 @@ derive_more = { workspace = true }
 derive-where = { workspace = true }
 i_overlay = { workspace = true }
 itertools = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }

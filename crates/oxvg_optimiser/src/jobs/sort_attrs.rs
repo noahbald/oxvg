@@ -13,6 +13,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 /// The method for ordering xmlns attributes
@@ -32,6 +33,7 @@ pub enum XMLNSOrder {
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Sorts attributes into a predictable order.

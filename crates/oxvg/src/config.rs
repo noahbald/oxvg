@@ -7,6 +7,7 @@ use oxvg_optimiser::Extends;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// The configuration for optimisation
 pub struct Optimise {
     /// The preset the jobs will extend
@@ -21,6 +22,7 @@ pub struct Optimise {
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// The config for the CLI usage of OXVG
 pub struct Config {
     /// The options for each job to override the specified preset.

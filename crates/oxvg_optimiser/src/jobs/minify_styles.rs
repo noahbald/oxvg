@@ -49,6 +49,7 @@ pub enum RemoveUnused {
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Minify `<style>` elements with lightningcss
@@ -251,6 +252,23 @@ impl<'a> State<'a, '_, '_> {
             ids_usage: RefCell::new(HashSet::new()),
             classes_usage: RefCell::new(HashSet::new()),
         }
+    }
+}
+
+#[cfg(feature = "jsonschema")]
+impl schemars::JsonSchema for RemoveUnused {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "RemoveUnused".into()
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        concat!(module_path!(), "RemoveUnused").into()
+    }
+
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": ["boolean", "string"]
+        })
     }
 }
 
