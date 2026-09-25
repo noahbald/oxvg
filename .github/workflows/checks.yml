@@ -37,6 +37,8 @@ jobs:
         run: cargo doc --workspace --no-deps --locked
       - name: Run tests
         run: cargo test --workspace --verbose --locked --exclude oxvg_jsx_napi --exclude oxvg_napi --exclude oxvg_wasm
+      - name: Run tests (oxvg_jsx/oxc_ast)
+        run: cargo test -p oxvg_jsx -F oxc_ast --verbose --locked
 
   toml:
     name: Toml formatting
