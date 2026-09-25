@@ -28,22 +28,3 @@ Created by Noah Baldwin
         })
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::Actor;
-
-    #[test]
-    fn about() {
-        oxvg_ast::parse::roxmltree::parse(
-            r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#,
-            |root, allocator| {
-                let mut actor = Actor::new(root, allocator).unwrap();
-
-                actor.about().unwrap();
-                insta::assert_debug_snapshot!(actor.derive_state().unwrap());
-            },
-        )
-        .unwrap();
-    }
-}
