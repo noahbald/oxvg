@@ -28,6 +28,7 @@ macro_rules! jobs {
         #[allow(clippy::unsafe_derive_deserialize)]
         #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
         #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+        #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
         #[derive(Clone, Debug)]
         #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
         /// Each task for optimising an SVG document.

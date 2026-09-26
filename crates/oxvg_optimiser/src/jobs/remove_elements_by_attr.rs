@@ -14,6 +14,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Default, Debug, Clone)]
 /// Remove elements by ID or classname
 ///
@@ -27,10 +28,10 @@ use crate::error::JobsError;
 ///
 /// If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
 pub struct RemoveElementsByAttr {
-    #[cfg_attr(feature = "serde", serde(default = "Vec::new"))]
+    #[cfg_attr(feature = "serde", serde(default = "Vec::<String>::new"))]
     /// Ids of elements to be removed
     pub id: Vec<String>,
-    #[cfg_attr(feature = "serde", serde(default = "Vec::new"))]
+    #[cfg_attr(feature = "serde", serde(default = "Vec::<String>::new"))]
     /// Class-names of elements to be removed
     pub class: Vec<String>,
 }

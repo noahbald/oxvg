@@ -14,6 +14,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes inline JPEGs, PNGs, and GIFs from the document.

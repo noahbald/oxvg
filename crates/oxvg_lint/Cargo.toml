@@ -19,6 +19,7 @@ clap = ["dep:clap"]
 lsp = ["dep:ls-types"]
 parse = ["oxvg_ast/parse", "oxvg_ast/roxmltree"]
 serde = ["dep:serde"]
+jsonschema = ["schemars", "serde"]
 
 [dependencies]
 oxvg_ast = { workspace = true, features = ["range"] }
@@ -30,6 +31,7 @@ ls-types = { workspace = true, optional = true }
 lightningcss = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
 
 [dev-dependencies]
 oxvg_path = { workspace = true }

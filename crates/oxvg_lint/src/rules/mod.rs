@@ -33,6 +33,7 @@ mod no_xlink;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 /// What is the severity of the reported error.
 pub enum Severity {
@@ -48,6 +49,7 @@ pub enum Severity {
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 /// A set of rules to assert against a document.
 ///
 /// The [`Severity`] provided for each rule determines the display of each attribute

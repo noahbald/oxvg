@@ -55,6 +55,7 @@ use tsify::Tsify;
 #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// A preset which the specified jobs can overwrite

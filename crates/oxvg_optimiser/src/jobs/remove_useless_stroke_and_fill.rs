@@ -23,6 +23,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes useless `stroke` and `fill` attributes

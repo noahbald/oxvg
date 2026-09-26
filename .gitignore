@@ -1,4 +1,5 @@
 /target
+/schema
 
 *.svg
 !crates/oxvg_optimiser/benches/fixtures/*.svg

@@ -2237,6 +2237,7 @@ dependencies = [
  "oxvg_optimiser",
  "oxvg_parse",
  "roxmltree",
+ "schemars 1.2.2",
  "serde",
  "serde_json",
  "skia-safe",
@@ -2378,6 +2379,7 @@ dependencies = [
  "oxvg_collections",
  "oxvg_path",
  "rayon",
+ "schemars 1.2.2",
  "serde",
 ]
 
@@ -2426,6 +2428,7 @@ dependencies = [
  "phf 0.14.0",
  "regex",
  "roxmltree",
+ "schemars 1.2.2",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

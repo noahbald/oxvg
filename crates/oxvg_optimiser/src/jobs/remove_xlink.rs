@@ -23,6 +23,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Clone, Debug, Default)]
 /// Replaces `xlink` prefixed attributes to the native SVG equivalent.
 ///

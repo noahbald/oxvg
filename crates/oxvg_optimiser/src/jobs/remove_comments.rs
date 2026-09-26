@@ -15,6 +15,7 @@ use crate::{error::JobsError, utils::regex_memo};
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", skip_serializing_none)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Removes XML comments from the document.
@@ -77,6 +78,21 @@ impl RemoveComments {
 
         comment.remove();
         Ok(())
+    }
+}
+
+#[cfg(feature = "jsonschema")]
+impl schemars::JsonSchema for PreservePattern {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "PreservePattern".into()
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        concat!(module_path!(), "PreservePattern").into()
+    }
+
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({ "type": "string" })
     }
 }
 

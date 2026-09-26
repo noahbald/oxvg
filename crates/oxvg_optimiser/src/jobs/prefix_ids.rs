@@ -45,6 +45,7 @@ const fn default_prefix_class_names() -> bool {
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Prefix element ids and classnames with the filename or provided string. This
@@ -243,6 +244,23 @@ impl PrefixIds {
             Reference::Atom(atom) => *atom = new_url.into(),
             Reference::Css(cow) => *cow = new_url.into(),
         }
+    }
+}
+
+#[cfg(feature = "jsonschema")]
+impl schemars::JsonSchema for PrefixGenerator {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "PrefixGenerator".into()
+    }
+
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": ["string", "boolean", "null"]
+        })
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        concat!(module_path!(), "::PrefixGenerator").into()
     }
 }
 
