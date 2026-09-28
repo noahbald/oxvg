@@ -73,7 +73,7 @@ impl Default for ApplyTransforms {
     }
 }
 
-const fn default_apply_transforms_stroked() -> bool {
+pub(crate) const fn default_apply_transforms_stroked() -> bool {
     true
 }
 
