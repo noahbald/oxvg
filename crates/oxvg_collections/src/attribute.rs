@@ -31,7 +31,7 @@ use lightningcss::{
     },
     vendor_prefix::VendorPrefix,
 };
-use list_of::{ListOf, Semicolon, Separators, Space, SpaceOrComma};
+use list_of::{Comma, ListOf, Semicolon, Separators, Space, SpaceOrComma};
 use path::{Path, Points};
 use presentation::{
     AlignmentBaseline, BaselineShift, Clip, ClipPath, ColorInterpolation, ColorProfile,
@@ -2695,7 +2695,7 @@ try_from_into_property! {
     Font(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontFamily(value) => Inheritable::Defined(FontFamily(ListOf {
         list: value,
-        separator: SpaceOrComma,
+        separator: Comma,
     })) => value.option().ok_or(())?.0.list,
     FontSize(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     FontStretch(value) => Inheritable::Defined(value) => value.option().ok_or(())?,

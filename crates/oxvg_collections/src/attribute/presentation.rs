@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use super::{
     core_attrs::{Angle, Anything, Length, Number, Percentage},
-    list_of::{ListOf, SpaceOrComma},
+    list_of::{Comma, ListOf, SpaceOrComma},
 };
 use lightningcss::values::length::LengthValue;
 pub use lightningcss::{
@@ -420,7 +420,7 @@ fn enable_background() {
 ///
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/text.html#FontFamilyProperty)
 pub struct FontFamily<'input>(
-    pub ListOf<lightningcss::properties::font::FontFamily<'input>, SpaceOrComma>,
+    pub ListOf<lightningcss::properties::font::FontFamily<'input>, Comma>,
 );
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for FontFamily<'input> {
@@ -439,11 +439,19 @@ impl ToValue for FontFamily<'_> {
 }
 #[test]
 fn font_family() {
+    use oxvg_serialize::PrinterOptions;
+
     let value = FontFamily::parse_string(
         r#"'MS Hei',"MS Song",LiSu,隶书,Code2000,'Arial Unicode MS', sans-serif "#,
     )
     .unwrap();
     assert_eq!(value.0.list.len(), 7);
+    assert_eq!(
+        value.to_value_string(PrinterOptions::default()).unwrap(),
+        "MS Hei,MS Song,LiSu,隶书,Code2000,Arial Unicode MS,sans-serif"
+    );
+    let value = FontFamily::parse_string("'Foo' , serif").unwrap();
+    assert_eq!(value.0.list.len(), 2);
 }
 
 #[derive(Clone, Debug, PartialEq)]
