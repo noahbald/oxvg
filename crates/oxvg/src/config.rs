@@ -47,21 +47,27 @@ impl Config {
         Ok((read_to_string(&path)?, path))
     }
 
-    /// Tries loading the configuration from well-known paths
+    /// Loads the configuration from well-known paths, or the default when
+    /// there is none that can be read
     ///
     /// # Errors
-    /// When the config is missing
+    /// When the config exists but cannot be parsed
     ///
     /// # Panics
-    /// When the config exists but cannot be parsed
+    /// When the home directory cannot be determined
     pub fn load() -> std::io::Result<Self> {
-        let (file, path) = Self::load_local().or_else(|_| Self::load_base())?;
-        Ok(serde_json::from_str(&file).unwrap_or_else(|err| {
-            panic!(
-                "Configuration at {} cannot be parsed: {err}",
-                path.to_string_lossy()
+        let Ok((file, path)) = Self::load_local().or_else(|_| Self::load_base()) else {
+            return Ok(Self::default());
+        };
+        serde_json::from_str(&file).map_err(|err| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Configuration at {} cannot be parsed: {err}",
+                    path.to_string_lossy()
+                ),
             )
-        }))
+        })
     }
 }
 
