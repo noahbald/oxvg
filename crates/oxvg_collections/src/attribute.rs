@@ -2709,7 +2709,7 @@ try_from_into_property! {
     Marker(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Mask(value, vp) => Inheritable::Defined(Mask(ListOf {
         list: value.to_vec(),
-        separator: SpaceOrComma,
+        separator: Comma,
     })) => value.option().ok_or(())?.0.list.into(),
     Opacity(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     Overflow(value) => Inheritable::Defined(value) => value.option().ok_or(())?,

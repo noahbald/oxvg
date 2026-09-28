@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use super::{
     core_attrs::{Angle, Anything, Length, Number, Percentage},
-    list_of::{Comma, ListOf, SpaceOrComma},
+    list_of::{Comma, ListOf},
 };
 use lightningcss::values::length::LengthValue;
 pub use lightningcss::{
@@ -1125,7 +1125,7 @@ fn length_percentage() {
 ///
 /// [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/masking.html#MaskProperty)
 /// [SVG 2](https://drafts.fxtf.org/css-masking-1/#propdef-mask)
-pub struct Mask<'input>(pub ListOf<lightningcss::properties::masking::Mask<'input>, SpaceOrComma>);
+pub struct Mask<'input>(pub ListOf<lightningcss::properties::masking::Mask<'input>, Comma>);
 #[cfg(feature = "parse")]
 impl<'input> Parse<'input> for Mask<'input> {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
@@ -1140,6 +1140,17 @@ impl ToValue for Mask<'_> {
     {
         self.0.write_value(dest)
     }
+}
+#[test]
+fn mask() {
+    use oxvg_serialize::PrinterOptions;
+
+    let value = Mask::parse_string("url(#a), url(#b)").unwrap();
+    assert_eq!(value.0.list.len(), 2);
+    assert_eq!(
+        value.to_value_string(PrinterOptions::default()).unwrap(),
+        r##"url("#a"),url("#b")"##
+    );
 }
 
 enum_attr!(
