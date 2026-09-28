@@ -31,7 +31,7 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 /// Apply transformations of a `transform` attribute to the path data, removing the `transform`
 /// in the process.
@@ -46,8 +46,9 @@ use crate::error::JobsError;
 ///
 /// When specifying a precision there may be rounding errors affecting the accuracy of documents.
 ///
-/// When specifying to apply to apply transforms to a stroked path the stroke may be visually
-/// warped when compared to the original.
+/// Transforms are only applied to a stroked path when they neither skew it nor scale it unevenly,
+/// and the stroke width is scaled with them. Set `applyTransformsStroked` to `false` to leave
+/// stroked paths alone.
 ///
 /// # Errors
 ///
@@ -58,9 +59,22 @@ pub struct ApplyTransforms {
     /// The level of precising at which to round transforms applied to the path data.
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub transform_precision: Option<f64>,
-    /// Whether or not to apply transforms to paths with a stroke.
-    #[cfg_attr(feature = "serde", serde(default = "bool::default"))]
+    /// Whether or not to apply transforms to paths with a stroke. Defaults to `true`, as in SVGO.
+    #[cfg_attr(feature = "serde", serde(default = "default_apply_transforms_stroked"))]
     pub apply_transforms_stroked: bool,
+}
+
+impl Default for ApplyTransforms {
+    fn default() -> Self {
+        Self {
+            transform_precision: None,
+            apply_transforms_stroked: default_apply_transforms_stroked(),
+        }
+    }
+}
+
+const fn default_apply_transforms_stroked() -> bool {
+    true
 }
 
 impl<'input, 'arena> Visitor<'input, 'arena> for ApplyTransforms {
@@ -196,7 +210,7 @@ impl ApplyTransforms {
         if matches!(stroke, SVGPaint::None) {
             return false;
         }
-        if self.apply_transforms_stroked {
+        if !self.apply_transforms_stroked {
             log::debug!("apply_stroked: not applying transformed stroke");
             return true;
         }
@@ -587,6 +601,30 @@ fn apply_transforms() -> anyhow::Result<()> {
   <path d="m5.25,2.2H25.13a0,0,0,0,1-.05-.05V14.18Z" transform="translate(0 0)"/>
 </svg>"#
         )
+    )?);
+
+    Ok(())
+}
+
+#[test]
+fn apply_transforms_stroked() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "applyTransforms": { "applyTransformsStroked": false }, "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
+    <path transform="scale(2)" d="M10 10h20v20h-20z" fill="none" stroke="#000" stroke-width="1"/>
+</svg>"##
+        ),
+    )?);
+    insta::assert_snapshot!(test_config(
+        r#"{ "applyTransforms": { "applyTransformsStroked": true }, "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg">
+    <path transform="scale(2)" d="M10 10h20v20h-20z" fill="none" stroke="#000" stroke-width="1"/>
+</svg>"##
+        ),
     )?);
 
     Ok(())
