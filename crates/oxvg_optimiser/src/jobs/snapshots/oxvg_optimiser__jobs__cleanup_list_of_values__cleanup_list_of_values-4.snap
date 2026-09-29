@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_list_of_values.rs
+expression: "test_config(r#\"{ \"cleanupListOfValues\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" enable-background=\"new 0 0 1.23456 2.34567\">\n    <!-- Should cleanup lists in presentation attributes -->\n    <path stroke-dasharray=\"1.23456 2.34567\" d=\"M0 0h10\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 1.235 2.346">
+    <!-- Should cleanup lists in presentation attributes -->
+    <path stroke-dasharray="1.235 2.346" d="M0 0h10"/>
+</svg>

@@ -127,5 +127,15 @@ fn cleanup_list_of_values() -> anyhow::Result<()> {
         )
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupListOfValues": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 1.23456 2.34567">
+    <!-- Should cleanup lists in presentation attributes -->
+    <path stroke-dasharray="1.23456 2.34567" d="M0 0h10"/>
+</svg>"#
+        )
+    )?);
+
     Ok(())
 }
