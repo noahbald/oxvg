@@ -46,10 +46,6 @@ use crate::error::JobsError;
 ///
 /// When specifying a precision there may be rounding errors affecting the accuracy of documents.
 ///
-/// Transforms are only applied to a stroked path when they neither skew it nor scale it unevenly,
-/// and the stroke width is scaled with them. Set `applyTransformsStroked` to `false` to leave
-/// stroked paths alone.
-///
 /// # Errors
 ///
 /// Never.
@@ -60,6 +56,9 @@ pub struct ApplyTransforms {
     #[cfg_attr(feature = "wasm", tsify(optional))]
     pub transform_precision: Option<f64>,
     /// Whether or not to apply transforms to paths with a stroke. Defaults to `true`, as in SVGO.
+    ///
+    /// Transforms are only applied to a stroked path when they neither skew it nor scale it
+    /// unevenly, and the stroke width is scaled with them.
     #[cfg_attr(feature = "serde", serde(default = "default_apply_transforms_stroked"))]
     pub apply_transforms_stroked: bool,
 }
