@@ -13,6 +13,8 @@ use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{Printer, PrinterOptions, ToValue, error::PrinterError};
 
+#[cfg(feature = "serialize")]
+use super::core_attrs::write_number;
 use super::core_attrs::{Angle, Number};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -360,56 +362,56 @@ impl ToValue for SVGTransform {
         match self {
             SVGTransform::Matrix(Matrix { a, b, c, d, e, f }) => {
                 dest.write_str("matrix(")?;
-                a.write_value(dest)?;
+                write_number(*a, dest)?;
                 dest.write_char(' ')?;
-                b.write_value(dest)?;
+                write_number(*b, dest)?;
                 dest.write_char(' ')?;
-                c.write_value(dest)?;
+                write_number(*c, dest)?;
                 dest.write_char(' ')?;
-                d.write_value(dest)?;
+                write_number(*d, dest)?;
                 dest.write_char(' ')?;
-                e.write_value(dest)?;
+                write_number(*e, dest)?;
                 dest.write_char(' ')?;
-                f.write_value(dest)?;
+                write_number(*f, dest)?;
                 dest.write_char(')')
             }
             SVGTransform::Translate(x, y) => {
                 dest.write_str("translate(")?;
-                x.write_value(dest)?;
+                write_number(*x, dest)?;
                 if *y != 0.0 {
                     dest.write_char(' ')?;
-                    y.write_value(dest)?;
+                    write_number(*y, dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::Scale(x, y) => {
                 dest.write_str("scale(")?;
-                x.write_value(dest)?;
+                write_number(*x, dest)?;
                 if x != y {
                     dest.write_char(' ')?;
-                    y.write_value(dest)?;
+                    write_number(*y, dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::Rotate(angle, x, y) => {
                 dest.write_str("rotate(")?;
-                angle.write_value(dest)?;
+                write_number(*angle, dest)?;
                 if *x != 0.0 || *y != 0.0 {
                     dest.write_char(' ')?;
-                    x.write_value(dest)?;
+                    write_number(*x, dest)?;
                     dest.write_char(' ')?;
-                    y.write_value(dest)?;
+                    write_number(*y, dest)?;
                 }
                 dest.write_char(')')
             }
             SVGTransform::SkewX(angle) => {
                 dest.write_str("skewX(")?;
-                angle.write_value(dest)?;
+                write_number(*angle, dest)?;
                 dest.write_char(')')
             }
             SVGTransform::SkewY(angle) => {
                 dest.write_str("skewY(")?;
-                angle.write_value(dest)?;
+                write_number(*angle, dest)?;
                 dest.write_char(')')
             }
             SVGTransform::CssTransform(transform) => transform.write_value(dest),

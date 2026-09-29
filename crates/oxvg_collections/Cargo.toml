@@ -19,7 +19,7 @@ markup5ever = ["dep:string_cache", "dep:tendril", "dep:xml5ever"]
 napi = ["dep:napi", "dep:napi-derive"]
 parse = ["dep:oxvg_parse", "dep:cssparser"]
 serde = ["dep:serde", "bitflags/serde"]
-serialize = ["dep:oxvg_serialize"]
+serialize = ["dep:oxvg_serialize", "oxvg_path/format"]
 wasm = ["dep:tsify", "dep:wasm-bindgen"]
 
 [dependencies]

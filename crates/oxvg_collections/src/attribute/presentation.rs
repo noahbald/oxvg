@@ -1,6 +1,8 @@
 //! Presentation attributes as specified in [styling](https://svgwg.org/svg2-draft/attindex.html#PresentationAttributes)
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "serialize")]
+use super::core_attrs::write_number;
 use super::{
     core_attrs::{Angle, Anything, Length, Number, Percentage},
     list_of::{Comma, ListOf},
@@ -1095,7 +1097,7 @@ impl ToValue for LengthPercentage {
         ))) = self
         {
             // NOTE: We're omitting length-value unit, since this is allowed in SVG 1.1
-            px.write_value(dest)
+            write_number(*px, dest)
         } else {
             self.0.write_value(dest)
         }

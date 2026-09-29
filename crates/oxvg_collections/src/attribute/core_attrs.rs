@@ -172,8 +172,9 @@ impl ToValue for Length {
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) => number.write_value(dest),
-            Self::Length(LengthValue::Px(length)) => length.write_value(dest),
+            Self::Number(number) | Self::Length(LengthValue::Px(number)) => {
+                write_number(*number, dest)
+            }
             Self::Length(length) => length.write_value(dest),
             Self::Percentage(percentage) => percentage.write_value(dest),
         }
@@ -278,6 +279,45 @@ pub type Integer = CSSInteger;
 /// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html#DataTypeIRI)
 pub type IRI<'i> = Anything<'i>;
 
+#[cfg(feature = "serialize")]
+/// Writes a number of SVG geometry in the shortest form that reads back as
+/// the same value, as path data is written.
+///
+/// Values written through lightningcss are rounded to six significant digits,
+/// the way CSSOM serialises CSS; in geometry that moves things
+/// (`translate(2888.4292 0)` would become `translate(2888.43 0)`). Rounding on
+/// purpose is left to the jobs' precision options, as in SVGO.
+pub(crate) fn write_number<W>(value: f32, dest: &mut Printer<W>) -> Result<(), PrinterError>
+where
+    W: std::fmt::Write,
+{
+    dest.write_str(&oxvg_path::command::short_number(value))
+}
+#[cfg(feature = "serialize")]
+#[test]
+fn write_number_keeps_every_digit() {
+    let number = |text: &str| {
+        let value: f32 = text.parse().unwrap();
+        let mut s = String::new();
+        write_number(
+            value,
+            &mut Printer::new(&mut s, oxvg_serialize::PrinterOptions::default()),
+        )
+        .unwrap();
+        assert_eq!(s.parse::<f32>(), Ok(value), "{text} -> {s}");
+        s
+    };
+    assert_eq!(number("2888.4292"), "2888.4292");
+    assert_eq!(number("-2229.106"), "-2229.106");
+    // More digits than an `f32` holds: the shortest form of the same value
+    assert_eq!(number("4.2333332"), "4.233333");
+    assert_eq!(number("0.21329178"), ".21329178");
+    assert_eq!(number("-0.5"), "-.5");
+    assert_eq!(number("40"), "40");
+    assert_eq!(number("1000"), "1000");
+    assert_eq!(number("2.5e-10"), "2.5e-10");
+}
+
 /// A non-whitespace, non-parenthesis, non-comma value
 pub type Name<'i> = Anything<'i>;
 /// A real number
@@ -320,10 +360,10 @@ impl ToValue for NumberOptionalNumber {
     where
         W: std::fmt::Write,
     {
-        self.0.write_value(dest)?;
+        write_number(self.0, dest)?;
         if let Some(b) = self.1 {
             dest.write_char(' ')?;
-            b.write_value(dest)?;
+            write_number(b, dest)?;
         }
         Ok(())
     }
