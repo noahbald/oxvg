@@ -224,7 +224,7 @@ fn attr_value_to_svg<'input>(
         }
         ContentType::Number(value) => JSXAttrValue::JSXExprContainer(JSXExprContainer {
             span: DUMMY_SP,
-            expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Num((*value as f64).into())))),
+            expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Num((value.0 as f64).into())))),
         }),
         ContentType::Integer(value) => JSXAttrValue::JSXExprContainer(JSXExprContainer {
             span: DUMMY_SP,

@@ -13,9 +13,9 @@ use oxvg_parse::{Parse, Parser, error::Error};
 #[cfg(feature = "serialize")]
 use oxvg_serialize::{Printer, PrinterOptions, ToValue, error::PrinterError};
 
+use super::core_attrs::Angle;
 #[cfg(feature = "serialize")]
 use super::core_attrs::write_number;
-use super::core_attrs::{Angle, Number};
 
 #[derive(Debug, Clone, PartialEq)]
 /// A transform applied to an element and it's children
@@ -561,7 +561,7 @@ impl SVGTransformList {
     }
 
     /// Converts the transform to a 3D matrix.
-    pub fn to_matrix(&self) -> Option<Matrix3d<Number>> {
+    pub fn to_matrix(&self) -> Option<Matrix3d<f32>> {
         let mut matrix = Matrix3d::identity();
         for transform in &self.0 {
             let transform = if let SVGTransform::Rotate(angle, 0.0, 0.0) = transform {
@@ -575,7 +575,7 @@ impl SVGTransformList {
     }
 
     /// Attempts to convert the matrix to 2D.
-    pub fn to_matrix_2d(&self) -> Option<Matrix<Number>> {
+    pub fn to_matrix_2d(&self) -> Option<Matrix<f32>> {
         self.to_matrix().and_then(|m| m.to_matrix2d())
     }
 }

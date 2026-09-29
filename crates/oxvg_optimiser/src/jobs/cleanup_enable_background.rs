@@ -160,8 +160,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
             let LengthPercentage(DimensionPercentage::Dimension(height)) = &*height else {
                 return Ok(());
             };
-            if width.to_px().is_none_or(|px| px != *eb_width)
-                || height.to_px().is_none_or(|px| px != *eb_height)
+            if width.to_px().is_none_or(|px| px != eb_width.0)
+                || height.to_px().is_none_or(|px| px != eb_height.0)
             {
                 return Ok(());
             }

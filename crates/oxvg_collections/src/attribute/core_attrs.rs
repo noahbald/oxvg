@@ -1,16 +1,11 @@
 //! Content types as specified in [SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html) and [SVG 2](https://svgwg.org/svg2-draft/propidx.html)
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use lightningcss::{
     declaration::DeclarationBlock,
     properties::svg::SVGPaint,
     stylesheet::ParserOptions,
-    values::{
-        alpha::AlphaValue,
-        color::CssColor,
-        length::LengthValue,
-        number::{CSSInteger, CSSNumber},
-    },
+    values::{alpha::AlphaValue, color::CssColor, length::LengthValue, number::CSSInteger},
 };
 
 pub use lightningcss::{
@@ -172,9 +167,8 @@ impl ToValue for Length {
         W: std::fmt::Write,
     {
         match self {
-            Self::Number(number) | Self::Length(LengthValue::Px(number)) => {
-                write_number(*number, dest)
-            }
+            Self::Number(number) => number.write_value(dest),
+            Self::Length(LengthValue::Px(length)) => write_number(*length, dest),
             Self::Length(length) => length.write_value(dest),
             Self::Percentage(percentage) => percentage.write_value(dest),
         }
@@ -247,8 +241,14 @@ impl ToValue for Frequency {
 }
 #[test]
 fn frequency() {
-    assert_eq!(Frequency::parse_string(" 10.5Hz "), Ok(Frequency::Hz(10.5)));
-    assert_eq!(Frequency::parse_string(" -1KHz "), Ok(Frequency::KHz(-1.0)));
+    assert_eq!(
+        Frequency::parse_string(" 10.5Hz "),
+        Ok(Frequency::Hz(Number(10.5)))
+    );
+    assert_eq!(
+        Frequency::parse_string(" -1KHz "),
+        Ok(Frequency::KHz(Number(-1.0)))
+    );
 
     assert_eq!(
         Frequency::parse_string("1 Khz"),
@@ -282,6 +282,9 @@ pub type IRI<'i> = Anything<'i>;
 #[cfg(feature = "serialize")]
 /// Writes a number of SVG geometry in the shortest form that reads back as
 /// the same value, as path data is written.
+///
+/// [`Number`] writes itself with it; this is for `f32` fields of other types
+/// (lightningcss lengths, transforms).
 ///
 /// Values written through lightningcss are rounded to six significant digits,
 /// the way CSSOM serialises CSS; in geometry that moves things
@@ -320,8 +323,54 @@ fn write_number_keeps_every_digit() {
 
 /// A non-whitespace, non-parenthesis, non-comma value
 pub type Name<'i> = Anything<'i>;
-/// A real number
-pub type Number = CSSNumber;
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
+/// A real number, written with every digit it holds, as path data is
+///
+/// A newtype rather than lightningcss'
+/// [`CSSNumber`](lightningcss::values::number::CSSNumber), so it isn't
+/// serialised the CSS way, rounded to six significant digits. It dereferences
+/// to `f32`.
+pub struct Number(pub f32);
+impl Deref for Number {
+    type Target = f32;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Number {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "parse")]
+impl<'input> Parse<'input> for Number {
+    fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
+        f32::parse(input).map(Self)
+    }
+}
+#[cfg(feature = "serialize")]
+impl ToValue for Number {
+    fn write_value<W>(&self, dest: &mut Printer<W>) -> Result<(), PrinterError>
+    where
+        W: std::fmt::Write,
+    {
+        write_number(self.0, dest)
+    }
+}
+#[cfg(all(feature = "parse", feature = "serialize"))]
+#[test]
+fn number_keeps_every_digit() {
+    use oxvg_serialize::PrinterOptions;
+    let round_trip = |text| {
+        Number::parse_string(text)
+            .unwrap()
+            .to_value_string(PrinterOptions::default())
+            .unwrap()
+    };
+    assert_eq!(round_trip("0.21329178"), ".21329178");
+    assert_eq!(round_trip("2888.4292"), "2888.4292");
+    assert_eq!(round_trip("-4"), "-4");
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// A pair of numbers, where the second is optional, separated by a comma or whitespace
@@ -360,10 +409,10 @@ impl ToValue for NumberOptionalNumber {
     where
         W: std::fmt::Write,
     {
-        write_number(self.0, dest)?;
+        self.0.write_value(dest)?;
         if let Some(b) = self.1 {
             dest.write_char(' ')?;
-            write_number(b, dest)?;
+            b.write_value(dest)?;
         }
         Ok(())
     }
@@ -372,23 +421,23 @@ impl ToValue for NumberOptionalNumber {
 fn number_optional_number() {
     assert_eq!(
         NumberOptionalNumber::parse_string("10"),
-        Ok(NumberOptionalNumber(10.0, None))
+        Ok(NumberOptionalNumber(Number(10.0), None))
     );
     assert_eq!(
         NumberOptionalNumber::parse_string("10 -1"),
-        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+        Ok(NumberOptionalNumber(Number(10.0), Some(Number(-1.0))))
     );
     assert_eq!(
         NumberOptionalNumber::parse_string("10,-1"),
-        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+        Ok(NumberOptionalNumber(Number(10.0), Some(Number(-1.0))))
     );
     assert_eq!(
         NumberOptionalNumber::parse_string("10 , -1"),
-        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+        Ok(NumberOptionalNumber(Number(10.0), Some(Number(-1.0))))
     );
     assert_eq!(
         NumberOptionalNumber::parse_string("10, -1"),
-        Ok(NumberOptionalNumber(10.0, Some(-1.0)))
+        Ok(NumberOptionalNumber(Number(10.0), Some(Number(-1.0))))
     );
 
     assert_eq!(

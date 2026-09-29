@@ -1,10 +1,7 @@
 //! WASM bindings for OXVG
 extern crate console_error_panic_hook;
 use oxvg_ast::{arena::Allocator, serialize::Node as _, visitor::Info, xmlwriter::Options};
-use oxvg_collections::{
-    attribute::{AttributeGroup, core_attrs::Number},
-    element::ElementCategory,
-};
+use oxvg_collections::{attribute::AttributeGroup, element::ElementCategory};
 use oxvg_optimiser::{Extends, Jobs};
 
 use wasm_bindgen::prelude::*;
@@ -435,15 +432,7 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
-    pub fn matrix(
-        &mut self,
-        a: Number,
-        b: Number,
-        c: Number,
-        d: Number,
-        e: Number,
-        f: Number,
-    ) -> Result<(), Error> {
+    pub fn matrix(&mut self, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Result<(), Error> {
         self.actor.matrix(a, b, c, d, e, f)
     }
 
@@ -453,7 +442,7 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
-    pub fn translate(&mut self, x: Number, y: Option<Number>) -> Result<(), Error> {
+    pub fn translate(&mut self, x: f32, y: Option<f32>) -> Result<(), Error> {
         self.actor.translate(x, y)
     }
 
@@ -463,7 +452,7 @@ impl Actor {
     ///
     /// When root element is missing.
     #[wasm_bindgen]
-    pub fn scale(&mut self, x: Number, y: Option<Number>) -> Result<(), Error> {
+    pub fn scale(&mut self, x: f32, y: Option<f32>) -> Result<(), Error> {
         self.actor.scale(x, y)
     }
 
@@ -475,9 +464,9 @@ impl Actor {
     #[wasm_bindgen]
     pub fn rotate(
         &mut self,
-        angle: Number,
+        angle: f32,
         #[wasm_bindgen(unchecked_param_type = "[number, number] | undefined")] origin: Option<
-            Vec<Number>,
+            Vec<f32>,
         >,
     ) -> Result<(), Error> {
         self.actor.rotate(
@@ -496,7 +485,7 @@ impl Actor {
     /// When root element is missing.
     #[wasm_bindgen]
     #[wasm_bindgen(js_name = skewX)]
-    pub fn skew_x(&mut self, angle: Number) -> Result<(), Error> {
+    pub fn skew_x(&mut self, angle: f32) -> Result<(), Error> {
         self.actor.skew_x(angle)
     }
 
@@ -507,7 +496,7 @@ impl Actor {
     /// When root element is missing.
     #[wasm_bindgen]
     #[wasm_bindgen(js_name = skewY)]
-    pub fn skew_y(&mut self, angle: Number) -> Result<(), Error> {
+    pub fn skew_y(&mut self, angle: f32) -> Result<(), Error> {
         self.actor.skew_y(angle)
     }
 
