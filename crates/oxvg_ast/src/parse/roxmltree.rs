@@ -42,20 +42,77 @@ struct NamespaceMap<'input> {
     uri_to_prefix: HashMap<Option<&'input str>, Option<&'input str>>,
 }
 
+/// An entry of [`NamespaceMap`] as it was before an element declared a namespace,
+/// restored once the element is parsed.
+#[allow(clippy::option_option)]
+enum Replaced<'input> {
+    /// The URI previously bound to a prefix, if any
+    Uri(Option<&'input str>, Option<Option<&'input str>>),
+    /// The prefix previously used for a URI, if any
+    Prefix(Option<&'input str>, Option<Option<&'input str>>),
+}
+
 #[allow(clippy::ref_option)]
 impl<'input> NamespaceMap<'input> {
     fn new() -> Self {
         Self::default()
     }
 
+    /// Binds `prefix` to `uri` and uses `prefix` for names in `uri`
     fn insert(
         &mut self,
         prefix: Option<&'input str>,
         uri: Option<&'input str>,
-    ) -> Option<(Option<&'input str>, Option<&'input str>)> {
-        let p = self.uri_to_prefix.insert(uri, prefix);
-        let u = self.prefix_to_uri.insert(prefix, uri);
-        Some((p?, u?))
+        replaced: &mut Vec<Replaced<'input>>,
+    ) {
+        self.insert_prefix(prefix, uri, replaced);
+        self.use_prefix(prefix, uri, replaced);
+    }
+
+    /// Uses `prefix` for names in `uri`
+    fn use_prefix(
+        &mut self,
+        prefix: Option<&'input str>,
+        uri: Option<&'input str>,
+        replaced: &mut Vec<Replaced<'input>>,
+    ) {
+        replaced.push(Replaced::Prefix(
+            uri,
+            self.uri_to_prefix.insert(uri, prefix),
+        ));
+    }
+
+    /// Binds `prefix` to `uri`, but keeps the prefix used for names in `uri`
+    fn insert_prefix(
+        &mut self,
+        prefix: Option<&'input str>,
+        uri: Option<&'input str>,
+        replaced: &mut Vec<Replaced<'input>>,
+    ) {
+        replaced.push(Replaced::Uri(
+            prefix,
+            self.prefix_to_uri.insert(prefix, uri),
+        ));
+    }
+
+    /// Undoes the changes recorded in `replaced`
+    fn restore(&mut self, replaced: Vec<Replaced<'input>>) {
+        for entry in replaced.into_iter().rev() {
+            match entry {
+                Replaced::Uri(prefix, Some(uri)) => {
+                    self.prefix_to_uri.insert(prefix, uri);
+                }
+                Replaced::Uri(prefix, None) => {
+                    self.prefix_to_uri.remove(&prefix);
+                }
+                Replaced::Prefix(uri, Some(prefix)) => {
+                    self.uri_to_prefix.insert(uri, prefix);
+                }
+                Replaced::Prefix(uri, None) => {
+                    self.uri_to_prefix.remove(&uri);
+                }
+            }
+        }
     }
 
     fn get_by_uri(&self, uri: Option<&'input str>) -> Option<&'input str> {
@@ -84,7 +141,11 @@ where
     let mut allocator = Allocator::new(arena, values);
 
     let mut namespace_map = NamespaceMap::new();
-    namespace_map.insert(Some("xml"), Some("http://www.w3.org/XML/1998/namespace"));
+    namespace_map.insert(
+        Some("xml"),
+        Some("http://www.w3.org/XML/1998/namespace"),
+        &mut vec![],
+    );
 
     let document = allocator.alloc(NodeData::Document);
     let document = parse_xml_node_children(
@@ -200,14 +261,15 @@ fn parse_xml_node<'a, 'input: 'a, 'arena>(
         return Err(ParseError::NodesLimitReached);
     }
 
-    let mut popped_ns: Vec<(Option<&'a str>, Option<&'a str>)> = vec![];
+    let mut replaced = vec![];
     let child = match node.node_type() {
         roxmltree::NodeType::Root => create_root(allocator),
         roxmltree::NodeType::PI => parse_pi(allocator, node.pi().unwrap()),
         roxmltree::NodeType::Element => {
-            let (child, style) = parse_element(allocator, node, namespace_map, &mut popped_ns);
+            let (child, style) = parse_element(allocator, node, namespace_map, &mut replaced);
             if let Some(style) = style {
                 attach_child(child, style);
+                namespace_map.restore(replaced);
                 return Ok(child);
             }
             child
@@ -215,21 +277,17 @@ fn parse_xml_node<'a, 'input: 'a, 'arena>(
         roxmltree::NodeType::Comment => parse_comment(allocator, node),
         roxmltree::NodeType::Text => parse_text(allocator, node),
     };
-    parse_xml_node_children(child, allocator, node, depth + 1, namespace_map)?;
-    for (prefix, value) in popped_ns {
-        namespace_map.insert(prefix, value);
-    }
-    Ok(child)
+    let result = parse_xml_node_children(child, allocator, node, depth + 1, namespace_map);
+    namespace_map.restore(replaced);
+    result
 }
 
 fn parse_element<'a, 'input: 'a, 'arena>(
     arena: &mut Allocator<'a, 'arena>,
     xml_node: roxmltree::Node<'a, 'input>,
     namespace_map: &mut NamespaceMap<'a>,
-    popped_ns: &mut Vec<(Option<&'a str>, Option<&'a str>)>,
+    replaced: &mut Vec<Replaced<'a>>,
 ) -> (Ref<'a, 'arena>, Option<Ref<'a, 'arena>>) {
-    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
-
     let xml_node_namespaces = xml_node.namespaces();
     let xml_node_attributes = xml_node.attributes();
     #[cfg(feature = "range")]
@@ -237,7 +295,19 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     #[cfg(feature = "range")]
     let range = xml_node.range();
     let mut attrs = Vec::with_capacity(xml_node_attributes.len() + xml_node_namespaces.len());
-    attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns)));
+    attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, replaced)));
+    // Names in a namespace that is no longer the default need their prefix again
+    for ns in xml_node.namespaces() {
+        let uri = Some(ns.uri());
+        if let Some(prefix) = ns.name()
+            && namespace_map.get_by_prefix(None) != uri
+            && namespace_map.get_by_uri(uri).is_none()
+        {
+            namespace_map.use_prefix(Some(prefix), uri, replaced);
+        }
+    }
+    // Resolved after the element's own declarations, e.g. `<a:x xmlns:a="…">`
+    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
     attrs.extend(xml_node_attributes.map(|attr| {
         #[cfg(feature = "range")]
         let range = crate::node::Ranges {
@@ -365,17 +435,18 @@ fn parse_expanded_name<'a, 'input: 'a>(
 fn find_new_xmlns<'a, 'input: 'a>(
     ns: &'a roxmltree::Namespace<'input>,
     namespace_map: &mut NamespaceMap<'a>,
-    popped_ns: &mut Vec<(Option<&'a str>, Option<&'a str>)>,
+    replaced: &mut Vec<Replaced<'a>>,
 ) -> Option<Attr<'a>> {
     if find_xml_uri(ns, namespace_map) {
         return None;
     }
     let uri = ns.uri();
     if let Some(prefix) = ns.name() {
-        if namespace_map.get_by_prefix(None) != Some(uri)
-            && let Some(popped) = namespace_map.insert(Some(prefix), Some(uri))
-        {
-            popped_ns.push(popped);
+        if namespace_map.get_by_prefix(None) == Some(uri) {
+            // e.g. `xmlns:svg` next to an SVG default namespace; names stay unprefixed
+            namespace_map.insert_prefix(Some(prefix), Some(uri), replaced);
+        } else {
+            namespace_map.insert(Some(prefix), Some(uri), replaced);
         }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
@@ -386,9 +457,7 @@ fn find_new_xmlns<'a, 'input: 'a>(
             value: uri.into(),
         })
     } else if !ns.uri().is_empty() {
-        if let Some(popped) = namespace_map.insert(None, Some(uri)) {
-            popped_ns.push(popped);
-        }
+        namespace_map.insert(None, Some(uri), replaced);
         // return `xmlns="uri"`
         Some(Attr::XMLNS(uri.into()))
     } else {
@@ -535,4 +604,37 @@ fn serialize_escapes_parsed_style_content() {
 
     assert!(output.contains("&amp;&lt;"));
     roxmltree::Document::parse(&output).unwrap();
+}
+
+#[test]
+fn serialize_namespaces_in_scope() {
+    use crate::serialize::Node;
+
+    let serialize = |source: &str| {
+        parse(source, |document, _| document.serialize())
+            .unwrap()
+            .unwrap()
+    };
+
+    // A prefix bound to the default namespace is declared once
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g><rect/></g></svg>"#;
+    assert_eq!(serialize(source), source);
+
+    // A declaration ends with its element
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><g xmlns:a="urn:a"><a:x/></g><g xmlns:a="urn:a"><a:x/></g></svg>"#;
+    assert_eq!(serialize(source), source);
+    let source =
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><g xmlns="urn:x"><y/></g><rect/></svg>"#;
+    assert_eq!(serialize(source), source);
+
+    // An element's own declarations apply to its name
+    let source = r#"<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg>"#;
+    assert_eq!(serialize(source), source);
+    let source =
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><a:x xmlns:a="urn:a"><a:y/></a:x></svg>"#;
+    assert_eq!(serialize(source), source);
+
+    // Names keep their prefix once their namespace is no longer the default
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g xmlns="urn:x"><svg:rect/></g><rect/></svg>"#;
+    assert_eq!(serialize(source), source);
 }
