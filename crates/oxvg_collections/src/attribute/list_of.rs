@@ -289,6 +289,7 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
             }
             Err(e) => return Err(e),
         };
+        S::maybe_skip_whitespace(input);
         loop {
             let cursor = input.cursor();
             if S::parse(input).is_err() {
