@@ -1,0 +1,7 @@
+---
+source: crates/oxvg_optimiser/src/jobs/apply_transforms.rs
+expression: "test_config(r#\"{ \"applyTransforms\": { \"applyTransformsStroked\": true }, \"convertPathData\": {} }\"#,\nSome(r##\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <path transform=\"scale(2)\" d=\"M10 10h20v20h-20z\" fill=\"none\" stroke=\"#000\" stroke-width=\"1\"/>\n</svg>\"##),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 20h40v40H20Z" fill="none" stroke="#000" stroke-width="2"/>
+</svg>

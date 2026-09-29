@@ -115,7 +115,7 @@ macro_rules! jobs {
                                         oxvg_config.apply_transforms = Some(ApplyTransforms {
                                             transform_precision: params.get("transformPrecision")?,
                                             apply_transforms_stroked:
-                                                params.get("applyTransformsStroked")?.unwrap_or_default(),
+                                                params.get("applyTransformsStroked")?.unwrap_or(apply_transforms::default_apply_transforms_stroked()),
                                         });
                                     }
                                 }
@@ -195,7 +195,7 @@ macro_rules! jobs {
                                                     .and_then(|p| serde_json::from_value(p).ok()),
                                                 apply_transforms_stroked: params.remove("applyTransformsStroked")
                                                     .and_then(|p| serde_json::from_value(p).ok())
-                                                    .unwrap_or_default()
+                                                    .unwrap_or(apply_transforms::default_apply_transforms_stroked())
                                             });
                                         }
                                     }
