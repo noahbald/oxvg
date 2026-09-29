@@ -10,7 +10,7 @@ use oxvg::{
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let config = Config::load().unwrap_or_default();
+    let config = Config::load()?;
 
     match args.command {
         Command::Optimise(args) => args.run(config).await,
