@@ -232,8 +232,6 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     namespace_map: &mut NamespaceMap<'a>,
     popped_ns: &mut Vec<(Option<&'a str>, Option<&'a str>)>,
 ) -> (Ref<'a, 'arena>, Option<Ref<'a, 'arena>>) {
-    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
-
     let xml_node_namespaces = xml_node.namespaces();
     let xml_node_attributes = xml_node.attributes();
     #[cfg(feature = "range")]
@@ -242,6 +240,7 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     let range = xml_node.range();
     let mut attrs = Vec::with_capacity(xml_node_attributes.len() + xml_node_namespaces.len());
     attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns)));
+    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
     attrs.extend(xml_node_attributes.map(|attr| {
         #[cfg(feature = "range")]
         let range = crate::node::Ranges {
@@ -549,5 +548,35 @@ fn namespaces() {
     assert_eq!(
         output,
         r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g><rect width="1" height="1"/></g></svg>"#
+    );
+
+    let source = r#"<svg><g xmlns:a="urn:a"><a:x/></g><g xmlns:a="urn:a"><a:x/></g></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg><g xmlns:a="urn:a"><a:x/></g><g xmlns:a="urn:a"><a:x/></g></svg>"#
+    );
+
+    let source = r#"<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg>"#
+    );
+
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><a:x xmlns:a="urn:a"/></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><a:x xmlns:a="urn:a"/></svg>"#
     );
 }
