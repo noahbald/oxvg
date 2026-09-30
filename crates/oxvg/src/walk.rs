@@ -4,6 +4,10 @@ use std::{
     ffi::OsStr,
     io::{IsTerminal, Read},
     path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use anyhow::anyhow;
@@ -116,7 +120,7 @@ impl Walk {
         }
 
         for path in &self.paths {
-            self.handle_path(path, &f);
+            self.handle_path(path, &f)?;
         }
         Ok(())
     }
@@ -132,7 +136,7 @@ impl Walk {
         Ok(())
     }
 
-    fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) {
+    fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) -> anyhow::Result<()> {
         let output_path = |input: &PathBuf| {
             let Some(output) = self.output.as_ref().and_then(|output| output.first()) else {
                 return Ok(None);
@@ -145,6 +149,7 @@ impl Walk {
                 })
             })
         };
+        let error = Arc::new(AtomicBool::new(false));
         WalkBuilder::new(path)
             .max_depth(if self.recursive { None } else { Some(1) })
             .hidden(!self.hidden)
@@ -154,6 +159,7 @@ impl Walk {
             .threads(self.threads)
             .build_parallel()
             .run(|| {
+                let error = Arc::clone(&error);
                 let mut visitor = f();
                 Box::new(move |path| {
                     let Ok(path) = path else {
@@ -169,12 +175,20 @@ impl Walk {
                     let Ok(output_path) = output_path(&path) else {
                         return WalkState::Continue;
                     };
-                    let Ok(file) = std::fs::read_to_string(path.clone()) else {
-                        return WalkState::Continue;
-                    };
-                    visitor(&file, Some(&path), output_path.as_ref());
+                    match std::fs::read_to_string(path.clone()) {
+                        Ok(file) => visitor(&file, Some(&path), output_path.as_ref()),
+                        Err(err) => {
+                            error.store(true, Ordering::Relaxed);
+                            eprintln!("{err}");
+                        }
+                    }
                     WalkState::Continue
                 })
             });
+        if error.load(Ordering::Relaxed) {
+            Err(anyhow!("Error emitted while walking {}", path.display()))
+        } else {
+            Ok(())
+        }
     }
 }
