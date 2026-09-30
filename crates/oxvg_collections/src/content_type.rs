@@ -445,6 +445,11 @@ impl<'input> ContentType<'_, 'input> {
         // Assertion should panic when not `ContentTypeRef::RefMut`
         debug_assert!(Some(&mut *self).is_some());
 
+        // Presentation attributes wrap their value, also a list
+        if let Self::Inheritable(Inheritable::Defined(value)) = self {
+            value.visit_length_value(f, follow_list);
+            return;
+        }
         if follow_list {
             match self {
                 Self::StrokeDasharray(ContentTypeRef::RefMut(StrokeDasharray::Values(values))) => {
@@ -463,9 +468,6 @@ impl<'input> ContentType<'_, 'input> {
                 }
                 _ => {}
             }
-        } else if let Self::Inheritable(Inheritable::Defined(value)) = self {
-            value.visit_length_value(f, follow_list);
-            return;
         }
         self.visit_length_value_not_list(f);
     }
@@ -501,6 +503,11 @@ impl<'input> ContentType<'_, 'input> {
         // Assertion should panic when not `ContentTypeRef::RefMut`
         debug_assert!(Some(&mut *self).is_some());
 
+        // Presentation attributes wrap their value, also a list
+        if let Self::Inheritable(Inheritable::Defined(value)) = self {
+            value.visit_float(f, follow_list);
+            return;
+        }
         self.visit_length_value(
             |l| {
                 #[allow(clippy::enum_glob_use)]
@@ -553,9 +560,6 @@ impl<'input> ContentType<'_, 'input> {
                 }
                 _ => {}
             }
-        } else if let Self::Inheritable(Inheritable::Defined(value)) = self {
-            value.visit_float(f, follow_list);
-            return;
         }
         self.visit_float_not_list(f);
     }
