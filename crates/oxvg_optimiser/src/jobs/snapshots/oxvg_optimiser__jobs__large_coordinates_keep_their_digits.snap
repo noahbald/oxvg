@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/mod.rs
+expression: "test_config(\"{}\",\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1000\" height=\"1000\" viewBox=\"691234.56 5334567.89 1000 1000\">\n    <g transform=\"translate(691234.56,5334567.89)\">\n        <path d=\"M10 10h980v980H10z\" fill=\"none\" stroke=\"black\" stroke-width=\"3\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="691234.56 5334568 1000 1000">
+    <g transform="translate(691234.56 5334568)">
+        <path d="M10 10h980v980H10Z" fill="none" stroke="#000" stroke-width="3"/>
+    </g>
+</svg>

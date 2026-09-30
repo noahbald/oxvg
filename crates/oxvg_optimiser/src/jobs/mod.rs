@@ -479,3 +479,20 @@ fn test_jobs() -> anyhow::Result<()> {
     )
     .map(|_| ())
 }
+
+#[test]
+fn large_coordinates_keep_their_digits() -> anyhow::Result<()> {
+    // A map in projected metres: rounding to six significant digits would move it by up to
+    // two units. `5334567.89` is `5334568` as an `f32`.
+    insta::assert_snapshot!(test_config(
+        "{}",
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="691234.56 5334567.89 1000 1000">
+    <g transform="translate(691234.56,5334567.89)">
+        <path d="M10 10h980v980H10z" fill="none" stroke="black" stroke-width="3"/>
+    </g>
+</svg>"#
+        )
+    )?);
+    Ok(())
+}
