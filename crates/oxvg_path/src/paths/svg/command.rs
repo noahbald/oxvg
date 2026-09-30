@@ -514,8 +514,8 @@ pub(crate) fn short_number_from_buffer<W: std::fmt::Write>(
     mut raw: &str,
     w: &mut W,
 ) -> std::fmt::Result {
-    // Remove trailing zeros
-    if raw.contains('.') {
+    // Remove trailing zeros, but not from an exponent (`2.5e-10`)
+    if raw.contains('.') && !raw.contains('e') {
         raw = raw.strip_suffix('0').unwrap_or(raw);
     }
     if matches!(raw, "0." | "-0.") {
@@ -543,4 +543,16 @@ where
     let mut output = String::with_capacity(raw.len());
     let _ = short_number_from_buffer(raw, &mut output);
     output
+}
+
+#[cfg(test)]
+#[test]
+fn short_number_keeps_exponent() {
+    assert_eq!(short_number(2.5e-10_f64), "2.5e-10");
+    assert_eq!(short_number(-2.5e-10_f64), "-2.5e-10");
+    assert_eq!(short_number(1.5e20_f64), "1.5e20");
+    assert_eq!(short_number(1e-7_f64), "1e-7");
+    assert_eq!(short_number(1000.0_f64), "1000");
+    assert_eq!(short_number(-0.5_f64), "-.5");
+    assert_eq!(short_number(-0.0_f64), "0");
 }
