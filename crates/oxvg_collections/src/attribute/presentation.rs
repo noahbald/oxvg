@@ -452,6 +452,20 @@ fn font_family() {
     );
     let value = FontFamily::parse_string("'Foo' , serif").unwrap();
     assert_eq!(value.0.list.len(), 2);
+
+    // Escaped commas and quotes belong to the family name
+    let value = FontFamily::parse_string("'Foo, Inc', serif").unwrap();
+    assert_eq!(value.0.list.len(), 2);
+    let printed = value.to_value_string(PrinterOptions::default()).unwrap();
+    assert_eq!(printed, r"Foo\, Inc,serif");
+    let value = FontFamily::parse_string(&printed).unwrap();
+    assert_eq!(value.0.list.len(), 2);
+    assert_eq!(
+        value.to_value_string(PrinterOptions::default()).unwrap(),
+        printed
+    );
+    let value = FontFamily::parse_string(r"'Foo\', Inc', serif").unwrap();
+    assert_eq!(value.0.list.len(), 2);
 }
 
 #[derive(Clone, Debug, PartialEq)]

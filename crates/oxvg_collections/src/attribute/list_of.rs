@@ -259,18 +259,31 @@ impl<'input, T: Parse<'input> + std::fmt::Debug + PartialEq, S: Separator> Parse
 {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         let mut quote = None;
+        // A backslash escapes the next character, e.g. `Foo\, Inc` is a single font family
         let take_matches = |input: &mut Parser<'input>, quote: Option<&char>| {
+            let mut escaped = false;
             if let Some(quote) = quote {
                 let mut quotes = 0;
                 input.take_matches(|char| {
                     let done = quotes < 2;
-                    if char == *quote {
+                    if escaped {
+                        escaped = false;
+                    } else if char == '\\' {
+                        escaped = true;
+                    } else if char == *quote {
                         quotes += 1;
                     }
                     done
                 })
             } else {
-                input.take_matches(|char| !S::matches(char))
+                input.take_matches(|char| {
+                    if escaped {
+                        escaped = false;
+                        return true;
+                    }
+                    escaped = char == '\\';
+                    escaped || !S::matches(char)
+                })
             }
         };
         if input.slice().starts_with('"') || input.slice().starts_with('\'') {
