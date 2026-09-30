@@ -59,7 +59,11 @@ impl<'input> NamespaceMap<'input> {
     }
 
     fn get_by_uri(&self, uri: Option<&'input str>) -> Option<&'input str> {
-        self.uri_to_prefix.get(&uri).copied().flatten()
+        if self.prefix_to_uri.get(&None) == Some(&uri) {
+            None
+        } else {
+            self.uri_to_prefix.get(&uri).copied().flatten()
+        }
     }
 
     fn get_by_prefix(&self, prefix: Option<&'input str>) -> Option<&'input str> {
@@ -372,9 +376,7 @@ fn find_new_xmlns<'a, 'input: 'a>(
     }
     let uri = ns.uri();
     if let Some(prefix) = ns.name() {
-        if namespace_map.get_by_prefix(None) != Some(uri)
-            && let Some(popped) = namespace_map.insert(Some(prefix), Some(uri))
-        {
+        if let Some(popped) = namespace_map.insert(Some(prefix), Some(uri)) {
             popped_ns.push(popped);
         }
         // return `xmlns:ns="uri"`
@@ -398,11 +400,9 @@ fn find_new_xmlns<'a, 'input: 'a>(
 }
 
 fn find_xml_uri(ns: &roxmltree::Namespace, namespace_map: &mut NamespaceMap) -> bool {
-    if let Some(el) = namespace_map.get_by_prefix(ns.name()) {
-        el == ns.uri()
-    } else {
-        false
-    }
+    namespace_map
+        .get_by_prefix(ns.name())
+        .is_some_and(|el| el == ns.uri())
 }
 
 impl Display for ParseError {
@@ -535,4 +535,19 @@ fn serialize_escapes_parsed_style_content() {
 
     assert!(output.contains("&amp;&lt;"));
     roxmltree::Document::parse(&output).unwrap();
+}
+
+#[test]
+fn namespaces() {
+    use crate::serialize::Node;
+
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g><rect width="1" height="1"/></g></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g><rect width="1" height="1"/></g></svg>"#
+    );
 }
