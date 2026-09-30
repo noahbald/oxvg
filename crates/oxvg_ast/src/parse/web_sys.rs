@@ -14,6 +14,7 @@ use web_sys::{
 
 use crate::{
     arena::{Allocator, Arena, Values},
+    is_element,
     node::{NodeData, Ref},
 };
 
@@ -170,7 +171,7 @@ fn parse_element<'input, 'arena>(
         attrs.push(parse_attr(arena, &name, attr));
         i += 1;
     }
-    let is_style_element = name == ElementId::Style
+    let is_style_element = is_element!(name, Style)
         && !attrs.iter().any(|attr| match attr {
             Attr::TypeStyle(r#type) => !r#type.is_empty() && &**r#type != "text/css",
             _ => false,

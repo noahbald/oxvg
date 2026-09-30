@@ -20,6 +20,7 @@ use oxvg_collections::{
 
 use crate::{
     arena::{Allocator, Arena, Values},
+    is_element,
     node::{Node, NodeData, Ref},
 };
 
@@ -253,7 +254,7 @@ fn parse_element<'a, 'input: 'a, 'arena>(
         ranges.insert(attr.name().clone(), range);
         attr
     }));
-    let is_style_element = name == ElementId::Style
+    let is_style_element = is_element!(name, Style)
         && !attrs.iter().any(|attr| match attr {
             Attr::TypeStyle(r#type) => !r#type.is_empty() && &**r#type != "text/css",
             _ => false,
