@@ -8,6 +8,8 @@ use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::{atom::Atom, enum_attr};
 
+#[cfg(feature = "serialize")]
+use super::core_attrs::write_number;
 use super::{
     core_attrs::{Angle, Anything, Number, Percentage},
     presentation::{LengthOrNumber, LengthPercentage},
@@ -1242,13 +1244,13 @@ impl ToValue for ViewBox {
     where
         W: std::fmt::Write,
     {
-        self.min_x.write_value(dest)?;
+        write_number(self.min_x, dest)?;
         dest.write_char(' ')?;
-        self.min_y.write_value(dest)?;
+        write_number(self.min_y, dest)?;
         dest.write_char(' ')?;
-        self.width.write_value(dest)?;
+        write_number(self.width, dest)?;
         dest.write_char(' ')?;
-        self.height.write_value(dest)
+        write_number(self.height, dest)
     }
 }
 #[test]
