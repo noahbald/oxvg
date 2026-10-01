@@ -20,6 +20,7 @@ use oxvg_collections::{
 
 use crate::{
     arena::{Allocator, Arena, Values},
+    is_element,
     node::{Node, NodeData, Ref},
 };
 
@@ -56,6 +57,15 @@ impl<'input> NamespaceMap<'input> {
         let p = self.uri_to_prefix.insert(uri, prefix);
         let u = self.prefix_to_uri.insert(prefix, uri);
         Some((p?, u?))
+    }
+
+    fn remove_by_prefix(
+        &mut self,
+        prefix: Option<&'input str>,
+    ) -> Option<(Option<&'input str>, Option<&'input str>)> {
+        let u = self.prefix_to_uri.remove(&prefix)?;
+        let p = self.uri_to_prefix.remove(&u);
+        Some((p?, u))
     }
 
     fn get_by_uri(&self, uri: Option<&'input str>) -> Option<&'input str> {
@@ -205,11 +215,18 @@ fn parse_xml_node<'a, 'input: 'a, 'arena>(
     }
 
     let mut popped_ns: Vec<(Option<&'a str>, Option<&'a str>)> = vec![];
+    let mut local_ns = vec![];
     let child = match node.node_type() {
         roxmltree::NodeType::Root => create_root(allocator),
         roxmltree::NodeType::PI => parse_pi(allocator, node.pi().unwrap()),
         roxmltree::NodeType::Element => {
-            let (child, style) = parse_element(allocator, node, namespace_map, &mut popped_ns);
+            let (child, style) = parse_element(
+                allocator,
+                node,
+                namespace_map,
+                &mut popped_ns,
+                &mut local_ns,
+            );
             if let Some(style) = style {
                 attach_child(child, style);
                 return Ok(child);
@@ -223,6 +240,9 @@ fn parse_xml_node<'a, 'input: 'a, 'arena>(
     for (prefix, value) in popped_ns {
         namespace_map.insert(prefix, value);
     }
+    for prefix in &local_ns {
+        namespace_map.remove_by_prefix(*prefix);
+    }
     Ok(child)
 }
 
@@ -231,9 +251,8 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     xml_node: roxmltree::Node<'a, 'input>,
     namespace_map: &mut NamespaceMap<'a>,
     popped_ns: &mut Vec<(Option<&'a str>, Option<&'a str>)>,
+    local_ns_prefixes: &mut Vec<Option<&'a str>>,
 ) -> (Ref<'a, 'arena>, Option<Ref<'a, 'arena>>) {
-    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
-
     let xml_node_namespaces = xml_node.namespaces();
     let xml_node_attributes = xml_node.attributes();
     #[cfg(feature = "range")]
@@ -241,7 +260,11 @@ fn parse_element<'a, 'input: 'a, 'arena>(
     #[cfg(feature = "range")]
     let range = xml_node.range();
     let mut attrs = Vec::with_capacity(xml_node_attributes.len() + xml_node_namespaces.len());
-    attrs.extend(xml_node_namespaces.filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns)));
+    attrs.extend(
+        xml_node_namespaces
+            .filter_map(|ns| find_new_xmlns(ns, namespace_map, popped_ns, local_ns_prefixes)),
+    );
+    let name = parse_expanded_name(xml_node.tag_name(), namespace_map);
     attrs.extend(xml_node_attributes.map(|attr| {
         #[cfg(feature = "range")]
         let range = crate::node::Ranges {
@@ -254,7 +277,7 @@ fn parse_element<'a, 'input: 'a, 'arena>(
         ranges.insert(attr.name().clone(), range);
         attr
     }));
-    let is_style_element = name == ElementId::Style
+    let is_style_element = is_element!(name, Style)
         && !attrs.iter().any(|attr| match attr {
             Attr::TypeStyle(r#type) => !r#type.is_empty() && &**r#type != "text/css",
             _ => false,
@@ -370,6 +393,7 @@ fn find_new_xmlns<'a, 'input: 'a>(
     ns: &'a roxmltree::Namespace<'input>,
     namespace_map: &mut NamespaceMap<'a>,
     popped_ns: &mut Vec<(Option<&'a str>, Option<&'a str>)>,
+    local_ns_prefixes: &mut Vec<Option<&'a str>>,
 ) -> Option<Attr<'a>> {
     if find_xml_uri(ns, namespace_map) {
         return None;
@@ -378,6 +402,8 @@ fn find_new_xmlns<'a, 'input: 'a>(
     if let Some(prefix) = ns.name() {
         if let Some(popped) = namespace_map.insert(Some(prefix), Some(uri)) {
             popped_ns.push(popped);
+        } else {
+            local_ns_prefixes.push(Some(prefix));
         }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
@@ -390,6 +416,8 @@ fn find_new_xmlns<'a, 'input: 'a>(
     } else if !ns.uri().is_empty() {
         if let Some(popped) = namespace_map.insert(None, Some(uri)) {
             popped_ns.push(popped);
+        } else {
+            local_ns_prefixes.push(None);
         }
         // return `xmlns="uri"`
         Some(Attr::XMLNS(uri.into()))
@@ -549,5 +577,35 @@ fn namespaces() {
     assert_eq!(
         output,
         r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><g><rect width="1" height="1"/></g></svg>"#
+    );
+
+    let source = r#"<svg><g xmlns:a="urn:a"><a:x/></g><g xmlns:a="urn:a"><a:x/></g></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg><g xmlns:a="urn:a"><a:x/></g><g xmlns:a="urn:a"><a:x/></g></svg>"#
+    );
+
+    let source = r#"<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:g/></svg:svg>"#
+    );
+
+    let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><a:x xmlns:a="urn:a"/></svg>"#;
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><a:x xmlns:a="urn:a"/></svg>"#
     );
 }
