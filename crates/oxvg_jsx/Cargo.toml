@@ -14,7 +14,7 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["optimise"]
+default = ["optimise", "swc_core"]
 clap = ["dep:clap"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_optimiser/napi"]
 optimise = ["dep:oxvg_optimiser"]
