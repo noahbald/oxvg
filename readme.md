@@ -6,7 +6,7 @@ OXVG is the fastest[^1] SVG toolchain for optimisation, linting, transformation,
 
 ## Installation
 
-Install OXVG using the package manger of your choice. 
+Install OXVG using the package manger of your choice.
 
 ### Cargo
 
@@ -21,11 +21,13 @@ brew install oxvg
 ```
 
 ## View commands
+
 ```sh
 oxvg --help
 ```
 
 ## Optimise an SVG
+
 ```sh
 oxvg optimise < input.svg > output.svg
 ```
@@ -38,7 +40,6 @@ The following tools are available in a CLI binary.
 
 > [!TIP]
 > You can try out the OXVG optimiser right in your browser using [OXVGUI](https://oxvgui.jonasgeiler.com/), a simple web-based playground built by [Jonas Geiler (@jonasgeiler)](https://github.com/jonasgeiler).
-
 
 An SVG [optimiser](https://github.com/noahbald/oxvg/wiki/Optimiser) similar to [SVGO](https://github.com/svg/svgo) is available. It can run [up to 50x faster](https://github.com/noahbald/oxvg/wiki/Benchmarks), especially on larger file-sets.
 
@@ -53,7 +54,7 @@ cat my-file.svg | oxvg optimise > my-file.optimised.svg
 
 https://github.com/user-attachments/assets/b2f54ab5-33de-44e4-aca5-3a269aae4dd6
 
-### 🤖 Actions (Under Development[^2])
+### 🤖 Actions
 
 <!-- TODO: uncomment when redeployed
 > [!TIP]
@@ -82,7 +83,7 @@ oxvg lint check w3c/ -r
 
 <img width="1147" height="334" alt="linting output" src="https://github.com/user-attachments/assets/a5c190e6-b685-4c6e-ba35-1c8bd3578b02" />
 
-### ⚛️ JSX 
+### ⚛️ JSX
 
 A [JSX transformer](https://github.com/noahbald/oxvg/wiki/JSX) to take SVG documents and transform them into JSX components, for use in React, Preact, Native, or any other JSX-compatible language.
 
@@ -98,9 +99,9 @@ If you're a Rust developer wanting to work with SVGs in your project, we have a 
 
 OXVG splits functionality into separate crates that you can use independently according to your project's needs. It offers libraries for DOM parsing and traversal, path handling, optimisation, and manipulation.
 
-### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions) (Unstable[^3])
+### [Actions](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_actions)
 
-Actions are programmatic commands for manipulating and inspecting SVG documents. 
+Actions are programmatic commands for manipulating and inspecting SVG documents.
 
 ### [AST](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_ast)
 
@@ -123,7 +124,7 @@ This crate provides types for SVG content.
 
 This is where you'll find the jobs (i.e. SVGO plugins) for our optimiser, which you can also use as a library in your applications.
 
-### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path) (Unstable[^3])
+### [Path](https://github.com/noahbald/oxvg/tree/main/crates/oxvg_path)
 
 This is a library for parsing, optimising, and serialising path definitions (e.g. `<path d="..." />`).
 
@@ -188,5 +189,3 @@ This project ports or copies code from other open-source (MIT) projects, listed 
 - Kurbo
 
 [^1]: Fastest I'm aware of; see [benchmarks](https://github.com/noahbald/oxvg/wiki/Benchmarks)
-[^2]: CLI commands under development are safe to use but are either incomplete or likely to experience breaking changes in future.
-[^3]: Unstable libraries are either incomplete or likely to experience breaking changes in future.

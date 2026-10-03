@@ -1,8 +1,6 @@
 # Oxidised Vector Graphics for WASM
 
-OXVG is an effort to create high-performance SVG tooling.
-
-It's planned to include transforming, optimising, and linting, all written in Rust.
+OXVG is the fastest SVG toolchain for optimisation, linting, transformation, and manipulation. Usable via CLI and libraries for [Node](https://www.npmjs.com/package/@oxvg/napi), [WASM](https://www.npmjs.com/package/@oxvg/wasm), or Rust.
 
 See the main [readme](https://github.com/noahbald/oxvg/blob/main/readme.md) for more!
 
@@ -40,8 +38,8 @@ Or, extend a preset
 import { optimise, extend } from "@oxvg/wasm";
 
 const result = optimise(
-    `<svg />`,
-    extend("default", { convertPathData: { removeUseless: false } }),
+  `<svg />`,
+  extend("default", { convertPathData: { removeUseless: false } }),
 );
 ```
 
@@ -51,8 +49,22 @@ You can even make use of your existing SVGO config
 import { optimise, convertSvgoConfig } from "@oxvg/wasm";
 import { config } from "./svgo.config.js";
 
-const result = optimise(
-    `<svg />`,
-    convertSvgoConfig(config.plugins),
-)
+const result = optimise(`<svg />`, convertSvgoConfig(config.plugins));
+```
+
+### 🤖 Actions
+
+Actions are a set of commands invoked by a program in order to manipulate an SVG document or pull information from it.
+
+```js
+import { Actor } from "@oxvg/wasm";
+
+const actor = new Actor(`<svg viewBox="0 0 3 3">
+  <path d="M0 0h2v2H0Z"/>
+  <path d="M1 1h2v2H1Z" />
+</svg>`);
+actor.select("path");
+actor.pathIntersect();
+
+console.log(actor.document());
 ```
