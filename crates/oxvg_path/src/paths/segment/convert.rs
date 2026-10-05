@@ -205,8 +205,11 @@ impl Segment {
         }
 
         let tolerance_squared = tolerance.positional * tolerance.positional;
-        result.closed =
-            start.distance_squared(result.data().last().unwrap().end_point()) < tolerance_squared;
+        // NOTE: `start` may already be the start of the next segment
+        result.closed = result
+            .start
+            .distance_squared(result.data().last().unwrap().end_point())
+            < tolerance_squared;
         result
     }
 }
@@ -643,6 +646,53 @@ mod test {
 
         let path = path.to_svg(&tolerance, true);
         assert_eq!(path.to_string().as_str(), "M5 5v10h10V5H5Z");
+    }
+
+    #[test]
+    fn open_segment_ending_where_the_next_starts() {
+        // The first segment ends at (6, 6), where the second starts, but it
+        // started at (2, 2), so it's still open.
+        let source = "M2 2l4 4M6 6L10 2";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+
+        assert_eq!(
+            path,
+            Path(vec![
+                Segment {
+                    start: Point::splat(2.0),
+                    data: vec![Data::LineTo(Point::splat(6.0))],
+                    closed: false
+                },
+                Segment {
+                    start: Point::splat(6.0),
+                    data: vec![Data::LineTo(Point::new(10.0, 2.0))],
+                    closed: false
+                }
+            ])
+        );
+
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "m2 2 4 4m0 0 4-4");
+    }
+
+    #[test]
+    fn closed_segment_followed_by_another() {
+        // The first segment returns to its own start, so it's closed the same
+        // as it would be were it the last.
+        let source = "M5,5 L5,15 L15,15 L15,5 L5,5 M20,20 L25,25";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+
+        assert_eq!(
+            path.0.iter().map(Segment::closed).collect::<Vec<_>>(),
+            vec![true, false]
+        );
+
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "M5 5v10h10V5H5Zm15 15 5 5");
     }
 
     #[test]
