@@ -119,10 +119,18 @@ impl Walk {
             ));
         }
 
-        for path in &self.paths {
-            self.handle_path(path, &f)?;
+        // Every path is visited, also after one that failed.
+        let failed: Vec<_> = self
+            .paths
+            .iter()
+            .filter(|path| !self.handle_path(path, &f))
+            .map(|path| path.display().to_string())
+            .collect();
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(anyhow!("Error emitted while walking {}", failed.join(", ")))
         }
-        Ok(())
     }
 
     fn handle_stdin(&self, mut f: FnVisitor) -> anyhow::Result<()> {
@@ -136,7 +144,8 @@ impl Walk {
         Ok(())
     }
 
-    fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) -> anyhow::Result<()> {
+    /// Visits every file under `path`; false when one couldn't be read.
+    fn handle_path<F: Fn() -> FnVisitor>(&self, path: &PathBuf, f: F) -> bool {
         let output_path = |input: &PathBuf| {
             let Some(output) = self.output.as_ref().and_then(|output| output.first()) else {
                 return Ok(None);
@@ -162,8 +171,14 @@ impl Walk {
                 let error = Arc::clone(&error);
                 let mut visitor = f();
                 Box::new(move |path| {
-                    let Ok(path) = path else {
-                        return WalkState::Continue;
+                    let path = match path {
+                        Ok(path) => path,
+                        // e.g. a path that doesn't exist
+                        Err(err) => {
+                            error.store(true, Ordering::Relaxed);
+                            eprintln!("{err}");
+                            return WalkState::Continue;
+                        }
                     };
                     if path.file_type().is_none_or(|f| !f.is_file()) {
                         return WalkState::Continue;
@@ -173,6 +188,8 @@ impl Walk {
                         return WalkState::Continue;
                     }
                     let Ok(output_path) = output_path(&path) else {
+                        error.store(true, Ordering::Relaxed);
+                        eprintln!("No output path for {}", path.display());
                         return WalkState::Continue;
                     };
                     match std::fs::read_to_string(path.clone()) {
@@ -185,10 +202,47 @@ impl Walk {
                     WalkState::Continue
                 })
             });
-        if error.load(Ordering::Relaxed) {
-            Err(anyhow!("Error emitted while walking {}", path.display()))
-        } else {
-            Ok(())
-        }
+        !error.load(Ordering::Relaxed)
     }
+}
+
+#[test]
+fn run_visits_every_path_and_reports_failures() {
+    use std::sync::atomic::AtomicUsize;
+
+    let dir = std::env::temp_dir().join(format!("oxvg-walk-test-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let ok = dir.join("ok.svg");
+    std::fs::write(&ok, r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#).unwrap();
+    let utf16 = dir.join("utf16.svg");
+    let bytes: Vec<u8> = "<svg/>".encode_utf16().flat_map(u16::to_le_bytes).collect();
+    std::fs::write(&utf16, [&[0xff, 0xfe][..], &bytes].concat()).unwrap();
+
+    let visit = |paths: Vec<PathBuf>| {
+        let visited = Arc::new(AtomicUsize::new(0));
+        let walk = Walk {
+            paths,
+            output: None,
+            recursive: false,
+            hidden: false,
+            no_ignore: false,
+            threads: 1,
+            quiet: true,
+        };
+        let result = walk.run(|| {
+            let visited = Arc::clone(&visited);
+            Box::new(move |_, _, _| {
+                visited.fetch_add(1, Ordering::Relaxed);
+            })
+        });
+        (result.is_ok(), visited.load(Ordering::Relaxed))
+    };
+    // A file that can't be read, or a path that doesn't exist, fails the run
+    // but the files after it are still visited.
+    assert_eq!(visit(vec![utf16.clone(), ok.clone()]), (false, 1));
+    assert_eq!(visit(vec![dir.join("missing.svg"), ok.clone()]), (false, 1));
+    assert_eq!(visit(vec![ok.clone(), ok]), (true, 2));
+
+    std::fs::remove_dir_all(&dir).unwrap();
 }
