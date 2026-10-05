@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/jsx-win32-x64-msvc",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "cpu": [
     "x64"
   ],
