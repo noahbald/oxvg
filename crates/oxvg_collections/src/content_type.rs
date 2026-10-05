@@ -1,4 +1,6 @@
 //! Container for all the possible content that can be used by an attribute
+use oxvg_path::command::short_number;
+
 use super::attribute::animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
 use super::attribute::animation_addition::{Accumulate, Additive};
 use super::attribute::animation_timing::{
@@ -643,7 +645,15 @@ impl<'input> ContentType<'_, 'input> {
         if convert_px {
             self.visit_length_value(
                 |l| {
-                    if let Some(px) = l.to_px() {
+                    let Some(mut px) = l.to_px() else {
+                        return;
+                    };
+                    // As in SVGO, only when that's shorter: `1in` becomes `96`,
+                    // `210mm` stays rather than becoming `793.701`.
+                    let (mut value, unit) = l.to_unit_value();
+                    round_float(&mut value);
+                    round_float(&mut px);
+                    if short_number(px).len() < short_number(value).len() + unit.len() {
                         *l = LengthValue::Px(px);
                     }
                 },

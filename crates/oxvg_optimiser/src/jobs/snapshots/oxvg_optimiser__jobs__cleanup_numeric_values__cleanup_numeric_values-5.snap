@@ -1,0 +1,8 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_numeric_values.rs
+expression: "test_config(r#\"{ \"cleanupNumericValues\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" viewBox=\"0 0 210 297\">\n    <!-- Should convert to px only when that's shorter -->\n    <rect width=\"1mm\" height=\"2.54cm\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+    <!-- Should convert to px only when that's shorter -->
+    <rect width="1mm" height="96"/>
+</svg>
