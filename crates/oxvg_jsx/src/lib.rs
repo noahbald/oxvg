@@ -29,7 +29,9 @@ pub use config::Config;
 pub use error::Error;
 use oxvg_ast::node::Ref;
 
+#[cfg(any(feature = "swc_core", feature = "oxc_ast"))]
 use crate::config::{State, TemplateContext};
+#[cfg(any(feature = "swc_core", feature = "oxc_ast"))]
 use crate::{
     config::{Template, VariablesAST, VariablesString},
     error::{BuildError, TemplateError},

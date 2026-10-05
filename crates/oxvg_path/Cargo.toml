@@ -1,6 +1,6 @@
 [package]
 name = "oxvg_path"
-version = "0.0.8"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

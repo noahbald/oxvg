@@ -19,6 +19,7 @@ float_cmp = "allow"
 must_use_candidate = "allow"
 
 [workspace.package]
+version = "0.0.8"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/noahbald/oxvg"

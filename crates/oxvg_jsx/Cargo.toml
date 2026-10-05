@@ -1,6 +1,6 @@
 [package]
 name = "oxvg_jsx"
-version = "0.0.8"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -14,7 +14,7 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["optimise"]
+default = ["optimise", "swc_core"]
 clap = ["dep:clap"]
 napi = ["dep:napi", "dep:napi-derive", "oxvg_optimiser/napi"]
 optimise = ["dep:oxvg_optimiser"]

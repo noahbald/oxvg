@@ -134,7 +134,7 @@ impl Rules {
 
     pub(crate) fn lint_internal<W>(
         &self,
-        mut w: &mut W,
+        w: &mut W,
         path: Option<&PathBuf>,
         source: &str,
     ) -> Result<(), LintingError>
@@ -167,7 +167,7 @@ impl Rules {
                     errors,
                     path: path.cloned(),
                 };
-                write!(&mut w, "{report}")
+                write!(w, "{report}")
             },
         );
         match result {
