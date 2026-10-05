@@ -761,7 +761,10 @@ export interface ConvertTransform {
   degPrecision?: number
   /** Number of decimal places to round to, for `rotate`'s origin and `translate`. */
   floatPrecision: number
-  /** Number of decimal places to round to, for `scale`. */
+  /**
+   * Number of decimal places to round to, for `scale` and a matrix's scale and skew;
+   * a factor below one keeps this many significant digits instead.
+   */
   transformPrecision: number
   /** Whether to convert matrices into transforms. */
   matrixToTransform: boolean

@@ -50,7 +50,8 @@ pub struct ConvertTransform {
     /// Number of decimal places to round to, for `rotate`'s origin and `translate`.
     #[cfg_attr(feature = "serde", serde(default = "default_float_precision"))]
     pub float_precision: i32,
-    /// Number of decimal places to round to, for `scale`.
+    /// Number of decimal places to round to, for `scale` and a matrix's scale and skew;
+    /// a factor below one keeps this many significant digits instead.
     #[cfg_attr(feature = "serde", serde(default = "default_transform_precision"))]
     pub transform_precision: i32,
     /// Whether to convert matrices into transforms.
@@ -503,6 +504,18 @@ fn convert_transform() -> anyhow::Result<()> {
     <!-- ignore inherited styles on children -->
     <g transform="translate(30,-10)">
       <rect x="0" y="0" width="10" height="20"/>
+    </g>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertTransform": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <!-- small scale factors keep their significant digits -->
+    <g transform="matrix(0.000397456 0 0 0.00062034 0 -0.000614588)">
+        <path d="M0 0L1000000 960000" stroke="black" stroke-width="2500"/>
     </g>
 </svg>"#
         ),

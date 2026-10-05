@@ -1,0 +1,10 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_transform.rs
+expression: "test_config(r#\"{ \"convertTransform\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"600\" viewBox=\"0 0 400 600\">\n    <!-- small scale factors keep their significant digits -->\n    <g transform=\"matrix(0.000397456 0 0 0.00062034 0 -0.000614588)\">\n        <path d=\"M0 0L1000000 960000\" stroke=\"black\" stroke-width=\"2500\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+    <!-- small scale factors keep their significant digits -->
+    <g transform="matrix(.00039746 0 0 .00062034 0 0)">
+        <path d="M0 0 1000000 960000" stroke="#000" stroke-width="2500"/>
+    </g>
+</svg>

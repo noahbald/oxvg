@@ -77,15 +77,15 @@ impl SVGTransform {
             }
             SVGTransform::Scale(x, y) => {
                 let precision = precision.transform;
-                Precision::round_arg(precision, x);
-                Precision::round_arg(precision, y);
+                Precision::round_factor(precision, x);
+                Precision::round_factor(precision, y);
             }
             SVGTransform::Matrix(m) => {
                 let p = precision.transform;
-                Precision::round_arg(p, &mut m.a);
-                Precision::round_arg(p, &mut m.b);
-                Precision::round_arg(p, &mut m.c);
-                Precision::round_arg(p, &mut m.d);
+                Precision::round_factor(p, &mut m.a);
+                Precision::round_factor(p, &mut m.b);
+                Precision::round_factor(p, &mut m.c);
+                Precision::round_factor(p, &mut m.d);
                 let p = precision.float;
                 Precision::round_arg(p, &mut m.e);
                 Precision::round_arg(p, &mut m.f);
@@ -628,6 +628,20 @@ impl ToValue for SVGTransformList {
 }
 
 impl Precision {
+    /// Rounds a scale factor or a matrix's `a`–`d`: as [`Self::round_arg`],
+    /// with one more decimal for every leading zero of a factor below one, so
+    /// a small factor keeps as many significant digits as the precision asks
+    /// for (`0.000397456` keeps `0.00039746`, not `0.0004`).
+    fn round_factor(precision: i32, data: &mut f32) {
+        let size = data.abs();
+        let precision = if (1..20).contains(&precision) && size > 0.0 && size < 1.0 {
+            (precision + (-size.log10()).floor() as i32).min(19)
+        } else {
+            precision
+        };
+        Self::round_arg(precision, data);
+    }
+
     /// Rounds a number to a given precision
     fn round_arg(precision: i32, data: &mut f32) {
         *data = if (1..20).contains(&precision) {
@@ -766,4 +780,21 @@ fn skew_y() {
         SVGTransformList::parse_string("skewY(30)"),
         Ok(SVGTransformList(vec![SVGTransform::SkewY(30.0)]))
     );
+}
+
+#[test]
+fn round_factor() {
+    let round = |precision, mut value| {
+        Precision::round_factor(precision, &mut value);
+        value
+    };
+    // Small factors keep `precision` significant digits
+    assert_eq!(round(5, 0.000_397_456_f32), 0.000_397_46);
+    assert_eq!(round(5, -0.013_888_9_f32), -0.013_889);
+    // Others round as before
+    assert_eq!(round(5, 0.213_291_78_f32), 0.2133);
+    assert_eq!(round(5, 2.894_355_7_f32), 2.894_36);
+    assert_eq!(round(5, 0.0_f32), 0.0);
+    // Precision 0 still rounds to whole numbers
+    assert_eq!(round(0, 0.000_397_456_f32), 0.0);
 }
