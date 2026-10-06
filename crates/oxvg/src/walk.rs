@@ -119,7 +119,7 @@ impl Walk {
             ));
         }
 
-        // Every path is visited, also after one that failed.
+        // NOTE: Fails slow; all paths are processed
         let failed: Vec<_> = self
             .paths
             .iter()
@@ -129,7 +129,10 @@ impl Walk {
         if failed.is_empty() {
             Ok(())
         } else {
-            Err(anyhow!("Error emitted while walking {}", failed.join(", ")))
+            Err(anyhow!(
+                "Error emitted while walking {}; all other files were still processed",
+                failed.join(", ")
+            ))
         }
     }
 
@@ -236,13 +239,28 @@ fn run_visits_every_path_and_reports_failures() {
                 visited.fetch_add(1, Ordering::Relaxed);
             })
         });
-        (result.is_ok(), visited.load(Ordering::Relaxed))
+        (
+            result.map_err(|err| err.to_string()),
+            visited.load(Ordering::Relaxed),
+        )
     };
     // A file that can't be read, or a path that doesn't exist, fails the run
     // but the files after it are still visited.
-    assert_eq!(visit(vec![utf16.clone(), ok.clone()]), (false, 1));
-    assert_eq!(visit(vec![dir.join("missing.svg"), ok.clone()]), (false, 1));
-    assert_eq!(visit(vec![ok.clone(), ok]), (true, 2));
+    let missing = dir.join("missing.svg");
+    assert_eq!(
+        visit(vec![utf16.clone(), ok.clone()]),
+        (
+            Err(format!(
+                "Error emitted while walking {}; all other files were still processed",
+                utf16.display()
+            )),
+            1
+        )
+    );
+    let (result, visited) = visit(vec![missing, ok.clone()]);
+    assert!(result.is_err());
+    assert_eq!(visited, 1);
+    assert_eq!(visit(vec![ok.clone(), ok]), (Ok(()), 2));
 
     std::fs::remove_dir_all(&dir).unwrap();
 }
