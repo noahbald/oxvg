@@ -324,12 +324,11 @@ fn write_number_keeps_every_digit() {
 /// A non-whitespace, non-parenthesis, non-comma value
 pub type Name<'i> = Anything<'i>;
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
-/// A real number, written with every digit it holds, as path data is
+/// A real number.
 ///
-/// A newtype rather than lightningcss'
-/// [`CSSNumber`](lightningcss::values::number::CSSNumber), so it isn't
-/// serialised the CSS way, rounded to six significant digits. It dereferences
-/// to `f32`.
+/// As an SVG attribute, a number is defined differently, to allow numbers with large magnitudes to be specified more concisely.
+///
+/// [w3 | SVG 1.1](https://www.w3.org/TR/2011/REC-SVG11-20110816/types.html#DataTypeNumber)
 pub struct Number(pub f32);
 impl Deref for Number {
     type Target = f32;
