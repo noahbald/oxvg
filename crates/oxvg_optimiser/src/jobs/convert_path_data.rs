@@ -586,3 +586,25 @@ fn convert_path_data() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn convert_path_data_open_segments() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <!-- a segment isn't closed by the next one starting where it ends -->
+    <path d="M2 2l4 4M6 6L10 2"/>
+    <path d="M2 12 6 8l2 2a6 6 0 0 1 3-3l2-1m0 0-3-1m3 1-1 3"/>
+    <path d="M8.683 5A3.75 3.75 0 0 1 15.318 5m0 0c.427-.283.815-.62 1.155-.999"/>
+    <!-- but is by returning to its own start -->
+    <path d="M2 2h4v4zm0 0 8 8"/>
+    <path d="M2 2h4v4H2V2M10 10l4 4"/>
+</svg>"#
+        )
+    )?);
+
+    Ok(())
+}
