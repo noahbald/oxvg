@@ -238,7 +238,8 @@ impl SVGTransform {
     fn is_identity(&self) -> bool {
         match self {
             Self::Rotate(n, _, _) | Self::SkewX(n) | Self::SkewY(n) => *n == 0.0,
-            Self::Scale(x, y) | Self::Translate(x, y) => *x == 1.0 && *y == 1.0,
+            Self::Scale(x, y) => *x == 1.0 && *y == 1.0,
+            Self::Translate(x, y) => *x == 0.0 && *y == 0.0,
             Self::Matrix(_) | Self::CssTransform(_) => false,
         }
     }
@@ -681,6 +682,42 @@ fn matrix() {
             e: 30.0,
             f: 40.0
         })]))
+    );
+}
+
+#[test]
+fn is_identity() {
+    assert!(SVGTransform::Translate(0.0, 0.0).is_identity());
+    assert!(!SVGTransform::Translate(1.0, 1.0).is_identity());
+    assert!(SVGTransform::Scale(1.0, 1.0).is_identity());
+    assert!(!SVGTransform::Scale(0.0, 0.0).is_identity());
+}
+
+#[test]
+fn matrix_to_transform_keeps_unit_translate() {
+    let precision = Precision {
+        float: 3,
+        deg: 3,
+        transform: 5,
+    };
+    let matrix = |a, d, e, f| {
+        SVGTransform::Matrix(Matrix {
+            a,
+            b: 0.0,
+            c: 0.0,
+            d,
+            e,
+            f,
+        })
+    };
+    assert_eq!(
+        matrix(1.0, 1.0, 1.0, 1.0).matrix_to_transform(&precision),
+        vec![SVGTransform::Translate(1.0, 1.0)]
+    );
+    // `translate(1 1)scale(2)` is longer than the matrix, so it's kept as is
+    assert_eq!(
+        matrix(2.0, 2.0, 1.0, 1.0).matrix_to_transform(&precision),
+        vec![matrix(2.0, 2.0, 1.0, 1.0)]
     );
 }
 

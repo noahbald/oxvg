@@ -510,3 +510,27 @@ fn convert_transform() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn convert_transform_unit_translate() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertTransform": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- a translation of (1, 1) is not an identity -->
+    <g transform="matrix(1 0 0 1 1 1)"/>
+    <g transform="translate(4 4) translate(-3 -3)"/>
+    <g transform="translate(1 1) translate(-10 -10) translate(10 10)"/>
+    <g transform="translate(1 1) scale(2)"/>
+    <g transform="translate(1 1) rotate(30)"/>
+    <!-- a translation of (0, 0) is -->
+    <g transform="translate(1 1) translate(-1 -1)"/>
+    <g transform="translate(1 1) translate(-1 -1) scale(2)"/>
+</svg>"#
+        ),
+    )?);
+
+    Ok(())
+}
