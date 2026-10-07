@@ -101,10 +101,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveViewBox {
             return Ok(());
         }
 
-        if view_box.min_x == 0.0
-            && view_box.min_y == 0.0
-            && view_box.width == width
-            && view_box.height == height
+        if view_box.min_x.0 == 0.0
+            && view_box.min_y.0 == 0.0
+            && view_box.width.0 == width
+            && view_box.height.0 == height
         {
             log::debug!("removing viewBox from element");
             drop(view_box);

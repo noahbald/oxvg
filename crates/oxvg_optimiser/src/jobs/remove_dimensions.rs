@@ -4,7 +4,9 @@ use oxvg_ast::{
     get_attribute, has_attribute, is_element, remove_attribute, set_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::attribute::{AttrId, presentation::LengthPercentage, uncategorised::ViewBox};
+use oxvg_collections::attribute::{
+    AttrId, core_attrs::Number, presentation::LengthPercentage, uncategorised::ViewBox,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -87,10 +89,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveDimensions {
         drop(height_attr);
 
         let view_box = ViewBox {
-            min_x: 0.0,
-            min_y: 0.0,
-            width,
-            height,
+            min_x: Number(0.0),
+            min_y: Number(0.0),
+            width: Number(width),
+            height: Number(height),
         };
 
         element.remove_attribute(&AttrId::WidthSvg);

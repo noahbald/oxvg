@@ -482,14 +482,14 @@ fn list_of_semicolon() {
     use crate::attribute::{
         animation::BeginEnd,
         animation_timing::{ClockValue, Metric},
-        core_attrs::NumberOptionalNumber,
+        core_attrs::{Number, NumberOptionalNumber},
     };
     assert_eq!(
         ListOf::<NumberOptionalNumber, Semicolon>::parse_string("1, 2; 3"),
         Ok(ListOf {
             list: vec![
-                NumberOptionalNumber(1.0, Some(2.0)),
-                NumberOptionalNumber(3.0, None)
+                NumberOptionalNumber(Number(1.0), Some(Number(2.0))),
+                NumberOptionalNumber(Number(3.0), None)
             ],
             separator: Semicolon
         })
