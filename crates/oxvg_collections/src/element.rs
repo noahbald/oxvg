@@ -401,6 +401,8 @@ define_elements! {
             ElementId::Style,
             ElementId::Switch,
             ElementId::Text,
+            // In text, as SVG 2 allows (its content model is transparent)
+            ElementId::TSpan,
             ElementId::View,
         ],
         expected_attribute_groups: AttributeGroup::Aria
