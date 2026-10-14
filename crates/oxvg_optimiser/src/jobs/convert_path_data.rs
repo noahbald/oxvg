@@ -608,3 +608,21 @@ fn convert_path_data_open_segments() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn convert_path_data_selector_list() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep zero-length segments when a selector list makes their caps round -->
+    <style>.a, path { stroke-linecap: round }</style>
+    <path d="M10 10 l0 0" stroke="black" stroke-width="10"/>
+</svg>"#
+        ),
+    )?);
+
+    Ok(())
+}
