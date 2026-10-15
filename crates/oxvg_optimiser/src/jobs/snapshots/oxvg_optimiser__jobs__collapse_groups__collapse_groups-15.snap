@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve group when child has its own value of a property that isn't inherited -->\n    <g opacity=\".5\">\n        <path opacity=\".5\" d=\"...\"/>\n    </g>\n    <g display=\"none\">\n        <path display=\"inline\" d=\"...\"/>\n    </g>\n    <g fill=\"red\" opacity=\".5\">\n        <path opacity=\".5\" d=\"...\"/>\n    </g>\n    <!-- Should still move a property that isn't inherited to a child without it -->\n    <g opacity=\".5\">\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group when child has its own value of a property that isn't inherited -->
+    <g opacity=".5">
+        <path opacity=".5" d=""/>
+    </g>
+    <g display="none">
+        <path display="inline" d=""/>
+    </g>
+    <g opacity=".5">
+        <path opacity=".5" d="" fill="red"/>
+    </g>
+    <!-- Should still move a property that isn't inherited to a child without it -->
+    <path d="" opacity=".5"/>
+</svg>
