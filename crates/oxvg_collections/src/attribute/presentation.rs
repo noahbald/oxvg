@@ -228,7 +228,12 @@ impl ToValue for Clip {
 fn clip() {
     assert_eq!(
         Clip::parse_string("rect(1, 2, 3, 4)"),
-        Ok(Clip::Shape([1.0, 2.0, 3.0, 4.0]))
+        Ok(Clip::Shape([
+            Number(1.0),
+            Number(2.0),
+            Number(3.0),
+            Number(4.0)
+        ]))
     );
     assert_eq!(Clip::parse_string("auto"), Ok(Clip::Auto));
 
@@ -396,7 +401,12 @@ fn enable_background() {
     );
     assert_eq!(
         EnableBackground::parse_string("new 1 2 3 4"),
-        Ok(EnableBackground::New(Some((1.0, 2.0, 3.0, 4.0))))
+        Ok(EnableBackground::New(Some((
+            Number(1.0),
+            Number(2.0),
+            Number(3.0),
+            Number(4.0)
+        ))))
     );
 
     assert_eq!(
@@ -504,7 +514,7 @@ impl ToValue for FontSizeAdjust {
 fn font_size_adjust() {
     assert_eq!(
         FontSizeAdjust::parse_string("10"),
-        Ok(FontSizeAdjust::Number(10.0))
+        Ok(FontSizeAdjust::Number(Number(10.0)))
     );
     assert_eq!(
         FontSizeAdjust::parse_string("none"),
@@ -935,7 +945,7 @@ impl<'input> Parse<'input> for GlyphOrientationHorizontal {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input
             .try_parse(|input| input.try_parse(Angle::parse).map(Self))
-            .or_else(|_| Number::parse(input).map(Angle::Deg).map(Self))
+            .or_else(|_| f32::parse(input).map(Angle::Deg).map(Self))
     }
 }
 #[cfg(feature = "serialize")]
@@ -976,12 +986,7 @@ impl<'input> Parse<'input> for GlyphOrientationVertical {
         input
             .try_parse(|input| input.expect_ident_matching("auto").map(|()| Self::Auto))
             .or_else(|_| input.try_parse(Angle::parse).map(Self::Angle))
-            .or_else(|_| {
-                input
-                    .try_parse(Number::parse)
-                    .map(Angle::Deg)
-                    .map(Self::Angle)
-            })
+            .or_else(|_| input.try_parse(f32::parse).map(Angle::Deg).map(Self::Angle))
     }
 }
 #[cfg(feature = "serialize")]

@@ -496,3 +496,17 @@ fn large_coordinates_keep_their_digits() -> anyhow::Result<()> {
     )?);
     Ok(())
 }
+
+#[test]
+fn numbers_keep_every_digit() -> anyhow::Result<()> {
+    insta::assert_snapshot!(test_config(
+        "{}",
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4.2333332 4.2333335">
+    <filter id="a"><feOffset dx="0.21329178" dy="-2229.106"/></filter>
+    <path stroke-miterlimit="2.2360679" pathLength="1234.567" transform="translate(2888.4292,-2229.106)" d="M1 1L5 2.5e-10"/>
+</svg>"#
+        )
+    )?);
+    Ok(())
+}

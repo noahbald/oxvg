@@ -7,7 +7,7 @@ use oxvg_ast::{
 use oxvg_collections::{
     atom::Atom,
     attribute::{
-        core_attrs::{Integer, Number},
+        core_attrs::Integer,
         list_of::{ListOf, SpaceOrComma},
     },
 };
@@ -81,17 +81,17 @@ pub enum Action<'input> {
         value: Atom<'input>,
     },
     /// See [`Actor::matrix`]
-    Matrix(Number, Number, Number, Number, Number, Number),
+    Matrix(f32, f32, f32, f32, f32, f32),
     /// See [`Actor::translate`]
-    Translate(Number, Option<Number>),
+    Translate(f32, Option<f32>),
     /// See [`Actor::scale`]
-    Scale(Number, Option<Number>),
+    Scale(f32, Option<f32>),
     /// See [`Actor::rotate`]
-    Rotate(Number, Option<(Number, Number)>),
+    Rotate(f32, Option<(f32, f32)>),
     /// See [`Actor::skew_x`]
-    SkewX(Number),
+    SkewX(f32),
     /// See [`Actor::skew_y`]
-    SkewY(Number),
+    SkewY(f32),
     /// See [`Actor::insert`]
     Insert(Atom<'input>),
     /// See [`Actor::insert_ns`]

@@ -2,7 +2,6 @@ use lightningcss::properties::transform::Matrix;
 use oxvg_ast::{get_attribute_mut, set_attribute};
 use oxvg_collections::attribute::{
     AttrId,
-    core_attrs::Number,
     inheritable::Inheritable,
     transform::{SVGTransform, SVGTransformList},
 };
@@ -22,12 +21,12 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/manipulate/matrix.md")]
     pub fn matrix(
         &mut self,
-        a: Number,
-        b: Number,
-        c: Number,
-        d: Number,
-        e: Number,
-        f: Number,
+        a: f32,
+        b: f32,
+        c: f32,
+        d: f32,
+        e: f32,
+        f: f32,
     ) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Matrix(a, b, c, d, e, f))?;
         self.append_transform(&SVGTransform::Matrix(Matrix { a, b, c, d, e, f }))?;
@@ -43,7 +42,7 @@ impl<'input> Actor<'input, '_> {
     /// # Spec
     ///
     #[doc = include_str!("../spec/manipulate/translate.md")]
-    pub fn translate(&mut self, x: Number, y: Option<Number>) -> Result<(), Error<'input>> {
+    pub fn translate(&mut self, x: f32, y: Option<f32>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Translate(x, y))?;
         self.append_transform(&SVGTransform::Translate(x, y.unwrap_or_default()))?;
         self.effect_document()
@@ -58,7 +57,7 @@ impl<'input> Actor<'input, '_> {
     /// # Spec
     ///
     #[doc = include_str!("../spec/manipulate/scale.md")]
-    pub fn scale(&mut self, x: Number, y: Option<Number>) -> Result<(), Error<'input>> {
+    pub fn scale(&mut self, x: f32, y: Option<f32>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Scale(x, y))?;
         self.append_transform(&SVGTransform::Scale(x, y.unwrap_or(x)))?;
         self.effect_document()
@@ -73,11 +72,7 @@ impl<'input> Actor<'input, '_> {
     /// # Spec
     ///
     #[doc = include_str!("../spec/manipulate/rotate.md")]
-    pub fn rotate(
-        &mut self,
-        angle: Number,
-        origin: Option<(Number, Number)>,
-    ) -> Result<(), Error<'input>> {
+    pub fn rotate(&mut self, angle: f32, origin: Option<(f32, f32)>) -> Result<(), Error<'input>> {
         self.effect_history(&Action::Rotate(angle, origin))?;
         let (x, y) = origin.unwrap_or((0.0, 0.0));
         self.append_transform(&SVGTransform::Rotate(angle, x, y))
@@ -92,7 +87,7 @@ impl<'input> Actor<'input, '_> {
     /// # Spec
     ///
     #[doc = include_str!("../spec/manipulate/skewX.md")]
-    pub fn skew_x(&mut self, angle: Number) -> Result<(), Error<'input>> {
+    pub fn skew_x(&mut self, angle: f32) -> Result<(), Error<'input>> {
         self.state.record(&Action::SkewX(angle), &self.allocator)?;
         self.append_transform(&SVGTransform::SkewX(angle))
     }
@@ -106,7 +101,7 @@ impl<'input> Actor<'input, '_> {
     /// # Spec
     ///
     #[doc = include_str!("../spec/manipulate/skewY.md")]
-    pub fn skew_y(&mut self, angle: Number) -> Result<(), Error<'input>> {
+    pub fn skew_y(&mut self, angle: f32) -> Result<(), Error<'input>> {
         self.effect_history(&Action::SkewY(angle))?;
         self.append_transform(&SVGTransform::SkewY(angle))?;
         self.effect_document()
