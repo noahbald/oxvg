@@ -521,7 +521,7 @@ export interface CleanupListOfValues {
   floatPrecision: number
   /** Whether to remove `px` from a number's unit. */
   defaultPx: boolean
-  /** Whether to convert absolute units like `cm` and `in` to `px`. */
+  /** Whether to convert absolute units like `cm` and `in` to `px`, where that's shorter. */
   convertToPx: boolean
 }
 
@@ -541,7 +541,7 @@ export interface CleanupNumericValues {
   floatPrecision: number
   /** Whether to remove `px` from a number's unit. */
   defaultPx: boolean
-  /** Whether to convert absolute units like `cm` and `in` to `px`. */
+  /** Whether to convert absolute units like `cm` and `in` to `px`, where that's shorter. */
   convertToPx: boolean
 }
 
