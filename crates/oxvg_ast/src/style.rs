@@ -301,11 +301,11 @@ impl<'input> ComputedStyles<'input> {
                             selector: r.selectors.clone(),
                         }
                     })?;
-                    if !select.matches_naive(&SelectElement::new(element)) {
-                        continue;
-                    }
-                    self.add_declarations(&r.declarations, specificity + s.specificity(), mode);
+                    let matches = select.matches_naive(&SelectElement::new(element));
                     selector.pop();
+                    if matches {
+                        self.add_declarations(&r.declarations, specificity + s.specificity(), mode);
+                    }
                 }
                 Ok(())
             }
