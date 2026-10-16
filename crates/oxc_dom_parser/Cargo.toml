@@ -1,0 +1,42 @@
+[package]
+name = "oxc_dom_parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors = []
+readme = "./README.md"
+keywords = ["parser", "dom", "html", "svg", "xml"]
+categories = ["parser-implementations", "text-processing"]
+description = "An HTML/XML/SVG parser that produces a typed AST."
+
+[lints]
+workspace = true
+
+[lib]
+doctest = true
+
+[dependencies]
+oxc_allocator = ">=0.137.0"
+wide = {version = "1.7.1", optional = true}
+
+[dev-dependencies]
+criterion = { workspace = true }
+roxmltree = { workspace = true }
+
+[features]
+default = ["simd", "html"]
+# enables html parsing
+html = ["svg"]
+svg = []
+# enables interfaces, such as `HTMLElement`, `SVGElement`, and sub-types
+interface = []
+# enables usage of `wide`
+simd = ["dep:wide"]
+# enables usage `std::simd`
+nightly = ["simd"]
+
+[[bench]]
+name = "xml"
+path = "./benches/xml.rs"
+harness = false

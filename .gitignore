@@ -3,6 +3,7 @@
 
 *.svg
 !crates/oxvg_optimiser/benches/fixtures/*.svg
+!crates/oxc_dom_parser/benches/fixtures/*.svg
 node_modules
 dist
 **/benches/criterion

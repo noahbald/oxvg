@@ -104,6 +104,7 @@ xml5ever = "0.39"
 # Developer dependencies
 ctor = "1.0"
 criterion = { version = "0.8", features = ["html_reports"] }
+criterion2 = { version = "3", default-features = false }
 env_logger = "0.11"
 insta = "1.42"
 pretty_assertions = "1.4"

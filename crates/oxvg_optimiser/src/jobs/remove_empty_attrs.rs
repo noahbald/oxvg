@@ -1,5 +1,6 @@
 use oxvg_ast::{
     element::Element,
+    is_attribute,
     visitor::{Context, PrepareOutcome, Visitor},
 };
 use oxvg_collections::attribute::AttributeGroup;
@@ -54,6 +55,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
             if a.name()
                 .attribute_group()
                 .contains(AttributeGroup::ConditionalProcessing)
+                || !element.qual_name().is_permitted_attribute(a.name())
             {
                 return true;
             }
