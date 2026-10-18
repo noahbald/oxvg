@@ -566,6 +566,21 @@ fn serialize_escapes_parsed_style_content() {
 }
 
 #[test]
+fn serialize_keeps_no_break_spaces_in_text() {
+    use crate::serialize::Node;
+
+    let source = "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>A\u{a0}\u{a0} \n B</text><text>\u{a0}</text></svg>";
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>A\u{a0}\u{a0} B</text><text>\u{a0}</text></svg>"
+    );
+}
+
+#[test]
 fn namespaces() {
     use crate::serialize::Node;
 
