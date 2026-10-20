@@ -7,7 +7,8 @@ export type ActionNapi =
   | { type: 'Attr', /** The qualified name of the attribute */
   name: string, /** The value of the attribute */
 value: string }
-| { type: 'Class', field0: string }
+| { type: 'Class', /** The name of the class */
+name: string }
 | { type: 'Paste' }
 | { type: 'PathIntersect' }
 | { type: 'PathUnion' }
@@ -16,18 +17,37 @@ value: string }
 | { type: 'Style', /** The CSS name of the property */
 property: string, /** The CSS value of the property */
 value: string }
-| { type: 'Matrix', field0: number, field1: number, field2: number, field3: number, field4: number, field5: number }
-| { type: 'Translate', field0: number, field1?: number }
-| { type: 'Scale', field0: number, field1?: number }
-| { type: 'Rotate', field0: number, field1?: [number, number] }
-| { type: 'SkewX', field0: number }
-| { type: 'SkewY', field0: number }
-| { type: 'Insert', field0: string }
-| { type: 'InsertNS', field0: string, field1: string }
+| { type: 'Matrix', /** a */
+a: number, /** b */
+b: number, /** c */
+c: number, /** d */
+d: number, /** e */
+e: number, /** f */
+f: number }
+| { type: 'Translate', /** x-axis */
+x: number, /** y-axis */
+y?: number }
+| { type: 'Scale', /** x-axis */
+x: number, /** y-axis */
+y?: number }
+| { type: 'Rotate', /** Angle in degrees */
+angle: number, /** Point about which it rotates */
+origin?: [number, number] }
+| { type: 'SkewX', /** Angle in degrees */
+angle: number }
+| { type: 'SkewY', /** Angle in degrees */
+angle: number }
+| { type: 'Insert', /** SVG element name */
+name: string }
+| { type: 'InsertNS', /** Element namespace */
+uri: string, /** Element name */
+name: string }
 | { type: 'Duplicate' }
-| { type: 'Wrap', field0: string }
+| { type: 'Wrap', /** SVG name */
+name: string }
 | { type: 'Clone' }
-| { type: 'AnchorLink', field0: string }
+| { type: 'AnchorLink', /** Anchor URL */
+href: string }
 | { type: 'Group' }
 | { type: 'Delete' }
 | { type: 'Flatten' }
@@ -38,8 +58,10 @@ value: string }
 | { type: 'StepIn' }
 | { type: 'StepOut' }
 | { type: 'Forget' }
-| { type: 'Select', field0: string }
-| { type: 'SelectMore', field0: string }
+| { type: 'Select', /** CSS selector query */
+query: string }
+| { type: 'SelectMore', /** CSS selector query */
+query: string }
 | { type: 'FirstChild' }
 | { type: 'PreviousSibling' }
 | { type: 'NextSibling' }

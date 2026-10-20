@@ -366,20 +366,22 @@ impl<'input> Action<'input> {
                 Ok(Self::Attr { name, value })
             }
             Self::CLASS => {
-                let Some(class) = args.next().transpose()? else {
+                let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Class(class))
+                Ok(Self::Class { name })
             }
             #[cfg(feature = "optimise")]
             Self::OPTIMISE => {
                 if let Some(jobs) = args.next().transpose()? {
-                    Ok(Self::Optimise(Some(Box::new(
-                        serde_json::from_str(jobs.as_str())
-                            .map_err(|e| Error::InvalidOptimiseConfig(e.to_string()))?,
-                    ))))
+                    Ok(Self::Optimise {
+                        jobs: Some(Box::new(
+                            serde_json::from_str(jobs.as_str())
+                                .map_err(|e| Error::InvalidOptimiseConfig(e.to_string()))?,
+                        )),
+                    })
                 } else {
-                    Ok(Self::Optimise(None))
+                    Ok(Self::Optimise { jobs: None })
                 }
             }
             Self::PASTE => Ok(Self::Paste),
@@ -416,7 +418,7 @@ impl<'input> Action<'input> {
                 let Some(f) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Matrix(a, b, c, d, e, f))
+                Ok(Self::Matrix { a, b, c, d, e, f })
             }
             Self::TRANSLATE => {
                 let mut args = args.map(n_args);
@@ -424,7 +426,7 @@ impl<'input> Action<'input> {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
                 let y = args.next().transpose()?;
-                Ok(Self::Translate(x, y))
+                Ok(Self::Translate { x, y })
             }
             Self::SCALE => {
                 let mut args = args.map(n_args);
@@ -432,11 +434,11 @@ impl<'input> Action<'input> {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
                 let y = args.next().transpose()?;
-                Ok(Self::Scale(x, y))
+                Ok(Self::Scale { x, y })
             }
             Self::ROTATE => {
                 let mut args = args.map(n_args);
-                let Some(deg) = args.next().transpose()? else {
+                let Some(angle) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
                 let x = args.next().transpose()?;
@@ -445,27 +447,27 @@ impl<'input> Action<'input> {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 }
                 let origin = x.zip(y);
-                Ok(Self::Rotate(deg, origin))
+                Ok(Self::Rotate { angle, origin })
             }
             Self::SKEW_X => {
                 let mut args = args.map(n_args);
-                let Some(x) = args.next().transpose()? else {
+                let Some(angle) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::SkewX(x))
+                Ok(Self::SkewX { angle })
             }
             Self::SKEW_Y => {
                 let mut args = args.map(n_args);
-                let Some(y) = args.next().transpose()? else {
+                let Some(angle) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::SkewY(y))
+                Ok(Self::SkewY { angle })
             }
             Self::INSERT => {
                 let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Insert(name))
+                Ok(Self::Insert { name })
             }
             Self::INSERT_NS => {
                 let Some(uri) = args.next().transpose()? else {
@@ -474,21 +476,21 @@ impl<'input> Action<'input> {
                 let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::InsertNS(uri, name))
+                Ok(Self::InsertNS { uri, name })
             }
             Self::DUPLICATE => Ok(Self::Duplicate),
             Self::WRAP => {
                 let Some(name) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Wrap(name))
+                Ok(Self::Wrap { name })
             }
             Self::CLONE => Ok(Self::Clone),
             Self::ANCHOR_LINK => {
                 let Some(href) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::AnchorLink(href))
+                Ok(Self::AnchorLink { href })
             }
             Self::GROUP => Ok(Self::Group),
             Self::DELETE => Ok(Self::Delete),
@@ -501,16 +503,16 @@ impl<'input> Action<'input> {
             Self::STEP_OUT => Ok(Self::StepOut),
             Self::FORGET => Ok(Self::Forget),
             Self::SELECT => {
-                let Some(string) = args.next().transpose()? else {
+                let Some(query) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::Select(string))
+                Ok(Self::Select { query })
             }
             Self::SELECT_MORE => {
-                let Some(string) = args.next().transpose()? else {
+                let Some(query) = args.next().transpose()? else {
                     return Err(Error::MissingStateAttribute(Self::ARG));
                 };
-                Ok(Self::SelectMore(string))
+                Ok(Self::SelectMore { query })
             }
             Self::FIRST_CHILD => Ok(Self::FirstChild),
             Self::PREVIOUS_SIBLING => Ok(Self::PreviousSibling),
@@ -543,11 +545,14 @@ impl<'input> Action<'input> {
                 property: arg0,
                 value: arg1,
             }
-            | Self::InsertNS(arg0, arg1) => {
+            | Self::InsertNS {
+                uri: arg0,
+                name: arg1,
+            } => {
                 Self::embed_arg(element, allocator, arg0.clone());
                 Self::embed_arg(element, allocator, arg1.clone());
             }
-            Self::Matrix(a, b, c, d, e, f) => {
+            Self::Matrix { a, b, c, d, e, f } => {
                 Self::embed_arg(element, allocator, a.to_string().into());
                 Self::embed_arg(element, allocator, b.to_string().into());
                 Self::embed_arg(element, allocator, c.to_string().into());
@@ -555,32 +560,32 @@ impl<'input> Action<'input> {
                 Self::embed_arg(element, allocator, e.to_string().into());
                 Self::embed_arg(element, allocator, f.to_string().into());
             }
-            Self::Translate(x, y) | Self::Scale(x, y) => {
+            Self::Translate { x, y } | Self::Scale { x, y } => {
                 Self::embed_arg(element, allocator, x.to_string().into());
                 if let Some(y) = y {
                     Self::embed_arg(element, allocator, y.to_string().into());
                 }
             }
-            Self::Rotate(angle, origin) => {
+            Self::Rotate { angle, origin } => {
                 Self::embed_arg(element, allocator, angle.to_string().into());
                 if let Some((x, y)) = origin {
                     Self::embed_arg(element, allocator, x.to_string().into());
                     Self::embed_arg(element, allocator, y.to_string().into());
                 }
             }
-            Self::SkewX(arg) | Self::SkewY(arg) => {
-                Self::embed_arg(element, allocator, arg.to_string().into());
+            Self::SkewX { angle } | Self::SkewY { angle } => {
+                Self::embed_arg(element, allocator, angle.to_string().into());
             }
-            Self::Class(arg)
-            | Self::Select(arg)
-            | Self::SelectMore(arg)
-            | Self::Insert(arg)
-            | Self::Wrap(arg)
-            | Self::AnchorLink(arg) => {
+            Self::Class { name: arg }
+            | Self::Select { query: arg }
+            | Self::SelectMore { query: arg }
+            | Self::Insert { name: arg }
+            | Self::Wrap { name: arg }
+            | Self::AnchorLink { href: arg } => {
                 Self::embed_arg(element, allocator, arg.clone());
             }
             #[cfg(feature = "optimise")]
-            Self::Optimise(jobs) => {
+            Self::Optimise { jobs } => {
                 if let Some(jobs) = jobs {
                     Self::embed_arg(
                         element,
@@ -636,27 +641,27 @@ impl<'input> Action<'input> {
             Self::About => Self::ABOUT,
             Self::Copy => Self::COPY,
             Self::Attr { .. } => Self::ATTR,
-            Self::Class(_) => Self::CLASS,
+            Self::Class { .. } => Self::CLASS,
             #[cfg(feature = "optimise")]
-            Self::Optimise(_) => Self::OPTIMISE,
+            Self::Optimise { .. } => Self::OPTIMISE,
             Self::Paste => Self::PASTE,
             Self::PathIntersect => Self::PATH_INTERSECT,
             Self::PathUnion => Self::PATH_UNION,
             Self::PathSubtract => Self::PATH_SUBTRACT,
             Self::PathXor => Self::PATH_XOR,
             Self::Style { .. } => Self::STYLE,
-            Self::Matrix(..) => Self::MATRIX,
-            Self::Translate(..) => Self::TRANSLATE,
-            Self::Scale(..) => Self::SCALE,
-            Self::Rotate(..) => Self::ROTATE,
-            Self::SkewX(_) => Self::SKEW_X,
-            Self::SkewY(_) => Self::SKEW_Y,
-            Self::Insert(_) => Self::INSERT,
-            Self::InsertNS(_, _) => Self::INSERT_NS,
+            Self::Matrix { .. } => Self::MATRIX,
+            Self::Translate { .. } => Self::TRANSLATE,
+            Self::Scale { .. } => Self::SCALE,
+            Self::Rotate { .. } => Self::ROTATE,
+            Self::SkewX { .. } => Self::SKEW_X,
+            Self::SkewY { .. } => Self::SKEW_Y,
+            Self::Insert { .. } => Self::INSERT,
+            Self::InsertNS { .. } => Self::INSERT_NS,
             Self::Duplicate => Self::DUPLICATE,
-            Self::Wrap(_) => Self::WRAP,
+            Self::Wrap { .. } => Self::WRAP,
             Self::Clone => Self::CLONE,
-            Self::AnchorLink(_) => Self::ANCHOR_LINK,
+            Self::AnchorLink { .. } => Self::ANCHOR_LINK,
             Self::Group => Self::GROUP,
             Self::Delete => Self::DELETE,
             Self::Flatten => Self::FLATTEN,
@@ -667,8 +672,8 @@ impl<'input> Action<'input> {
             Self::StepIn => Self::STEP_IN,
             Self::StepOut => Self::STEP_OUT,
             Self::Forget => Self::FORGET,
-            Self::Select(_) => Self::SELECT,
-            Self::SelectMore(_) => Self::SELECT_MORE,
+            Self::Select { .. } => Self::SELECT,
+            Self::SelectMore { .. } => Self::SELECT_MORE,
             Self::FirstChild => Self::FIRST_CHILD,
             Self::PreviousSibling => Self::PREVIOUS_SIBLING,
             Self::NextSibling => Self::NEXT_SIBLING,
@@ -693,9 +698,11 @@ impl<'input> Action<'input> {
                 name: name.to_string(),
                 value: value.to_string(),
             },
-            Self::Class(name) => ActionNapi::Class(name.to_string()),
+            Self::Class { name } => ActionNapi::Class {
+                name: name.to_string(),
+            },
             #[cfg(feature = "optimise")]
-            Self::Optimise(_) => panic!("unsupported"),
+            Self::Optimise { .. } => panic!("unsupported"),
             Self::Paste => ActionNapi::Paste,
             Self::PathIntersect => ActionNapi::PathIntersect,
             Self::PathUnion => ActionNapi::PathUnion,
@@ -705,22 +712,47 @@ impl<'input> Action<'input> {
                 property: property.to_string(),
                 value: value.to_string(),
             },
-            Self::Matrix(a, b, c, d, e, f) => ActionNapi::Matrix(
-                *a as f64, *b as f64, *c as f64, *d as f64, *e as f64, *f as f64,
-            ),
-            Self::Translate(x, y) => ActionNapi::Translate(*x as f64, y.map(|y| y as f64)),
-            Self::Scale(x, y) => ActionNapi::Scale(*x as f64, y.map(|y| y as f64)),
-            Self::Rotate(angle, origin) => {
-                ActionNapi::Rotate(*angle as f64, origin.map(|(x, y)| (x as f64, y as f64)))
-            }
-            Self::SkewX(x) => ActionNapi::SkewX(*x as f64),
-            Self::SkewY(y) => ActionNapi::SkewY(*y as f64),
-            Self::InsertNS(uri, name) => ActionNapi::InsertNS(uri.to_string(), name.to_string()),
-            Self::Insert(name) => ActionNapi::Insert(name.to_string()),
+            Self::Matrix { a, b, c, d, e, f } => ActionNapi::Matrix {
+                a: *a as f64,
+                b: *b as f64,
+                c: *c as f64,
+                d: *d as f64,
+                e: *e as f64,
+                f: *f as f64,
+            },
+            Self::Translate { x, y } => ActionNapi::Translate {
+                x: *x as f64,
+                y: y.map(|y| y as f64),
+            },
+            Self::Scale { x, y } => ActionNapi::Scale {
+                x: *x as f64,
+                y: y.map(|y| y as f64),
+            },
+            Self::Rotate { angle, origin } => ActionNapi::Rotate {
+                angle: *angle as f64,
+                origin: origin.map(|(x, y)| (x as f64, y as f64)),
+            },
+            Self::SkewX { angle } => ActionNapi::SkewX {
+                angle: *angle as f64,
+            },
+            Self::SkewY { angle } => ActionNapi::SkewY {
+                angle: *angle as f64,
+            },
+            Self::InsertNS { uri, name } => ActionNapi::InsertNS {
+                uri: uri.to_string(),
+                name: name.to_string(),
+            },
+            Self::Insert { name } => ActionNapi::Insert {
+                name: name.to_string(),
+            },
             Self::Duplicate => ActionNapi::Duplicate,
-            Self::Wrap(name) => ActionNapi::Wrap(name.to_string()),
+            Self::Wrap { name } => ActionNapi::Wrap {
+                name: name.to_string(),
+            },
             Self::Clone => ActionNapi::Clone,
-            Self::AnchorLink(href) => ActionNapi::AnchorLink(href.to_string()),
+            Self::AnchorLink { href } => ActionNapi::AnchorLink {
+                href: href.to_string(),
+            },
             Self::Group => ActionNapi::Group,
             Self::Delete => ActionNapi::Delete,
             Self::Flatten => ActionNapi::Flatten,
@@ -731,8 +763,12 @@ impl<'input> Action<'input> {
             Self::StepIn => ActionNapi::StepIn,
             Self::StepOut => ActionNapi::StepOut,
             Self::Forget => ActionNapi::Forget,
-            Self::Select(query) => ActionNapi::Select(query.to_string()),
-            Self::SelectMore(query) => ActionNapi::SelectMore(query.to_string()),
+            Self::Select { query } => ActionNapi::Select {
+                query: query.to_string(),
+            },
+            Self::SelectMore { query } => ActionNapi::SelectMore {
+                query: query.to_string(),
+            },
             Self::FirstChild => ActionNapi::FirstChild,
             Self::PreviousSibling => ActionNapi::PreviousSibling,
             Self::NextSibling => ActionNapi::NextSibling,
@@ -753,7 +789,7 @@ impl<'input> Action<'input> {
                 name: name.into(),
                 value: value.into(),
             },
-            ActionNapi::Class(name) => Action::Class(name.into()),
+            ActionNapi::Class { name } => Action::Class { name: name.into() },
             ActionNapi::Paste => Action::Paste,
             ActionNapi::PathIntersect => Action::PathIntersect,
             ActionNapi::PathUnion => Action::PathUnion,
@@ -763,22 +799,41 @@ impl<'input> Action<'input> {
                 property: property.into(),
                 value: value.into(),
             },
-            ActionNapi::Matrix(a, b, c, d, e, f) => {
-                Action::Matrix(a as f32, b as f32, c as f32, d as f32, e as f32, f as f32)
-            }
-            ActionNapi::Translate(x, y) => Action::Translate(x as f32, y.map(|y| y as f32)),
-            ActionNapi::Scale(x, y) => Action::Scale(x as f32, y.map(|y| y as f32)),
-            ActionNapi::Rotate(angle, origin) => {
-                Action::Rotate(angle as f32, origin.map(|(x, y)| (x as f32, y as f32)))
-            }
-            ActionNapi::SkewX(x) => Action::SkewX(x as f32),
-            ActionNapi::SkewY(y) => Action::SkewY(y as f32),
-            ActionNapi::Insert(name) => Action::Insert(name.into()),
-            ActionNapi::InsertNS(uri, name) => Action::InsertNS(uri.into(), name.into()),
+            ActionNapi::Matrix { a, b, c, d, e, f } => Action::Matrix {
+                a: a as f32,
+                b: b as f32,
+                c: c as f32,
+                d: d as f32,
+                e: e as f32,
+                f: f as f32,
+            },
+            ActionNapi::Translate { x, y } => Action::Translate {
+                x: x as f32,
+                y: y.map(|y| y as f32),
+            },
+            ActionNapi::Scale { x, y } => Action::Scale {
+                x: x as f32,
+                y: y.map(|y| y as f32),
+            },
+            ActionNapi::Rotate { angle, origin } => Action::Rotate {
+                angle: angle as f32,
+                origin: origin.map(|(x, y)| (x as f32, y as f32)),
+            },
+            ActionNapi::SkewX { angle } => Action::SkewX {
+                angle: angle as f32,
+            },
+            ActionNapi::SkewY { angle } => Action::SkewY {
+                angle: angle as f32,
+            },
+            ActionNapi::Insert { name } => Action::Insert { name: name.into() },
+            ActionNapi::InsertNS { uri, name } => Action::InsertNS {
+                uri: uri.into(),
+                name: name.into(),
+            },
             ActionNapi::Duplicate => Action::Duplicate,
-            ActionNapi::Wrap(name) => Action::Wrap(name.into()),
+            ActionNapi::Wrap { name } => Action::Wrap { name: name.into() },
             ActionNapi::Clone => Action::Clone,
-            ActionNapi::AnchorLink(href) => Action::AnchorLink(href.into()),
+            ActionNapi::AnchorLink { href } => Action::AnchorLink { href: href.into() },
             ActionNapi::Group => Action::Group,
             ActionNapi::Delete => Action::Delete,
             ActionNapi::Flatten => Action::Flatten,
@@ -789,8 +844,12 @@ impl<'input> Action<'input> {
             ActionNapi::StepIn => Action::StepIn,
             ActionNapi::StepOut => Action::StepOut,
             ActionNapi::Forget => Action::Forget,
-            ActionNapi::Select(query) => Action::Select(query.into()),
-            ActionNapi::SelectMore(query) => Action::SelectMore(query.into()),
+            ActionNapi::Select { query } => Action::Select {
+                query: query.into(),
+            },
+            ActionNapi::SelectMore { query } => Action::SelectMore {
+                query: query.into(),
+            },
             ActionNapi::FirstChild => Action::FirstChild,
             ActionNapi::PreviousSibling => Action::PreviousSibling,
             ActionNapi::NextSibling => Action::NextSibling,
