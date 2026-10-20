@@ -26,10 +26,12 @@ impl<'input> Actor<'input, '_> {
         self.effect_selection(&vec![].into())?;
         self.effect_state(StateEffect::Remove)?;
         if let Some(root) = self.root.find_element() {
-            root.remove_attribute(&AttrId::Unknown(QualName {
-                prefix: Prefix::XMLNS,
-                local: OXVG_PREFIX.into(),
-            }));
+            root.remove_attribute(&AttrId::Unknown {
+                name: QualName {
+                    prefix: Prefix::XMLNS,
+                    local: OXVG_PREFIX.into(),
+                },
+            });
         }
         Ok(())
     }

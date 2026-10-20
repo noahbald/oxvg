@@ -85,7 +85,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
         let mut used_in_legacy_element_stack = self.used_in_legacy_element_stack.borrow_mut();
         for attr in element.attributes() {
             let Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName { prefix, local }),
+                attr_id:
+                    AttrId::Unknown {
+                        name: QualName { prefix, local },
+                    },
                 value,
             } = &*attr
             else {
@@ -125,7 +128,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
     ) -> Result<(), Self::Error> {
         element.attributes().retain(|attr| {
             let Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName { prefix, .. }),
+                attr_id:
+                    AttrId::Unknown {
+                        name: QualName { prefix, .. },
+                    },
                 value,
             } = attr
             else {

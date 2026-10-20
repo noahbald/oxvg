@@ -28,7 +28,7 @@ impl<'input> Actor<'input, '_> {
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
             let attr = element.parse_attr_id(name);
-            if matches!(attr, AttrId::Unknown(_)) {
+            if matches!(attr, AttrId::Unknown { .. }) {
                 continue;
             }
 
