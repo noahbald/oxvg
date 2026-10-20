@@ -50,7 +50,7 @@ pub use crate::jobs::*;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-#[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "napi", napi(string_enum))]
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "wasm", tsify(from_wasm_abi, into_wasm_abi))]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
@@ -71,12 +71,6 @@ pub enum Extends {
     /// Uses [`crate::Jobs::precheck`]
     Safe,
     // TODO: File(Path),
-    #[doc(hidden)]
-    #[cfg(feature = "napi")]
-    #[cfg_attr(feature = "clap", value(skip))]
-    /// Compatibility option for NAPI
-    // FIXME: force discriminated union to prevent NAPI from failing CI
-    Napi(),
 }
 
 impl Extends {
@@ -86,8 +80,6 @@ impl Extends {
             Extends::None => Jobs::none(),
             Extends::Default => Jobs::default(),
             Extends::Safe => Jobs::safe(),
-            #[cfg(feature = "napi")]
-            Extends::Napi() => Jobs::none(),
         }
     }
 

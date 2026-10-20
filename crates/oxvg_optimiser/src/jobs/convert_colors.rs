@@ -19,7 +19,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "napi", napi(string_enum))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Default, Clone)]
@@ -34,11 +34,6 @@ pub enum Method {
     Lightning,
     /// Convert all colors to `currentcolor`.
     CurrentColor,
-    #[doc(hidden)]
-    #[cfg(feature = "napi")]
-    /// Compatibility option for NAPI
-    // FIXME: force discriminated union to prevent NAPI from failing CI
-    Napi(),
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -86,8 +81,6 @@ impl<'input, 'arena> Visitor<'input, 'arena> for ConvertColors {
                 log::debug!("ConvertColors::prepare: skipping default behaviour");
                 PrepareOutcome::skip
             }
-            #[cfg(feature = "napi")]
-            Some(Method::Napi()) => panic!("Napi variant is not allowed!"),
         })
     }
 
@@ -126,8 +119,6 @@ impl<'input> lightningcss::visitor::Visitor<'input> for Method {
         match self {
             Self::CurrentColor => *color = CssColor::CurrentColor,
             Self::Lightning => {}
-            #[cfg(feature = "napi")]
-            Self::Napi() => panic!("Napi variant is not allowed!"),
         }
         Ok(())
     }
