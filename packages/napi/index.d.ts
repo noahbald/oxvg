@@ -1366,9 +1366,8 @@ export interface CleanupAttrs {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface CleanupEnableBackground {
-  field0: boolean
-}
+export type CleanupEnableBackground =
+  boolean
 
 /**
  * Removes unused ids and minifies used ids.
@@ -1461,9 +1460,8 @@ export interface CleanupNumericValues {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface CollapseGroups {
-  field0: boolean
-}
+export type CollapseGroups =
+  boolean
 
 /**
  * Converts color references to their shortest equivalent.
@@ -1503,9 +1501,8 @@ export interface ConvertColors {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface ConvertEllipseToCircle {
-  field0: boolean
-}
+export type ConvertEllipseToCircle =
+  boolean
 
 /**
  * Converts `linearGradient` and `radialGradient` nodes that are a solid colour
@@ -1517,9 +1514,8 @@ export interface ConvertEllipseToCircle {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface ConvertOneStopGradients {
-  field0: boolean
-}
+export type ConvertOneStopGradients =
+  boolean
 
 /**
  * Converts paths found in `<path>`, `<glyph>`, and `<missing-glyph>` elements. Path
@@ -1816,9 +1812,8 @@ export interface MergePaths {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface MergeStyles {
-  field0: boolean
-}
+export type MergeStyles =
+  boolean
 
 /** How the type will be converted. */
 export type Method =
@@ -1861,9 +1856,8 @@ export interface MinifyStyles {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface MoveElemsAttrsToGroup {
-  field0: boolean
-}
+export type MoveElemsAttrsToGroup =
+  boolean
 
 /**
  * Moves some of a group's attributes to the contained elements.
@@ -1878,9 +1872,8 @@ export interface MoveElemsAttrsToGroup {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface MoveGroupAttrsToElems {
-  field0: boolean
-}
+export type MoveGroupAttrsToElems =
+  boolean
 
 /**
  * Runs a series of checks to more confidently be sure the document won't break
@@ -1903,9 +1896,10 @@ export interface Precheck {
 
 /** Various types of ways prefixes can be generated for an id. */
 export type PrefixGenerator =
-  | { type: 'Prefix', field0: string }
-  | { type: 'None' }
-  | { type: 'Default' }
+  | { type: 'Prefix', /** A string to use as a prefix */
+prefix: string }
+| { type: 'None' }
+| { type: 'Default' }
 
 /**
  * Prefix element ids and classnames with the filename or provided string. This
@@ -1954,9 +1948,8 @@ export interface PreservePattern {
  *
  * If the selector fails to parse.
  */
-export interface RemoveAttributesBySelector {
-  field0: Array<Selector>
-}
+export type RemoveAttributesBySelector =
+  Array<Selector>
 
 /**
  * Remove attributes based on whether it matches a pattern.
@@ -2088,9 +2081,8 @@ export interface RemoveDesc {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveDimensions {
-  field0: boolean
-}
+export type RemoveDimensions =
+  boolean
 
 /**
  * Removes doctype definitions from the document.
@@ -2105,9 +2097,8 @@ export interface RemoveDimensions {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveDoctype {
-  field0: boolean
-}
+export type RemoveDoctype =
+  boolean
 
 /**
  * Removes all xml namespaces associated with editing software.
@@ -2163,9 +2154,8 @@ export interface RemoveElementsByAttr {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveEmptyAttrs {
-  field0: boolean
-}
+export type RemoveEmptyAttrs =
+  boolean
 
 /**
  * Removes container elements with no functional children or meaningful attributes.
@@ -2181,9 +2171,8 @@ export interface RemoveEmptyAttrs {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveEmptyContainers {
-  field0: boolean
-}
+export type RemoveEmptyContainers =
+  boolean
 
 /**
  * Removes empty `<text>` and `<tspan>` elements. Removes `<tref>` elements that don't
@@ -2273,9 +2262,8 @@ export interface RemoveHiddenElems {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveMetadata {
-  field0: boolean
-}
+export type RemoveMetadata =
+  boolean
 
 /**
  * Remove attributes on groups that won't be inherited by it's children.
@@ -2290,9 +2278,8 @@ export interface RemoveMetadata {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveNonInheritableGroupAttrs {
-  field0: boolean
-}
+export type RemoveNonInheritableGroupAttrs =
+  boolean
 
 /**
  * For SVGs with a `viewBox` attribute, removes `<path>` element outside of it's bounds.
@@ -2309,9 +2296,8 @@ export interface RemoveNonInheritableGroupAttrs {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveOffCanvasPaths {
-  field0: boolean
-}
+export type RemoveOffCanvasPaths =
+  boolean
 
 /**
  * Removes inline JPEGs, PNGs, and GIFs from the document.
@@ -2326,9 +2312,8 @@ export interface RemoveOffCanvasPaths {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveRasterImages {
-  field0: boolean
-}
+export type RemoveRasterImages =
+  boolean
 
 /**
  * Removes `<script>` elements, event attributes, and javascript `href`s from the document.
@@ -2347,9 +2332,8 @@ export interface RemoveRasterImages {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveScripts {
-  field0: boolean
-}
+export type RemoveScripts =
+  boolean
 
 /**
  * Removes all `<style>` elements from the document.
@@ -2364,9 +2348,8 @@ export interface RemoveScripts {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveStyleElement {
-  field0: boolean
-}
+export type RemoveStyleElement =
+  boolean
 
 /**
  * Removes the `<title>` element from the document.
@@ -2384,9 +2367,8 @@ export interface RemoveStyleElement {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveTitle {
-  field0: boolean
-}
+export type RemoveTitle =
+  boolean
 
 /**
  * Removes elements and attributes that are not expected in an SVG document. Removes
@@ -2446,9 +2428,8 @@ export type RemoveUnused =
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveUnusedNs {
-  field0: boolean
-}
+export type RemoveUnusedNs =
+  boolean
 
 /**
  * Removes unreferenced `<defs>` elements
@@ -2468,9 +2449,8 @@ export interface RemoveUnusedNs {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveUselessDefs {
-  field0: boolean
-}
+export type RemoveUselessDefs =
+  boolean
 
 /**
  * Removes useless `stroke` and `fill` attributes
@@ -2508,9 +2488,8 @@ export interface RemoveUselessStrokeAndFill {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveViewBox {
-  field0: boolean
-}
+export type RemoveViewBox =
+  boolean
 
 /**
  * Replaces `xlink` prefixed attributes to the native SVG equivalent.
@@ -2552,9 +2531,8 @@ export interface RemoveXlink {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveXmlns {
-  field0: boolean
-}
+export type RemoveXmlns =
+  boolean
 
 /**
  * Removes the xml declaration from the document.
@@ -2570,9 +2548,8 @@ export interface RemoveXmlns {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface RemoveXmlProcInst {
-  field0: boolean
-}
+export type RemoveXmlProcInst =
+  boolean
 
 /**
  * For duplicate `<path>` elements, replaces it with a `<use>` that references a single
@@ -2586,9 +2563,8 @@ export interface RemoveXmlProcInst {
  *
  * If a path has an invalid id.
  */
-export interface ReusePaths {
-  field0: boolean
-}
+export type ReusePaths =
+  boolean
 
 /** A selector and set of attributes to remove. */
 export interface Selector {
@@ -2637,9 +2613,8 @@ export interface SortAttrs {
  *
  * If this job produces an error or panic, please raise an [issue](https://github.com/noahbald/oxvg/issues)
  */
-export interface SortDefsChildren {
-  field0: boolean
-}
+export type SortDefsChildren =
+  boolean
 
 /** The method for ordering xmlns attributes */
 export type XMLNSOrder =
