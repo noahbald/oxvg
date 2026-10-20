@@ -1671,11 +1671,21 @@ export interface ConvertTransform {
 }
 
 /** A preset which the specified jobs can overwrite */
-export type Extends =
-  | { type: 'None' }
-  | { type: 'Default' }
-  | { type: 'Safe' }
-  | { type: 'Napi' }
+export declare const enum Extends {
+  /** A preset that contains no jobs. */
+  None = 'None',
+  /**
+   * The default preset.
+   * Uses [`crate::Jobs::default`]
+   */
+  Default = 'Default',
+  /**
+   * The correctness preset. Produces a preset that is less likely to
+   * visually change the document.
+   * Uses [`crate::Jobs::precheck`]
+   */
+  Safe = 'Safe'
+}
 
 /**
  * Merges styles from a `<style>` element to the `style` attribute of matching elements.
@@ -1816,10 +1826,17 @@ export type MergeStyles =
   boolean
 
 /** How the type will be converted. */
-export type Method =
-  | { type: 'Lightning' }
-  | { type: 'CurrentColor' }
-  | { type: 'Napi' }
+export declare const enum Method {
+  /**
+   * Use lightningcss for conversion.
+   *
+   * Note, lightningcss is already used during parsing & serializing,
+   * so choosing this option effectively skips the job.
+   */
+  Lightning = 'Lightning',
+  /** Convert all colors to `currentcolor`. */
+  CurrentColor = 'CurrentColor'
+}
 
 /**
  * Minify `<style>` elements with lightningcss
@@ -2409,11 +2426,11 @@ export interface RemoveUnknownsAndDefaults {
   keepRoleAttr: boolean
 }
 
-export type RemoveUnused =
-  | { type: 'False' }
-  | { type: 'True' }
-  | { type: 'Force' }
-  | { type: 'Napi' }
+export declare const enum RemoveUnused {
+  False = 'False',
+  True = 'True',
+  Force = 'Force'
+}
 
 /**
  * Removes `xmlns` prefixed elements that are never referenced by a qualified name.
@@ -2617,10 +2634,12 @@ export type SortDefsChildren =
   boolean
 
 /** The method for ordering xmlns attributes */
-export type XMLNSOrder =
-  | { type: 'Alphabetical' }
-  | { type: 'Front' }
-  | { type: 'Napi' }
+export declare const enum XMLNSOrder {
+  /** Sort xmlns attributes alphabetically */
+  Alphabetical = 'Alphabetical',
+  /** Keep xmlns attributes at the front of the list */
+  Front = 'Front'
+}
 /** Tolerance for converting between SVG, Segments, and Polygons */
 export interface Tolerance {
   /** The level of tolerance when comparing the error between distances */
