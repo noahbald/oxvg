@@ -109,10 +109,13 @@ impl<'input, 'arena> Element<'input, 'arena> {
                     }
                     Attr::Unparsed {
                         attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
+                            AttrId::Unknown {
+                                name:
+                                    QualName {
+                                        prefix: Prefix::XMLNS,
+                                        local,
+                                    },
+                            },
                         value,
                     } if matching_prefix.is_none() && value == uri => {
                         matching_prefix = Some(local.clone());
@@ -140,10 +143,13 @@ impl<'input, 'arena> Element<'input, 'arena> {
                     }
                     Attr::Unparsed {
                         attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
+                            AttrId::Unknown {
+                                name:
+                                    QualName {
+                                        prefix: Prefix::XMLNS,
+                                        local,
+                                    },
+                            },
                         value,
                     } => {
                         if let Some(prefix) = prefix

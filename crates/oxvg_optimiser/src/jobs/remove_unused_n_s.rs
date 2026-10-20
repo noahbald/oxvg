@@ -123,10 +123,13 @@ fn root_element<'input>(
     for attr in element.attributes() {
         if let Attr::Unparsed {
             attr_id:
-                AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    ..
-                }),
+                AttrId::Unknown {
+                    name:
+                        QualName {
+                            prefix: Prefix::XMLNS,
+                            ..
+                        },
+                },
             value,
         } = &*attr
         {
@@ -143,10 +146,13 @@ fn exit_root_element(element: Element, unused_namespaces: &mut HashSet<Atom>) {
     element.attributes().retain(|attr| {
         let Attr::Unparsed {
             attr_id:
-                AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    ..
-                }),
+                AttrId::Unknown {
+                    name:
+                        QualName {
+                            prefix: Prefix::XMLNS,
+                            ..
+                        },
+                },
             value,
         } = attr
         else {

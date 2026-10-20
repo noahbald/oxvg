@@ -121,10 +121,12 @@ impl<'input, 'arena> State<'input, 'arena> {
         if let Some(maybe_this) = element.last_element_child() {
             if maybe_this != self.state {
                 element.set_attribute(Attr::Unparsed {
-                    attr_id: AttrId::Unknown(QualName {
-                        prefix: Prefix::XMLNS,
-                        local: OXVG_PREFIX.into(),
-                    }),
+                    attr_id: AttrId::Unknown {
+                        name: QualName {
+                            prefix: Prefix::XMLNS,
+                            local: OXVG_PREFIX.into(),
+                        },
+                    },
                     value: OXVG_XMLNS.into(),
                 });
                 self.state.remove();
@@ -132,10 +134,12 @@ impl<'input, 'arena> State<'input, 'arena> {
             }
         } else {
             element.set_attribute(Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    local: OXVG_PREFIX.into(),
-                }),
+                attr_id: AttrId::Unknown {
+                    name: QualName {
+                        prefix: Prefix::XMLNS,
+                        local: OXVG_PREFIX.into(),
+                    },
+                },
                 value: OXVG_XMLNS.into(),
             });
             element.append_child(*self.state);

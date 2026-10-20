@@ -178,7 +178,7 @@ impl RemoveUnknownsAndDefaults {
         }
 
         let name = element.qual_name().unaliased();
-        if matches!(name, ElementId::Unknown(_)) {
+        if matches!(name, ElementId::Unknown { .. }) {
             log::debug!("removing unknown element type");
             element.remove();
         }

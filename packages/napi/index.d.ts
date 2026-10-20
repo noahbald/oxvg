@@ -605,7 +605,8 @@ export type AttrIdNapi =
   | { type: 'Aliased', /** The prefix assigned to the attribute */
   prefix: PrefixNapi, /** The associated attribute */
 name: [string, string] }
-| { type: 'Unknown', field0: QualNameNapi }
+| { type: 'Unknown', /** The qualified name of the attribute */
+name: QualNameNapi }
 
 /**
  * Identifies an element by it's local-name and namespace
@@ -700,7 +701,8 @@ export type ElementIdNapi =
   | { type: 'Aliased', /** The prefix assigned to the element */
   prefix: PrefixNapi, /** The associated element */
 name: [string, string] }
-| { type: 'Unknown', field0: QualNameNapi }
+| { type: 'Unknown', /** The qualified name of the attribute */
+name: QualNameNapi }
 
 /** A namespace for a qualified name's prefix */
 export type NSNapi =
@@ -710,7 +712,8 @@ export type NSNapi =
   | { type: 'XMLNS' }
   | { type: 'XLink' }
   | { type: 'MathML' }
-  | { type: 'Unknown', field0: string }
+  | { type: 'Unknown', /** Namespace URI */
+uri: string }
 
 /** A prefix for a qualified name, e.g. `xlink` of `xlink:href` */
 export type PrefixNapi =
