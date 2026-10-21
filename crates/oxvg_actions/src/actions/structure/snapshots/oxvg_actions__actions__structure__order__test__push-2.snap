@@ -4,11 +4,11 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "two",
             ),
-        ),
+        },
         Push,
     ],
     selection: [
@@ -17,14 +17,14 @@ DerivedState {
     info: Some(
         Info {
             element_id: Some(
-                Unknown(
-                    QualName {
+                Unknown {
+                    name: QualName {
                         prefix: SVG,
                         local: Cow(
                             "two",
                         ),
                     },
-                ),
+                },
             ),
             content_model: ContentModel {
                 permitted_categories: ElementCategory(
