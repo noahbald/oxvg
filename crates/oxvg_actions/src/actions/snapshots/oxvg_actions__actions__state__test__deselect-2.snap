@@ -4,11 +4,11 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "path",
             ),
-        ),
+        },
         Deselect,
     ],
     selection: [],

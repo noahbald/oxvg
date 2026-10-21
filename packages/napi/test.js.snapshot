@@ -22,7 +22,7 @@ exports[`actor > select 1`] = `
   "history": [
     {
       "type": "Select",
-      "field0": "path"
+      "query": "path"
     }
   ],
   "selection": [
@@ -79,11 +79,11 @@ exports[`actor > select 2`] = `
   "history": [
     {
       "type": "Select",
-      "field0": ".different-value"
+      "query": ".different-value"
     },
     {
       "type": "Select",
-      "field0": "path"
+      "query": "path"
     }
   ],
   "selection": [

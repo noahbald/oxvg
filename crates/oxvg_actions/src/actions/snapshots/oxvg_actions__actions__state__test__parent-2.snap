@@ -4,11 +4,11 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "one",
             ),
-        ),
+        },
         Parent,
     ],
     selection: [
@@ -68,14 +68,14 @@ DerivedState {
                     XMLNS: Cow(
                         "http://www.w3.org/2000/svg",
                     ),
-                    Unknown(
-                        QualName {
+                    Unknown {
+                        name: QualName {
                             prefix: XMLNS,
                             local: Cow(
                                 "oxvg",
                             ),
                         },
-                    ): Cow(
+                    }: Cow(
                         "https://oxvg.noahwbaldwin.me",
                     ),
                 },

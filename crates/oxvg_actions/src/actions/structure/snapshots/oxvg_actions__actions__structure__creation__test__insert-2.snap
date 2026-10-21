@@ -4,24 +4,24 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "svg",
             ),
-        ),
-        Insert(
-            Cow(
+        },
+        Insert {
+            name: Cow(
                 "path",
             ),
-        ),
-        InsertNS(
-            Cow(
+        },
+        InsertNS {
+            uri: Cow(
                 "http://www.w3.org/XML/1998/namespace",
             ),
-            Cow(
+            name: Cow(
                 "xml:path",
             ),
-        ),
+        },
     ],
     selection: [
         3,
@@ -29,14 +29,14 @@ DerivedState {
     info: Some(
         Info {
             element_id: Some(
-                Unknown(
-                    QualName {
+                Unknown {
+                    name: QualName {
                         prefix: XML,
                         local: Cow(
                             "path",
                         ),
                     },
-                ),
+                },
             ),
             content_model: ContentModel {
                 permitted_categories: ElementCategory(
