@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_unknowns_and_defaults.rs
+expression: "test_config(r#\"{ \"removeUnknownsAndDefaults\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep defaults referenced by an attribute selector -->\n    <style>[preserveAspectRatio]{fill:red}</style>\n    <svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"xMidYMid meet\">\n        <rect x=\"0\" y=\"0\" width=\"10\" height=\"10\"/>\n    </svg>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep defaults referenced by an attribute selector -->
+    <style>
+        [preserveAspectRatio]{fill:red}
+    </style>
+    <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid">
+        <rect width="10" height="10"/>
+    </svg>
+</svg>

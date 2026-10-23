@@ -20,7 +20,7 @@ const fn default_remove_any() -> bool {
 }
 
 #[derive(Default, Debug)]
-struct AttrStylesheet<'a> {
+pub(crate) struct AttrStylesheet<'a> {
     names: HashSet<(Option<Ident<'a>>, Ident<'a>)>,
 }
 
@@ -39,10 +39,7 @@ impl<'input> lightningcss::visitor::Visitor<'input> for AttrStylesheet<'input> {
         use parcel_selectors::parser::Component;
 
         let local_names = selector.iter_raw_match_order().filter_map(|c| match c {
-            Component::AttributeInNoNamespaceExists {
-                local_name_lower: local_name,
-                ..
-            }
+            Component::AttributeInNoNamespaceExists { local_name, .. }
             | Component::AttributeInNoNamespace { local_name, .. } => {
                 Some((None, local_name.clone()))
             }
@@ -60,7 +57,9 @@ impl<'input> lightningcss::visitor::Visitor<'input> for AttrStylesheet<'input> {
 }
 
 impl<'input> AttrStylesheet<'input> {
-    fn extract(stylesheet: &[RefCell<CssRuleList<'input>>]) -> Result<Self, JobsError<'input>> {
+    pub(crate) fn extract(
+        stylesheet: &[RefCell<CssRuleList<'input>>],
+    ) -> Result<Self, JobsError<'input>> {
         let mut result = Self::default();
         for stylesheet in stylesheet {
             stylesheet.borrow_mut().visit(&mut result)?;
@@ -68,7 +67,7 @@ impl<'input> AttrStylesheet<'input> {
         Ok(result)
     }
 
-    fn contains_qual(&self, attr: &AttrId<'input>) -> bool {
+    pub(crate) fn contains_qual(&self, attr: &AttrId<'input>) -> bool {
         self.names.iter().any(|(prefix, local_name)| {
             prefix.as_deref() == attr.prefix().value().as_deref()
                 && **local_name == **attr.local_name()
@@ -252,6 +251,17 @@ fn remove_attrs() -> anyhow::Result<()> {
         <![CDATA[svg[version="1.1"]{fill:blue;}rect[clip]{fill:green;}]]>
     </style>
     <rect x="10" y="10" width="80" height="80" clip="1"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeDeprecatedAttrs": { "removeAny": true } }"#,
+        Some(
+            r#"<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- keep selected `viewTarget`, matching its case -->
+    <style>[viewTarget]{fill:red}</style>
+    <view id="one" viewBox="0 0 100 100" viewTarget=""/>
 </svg>"#
         )
     )?);
