@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config!(r#\"{ \"inlineStyles\": {} }\"#, svg:\nr#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep ids referenced from other documents after inlining their selectors -->\n    <style>#external { fill: red } #internal { fill: blue }</style>\n    <path id=\"external\" d=\"M0 0h1v1z\"/>\n    <path id=\"internal\" d=\"M0 0h1v1z\"/>\n</svg>\"#,\nexternal_references: [\"external\"],)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep ids referenced from other documents after inlining their selectors -->
+    <path id="external" d="M0 0h1v1Z" style="fill:red"/>
+    <path d="M0 0h1v1Z" style="fill:#00f"/>
+</svg>

@@ -434,6 +434,9 @@ macro_rules! test_config {
     ($config_json:literal, svg: $svg:literal$(,)?) => {
         $crate::jobs::test_config($config_json, Some($svg))
     };
+    ($config_json:literal, svg: $svg:literal, external_references: [$($id:literal),*]$(,)?) => {
+        $crate::jobs::test_config_with_external_references($config_json, Some($svg), &[$($id),*])
+    };
     ($config_json:literal) => {
         $crate::jobs::test_config($config_json, None)
     };
@@ -441,6 +444,15 @@ macro_rules! test_config {
 
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
+    test_config_with_external_references(config_json, svg, &[])
+}
+
+#[cfg(test)]
+pub(crate) fn test_config_with_external_references(
+    config_json: &str,
+    svg: Option<&'static str>,
+    external_references: &[&str],
+) -> anyhow::Result<String> {
     use oxvg_ast::{
         parse::roxmltree::{ParsingOptions, parse_with_options},
         serialize::{Node as _, Options, Space},
@@ -458,7 +470,12 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyho
             ..ParsingOptions::default()
         },
         |dom, allocator| {
-            jobs.run(dom, &Info::new(allocator))
+            let mut info = Info::new(allocator);
+            info.external_references = external_references
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+            jobs.run(dom, &info)
                 .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
             Ok(dom.serialize_with_options(Options {
                 trim_whitespace: Space::Default,

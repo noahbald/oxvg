@@ -1,0 +1,18 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_hidden_elems.rs
+expression: "test_config!(r#\"{ \"removeHiddenElems\": {} }\"#, svg:\nr#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep non-rendering and hidden elements referenced from other documents -->\n    <symbol id=\"used\"><circle r=\"4\"/></symbol>\n    <symbol id=\"unused\"><circle r=\"4\"/></symbol>\n    <defs><linearGradient id=\"gradient\"><stop offset=\"0\"/></linearGradient></defs>\n    <g id=\"hidden\" style=\"display:none\"><path d=\"M0 0h1v1z\"/></g>\n</svg>\"#,\nexternal_references: [\"used\", \"gradient\", \"hidden\"],)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep non-rendering and hidden elements referenced from other documents -->
+    <symbol id="used">
+        <circle r="4"/>
+    </symbol>
+    <defs>
+        <linearGradient id="gradient">
+            <stop offset="0"/>
+        </linearGradient>
+    </defs>
+    <g id="hidden" style="display:none">
+        <path d="M0 0h1v1Z"/>
+    </g>
+</svg>

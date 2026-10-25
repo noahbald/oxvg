@@ -120,6 +120,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for Data<'input, 'arena> {
         context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
         context.query_has_stylesheet(document);
+        // Elements referenced from other documents are kept like those referenced by a `<use>`,
+        // but have no referencing node here to remove.
+        for id in &context.info.external_references {
+            self.all_references.borrow_mut().insert(id.clone());
+            self.references_by_id
+                .borrow_mut()
+                .entry(id.clone())
+                .or_default();
+        }
         Ok(PrepareOutcome::none)
     }
 
@@ -806,6 +815,25 @@ fn remove_hidden_elems() -> anyhow::Result<()> {
     <path id="path1" d="M200 200 l50 -300" style="opacity:0"/>
 </svg>"##
         ),
+    )?);
+
+    Ok(())
+}
+
+#[test]
+fn remove_hidden_elems_external_references() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config!(
+        r#"{ "removeHiddenElems": {} }"#,
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep non-rendering and hidden elements referenced from other documents -->
+    <symbol id="used"><circle r="4"/></symbol>
+    <symbol id="unused"><circle r="4"/></symbol>
+    <defs><linearGradient id="gradient"><stop offset="0"/></linearGradient></defs>
+    <g id="hidden" style="display:none"><path d="M0 0h1v1z"/></g>
+</svg>"#,
+        external_references: ["used", "gradient", "hidden"],
     )?);
 
     Ok(())
