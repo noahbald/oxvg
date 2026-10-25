@@ -1,14 +1,7 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert");
 
-const {
-  optimise,
-  convertSvgoConfig,
-  extend,
-  Actor,
-  Extends,
-} = require("./index.js");
-const { Method } = require("./index.js");
+const { optimise, convertSvgoConfig, extend, Actor } = require("./index.js");
 
 // Force stable keys for snapshot objects
 const snapshotSerialize = (data) =>
@@ -61,7 +54,7 @@ describe("optimise", async () => {
 	    <path fill="rgb(-255,100,500)"/>
 	    <path fill="none"/>
 	</svg>`,
-      { convertColors: { method: Method.CurrentColor } },
+      { convertColors: { method: "CurrentColor" } },
     );
 
     assert.equal(
@@ -94,12 +87,12 @@ describe("optimise", async () => {
   await describe("convertSvgoConfig", () => {
     test("nullish falls back to default", () => {
       const result = convertSvgoConfig();
-      assert.deepEqual(result, extend(Extends.Default));
+      assert.deepEqual(result, extend("Default"));
     });
 
     test("empty", () => {
       const result = convertSvgoConfig([]);
-      assert.deepEqual(result, extend(Extends.None));
+      assert.deepEqual(result, extend("None"));
     });
 
     test("without parameters", () => {
