@@ -59,10 +59,16 @@ pub enum Action<'input> {
         value: Atom<'input>,
     },
     /// See [`Actor::class`]
-    Class(Atom<'input>),
+    Class {
+        /// The name of the class
+        name: Atom<'input>,
+    },
     #[cfg(feature = "optimise")]
     /// See [`Actor::optimise`]
-    Optimise(Option<Box<oxvg_optimiser::Jobs>>),
+    Optimise {
+        /// Configuration of optimisation jobs
+        jobs: Option<Box<oxvg_optimiser::Jobs>>,
+    },
     /// See [`Actor::paste`]
     Paste,
     /// See [`Actor::path_intersect`]
@@ -81,29 +87,77 @@ pub enum Action<'input> {
         value: Atom<'input>,
     },
     /// See [`Actor::matrix`]
-    Matrix(f32, f32, f32, f32, f32, f32),
+    Matrix {
+        /// a
+        a: f32,
+        /// b
+        b: f32,
+        /// c
+        c: f32,
+        /// d
+        d: f32,
+        /// e
+        e: f32,
+        /// f
+        f: f32,
+    },
     /// See [`Actor::translate`]
-    Translate(f32, Option<f32>),
+    Translate {
+        /// x-axis
+        x: f32,
+        /// y-axis
+        y: Option<f32>,
+    },
     /// See [`Actor::scale`]
-    Scale(f32, Option<f32>),
+    Scale {
+        /// x-axis
+        x: f32,
+        /// y-axis
+        y: Option<f32>,
+    },
     /// See [`Actor::rotate`]
-    Rotate(f32, Option<(f32, f32)>),
+    Rotate {
+        /// Angle in degrees
+        angle: f32,
+        /// Point about which it rotates
+        origin: Option<(f32, f32)>,
+    },
     /// See [`Actor::skew_x`]
-    SkewX(f32),
+    SkewX {
+        /// Angle in degrees
+        angle: f32,
+    },
     /// See [`Actor::skew_y`]
-    SkewY(f32),
+    SkewY {
+        /// Angle in degrees
+        angle: f32,
+    },
     /// See [`Actor::insert`]
-    Insert(Atom<'input>),
+    Insert {
+        /// SVG element name
+        name: Atom<'input>,
+    },
     /// See [`Actor::insert_ns`]
-    InsertNS(Atom<'input>, Atom<'input>),
+    InsertNS {
+        /// Element namespace
+        uri: Atom<'input>,
+        /// Element name
+        name: Atom<'input>,
+    },
     /// See [`Actor::duplicate`]
     Duplicate,
     /// See [`Actor::wrap`]
-    Wrap(Atom<'input>),
+    Wrap {
+        /// SVG name
+        name: Atom<'input>,
+    },
     /// See [`Actor::clone`]
     Clone,
     /// See [`Actor::anchor_link`]
-    AnchorLink(Atom<'input>),
+    AnchorLink {
+        /// Anchor URL
+        href: Atom<'input>,
+    },
     /// See [`Actor::group`]
     Group,
     /// See [`Actor::delete`]
@@ -125,9 +179,15 @@ pub enum Action<'input> {
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
-    Select(Atom<'input>),
+    Select {
+        /// CSS selector query
+        query: Atom<'input>,
+    },
     /// See [`Actor::select_more`]
-    SelectMore(Atom<'input>),
+    SelectMore {
+        /// CSS selector query
+        query: Atom<'input>,
+    },
     /// See [`Actor::first_child`]
     FirstChild,
     /// See [`Actor::previous_sibling`]
@@ -158,7 +218,10 @@ pub enum ActionNapi {
         value: String,
     },
     /// See [`Actor::class`]
-    Class(String),
+    Class {
+        /// The name of the class
+        name: String,
+    },
     /// See [`Actor::paste`]
     Paste,
     /// See [`Actor::path_intersect`]
@@ -177,29 +240,77 @@ pub enum ActionNapi {
         value: String,
     },
     /// See [`Actor::matrix`]
-    Matrix(f64, f64, f64, f64, f64, f64),
+    Matrix {
+        /// a
+        a: f64,
+        /// b
+        b: f64,
+        /// c
+        c: f64,
+        /// d
+        d: f64,
+        /// e
+        e: f64,
+        /// f
+        f: f64,
+    },
     /// See [`Actor::translate`]
-    Translate(f64, Option<f64>),
+    Translate {
+        /// x-axis
+        x: f64,
+        /// y-axis
+        y: Option<f64>,
+    },
     /// See [`Actor::scale`]
-    Scale(f64, Option<f64>),
+    Scale {
+        /// x-axis
+        x: f64,
+        /// y-axis
+        y: Option<f64>,
+    },
     /// See [`Actor::rotate`]
-    Rotate(f64, Option<(f64, f64)>),
+    Rotate {
+        /// Angle in degrees
+        angle: f64,
+        /// Point about which it rotates
+        origin: Option<(f64, f64)>,
+    },
     /// See [`Actor::skew_x`]
-    SkewX(f64),
+    SkewX {
+        /// Angle in degrees
+        angle: f64,
+    },
     /// See [`Actor::skew_y`]
-    SkewY(f64),
+    SkewY {
+        /// Angle in degrees
+        angle: f64,
+    },
     /// See [`Actor::insert`]
-    Insert(String),
+    Insert {
+        /// SVG element name
+        name: String,
+    },
     /// See [`Actor::insert_ns`]
-    InsertNS(String, String),
+    InsertNS {
+        /// Element namespace
+        uri: String,
+        /// Element name
+        name: String,
+    },
     /// See [`Actor::duplicate`]
     Duplicate,
     /// See [`Actor::wrap`]
-    Wrap(String),
+    Wrap {
+        /// SVG name
+        name: String,
+    },
     /// See [`Actor::clone`]
     Clone,
     /// See [`Actor::anchor_link`]
-    AnchorLink(String),
+    AnchorLink {
+        /// Anchor URL
+        href: String,
+    },
     /// See [`Actor::group`]
     Group,
     /// See [`Actor::delete`]
@@ -221,9 +332,15 @@ pub enum ActionNapi {
     /// See [`Actor::forget`]
     Forget,
     /// See [`Actor::select`]
-    Select(String),
+    Select {
+        /// CSS selector query
+        query: String,
+    },
     /// See [`Actor::select_more`]
-    SelectMore(String),
+    SelectMore {
+        /// CSS selector query
+        query: String,
+    },
     /// See [`Actor::first_child`]
     FirstChild,
     /// See [`Actor::previous_sibling`]
@@ -316,27 +433,27 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::About => self.about(),
             Action::Copy => self.copy(),
             Action::Attr { name, value } => self.attr(&name, &value),
-            Action::Class(name) => self.class(&name),
+            Action::Class { name } => self.class(&name),
             Action::Style { property, value } => self.style(&property, &value),
             #[cfg(feature = "optimise")]
-            Action::Optimise(jobs) => self.optimise(jobs),
+            Action::Optimise { jobs } => self.optimise(jobs),
             Action::Paste => self.paste(),
             Action::PathIntersect => self.path_intersect(),
             Action::PathUnion => self.path_union(),
             Action::PathSubtract => self.path_subtract(),
             Action::PathXor => self.path_xor(),
-            Action::Matrix(a, b, c, d, e, f) => self.matrix(a, b, c, d, e, f),
-            Action::Translate(x, y) => self.translate(x, y),
-            Action::Scale(x, y) => self.scale(x, y),
-            Action::Rotate(angle, origin) => self.rotate(angle, origin),
-            Action::SkewX(angle) => self.skew_x(angle),
-            Action::SkewY(angle) => self.skew_y(angle),
-            Action::Insert(name) => self.insert(&name),
-            Action::InsertNS(uri, name) => self.insert_ns(&uri, &name),
+            Action::Matrix { a, b, c, d, e, f } => self.matrix(a, b, c, d, e, f),
+            Action::Translate { x, y } => self.translate(x, y),
+            Action::Scale { x, y } => self.scale(x, y),
+            Action::Rotate { angle, origin } => self.rotate(angle, origin),
+            Action::SkewX { angle } => self.skew_x(angle),
+            Action::SkewY { angle } => self.skew_y(angle),
+            Action::Insert { name } => self.insert(&name),
+            Action::InsertNS { uri, name } => self.insert_ns(&uri, &name),
             Action::Duplicate => self.duplicate(),
-            Action::Wrap(name) => self.wrap(&name),
+            Action::Wrap { name } => self.wrap(&name),
             Action::Clone => self.clone(),
-            Action::AnchorLink(href) => self.anchor_link(&href),
+            Action::AnchorLink { href } => self.anchor_link(&href),
             Action::Group => self.group(),
             Action::Delete => self.delete(),
             Action::Flatten => self.flatten(),
@@ -347,8 +464,8 @@ impl<'input, 'arena> Actor<'input, 'arena> {
             Action::StepIn => self.step_in(),
             Action::StepOut => self.step_out(),
             Action::Forget => self.forget(),
-            Action::Select(query) => self.select(&query),
-            Action::SelectMore(query) => self.select_more(&query),
+            Action::Select { query } => self.select(&query),
+            Action::SelectMore { query } => self.select_more(&query),
             Action::FirstChild => self.first_child(),
             Action::PreviousSibling => self.previous_sibling(),
             Action::NextSibling => self.next_sibling(),

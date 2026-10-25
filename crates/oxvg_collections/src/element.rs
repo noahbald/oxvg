@@ -110,7 +110,10 @@ macro_rules! define_elements {
                 element_id: Box<ElementId<'input>>,
             },
             /// An element that isn't a well-known `ElementId`
-            Unknown(QualName<'input>),
+            Unknown {
+                /// The qualified name of the attribute
+                name: QualName<'input>,
+            },
         }
 
         #[cfg(feature = "napi")]
@@ -126,7 +129,7 @@ macro_rules! define_elements {
                             _ => unreachable!()
                         },
                     },
-                    Self::Unknown(name) => ElementIdNapi::Unknown(name.to_napi()),
+                    Self::Unknown { name } => ElementIdNapi::Unknown { name: name.to_napi() },
                 }
             }
         }
@@ -149,7 +152,10 @@ macro_rules! define_elements {
                 name: (String, String),
             },
             /// An element that isn't a well-known `ElementId`
-            Unknown(crate::name::QualNameNapi),
+            Unknown {
+                /// The qualified name of the attribute
+                name: crate::name::QualNameNapi,
+            },
         }
 
         impl<'input> ElementId<'input> {
@@ -157,7 +163,7 @@ macro_rules! define_elements {
             pub fn new(prefix: Prefix<'input>, local: Atom<'input>) -> Self {
                 let name = match (prefix.unaliased(), &*local) {
                     $((Prefix::SVG, $name) => Self::$element,)+
-                    (_, _) => return Self::Unknown(QualName { prefix, local }),
+                    (_, _) => return Self::Unknown { name: QualName { prefix, local } },
                 };
                 if prefix.is_aliased() {
                     Self::Aliased { prefix, element_id: Box::new(name) }
@@ -169,7 +175,7 @@ macro_rules! define_elements {
             /// Returns the prefix of the qualified name.
             pub const fn prefix(&self) -> &Prefix<'input> {
                 match self {
-                    Self::Unknown(name) => &name.prefix,
+                    Self::Unknown { name } => &name.prefix,
                     Self::Aliased { prefix, .. } => prefix,
                     _ => &Prefix::SVG,
                 }
@@ -186,7 +192,7 @@ macro_rules! define_elements {
                 match self {
                     $(Self::$element => _local_name::$element,)+
                     Self::Aliased { element_id, .. } => element_id.local_name(),
-                    Self::Unknown(name) => &name.local,
+                    Self::Unknown { name } => &name.local,
                 }
             }
 
@@ -195,7 +201,7 @@ macro_rules! define_elements {
                 match self {
                     $(Self::$element => _c::$element,)+
                     Self::Aliased { element_id, .. } => element_id.categories(),
-                    Self::Unknown(_) => ElementCategory::empty(),
+                    Self::Unknown { .. } => ElementCategory::empty(),
                 }
             }
 
@@ -204,7 +210,7 @@ macro_rules! define_elements {
                 match self {
                     $(Self::$element => _pc::$element,)+
                     Self::Aliased { element_id, .. } => element_id.permitted_categories(),
-                    Self::Unknown(_) => ElementCategory::all(),
+                    Self::Unknown { .. } => ElementCategory::all(),
                 }
             }
 
@@ -213,7 +219,7 @@ macro_rules! define_elements {
                 match self {
                     $(Self::$element => _pe::$element,)+
                     Self::Aliased { element_id, .. } => element_id.permitted_elements(),
-                    Self::Unknown(_) => &[],
+                    Self::Unknown { .. } => &[],
                 }
             }
 
@@ -249,7 +255,7 @@ macro_rules! define_elements {
                 match self {
                     $(Self::$element => _ea::$element,)+
                     Self::Aliased { element_id, .. } => element_id.expected_attributes(),
-                    Self::Unknown(_) => &[],
+                    Self::Unknown { .. } => &[],
                 }
             }
 
@@ -260,7 +266,7 @@ macro_rules! define_elements {
                     // https://svgwg.org/svg2-draft/styling.html#TermPresentationAttribute
                     $(Self::$element => _eag::$element.union(AttributeGroup::Presentation),)+
                     Self::Aliased { element_id, .. } => element_id.expected_attribute_groups(),
-                    Self::Unknown(_) => AttributeGroup::XLink,
+                    Self::Unknown { .. } => AttributeGroup::XLink,
                 // Core attributes can apply to any `SVG` element
                 // https://svgwg.org/svg2-draft/struct.html#TermCoreAttribute
                 }).union(AttributeGroup::Core)
@@ -294,7 +300,7 @@ macro_rules! define_elements {
                     $((Self::$element, Self::$element) => true,)+
                     (Self::Aliased { .. }, _) => unreachable!(),
                     (_, Self::Aliased { .. }) => unreachable!(),
-                    (Self::Unknown(a), Self::Unknown(b)) => a == b,
+                    (Self::Unknown { name: a }, Self::Unknown { name: b }) => a == b,
                     _ => false,
 
                 }

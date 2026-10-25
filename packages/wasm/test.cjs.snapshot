@@ -21,7 +21,9 @@ exports[`actor > on empty 1`] = `
 {
   "history": [
     {
-      "Select": "svg"
+      "Select": {
+        "query": "svg"
+      }
     }
   ],
   "selection": [
@@ -84,7 +86,9 @@ exports[`actor > select 1`] = `
 {
   "history": [
     {
-      "Select": "path"
+      "Select": {
+        "query": "path"
+      }
     }
   ],
   "selection": [
@@ -122,10 +126,14 @@ exports[`actor > select 2`] = `
 {
   "history": [
     {
-      "Select": ".different-value"
+      "Select": {
+        "query": ".different-value"
+      }
     },
     {
-      "Select": "path"
+      "Select": {
+        "query": "path"
+      }
     }
   ],
   "selection": [

@@ -23,6 +23,7 @@
 	"license": "MIT",
 	"napi": {
 		"binaryName": "oxvg",
+		"constEnum": false,
 		"targets": [
 			"x86_64-apple-darwin",
 			"aarch64-apple-darwin",

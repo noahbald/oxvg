@@ -20,7 +20,7 @@ pub fn no_invalid_attributes(
     reports.par_extend(attributes.par_iter().filter_map(|attr| {
         let attr_id = attr.name();
         match attr {
-            Attr::Unparsed { attr_id, value } if !matches!(attr_id, AttrId::Unknown(_)) => {
+            Attr::Unparsed { attr_id, value } if !matches!(attr_id, AttrId::Unknown { .. }) => {
                 Some(Error {
                     problem: Problem::InvalidAttribute {
                         attribute: attr_id.clone(),

@@ -265,10 +265,13 @@ impl<'input> Reporter<'_, 'input> {
                 }
                 Attr::Unparsed {
                     attr_id:
-                        AttrId::Unknown(QualName {
-                            prefix: Prefix::XMLNS,
-                            local,
-                        }),
+                        AttrId::Unknown {
+                            name:
+                                QualName {
+                                    prefix: Prefix::XMLNS,
+                                    local,
+                                },
+                        },
                     value,
                 } => {
                     namespaces.insert((Some(local.clone()), value.clone(), false));

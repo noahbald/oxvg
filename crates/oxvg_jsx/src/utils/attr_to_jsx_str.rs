@@ -219,10 +219,13 @@ pub fn attr_to_jsx_str<'input>(attr: &AttrId<'input>) -> Result<Atom<'input>, Bu
         AttrId::XmlSpace => "xmlSpace",
         AttrId::YChannelSelector => "yChannelSelector",
         AttrId::ZoomAndPan => "zoomAndPan",
-        AttrId::Unknown(QualName {
-            prefix: Prefix::XMLNS,
-            local,
-        }) => {
+        AttrId::Unknown {
+            name:
+                QualName {
+                    prefix: Prefix::XMLNS,
+                    local,
+                },
+        } => {
             if matches!(local.as_str(), "xlink") {
                 "xmlnsXlink"
             } else {

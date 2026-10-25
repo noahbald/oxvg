@@ -32,18 +32,13 @@ use super::ContextFlags;
 #[cfg(feature = "wasm")]
 use tsify::Tsify;
 
-#[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "napi", napi(string_enum))]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub enum RemoveUnused {
     False,
     #[default]
     True,
     Force,
-    #[doc(hidden)]
-    #[cfg(feature = "napi")]
-    /// Compatibility option for NAPI
-    // FIXME: force discriminated union to prevent NAPI from failing CI
-    Napi(),
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
@@ -303,8 +298,6 @@ impl Serialize for RemoveUnused {
             RemoveUnused::True => true.serialize(serializer),
             RemoveUnused::False => false.serialize(serializer),
             RemoveUnused::Force => "force".serialize(serializer),
-            #[cfg(feature = "napi")]
-            Self::Napi() => panic!("Napi variant is not allowed!"),
         }
     }
 }

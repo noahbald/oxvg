@@ -23,7 +23,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Clone, Default, Debug)]
@@ -153,12 +153,16 @@ fn gather(element: Element) -> Result<ViewBox, GatherViewboxDataError> {
                 return Ok(ViewBox {
                     min_x: Number(0.0),
                     min_y: Number(0.0),
-                    width: Number(width
-                        .to_px()
-                        .ok_or(GatherViewboxDataError::ParseFloatError)?),
-                    height: Number(height
-                        .to_px()
-                        .ok_or(GatherViewboxDataError::ParseFloatError)?),
+                    width: Number(
+                        width
+                            .to_px()
+                            .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    ),
+                    height: Number(
+                        height
+                            .to_px()
+                            .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    ),
                 });
             }
             _ => return Err(GatherViewboxDataError::MissingViewbox),

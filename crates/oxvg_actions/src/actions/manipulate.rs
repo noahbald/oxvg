@@ -28,7 +28,7 @@ impl<'input> Actor<'input, '_> {
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
             let attr = element.parse_attr_id(name);
-            if matches!(attr, AttrId::Unknown(_)) {
+            if matches!(attr, AttrId::Unknown { .. }) {
                 continue;
             }
 
@@ -51,7 +51,7 @@ impl<'input> Actor<'input, '_> {
     #[doc = include_str!("../spec/manipulate/class.md")]
     pub fn class(&mut self, name: &str) -> Result<(), Error<'input>> {
         let name: Atom<'static> = name.to_string().into();
-        self.effect_history(&Action::Class(name.clone()))?;
+        self.effect_history(&Action::Class { name: name.clone() })?;
 
         let selections = self.get_selections()?;
         for element in self.get_selection_elements(selections) {
@@ -78,7 +78,7 @@ impl<'input> Actor<'input, '_> {
         &mut self,
         jobs: Option<Box<oxvg_optimiser::Jobs>>,
     ) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Optimise(jobs.clone()))?;
+        self.effect_history(&Action::Optimise { jobs: jobs.clone() })?;
 
         self.state.state.remove();
         jobs.unwrap_or_default()

@@ -61,8 +61,8 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
 ] }
 log = { version = "0.4" }
 ls-types = "0.0.6"
-napi = { version = "3.12", default-features = false, features = ["napi7"] }
-napi-build = { version = "2.4", default-features = false }
+napi = { version = "3.14", default-features = false, features = ["napi7"] }
+napi-build = { version = "2.6", default-features = false }
 napi-derive = { version = "3.6" }
 num-traits = "0.2"
 nunny = "0.2"

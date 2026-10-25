@@ -35,7 +35,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Default, Clone)]
@@ -180,10 +180,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
         }
 
         if self.xlink_href_count.get() == 0 {
-            element.remove_attribute(&AttrId::Unknown(QualName {
-                prefix: Prefix::XMLNS,
-                local: Atom::Static("xlink"),
-            }));
+            element.remove_attribute(&AttrId::Unknown {
+                name: QualName {
+                    prefix: Prefix::XMLNS,
+                    local: Atom::Static("xlink"),
+                },
+            });
         }
 
         let effected_defs = self.effected_defs.borrow();
