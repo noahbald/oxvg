@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use oxc_allocator::{Allocator, Box, Vec};
 
 #[cfg(feature = "html")]
@@ -7,8 +5,8 @@ use crate::scanner::HTML;
 use crate::{
     Error, ErrorKind, Span,
     ast::{
-        Attribute, AttributeValue, CData, Comment, Doctype, Document, Element, MimeType, Name,
-        Node, ProcessingInstruction, Text, TextSpan,
+        Attribute, AttributeValue, CData, Comment, Document, Element, MimeType, Name, Node,
+        ProcessingInstruction, Text, TextSpan,
     },
     entity::Entities,
     error::{ParseResult, SourceError},
@@ -182,6 +180,7 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
 
     let mut has_root = false;
     let mut has_doctype = false;
+    let mut remaining_nodes_allowed = parser.options.max_nodes;
     let mut stack: std::vec::Vec<Element<'a>> = vec![];
     let mut entities = Entities::default();
     let mut state = ParserState::Content;
@@ -213,7 +212,13 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                     ),
                     allocator,
                 ));
-                push_node(&mut stack, &mut document, node);
+                push_node(
+                    &mut stack,
+                    &mut document,
+                    &mut remaining_nodes_allowed,
+                    node,
+                )
+                .map_err(|(err, span)| Error::new(ErrorKind::SourceError(err), span))?;
             }
             (TokenKind::TagOpenStart, ParserState::Content) => {
                 if stack.is_empty() {
@@ -231,6 +236,12 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 element.name = Name::new(span, tokeniser.current_str());
             }
             (TokenKind::AttrName, ParserState::OpenTag) => {
+                if previous.span.end == span.start {
+                    return Err(Error::new(
+                        ErrorKind::UnexpectedNonWhitespace,
+                        Span::splat(span.start),
+                    ));
+                }
                 // EXPECT: `OpenTag` should push to stack
                 let element = stack.last_mut().unwrap();
                 let name = tokeniser.current_str();
@@ -244,7 +255,6 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
             (TokenKind::ValueSingleQuote | TokenKind::ValueDoubleQuote, ParserState::Attribute) => {
                 // EXPECT: `OpenTag` -> `Attribute` should push to stack
                 let element = stack.last_mut().unwrap();
-                let str = tokeniser.current_str().as_str();
                 let value_span = Span::new(
                     tokeniser.current_token().span().start + 1,
                     tokeniser.current_token().span().end - 1,
@@ -280,7 +290,13 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 let mut element = stack.pop().unwrap();
                 element.span.end = span.end;
                 let node = Node::Element(Box::new_in(element, allocator));
-                push_node(&mut stack, &mut document, node);
+                push_node(
+                    &mut stack,
+                    &mut document,
+                    &mut remaining_nodes_allowed,
+                    node,
+                )
+                .map_err(|(err, span)| Error::new(ErrorKind::SourceError(err), span))?;
                 state = ParserState::Content;
             }
             (TokenKind::PIStart, ParserState::Content) => {
@@ -297,7 +313,13 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                     ProcessingInstruction::new(Span::new(node_start, span.end), target, value);
                 let node =
                     Node::ProcessingInstruction(Box::new_in(processing_instruction, allocator));
-                push_node(&mut stack, &mut document, node);
+                push_node(
+                    &mut stack,
+                    &mut document,
+                    &mut remaining_nodes_allowed,
+                    node,
+                )
+                .map_err(|(err, span)| Error::new(ErrorKind::SourceError(err), span))?;
                 state = ParserState::Content;
             }
             (TokenKind::CommentStart, ParserState::Content) => {
@@ -308,10 +330,19 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 let value = text_before_suffix(&tokeniser, "-->");
                 let comment = Comment::new(Span::new(node_start, span.end), value);
                 let node = Node::Comment(Box::new_in(comment, allocator));
-                push_node(&mut stack, &mut document, node);
+                push_node(
+                    &mut stack,
+                    &mut document,
+                    &mut remaining_nodes_allowed,
+                    node,
+                )
+                .map_err(|(err, span)| Error::new(ErrorKind::SourceError(err), span))?;
                 state = ParserState::Content;
             }
             (TokenKind::CDataStart, ParserState::Content) => {
+                if stack.is_empty() {
+                    return Err(Error::new(ErrorKind::UnexpectedNonWhitespace, span));
+                }
                 node_start = span.start;
                 state = ParserState::CData;
             }
@@ -319,7 +350,13 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 let value = text_before_suffix(&tokeniser, "]]>");
                 let c_data = CData::new(Span::new(node_start, span.end), value);
                 let node = Node::CData(Box::new_in(c_data, allocator));
-                push_node(&mut stack, &mut document, node);
+                push_node(
+                    &mut stack,
+                    &mut document,
+                    &mut remaining_nodes_allowed,
+                    node,
+                )
+                .map_err(|(err, span)| Error::new(ErrorKind::SourceError(err), span))?;
                 state = ParserState::Content;
             }
             (TokenKind::ValueUnquoted | TokenKind::TextHTMLFallback, _) => {
@@ -332,10 +369,7 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 }
                 has_doctype = true;
                 if matches!(parser.options.allow_dtd, AllowDTD::False) {
-                    return Err(Error::new(
-                        ErrorKind::SourceError(SourceError::DTDDetected),
-                        span,
-                    ));
+                    return Err(Error::new(ErrorKind::DTDDetected, span));
                 }
                 node_start = span.start;
                 let doctype = doctype::parse::<XML, false>(
@@ -354,6 +388,8 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
                 document.doctype = Some(doctype);
                 state = ParserState::Content;
             }
+            // Unreachable states are bugs and should be handled properly.
+            // If you reach this state in production, please raise an issue.
             state => unreachable!("{state:?}"),
         }
     }
@@ -371,11 +407,20 @@ fn parse_xml<'a>(parser: Parser<'a>) -> ParseResult<Document<'a>> {
         Ok(document)
     }
 }
-fn push_node<'a>(stack: &mut [Element<'a>], document: &mut Document<'a>, node: Node<'a>) {
+fn push_node<'a>(
+    stack: &mut [Element<'a>],
+    document: &mut Document<'a>,
+    remaining_nodes_allowed: &mut u32,
+    node: Node<'a>,
+) -> Result<(), (SourceError, Span)> {
+    if *remaining_nodes_allowed == 0 {
+        return Err((SourceError::TooManyNodes, node.span()));
+    }
     match stack.last_mut() {
         Some(parent) => parent.children.push(node),
         None => document.children.push(node),
     }
+    Ok(())
 }
 fn text_before_suffix<'a>(tokeniser: &Tokeniser<'a, XML>, suffix: &str) -> TextSpan<'a> {
     let span = tokeniser.current_token().span();
@@ -385,7 +430,7 @@ fn text_before_suffix<'a>(tokeniser: &Tokeniser<'a, XML>, suffix: &str) -> TextS
     TextSpan::new(Span::new(span.start, span.end - suffix.len() as u32), value)
 }
 
-mod doctype {
+pub mod doctype {
     use oxc_allocator::GetAllocator;
 
     use crate::{
@@ -393,6 +438,7 @@ mod doctype {
         ast::{DTDItem, Doctype, EntityDef, ExternalId, Name, NotationDataDeclaration, TextSpan},
         dtd_scanner::{self, TokenKind},
         entity::Entities,
+        options::{AllowDTD, ParseOptions},
         scanner::{MimeCategory, Tokeniser, TokeniserTrait},
         span::SPAN,
     };
@@ -401,12 +447,14 @@ mod doctype {
         parent: &Tokeniser<'a, M>,
         entities: &mut Entities<'a, HTML>,
         scratch: &mut String,
+        options: &ParseOptions,
         allocator: &impl GetAllocator<'a>,
     ) -> Result<Doctype<'a>, Error> {
         let mut tokeniser = dtd_scanner::Tokeniser::new(parent);
         let mut doctype = Doctype::proto(allocator);
         let mut external_id = ExternalId::proto();
-        let mut int_subset = false;
+        let mut int_subset_start = false;
+        let mut int_subset_end = false;
         let mut entity_name = Name::<'a>::proto();
         let mut entity_span = SPAN;
 
@@ -434,13 +482,14 @@ mod doctype {
                 TokenKind::SystemLiteral => {
                     let value = tokeniser.current_str().dequote();
                     external_id.system = TextSpan::new(span, value);
-                    if !int_subset {
+                    external_id.span.end = span.end;
+                    if !int_subset_start {
                         doctype.external_id =
                             Some(std::mem::replace(&mut external_id, ExternalId::proto()))
                     } else {
                         doctype.items.push(DTDItem::new_general_entity(
                             entity_span,
-                            entity_name,
+                            std::mem::replace(&mut entity_name, Name::proto()),
                             EntityDef::new_external_id(
                                 span,
                                 std::mem::replace(&mut external_id, ExternalId::proto()),
@@ -451,7 +500,7 @@ mod doctype {
                         ))
                     }
                 }
-                TokenKind::IntSubsetStart => int_subset = true,
+                TokenKind::IntSubsetStart => int_subset_start = true,
                 TokenKind::IntSubsetNotEntityDecl => doctype.items.push(
                     DTDItem::new_unparsed_dtd_item(span, tokeniser.current_str(), allocator),
                 ),
@@ -476,25 +525,33 @@ mod doctype {
                     entities.register(entity_name.value.as_str(), value.escaped.as_str());
                     doctype.items.push(DTDItem::new_general_entity(
                         entity_span,
-                        entity_name,
+                        std::mem::replace(&mut entity_name, Name::proto()),
                         EntityDef::new_entity_value(span, value, allocator),
                         allocator,
                     ))
                 }
                 TokenKind::GeneralEntityNotationData => {
+                    if !int_subset_start {
+                        return Err(Error::new(ErrorKind::InvalidDoctypeData, span));
+                    }
                     if let Some(DTDItem::GeneralEntity(entity)) = doctype.items.last_mut() {
                         if let EntityDef::ExternalEntityDeclaration(decl) = &mut entity.body {
                             decl.notation_data_declaration = Some(NotationDataDeclaration::new(
                                 span,
                                 Name::new(span, tokeniser.current_str()),
-                            ))
+                            ));
+                            decl.span.end = span.end;
                         }
                     }
                 }
-                TokenKind::IntSubsetEnd => {}
+                TokenKind::IntSubsetEnd => int_subset_end = true,
                 TokenKind::End => {
-                    doctype.span.end = span.end;
-                    return Ok(doctype);
+                    if int_subset_end || !int_subset_start {
+                        doctype.span.end = span.end;
+                        return Ok(doctype);
+                    } else if let Some(DTDItem::GeneralEntity(entity)) = doctype.items.last_mut() {
+                        entity.span.end = span.end;
+                    }
                 }
                 TokenKind::InvalidData => {
                     return Err(Error::new(ErrorKind::InvalidDoctypeData, span));
@@ -511,9 +568,11 @@ mod test {
     use crate::{
         ErrorKind, MimeType, Parser, Span,
         ast::{
-            Attribute, AttributeValue, CData, Comment, Name, ProcessingInstruction, Str, TextSpan,
+            Attribute, AttributeValue, CData, Comment, EntityValue, EscapedStr,
+            ExternalEntityDeclaration, ExternalId, Name, NotationDataDeclaration,
+            ProcessingInstruction, Str, Text, TextSpan, UnparsedDTDItem,
         },
-        span::SPAN,
+        options::ParseOptions,
     };
 
     #[test]
@@ -555,7 +614,7 @@ mod test {
         );
         assert_eq!(
             *children.next().unwrap().to_text().unwrap(),
-            TextSpan::new(Span::new(38, 39), "\n")
+            Text::new(Span::new(38, 39), EscapedStr::new("\n", "\n"))
         );
         assert_eq!(
             *children.next().unwrap().to_comment().unwrap(),
@@ -566,10 +625,7 @@ mod test {
         );
         assert_eq!(
             *children.next().unwrap().to_text().unwrap(),
-            TextSpan {
-                span: Span::new(55, 56),
-                value: Str::new("\n")
-            }
+            Text::new(Span::new(55, 56), EscapedStr::new("\n", "\n"))
         );
 
         let element = children.next().unwrap().to_element().unwrap();
@@ -585,10 +641,7 @@ mod test {
         let mut element_children = element.unbox().children.into_iter();
         assert_eq!(
             *element_children.next().unwrap().to_text().unwrap(),
-            TextSpan {
-                span: Span::new(65, 68),
-                value: Str::new("\n  ")
-            }
+            Text::new(Span::new(65, 68), EscapedStr::new("\n  ", "\n  "))
         );
 
         let child = element_children.next().unwrap().to_element().unwrap();
@@ -612,18 +665,15 @@ mod test {
                 },
                 value: AttributeValue {
                     span: Span::new(85, 92),
-                    value: Str::new("value")
+                    value: EscapedStr::new("value", "value")
                 }
             }
         );
         assert!(child_attributes.next().is_none());
 
         assert_eq!(
-            *dbg!(element_children.next()).unwrap().to_text().unwrap(),
-            TextSpan {
-                span: Span::new(95, 98),
-                value: Str::new("\n  ")
-            }
+            *element_children.next().unwrap().to_text().unwrap(),
+            Text::new(Span::new(95, 98), EscapedStr::new("\n  ", "\n  "))
         );
         assert_eq!(
             *element_children.next().unwrap().to_c_data().unwrap(),
@@ -634,7 +684,7 @@ mod test {
         );
         assert_eq!(
             *element_children.next().unwrap().to_text().unwrap(),
-            TextSpan::new(Span::new(117, 118), "\n")
+            Text::new(Span::new(117, 118), EscapedStr::new("\n", "\n"))
         );
 
         assert!(children.next().is_none());
@@ -667,5 +717,170 @@ mod test {
 
         assert_eq!(error.kind, ErrorKind::DisallowedDuplicateAttributes);
         assert_eq!(error.span, Span::new(19, 22));
+    }
+
+    #[test]
+    fn xml_doctype_well_formed() {
+        let allocator = Allocator::new();
+        let document = Parser::new(
+            &allocator,
+            r#"<!DOCTYPE name SYSTEM "System literal" [<!ELEMENT name ANY><!ATTLIST name name CDATA #REQUIRED> <!ENTITY name "Entity value"> <!ENTITY name SYSTEM "System literal"> <!ENTITY name PUBLIC "Pubid literal" "System literal" NDATA ndataName> <!ENTITY % pename "<!ENTITY space ' '>"> %pename; <!NOTATION name SYSTEM "System literal"> <? name xml?> <!-- comment > -->]>
+<root />"#,
+            MimeType::ApplicationXML,
+        ).with_options(ParseOptions::default().allow_dtd()).parse().unwrap();
+        assert_eq!(document.span, Span::new(0, 370));
+        assert_eq!(document.content_type, MimeType::ApplicationXML);
+
+        let doctype = document.doctype.unwrap();
+        assert_eq!(doctype.span, Span::new(0, 361));
+        assert_eq!(doctype.name, Name::new(Span::new(10, 14), "name"));
+        assert_eq!(
+            doctype.external_id,
+            Some(ExternalId::new_system(
+                Span::new(15, 38),
+                TextSpan::new(Span::new(22, 38), "System literal")
+            ))
+        );
+        let mut items = doctype.items.into_iter();
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(Span::new(40, 59), "<!ELEMENT name ANY>")
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(Span::new(59, 95), "<!ATTLIST name name CDATA #REQUIRED>")
+        );
+        let general_entity = items.next().unwrap().to_general_entity().unwrap().unbox();
+        assert_eq!(general_entity.span, Span::new(96, 125));
+        assert_eq!(general_entity.name, Name::new(Span::new(105, 109), "name"));
+        assert_eq!(
+            general_entity.body.to_entity_value().unwrap().unbox(),
+            EntityValue::new(
+                Span::new(110, 124),
+                EscapedStr::new("Entity value", "Entity value")
+            )
+        );
+        let general_entity = items.next().unwrap().to_general_entity().unwrap().unbox();
+        assert_eq!(general_entity.span, Span::new(126, 164));
+        assert_eq!(general_entity.name, Name::new(Span::new(135, 139), "name"));
+        assert_eq!(
+            general_entity
+                .body
+                .to_external_entity_declaration()
+                .unwrap()
+                .unbox(),
+            ExternalEntityDeclaration::new(
+                Span::new(147, 163),
+                ExternalId::new_system(
+                    Span::new(140, 163),
+                    TextSpan::new(Span::new(147, 163), "System literal")
+                ),
+                None
+            )
+        );
+        let general_entity = items.next().unwrap().to_general_entity().unwrap().unbox();
+        assert_eq!(general_entity.span, Span::new(165, 235));
+        assert_eq!(general_entity.name, Name::new(Span::new(174, 178), "name"));
+        assert_eq!(
+            general_entity
+                .body
+                .to_external_entity_declaration()
+                .unwrap()
+                .unbox(),
+            ExternalEntityDeclaration::new(
+                Span::new(202, 234),
+                ExternalId::new_public(
+                    Span::new(179, 218),
+                    TextSpan::new(Span::new(186, 201), "Pubid literal"),
+                    TextSpan::new(Span::new(202, 218), "System literal")
+                ),
+                Some(NotationDataDeclaration::new(
+                    Span::new(225, 234),
+                    Name::new(Span::new(225, 234), "ndataName")
+                ))
+            )
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(
+                Span::new(236, 276),
+                r#"<!ENTITY % pename "<!ENTITY space ' '>">"#
+            )
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(Span::new(277, 285), "%pename;")
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(
+                Span::new(286, 326),
+                r#"<!NOTATION name SYSTEM "System literal">"#
+            )
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(Span::new(327, 340), "<? name xml?>")
+        );
+        assert_eq!(
+            items
+                .next()
+                .unwrap()
+                .to_unparsed_dtd_item()
+                .unwrap()
+                .unbox(),
+            UnparsedDTDItem::new(Span::new(341, 359), "<!-- comment > -->")
+        );
+        assert!(items.next().is_none());
+
+        let mut children = document.children.into_iter();
+        assert_eq!(
+            *children.next().unwrap().to_text().unwrap(),
+            Text::new(Span::new(361, 362), EscapedStr::new("\n", "\n"))
+        );
+
+        let element = children.next().unwrap().to_element().unwrap();
+        assert_eq!(element.span, Span::new(362, 370));
+        assert_eq!(
+            element.name,
+            Name {
+                span: Span::new(363, 367),
+                value: Str::new("root")
+            }
+        );
+        assert_eq!(element.attributes.len(), 0);
+        assert_eq!(element.children.len(), 0);
+
+        assert!(children.next().is_none());
     }
 }

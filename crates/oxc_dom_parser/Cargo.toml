@@ -34,7 +34,7 @@ interface = []
 # enables usage of `wide`
 simd = ["dep:wide"]
 # enables usage `std::simd`
-nightly = ["simd"]
+nightly = []
 
 [[bench]]
 name = "xml"

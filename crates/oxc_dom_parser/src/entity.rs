@@ -5,6 +5,7 @@ use oxc_allocator::GetAllocator;
 use crate::{
     Error, ErrorKind, Span,
     ast::{EscapedStr, Name, TextSpan},
+    options::{AllowDTD, AllowDTDOptions},
 };
 
 #[derive(Default)]
@@ -115,7 +116,8 @@ impl<'a, const HTML: bool> Entities<'a, HTML> {
         ))
     }
 
-    pub fn register(&mut self, name: &'a str, value: &'a str) {
+    pub fn register(&mut self, name: &'a str, value: &'a str, options: &AllowDTDOptions) {
+        if options.check_entity_references {}
         if let Self::Declared(set) = self {
             set.insert(name, value);
         } else {

@@ -1,17 +1,47 @@
-#[cfg(feature = "nightly")]
-mod nightly;
-
 use std::ops::RangeInclusive;
 
-#[cfg(feature = "nightly")]
-pub use nightly::*;
-
 mod fallback;
-#[cfg(not(feature = "nightly"))]
+#[cfg(feature = "nightly")]
+mod nightly;
+#[cfg(feature = "simd")]
 mod wide;
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(feature = "nightly")]
+use nightly::{self as simd};
+#[cfg(feature = "simd")]
 use wide::{self as simd};
+
+#[cfg(all(not(feature = "nightly"), not(feature = "simd")))]
+mod simd {
+    use std::ops::RangeInclusive;
+
+    use crate::simd::Op;
+
+    use super::fallback;
+    pub use super::fallback::{Eq, Ne};
+
+    pub fn find_proto<O: Op<()>, const N: usize>(
+        haystack: &[u8],
+        needles: [u8; N],
+    ) -> Option<usize> {
+        fallback::find_mixed_proto::<(), O, N, 0>(haystack, needles, [])
+    }
+
+    pub fn find_mixed_proto<O: Op<()>, const N: usize, const R: usize>(
+        haystack: &[u8],
+        needles: [u8; N],
+        ranges: [RangeInclusive<u8>; R],
+    ) -> Option<usize> {
+        fallback::find_mixed_proto::<(), O, N, R>(haystack, needles, ranges)
+    }
+
+    pub fn find_range_proto<O: Op<()>, const N: usize>(
+        haystack: &[u8],
+        ranges: [RangeInclusive<u8>; N],
+    ) -> Option<usize> {
+        fallback::find_mixed_proto::<(), O, 0, N>(haystack, [], ranges)
+    }
+}
 
 pub trait Op<T> {
     fn select(in_set: T) -> T;
@@ -79,7 +109,7 @@ pub fn find_mixed_ne<const SIMD: bool, const N: usize, const R: usize>(
     if SIMD {
         simd::find_mixed_proto::<simd::Ne, N, R>(haystack, needles, ranges)
     } else {
-        simd::find_mixed_proto::<simd::Ne, N, R>(haystack, needles, ranges)
+        fallback::find_mixed_proto::<(), fallback::Ne, N, R>(haystack, needles, ranges)
     }
 }
 

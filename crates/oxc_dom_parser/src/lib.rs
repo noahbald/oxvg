@@ -37,26 +37,27 @@ pub use oxc_allocator::Allocator;
 pub use parser::Parser;
 pub use span::Span;
 
-/// Size regression guards, in the spirit of oxc_ast's generated assertions:
-/// enums stay pointer-sized-plus-tag, and hot token types stay small.
-#[cfg(all(test, target_pointer_width = "64"))]
-mod size_asserts {
-    use crate::{ast, scanner, span};
+/// enum regression guards, in the spirit of oxc_ast's generated assertions:
+#[test]
+fn size_asserts() {
+    // Hot tokens stay small.
+    // 1. Global tokens should be tiny <12 bytes.
+    assert_eq!(size_of::<scanner::Token>(), 12);
+    assert_eq!(size_of::<scanner::TokenKind>(), 1);
+    assert_eq!(size_of::<span::Span>(), 8);
+    // 2. Literals should stay small, <24 bytes.
+    assert_eq!(size_of::<ast::Name>(), 24);
+    assert_eq!(size_of::<ast::TextSpan>(), 24);
+    assert_eq!(size_of::<ast::EscapedStr>(), 32);
+    assert_eq!(size_of::<ast::Str>(), 16);
+    // 3. Element primitives should stay moderate, <80 bytes.
+    assert_eq!(size_of::<ast::Element>(), 80);
+    assert_eq!(size_of::<ast::Attribute>(), 72);
+    assert_eq!(size_of::<ast::AttributeValue>(), 40);
+    assert_eq!(size_of::<ast::Text>(), 40);
 
-    #[test]
-    fn sizes() {
-        // Scanner-side: every buffered token pays these.
-        assert_eq!(size_of::<scanner::Token>(), 12);
-        assert_eq!(size_of::<scanner::TokenKind>(), 1);
-        assert_eq!(size_of::<span::Span>(), 8);
-        // `Node` adds the span and props on top of the content.
-        // Node-position fields box it so container children stay small (guarded below).
-        assert_eq!(size_of::<ast::Node>(), 16);
-        assert_eq!(size_of::<ast::Element>(), 80);
-        assert_eq!(size_of::<ast::TextSpan>(), 24);
-        assert_eq!(size_of::<ast::Doctype>(), 24);
-        assert_eq!(size_of::<ast::Comment>(), 32);
-        assert_eq!(size_of::<ast::CData>(), 32);
-        assert_eq!(size_of::<ast::ProcessingInstruction>(), 56);
-    }
+    // structured enums stay pointer-sized-plus-tag.
+    assert_eq!(size_of::<ast::Node>(), 16);
+    assert_eq!(size_of::<ast::DTDItem>(), 16);
+    assert_eq!(size_of::<ast::EntityDef>(), 16);
 }

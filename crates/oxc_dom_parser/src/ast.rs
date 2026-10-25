@@ -388,6 +388,20 @@ impl<'a> DTDItem<'a> {
     ) -> Self {
         Self::GeneralEntity(Box::new_in(GeneralEntity::new(span, name, body), allocator))
     }
+
+    pub fn to_general_entity(self) -> Option<Box<'a, GeneralEntity<'a>>> {
+        match self {
+            Self::GeneralEntity(general_entity) => Some(general_entity),
+            _ => None,
+        }
+    }
+
+    pub fn to_unparsed_dtd_item(self) -> Option<Box<'a, UnparsedDTDItem<'a>>> {
+        match self {
+            Self::UparsedDTDItem(unparsed_dtd_item) => Some(unparsed_dtd_item),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -397,8 +411,11 @@ pub struct UnparsedDTDItem<'a> {
 }
 
 impl<'a> UnparsedDTDItem<'a> {
-    pub fn new(span: Span, raw: Str<'a>) -> Self {
-        Self { span, raw }
+    pub fn new(span: Span, raw: impl Into<Str<'a>>) -> Self {
+        Self {
+            span,
+            raw: raw.into(),
+        }
     }
 
     pub fn proto() -> Self {
@@ -460,6 +477,22 @@ impl<'a> EntityDef<'a> {
             allocator,
         ))
     }
+
+    pub fn to_entity_value(self) -> Option<Box<'a, EntityValue<'a>>> {
+        match self {
+            Self::EntityValue(entity_value) => Some(entity_value),
+            _ => None,
+        }
+    }
+
+    pub fn to_external_entity_declaration(self) -> Option<Box<'a, ExternalEntityDeclaration<'a>>> {
+        match self {
+            Self::ExternalEntityDeclaration(external_entity_declaration) => {
+                Some(external_entity_declaration)
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -493,11 +526,6 @@ impl<'a> ExternalEntityDeclaration<'a> {
             notation_data_declaration,
         }
     }
-}
-
-pub enum ExternalID<'a> {
-    System(Box<'a, SystemExternalID<'a>>),
-    Public(Box<'a, PublicExternalID<'a>>),
 }
 
 pub struct SystemExternalID<'a> {

@@ -3,7 +3,7 @@
 //! - Fixtures are copied from roxmltree repo.
 //! - Benches run both for roxmltree and oxc_dom_parser under similar conditions.
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use oxc_dom_parser::{Allocator, MimeType, Parser};
+use oxc_dom_parser::{Allocator, MimeType, Parser, options::ParseOptions};
 use std::{
     fs,
     hint::black_box,
@@ -37,7 +37,8 @@ fn bench_parser(c: &mut Criterion) {
             |b, code| {
                 b.iter(|| {
                     let allocator = Allocator::default();
-                    let parser = Parser::new(&allocator, code, MimeType::ApplicationXML);
+                    let parser = Parser::new(&allocator, code, MimeType::ApplicationXML)
+                        .with_options(ParseOptions::default().allow_dtd());
                     black_box(parser.parse().map_err(|e| (e, name.clone())).unwrap());
                 });
             },

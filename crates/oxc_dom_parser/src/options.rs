@@ -9,15 +9,17 @@ pub struct ParseOptions {
 
 #[derive(Default)]
 pub enum AllowDTD {
-    True {
-        check_entity_references: bool,
-        max_entity_depth: u8,
-        max_entity_references: u8,
-        max_dtd_items: u32,
-    },
+    True(AllowDTDOptions),
     /// Will
     #[default]
     False,
+}
+
+pub struct AllowDTDOptions {
+    pub check_entity_references: bool,
+    pub max_entity_depth: u8,
+    pub max_entity_references: u8,
+    pub max_dtd_items: u32,
 }
 
 impl Default for ParseOptions {
@@ -29,16 +31,22 @@ impl Default for ParseOptions {
     }
 }
 
-impl ParseOptions {
-    #[must_use]
-    /// Allows dtd parsing with default options
-    pub fn allow_dtd(mut self) -> Self {
-        self.allow_dtd = AllowDTD::True {
+impl Default for AllowDTDOptions {
+    fn default() -> Self {
+        Self {
             check_entity_references: true,
             max_entity_depth: 10,
             max_entity_references: u8::MAX,
             max_dtd_items: u32::MAX,
-        };
+        }
+    }
+}
+
+impl ParseOptions {
+    #[must_use]
+    /// Allows dtd parsing with default options
+    pub fn allow_dtd(mut self) -> Self {
+        self.allow_dtd = AllowDTD::True(AllowDTDOptions::default());
         self
     }
 

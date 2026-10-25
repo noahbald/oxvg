@@ -36,17 +36,24 @@ pub trait TokeniserTrait<'a, M: MimeCategory> {
         self.try_next(Self::next_whitespace);
     }
     /// S
-    fn next_whitespace(&mut self) -> Result<(), ()> {
-        if let Some(position) = M::find_non_whitespace(self.slice()) {
+    fn next_whitespace(&mut self) -> Option<()> {
+        if let Some(position) = M::find_non_whitespace(self.slice())
+            && position > 0
+        {
             self.advance(position);
-            Ok(())
+            Some(())
         } else {
-            Err(())
+            None
         }
     }
-    fn try_next<T, F: Fn(&mut Self) -> Result<T, ()>>(&mut self, f: F) -> Option<T> {
+    fn try_next<T, F: Fn(&mut Self) -> Option<T>>(&mut self, f: F) -> Option<T> {
         let start = self.cursor();
-        f(self).inspect_err(|_| self.set_cursor(start)).ok()
+        if let Some(t) = f(self) {
+            Some(t)
+        } else {
+            self.set_cursor(start);
+            None
+        }
     }
     fn next_byte(&mut self) -> Option<u8> {
         self.advance(1);
@@ -211,10 +218,6 @@ pub struct Tokeniser<'a, M: MimeCategory> {
 impl<'a, M: MimeCategory> TokeniserTrait<'a, M> for Tokeniser<'a, M> {
     type Token = Token;
 
-    fn force(&mut self, cursor: usize, token: Self::Token) {
-        self.cursor = cursor;
-        self.token = token;
-    }
     fn current_token(&self) -> Self::Token {
         self.token
     }
@@ -232,6 +235,10 @@ impl<'a, M: MimeCategory> TokeniserTrait<'a, M> for Tokeniser<'a, M> {
     }
     fn advance(&mut self, by: usize) {
         self.cursor += by;
+    }
+    fn force(&mut self, cursor: usize, token: Self::Token) {
+        self.cursor = cursor;
+        self.token = token;
     }
 }
 
@@ -341,7 +348,16 @@ impl<'a, M: MimeCategory> Tokeniser<'a, M> {
         } else if self.start_with_doctype() {
             // `<!DOCTYPE`
             self.advance(7);
-            Token::new(TokenKind::DoctypeStart, Span::new_usize(start, self.cursor))
+            let whitespace_start = self.cursor;
+            self.skip_whitespace();
+            if whitespace_start == self.cursor {
+                Token::new(
+                    TokenKind::TextHTMLFallback,
+                    Span::new_usize(start, self.cursor),
+                )
+            } else {
+                Token::new(TokenKind::DoctypeStart, Span::new_usize(start, self.cursor))
+            }
         } else {
             // NOTE: Invalid XML
             Token::new(
@@ -694,75 +710,142 @@ impl Token {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
+/// Tokens for documents.
+///
+/// For each token kind's production (e.g. `Name`), the final production specifies what the token represents.
+///
+/// # XML
+///
+/// XML documents must be well-formed
+/// 1. Taken as a whole, it matches the production labelled `document`
+/// 2. It meets all the well-formedness constraints given in the specification
+/// 3. Each of the parsed entities which is referenced directly or indirectly  within the document is well-formed
+///
+/// document = prolog element Misc*
 pub enum TokenKind {
     #[default]
-    /// Start of file
+    /// document = prolog element Misc*
+    /// prolog = XMLDecl? Misc* (doctypedecl Misc*)?
+    /// element = EmptyElemTag | STag content ETag
+    /// Misc = Comment | PI | S
+    /// document
     DocumentStart,
-    /// `<`
+    /// EmptyElemTag = '<' Name (S Attribute)* S? '/>'
+    /// STag = '<' Name (S Attribute)* S? '>'
+    /// '<'
     TagOpenStart,
-    /// `</`
+    /// ETag = '</' Name S? '>'
+    /// '</'
     TagCloseStart,
-    /// Name of a tag.
-    ///
-    /// Guaranteed to be have valid name start/chars for given XML/HTML.
+    /// EmptyElemTag = '<' Name (S Attribute)* S? '/>'
+    /// STag = '<' Name (S Attribute)* S? '>'
+    /// ETag = '</' Name S? '>'
+    /// Name = NameStartChar (NameChar)*
     TagName,
-    /// `>`
+    /// STag = '<' Name (S Attribute)* S? '>'
+    /// ETag = '</' Name S? '>'
+    /// '>'
     TagEnd,
-    /// `/>`
+    /// EmptyElemTag = '<' Name (S Attribute)* S? '/>'
+    /// '/>'
     TagSelfEnd,
-    /// `<!--`
+    /// Comment = '<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
+    /// '<!--'
     CommentStart,
-    /// `<comment text>-->`
+    /// Comment = '<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
+    /// ((Char - '-') | ('-' (Char - '-')))* '-->'
     CommentTextEndInclusive,
-    /// `<![CDATA[`
-    ///
+    /// # HTML
     /// Treated as text in non-foreign HTML.
+    ///
+    /// # XML
+    /// CDSect = CDStart CData CDEnd
+    /// CDStart = '<![CDATA['
     CDataStart,
-    /// `<c-data text>]]>`
-    ///
+    /// # HTML
     /// Treated as text in non-foreign HTML.
+    ///
+    /// # XML
+    /// CDSect = CDStart CData CDEnd
+    /// CData = (Char* - (Char* ']]>' Char*))
+    /// CDEnd = ']]>'
+    /// CData CDEnd
     CDataTextEndInclusive,
-    /// `<?`
+    /// XMLDecl = '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+    /// PI = '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
+    /// '<?'
     PIStart,
-    /// Text between `<?` and `<content>?>`
+    /// XMLDecl = '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+    /// PI = '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
+    /// PITarget = Name - (('X' | 'x') ('M' | 'm') ('L' 'l'))
+    /// 'xml' | PITarget
     PITarget,
-    /// `<content>?>`
+    /// XMLDecl = '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+    /// PI = '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
+    /// (VersionInfo EncodingDecl? SDDecl? S?) | (PITarget (S (Char* - (Char* '?>' Char*)))?)
     PIContentEndInclusive,
-    /// `<!DOCTYPE`
+    /// # HTML
+    /// '<!DOCTYPE' S ('H' | 'h') ('T' | 't') ('M' | 'm') ('L' | 'l') (SYSTEM ('"' 'about:legacy-compat' '"' | "'" 'about:legacy-compat' "'"))? '>'
+    /// '<!DOCTYPE' S
+    ///
+    /// # XML
+    /// doctypedecl = '<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
+    /// '<!DOCTYPE' S
     DoctypeStart,
-    /// Name of doctype
+    /// # HTML
+    /// '<!DOCTYPE' S ('H' | 'h') ('T' | 't') ('M' | 'm') ('L' | 'l') (SYSTEM ('"' 'about:legacy-compat' '"' | "'" 'about:legacy-compat' "'"))? '>'
+    /// ('H' | 'h') ('T' | 't') ('M' | 'm') ('L' | 'l')
+    ///
+    /// # XML
+    /// doctypedecl = '<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
+    /// Name
     DoctypeName,
-    /// `<content>>`
+    /// # HTML
+    /// '<!DOCTYPE' S ('H' | 'h') ('T' | 't') ('M' | 'm') ('L' | 'l') (SYSTEM ('"' 'about:legacy-compat' '"' | "'" 'about:legacy-compat' "'"))? '>'
+    /// (SYSTEM ('"' 'about:legacy-compat' '"' | "'" 'about:legacy-compat' "'"))? '>'
     ///
-    /// HTML may cut off `>` with early EOF.
+    /// # XML
+    /// doctypedecl = '<!DOCTYPE' S Name (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
+    /// (S ExternalID)? S? ('[' intSubset ']' S?)? '>'
     DoctypeContentEndInclusive,
-    /// Text content
+    /// content = CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
+    /// CharData = [^<&]* - ([^<&]* ']]>' [^<&]*)
+    /// Reference = EntityRef | CharRef
+    /// EntityRef = '&' Name ';'
+    /// CharRef = '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';'
+    /// (CharData | Reference)*
     Text,
-    /// Text content.
+    /// # HTML
+    /// Treat as `TokenKind::Text`
     ///
-    /// Invalid in XML.
+    /// # XML
+    /// Invalid
     TextHTMLFallback,
-    /// Name of an attribute
-    /// `attr`
+    /// Attribute = Name Eq AttValue
+    /// Name
     AttrName,
-    /// Value of an attribute.
-    /// Guaranteed to not contain unescaped `'`.
-    /// `attr='value'`
+    /// Attribute = Name Eq AttValue
+    /// AttValue = '"' ([^<&"] | Reference)* '"' | "'" ([^<&'] | Reference)* "'"
+    /// "'" ([^<&'] | Reference)* "'"
     ValueSingleQuote,
-    /// Value of an attribute.
-    /// Guaranteed to not contain unescaped `"`.
-    /// `attr="value"`
+    /// Attribute = Name Eq AttValue
+    /// AttValue = '"' ([^<&"] | Reference)* '"' | "'" ([^<&'] | Reference)* "'"
+    /// '"' ([^<&"] | Reference)* '"'
     ValueDoubleQuote,
+    /// # HTML
     /// Unquoted value of an attribute.
     /// `attr=value`
     ///
-    /// Invalid in XML.
+    /// # XML
+    /// Invalid
     ValueUnquoted,
     /// End of file.
     ///
-    /// Invalid XML node stack is incomplete.
-    ///
+    /// # HTML
     /// Always valid HTML; should drain node stack.
+    ///
+    /// # XML
+    /// Invalid XML node stack is incomplete.
     StreamEnd,
 }
 
@@ -806,7 +889,7 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod test {
-    use crate::scanner::{TokenKind, Tokeniser, XML};
+    use crate::scanner::{TokenKind, TokenTrait as _, Tokeniser, TokeniserTrait as _, XML};
 
     #[test]
     fn xml_well_formed() {
@@ -818,20 +901,20 @@ mod test {
   <![CDATA[ cdata ]]>
 </element>"#,
         );
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::DocumentStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::DocumentStart);
         assert_eq!(tokeniser.current_str().as_str(), "");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::PIStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::PIStart);
         assert_eq!(tokeniser.current_str().as_str(), "<?");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::PITarget);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::PITarget);
         assert_eq!(tokeniser.current_str().as_str(), "xml");
 
         tokeniser.next();
         assert_eq!(
-            tokeniser.current_token_kind(),
+            tokeniser.current_token().kind(),
             TokenKind::PIContentEndInclusive
         );
         assert_eq!(
@@ -840,93 +923,96 @@ mod test {
         );
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::Text);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::Text);
         assert_eq!(tokeniser.current_str().as_str(), "\n");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::CommentStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::CommentStart);
         assert_eq!(tokeniser.current_str().as_str(), "<!--");
 
         tokeniser.next();
         assert_eq!(
-            tokeniser.current_token_kind(),
+            tokeniser.current_token().kind(),
             TokenKind::CommentTextEndInclusive
         );
         assert_eq!(tokeniser.current_str().as_str(), " comment -->");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::Text);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::Text);
         assert_eq!(tokeniser.current_str().as_str(), "\n");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagOpenStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagOpenStart);
         assert_eq!(tokeniser.current_str().as_str(), "<");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagName);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagName);
         assert_eq!(tokeniser.current_str().as_str(), "element");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagEnd);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagEnd);
         assert_eq!(tokeniser.current_str().as_str(), ">");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::Text);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::Text);
         assert_eq!(tokeniser.current_str().as_str(), "\n  ");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagOpenStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagOpenStart);
         assert_eq!(tokeniser.current_str().as_str(), "<");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagName);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagName);
         assert_eq!(tokeniser.current_str().as_str(), "child");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::AttrName);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::AttrName);
         assert_eq!(tokeniser.current_str().as_str(), "attribute");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::ValueDoubleQuote);
+        assert_eq!(
+            tokeniser.current_token().kind(),
+            TokenKind::ValueDoubleQuote
+        );
         assert_eq!(tokeniser.current_str().as_str(), r#""value""#);
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagSelfEnd);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagSelfEnd);
         assert_eq!(tokeniser.current_str().as_str(), "/>");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::Text);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::Text);
         assert_eq!(tokeniser.current_str().as_str(), "\n  ");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::CDataStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::CDataStart);
         assert_eq!(tokeniser.current_str().as_str(), "<![CDATA[");
 
         tokeniser.next();
         assert_eq!(
-            tokeniser.current_token_kind(),
+            tokeniser.current_token().kind(),
             TokenKind::CDataTextEndInclusive
         );
         assert_eq!(tokeniser.current_str().as_str(), " cdata ]]>");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::Text);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::Text);
         assert_eq!(tokeniser.current_str().as_str(), "\n");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagCloseStart);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagCloseStart);
         assert_eq!(tokeniser.current_str().as_str(), "</");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagName);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagName);
         assert_eq!(tokeniser.current_str().as_str(), "element");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::TagEnd);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::TagEnd);
         assert_eq!(tokeniser.current_str().as_str(), ">");
 
         tokeniser.next();
-        assert_eq!(tokeniser.current_token_kind(), TokenKind::StreamEnd);
+        assert_eq!(tokeniser.current_token().kind(), TokenKind::StreamEnd);
         assert_eq!(tokeniser.current_str().as_str(), "");
     }
 }
