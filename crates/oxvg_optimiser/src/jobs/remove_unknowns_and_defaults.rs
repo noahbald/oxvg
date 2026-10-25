@@ -25,6 +25,8 @@ use tsify::Tsify;
 
 use crate::error::JobsError;
 
+use super::remove_deprecated_attrs::AttrStylesheet;
+
 #[cfg_attr(feature = "wasm", derive(Tsify))]
 #[cfg_attr(feature = "napi", napi(object))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -161,7 +163,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveUnknownsAndDefaults {
         let inherited = ComputedStyles::default()
             .with_inherited(element, &context.query_has_stylesheet_result)
             .map_err(JobsError::ComputedStylesError)?;
-        self.remove_unknown_and_default_attrs(element, &inherited);
+        let attributes_in_stylesheet =
+            AttrStylesheet::extract(&context.query_has_stylesheet_result)?;
+        self.remove_unknown_and_default_attrs(element, &inherited, &attributes_in_stylesheet);
 
         Ok(())
     }
@@ -197,6 +201,7 @@ impl RemoveUnknownsAndDefaults {
         &self,
         element: Element<'input, '_>,
         inherited_styles: &ComputedStyles<'input>,
+        attributes_in_stylesheet: &AttrStylesheet<'input>,
     ) {
         let element_name = element.qual_name();
         let has_id = has_attribute!(element, Id);
@@ -241,6 +246,7 @@ impl RemoveUnknownsAndDefaults {
                 && !has_id
                 && inherited_value.is_none()
                 && name.default().is_some_and(|a| a == *attr)
+                && !attributes_in_stylesheet.contains_qual(attr.name())
             {
                 log::debug!(r#"removing "{name}" attr with default value"#);
                 return false;
@@ -558,6 +564,19 @@ fn remove_unknowns_and_defaults() -> anyhow::Result<()> {
       </g>
     </g>
 </svg>"##
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeUnknownsAndDefaults": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep defaults referenced by an attribute selector -->
+    <style>[preserveAspectRatio]{fill:red}</style>
+    <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <rect x="0" y="0" width="10" height="10"/>
+    </svg>
+</svg>"#
         ),
     )?);
 
