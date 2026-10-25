@@ -93,8 +93,7 @@ impl Optimise {
                         let input_bytes = source.len() as f64;
                         let info = Info {
                             path: path.cloned(),
-                            multipass_count: 0,
-                            allocator,
+                            ..Info::new(allocator)
                         };
                         jobs.run(dom, &info)
                             .map_err(|e| anyhow::Error::msg(e.to_string()))?;

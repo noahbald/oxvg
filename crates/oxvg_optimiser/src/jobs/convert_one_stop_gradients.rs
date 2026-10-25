@@ -147,13 +147,16 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
             self.effected_defs.borrow_mut().insert(parent.id(), parent);
         }
 
-        gradients_to_detach.insert(element.id(), element);
-
         let color = get_color(context, &effective_stops)?;
         let Some(id) = get_attribute!(element, Id) else {
             log::debug!("skipping reference updates, no id");
+            gradients_to_detach.insert(element.id(), element);
             return Ok(());
         };
+        // References from other documents can't be replaced with the color.
+        if !context.info.external_references.contains(id.0.as_str()) {
+            gradients_to_detach.insert(element.id(), element);
+        }
         log::debug!("updating colors: {color:?}");
         let Some(color) = color else { return Ok(()) };
         let id_value = id.clone();
@@ -341,6 +344,27 @@ fn convert_one_stop_gradients() -> anyhow::Result<()> {
   <rect width="150" height="150" x="350" y="350" style="fill:url(#b)"/>
 </svg>"##
         ),
+    )?);
+
+    Ok(())
+}
+
+#[test]
+fn convert_one_stop_gradients_external_references() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config!(
+        r#"{ "convertOneStopGradients": true }"#,
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep gradients referenced from other documents, but replace internal references -->
+    <defs>
+        <linearGradient id="external"><stop offset="0" stop-color="red"/></linearGradient>
+        <linearGradient id="internal"><stop offset="0" stop-color="blue"/></linearGradient>
+    </defs>
+    <rect fill="url(#external)"/>
+    <rect fill="url(#internal)"/>
+</svg>"#,
+        external_references: ["external"],
     )?);
 
     Ok(())
