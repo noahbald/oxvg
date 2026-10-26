@@ -2,7 +2,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::attribute::AttributeGroup;
+use oxvg_collections::{attribute::AttributeGroup, name::NS};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -50,7 +50,15 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
         element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
+        // Outside SVG's own attributes an empty value can mean something:
+        // `rdf:about=""` is this document, `xml:lang=""` an unknown language.
+        if element.prefix().ns().uri() != NS::SVG.uri() {
+            return Ok(());
+        }
         element.attributes().retain(|a| {
+            if !a.prefix().is_empty() {
+                return true;
+            }
             if a.name()
                 .attribute_group()
                 .contains(AttributeGroup::ConditionalProcessing)
@@ -91,6 +99,19 @@ fn remove_empty_attrs() -> anyhow::Result<()> {
     <g requiredFeatures=""/>
     <g requiredExtensions=""/>
     <g systemLanguage=""/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeEmptyAttrs": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:cc="http://creativecommons.org/ns#">
+    <!-- keep empty attrs of other vocabularies -->
+    <metadata>
+        <rdf:RDF><cc:Work rdf:about=""/></rdf:RDF>
+    </metadata>
+    <g attr1="" xml:lang="" />
 </svg>"#
         ),
     )?);
