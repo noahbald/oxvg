@@ -270,9 +270,10 @@ macro_rules! jobs {
                 })+
             }
 
-            /// Removes a job from the config via the specified name of the field, in `snake_case`
+            /// Removes a job from the config via the specified name of the field, in `snake_case` or `camelCase`
             pub fn omit(&mut self, name: &str) {
-                match name {
+                let name = Self::from_svgo_plugin_to_snake_case(name);
+                match name.as_str() {
                     $(stringify!($name) => self.$name = None,)+
                     _ => {}
                 }
