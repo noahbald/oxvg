@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": false } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- selectors overridden by a rule whose matches can't be found aren't inlined -->\n    <style>\n        .a{fill:red}\n        rect:unknown-pseudo-class{fill:blue}\n    </style>\n    <rect class=\"a\" width=\"10\" height=\"10\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by a rule whose matches can't be found aren't inlined -->
+    <style>
+        .a{fill:red}rect:unknown-pseudo-class{fill:#00f}
+    </style>
+    <rect class="a" width="10" height="10"/>
+</svg>
