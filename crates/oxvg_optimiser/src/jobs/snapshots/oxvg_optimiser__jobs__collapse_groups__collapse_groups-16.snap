@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve group with style when a stylesheet may set the child's properties -->\n    <style>path{fill:blue}</style>\n    <g style=\"fill:red\">\n        <path d=\"...\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group with style when a stylesheet may set the child's properties -->
+    <style>
+        path{fill:#00f}
+    </style>
+    <g style="fill:red">
+        <path d=""/>
+    </g>
+</svg>
