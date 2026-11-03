@@ -4,13 +4,14 @@ use lightningcss::{properties::PropertyId, vendor_prefix::VendorPrefix};
 use oxvg_ast::{
     element::Element,
     get_attribute, has_attribute, is_element,
-    visitor::{Context, PrepareOutcome, Visitor},
+    visitor::{Context, ContextFlags, PrepareOutcome, Visitor},
 };
 use oxvg_collections::{
     atom::Atom,
     attribute::{Attr, inheritable::Inheritable},
     content_type::ContentType,
     element::ElementCategory,
+    is_prefix,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -46,20 +47,20 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CollapseGroups {
 
     fn prepare(
         &self,
-        _document: Element<'input, 'arena>,
-        _context: &mut Context<'input, 'arena, '_>,
+        document: Element<'input, 'arena>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<PrepareOutcome, Self::Error> {
-        Ok(if self.0 {
-            PrepareOutcome::none
-        } else {
-            PrepareOutcome::skip
-        })
+        if !self.0 {
+            return Ok(PrepareOutcome::skip);
+        }
+        context.query_has_stylesheet(document);
+        Ok(PrepareOutcome::none)
     }
 
     fn exit_element(
         &self,
         element: Element<'input, 'arena>,
-        _context: &mut Context<'input, 'arena, '_>,
+        context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let Some(parent) = Element::parent_element(&element) else {
             return Ok(());
@@ -72,7 +73,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CollapseGroups {
             return Ok(());
         }
 
-        move_attributes_to_child(element);
+        let has_stylesheet = context
+            .flags
+            .contains(ContextFlags::query_has_stylesheet_result);
+        move_attributes_to_child(element, has_stylesheet);
         flatten_when_all_attributes_moved(element);
         Ok(())
     }
@@ -84,7 +88,7 @@ impl Default for CollapseGroups {
     }
 }
 
-fn move_attributes_to_child(element: Element) {
+fn move_attributes_to_child(element: Element, has_stylesheet: bool) {
     log::debug!("collapse_groups: move_attributes_to_child");
 
     let mut children = element.children_iter();
@@ -111,6 +115,9 @@ fn move_attributes_to_child(element: Element) {
         return;
     } else if is_node_with_filter(element) {
         log::debug!("collapse_groups: not moving attrs: filter");
+        return;
+    } else if is_style_over_child(element, first_child, has_stylesheet) {
+        log::debug!("collapse_groups: not moving attrs: style would override child's own");
         return;
     }
 
@@ -204,6 +211,56 @@ fn is_position_visually_unstable<'input, 'arena>(
     let is_node_clipping = has_attribute!(node, ClipPath | Mask);
     let is_child_transformed_group = is_element!(child, G) && has_attribute!(child, Transform);
     is_node_clipping || is_child_transformed_group
+}
+
+/// Whether the node's `style` could override what the child sets itself, once moved onto it: a
+/// property, or part of one, the child sets as a presentation attribute, or anything a stylesheet
+/// sets.
+fn is_style_over_child<'input, 'arena>(
+    node: Element<'input, 'arena>,
+    child: Element<'input, 'arena>,
+    has_stylesheet: bool,
+) -> bool {
+    let Some(style) = get_attribute!(node, Style) else {
+        return false;
+    };
+    if has_stylesheet {
+        return true;
+    }
+    let properties: Vec<_> = style
+        .declarations
+        .iter()
+        .chain(&style.important_declarations)
+        .flat_map(|property| property_names(&property.property_id()))
+        .collect();
+    child.attributes().into_iter().any(|attr| {
+        is_prefix!(attr, SVG)
+            && property_names(&PropertyId::from(&**attr.local_name()))
+                .iter()
+                .any(|name| properties.contains(name))
+    })
+}
+
+/// The names of a property and its parts, without vendor prefixes: the longhands of a shorthand,
+/// with what `font` resets too, and the markers `marker` sets.
+fn property_names(id: &PropertyId<'_>) -> Vec<String> {
+    let mut names: Vec<_> = id
+        .longhands()
+        .unwrap_or_default()
+        .iter()
+        .map(|part| part.name().to_string())
+        .collect();
+    match id {
+        PropertyId::Font => names.extend(
+            ["font-variant", "font-size-adjust", "font-kerning"].map(String::from),
+        ),
+        PropertyId::Marker => {
+            names.extend(["marker-start", "marker-mid", "marker-end"].map(String::from));
+        }
+        _ => {}
+    }
+    names.push(id.name().to_string());
+    names
 }
 
 fn is_node_with_filter(node: Element) -> bool {
@@ -490,6 +547,53 @@ fn collapse_groups() -> anyhow::Result<()> {
         </g>
     </g>
     <circle cx="25" cy="15" r="10" stroke="black" stroke-width=".1" fill="none"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "collapseGroups": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group when its style sets a property the child sets as an attribute -->
+    <g style="fill:red">
+        <path fill="blue" d="..."/>
+    </g>
+    <g style="stroke:red !important">
+        <path stroke="blue" d="..."/>
+    </g>
+    <g style="font:12px serif">
+        <text font-size="10">x</text>
+    </g>
+    <g style="text-decoration-line:underline">
+        <text text-decoration="none">x</text>
+    </g>
+    <g style="marker:url(#a)">
+        <path marker-start="url(#b)" d="..."/>
+    </g>
+    <g style="font:12px serif">
+        <text font-variant="small-caps">x</text>
+    </g>
+    <g style="-webkit-transform:rotate(45deg)">
+        <path transform="translate(5)" d="..."/>
+    </g>
+    <!-- Should still move style the child doesn't set -->
+    <g style="fill:red">
+        <path stroke="blue" d="..."/>
+    </g>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "collapseGroups": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group with style when a stylesheet may set the child's properties -->
+    <style>path{fill:blue}</style>
+    <g style="fill:red">
+        <path d="..."/>
+    </g>
 </svg>"#
         )
     )?);

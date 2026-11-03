@@ -1,0 +1,30 @@
+---
+source: crates/oxvg_optimiser/src/jobs/collapse_groups.rs
+expression: "test_config(r#\"{ \"collapseGroups\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- Should preserve group when its style sets a property the child sets as an attribute -->\n    <g style=\"fill:red\">\n        <path fill=\"blue\" d=\"...\"/>\n    </g>\n    <g style=\"stroke:red !important\">\n        <path stroke=\"blue\" d=\"...\"/>\n    </g>\n    <g style=\"font:12px serif\">\n        <text font-size=\"10\">x</text>\n    </g>\n    <g style=\"text-decoration-line:underline\">\n        <text text-decoration=\"none\">x</text>\n    </g>\n    <g style=\"marker:url(#a)\">\n        <path marker-start=\"url(#b)\" d=\"...\"/>\n    </g>\n    <g style=\"font:12px serif\">\n        <text font-variant=\"small-caps\">x</text>\n    </g>\n    <g style=\"-webkit-transform:rotate(45deg)\">\n        <path transform=\"translate(5)\" d=\"...\"/>\n    </g>\n    <!-- Should still move style the child doesn't set -->\n    <g style=\"fill:red\">\n        <path stroke=\"blue\" d=\"...\"/>\n    </g>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group when its style sets a property the child sets as an attribute -->
+    <g style="fill:red">
+        <path fill="#00f" d=""/>
+    </g>
+    <g style="stroke:red!important">
+        <path stroke="#00f" d=""/>
+    </g>
+    <g style="font:12px serif">
+        <text font-size="10px">x</text>
+    </g>
+    <g style="text-decoration-line:underline">
+        <text text-decoration="none">x</text>
+    </g>
+    <g style="marker:url(#a)">
+        <path marker-start="url(#b)" d=""/>
+    </g>
+    <g style="font:12px serif">
+        <text font-variant="small-caps">x</text>
+    </g>
+    <g style="-webkit-transform:rotate(45deg)">
+        <path transform="translate(5)" d=""/>
+    </g>
+    <!-- Should still move style the child doesn't set -->
+    <path stroke="#00f" d="" style="fill:red"/>
+</svg>
