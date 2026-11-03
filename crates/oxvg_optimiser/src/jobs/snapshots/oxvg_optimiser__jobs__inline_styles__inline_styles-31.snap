@@ -1,0 +1,19 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": { \"onlyMatchedOnce\": false } }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- selectors overridden by one that stays aren't inlined, also through a shorthand -->\n    <style>\n        .a{fill:red}\n        g .a{fill:blue}\n        .b{font-size:10px}\n        g .b{font:12px serif}\n        #c{stroke:red}\n        .d{stroke:blue!important}\n        g .d{stroke:green}\n        .e{marker-start:url(#x)}\n        g .e{marker:url(#y)}\n        .f{font-variant:small-caps}\n        g .f{font:12px serif}\n        .h{transform:rotate(1deg)}\n        g .h{-webkit-transform:rotate(2deg)}\n    </style>\n    <g>\n        <path class=\"a\" d=\"M0 0h10v10z\"/>\n        <text class=\"b\">x</text>\n        <path class=\"e\" d=\"M0 0h10v10z\"/>\n        <text class=\"f\">x</text>\n        <path class=\"h\" d=\"M0 0h10v10z\"/>\n        <!-- those that win over the one that stays are inlined -->\n        <path id=\"c\" class=\"d\" d=\"M0 0h10v10z\"/>\n    </g>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by one that stays aren't inlined, also through a shorthand -->
+    <style>
+        .a{fill:red}g .a{fill:#00f}.b{font-size:10px}g .b{font:12px serif}g .d{stroke:green}.e{marker-start:url(#x)}g .e{marker:url(#y)}.f{font-variant:small-caps}g .f{font:12px serif}.h{transform:rotate(1deg)}g .h{-webkit-transform:rotate(2deg)}
+    </style>
+    <g>
+        <path class="a" d="M0 0h10v10Z"/>
+        <text class="b">x</text>
+        <path class="e" d="M0 0h10v10Z"/>
+        <text class="f">x</text>
+        <path class="h" d="M0 0h10v10Z"/>
+        <!-- those that win over the one that stays are inlined -->
+        <path class="d" d="M0 0h10v10Z" style="stroke:red;stroke:#00f!important"/>
+    </g>
+</svg>
