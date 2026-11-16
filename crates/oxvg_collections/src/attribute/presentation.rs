@@ -811,7 +811,7 @@ enum_attr!(
         /// Enables `hlig`
         HistoricalLigatures: "historical-ligatures",
         /// Disables `hlig`
-        NoHistoricalLigatures: "no-historical-ligatures" ,
+        NoHistoricalLigatures: "no-historical-ligatures",
     }
 );
 enum_attr!(
@@ -1280,7 +1280,7 @@ enum_attr!(
         /// Enables `smpl`
         Simplified: "simplified",
         /// Enables `trad`
-        Traditional: "traditional" ,
+        Traditional: "traditional",
     }
 );
 enum_attr!(

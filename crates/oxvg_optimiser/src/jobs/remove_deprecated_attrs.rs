@@ -153,12 +153,7 @@ impl RemoveDeprecatedAttrs {
                 return true;
             }
             let info = attr.name().info();
-            if info.contains(AttributeInfo::DeprecatedSafe)
-                || (self.remove_any && info.contains(AttributeInfo::DeprecatedUnsafe))
-            {
-                return false;
-            }
-            true
+            !(info.contains(AttributeInfo::DeprecatedSafe) || (self.remove_any && info.contains(AttributeInfo::DeprecatedUnsafe)))
         });
     }
 }

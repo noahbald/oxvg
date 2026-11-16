@@ -791,10 +791,7 @@ impl Debug for Element<'_, '_> {
         let attributes = self.attributes();
         let child_node_count = self.child_node_count();
         let text = match child_node_count {
-            1 => self
-                .text_content()
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default(),
+            1 => self.text_content().map_or_default(|s| s.trim().to_string()),
             _ => String::new(),
         };
         f.debug_struct("Element")
