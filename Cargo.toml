@@ -17,6 +17,8 @@ dbg_macro = "warn"
 float_cmp = "allow"
 # Too noisy and not really an issue
 must_use_candidate = "allow"
+# Leading unscores are not used to indicate unused items in this project
+used_underscore_items = "allow"
 
 [workspace.package]
 version = "0.0.9"

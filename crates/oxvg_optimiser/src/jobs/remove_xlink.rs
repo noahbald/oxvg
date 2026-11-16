@@ -146,10 +146,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input> {
                 .borrow_mut()
                 .pop()
                 .unwrap_or(false);
-            if !self.options.include_legacy && !overridden_prefixes && !used_in_legacy_element {
-                return false;
-            }
-            true
+            !(!self.options.include_legacy && !overridden_prefixes && !used_in_legacy_element)
         });
 
         Ok(())
