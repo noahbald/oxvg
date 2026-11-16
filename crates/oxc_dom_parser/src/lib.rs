@@ -25,8 +25,13 @@ pub mod ast;
 mod dtd_scanner;
 mod entity;
 mod error;
+mod namespace;
 pub mod options;
 mod parser;
+mod parser_doctype;
+#[cfg(feature = "html")]
+mod parser_html;
+mod parser_xml;
 mod scanner;
 mod simd;
 mod span;
@@ -49,7 +54,6 @@ fn size_asserts() {
     assert_eq!(size_of::<ast::Name>(), 24);
     assert_eq!(size_of::<ast::TextSpan>(), 24);
     assert_eq!(size_of::<ast::EscapedStr>(), 32);
-    assert_eq!(size_of::<ast::Str>(), 16);
     // 3. Element primitives should stay moderate, <80 bytes.
     assert_eq!(size_of::<ast::Element>(), 80);
     assert_eq!(size_of::<ast::Attribute>(), 72);

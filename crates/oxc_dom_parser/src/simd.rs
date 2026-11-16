@@ -149,7 +149,6 @@ pub fn find_xml_whitespace_or_close<const SIMD: bool>(haystack: &[u8]) -> Option
     find::<SIMD, _>(haystack, XML_WHITESPACE_OR_CLOSE)
 }
 
-const NON_ASCII: RangeInclusive<u8> = 0x80..=0xFF;
 pub fn is_xml_name_start(haystack: &[u8]) -> bool {
     match haystack.first() {
         Some(b) if b.is_ascii() => b.is_ascii_alphabetic() || matches!(*b, b'_' | b':'),
@@ -199,6 +198,24 @@ pub fn find_xml_name_end<const SIMD: bool>(haystack: &[u8]) -> Option<usize> {
 fn is_xml_name_char(c: char) -> bool {
     is_xml_name_start_char(c)
         || matches!(c as u32, 0x0000B7 | 0x000300..=0x00036F | 0x00203F..=0x002040)
+}
+
+/// char = #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+pub fn find_non_xml_char(bytes: &[u8]) -> Option<usize> {
+    // The input is a valid `&str`, so there are no surrogates.
+    // Reject ASCII controls (except \t \n \r) and the noncharacters U+FFFE / U+FFFF.
+    let control = find_range::<true, _>(bytes, [0x00..=0x08, 0x0B..=0x0C, 0x0E..=0x1F]);
+    // Only look for noncharacters before the first control byte, if any.
+    let limit = control.unwrap_or(bytes.len());
+    let mut offset = 0;
+    while let Some(i) = find::<true, _>(&bytes[offset..limit], [0xEF]) {
+        let at = offset + i;
+        if matches!(bytes.get(at + 1..at + 3), Some([0xBF, 0xBE | 0xBF])) {
+            return Some(at);
+        }
+        offset = at + 1;
+    }
+    control
 }
 
 fn decode_char(bytes: &[u8]) -> Option<(char, usize)> {

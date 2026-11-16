@@ -45,27 +45,17 @@ impl Default for AllowDTDOptions {
 impl ParseOptions {
     #[must_use]
     /// Allows dtd parsing with default options
-    pub fn allow_dtd(mut self) -> Self {
-        self.allow_dtd = AllowDTD::True(AllowDTDOptions::default());
+    pub fn allow_dtd(self) -> Self {
+        self.allow_dtd_options(AllowDTDOptions::default())
+    }
+
+    #[must_use]
+    pub fn allow_dtd_options(mut self, options: AllowDTDOptions) -> Self {
+        self.allow_dtd = AllowDTD::True(options);
         self
     }
 
-    pub fn allow_dtd_options(
-        mut self,
-        check_entity_references: bool,
-        max_entity_depth: u8,
-        max_entity_references: u8,
-        max_dtd_items: u32,
-    ) -> Self {
-        self.allow_dtd = AllowDTD::True {
-            check_entity_references,
-            max_entity_depth,
-            max_entity_references,
-            max_dtd_items,
-        };
-        self
-    }
-
+    #[must_use]
     pub fn max_nodes(mut self, max_nodes: u32) -> Self {
         self.max_nodes = max_nodes;
         self

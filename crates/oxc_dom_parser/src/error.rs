@@ -29,6 +29,7 @@ impl Error {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
     SourceError(SourceError),
+    NonXMLCharacter,
     UnrecognisedData,
     UnexpectedEndOfFile,
     UnexpectedCloseTag,
@@ -45,6 +46,8 @@ pub enum ErrorKind {
     MismatchedCloseTag,
     MissingRootElement,
     DTDDetected,
+    DTDMaxEntityReferencesExceeded,
+    DTDMaxEntityDepthExceeded,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,6 +68,7 @@ impl Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SourceError(err) => err.fmt(f),
+            Self::NonXMLCharacter => f.write_str("Non XML character detected"),
             Self::UnrecognisedData => f.write_str("Invalid chunk of data"),
             Self::UnexpectedEndOfFile => f.write_str("Unexpected end-of-file"),
             Self::UnexpectedCloseTag => f.write_str("Unexpected close of tag"),
@@ -89,6 +93,8 @@ impl Display for ErrorKind {
             Self::MismatchedCloseTag => f.write_str("Close tag doesn't match opening tag name"),
             Self::MissingRootElement => f.write_str("Document has no root element"),
             Self::DTDDetected => f.write_str("Doctype declaration aborted as a security risk"),
+            Self::DTDMaxEntityReferencesExceeded => f.write_str("Doctype declaration declares more than the allowed number of entity references specified"),
+            Self::DTDMaxEntityDepthExceeded => f.write_str("Doctype declaration declares recursive entity more than the allowed depth specified"),
         }
     }
 }

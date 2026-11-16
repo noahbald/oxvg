@@ -391,7 +391,7 @@ const PUBID_RANGES: [RangeInclusive<u8>; 4] = [b'#'..=b'%', b'\''..=b';', b'?'..
 const PUBID_RANGES_EX_QUOTE: [RangeInclusive<u8>; 4] =
     [b'#'..=b'%', b'('..=b';', b'?'..=b'Z', b'a'..=b'z'];
 /// PubidChar = #x20 | #xD | #xA | ... | [!=_]
-const PUBID_CHARS: [u8; 5] = [0x20, 0xD, b'!', b'_', b'='];
+const PUBID_CHARS: [u8; 6] = [0x20, 0xD, 0xA, b'!', b'_', b'='];
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Token {

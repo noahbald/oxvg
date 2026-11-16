@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{Error, ErrorKind, Span, ast::Str};
+use oxc_str::Str;
+
+use crate::{Error, ErrorKind, Span};
 
 pub trait TokeniserTrait<'a, M: MimeCategory> {
     type Token: TokenTrait;
@@ -33,17 +35,20 @@ pub trait TokeniserTrait<'a, M: MimeCategory> {
     }
     /// S?
     fn skip_whitespace(&mut self) {
-        self.try_next(Self::next_whitespace);
-    }
-    /// S
-    fn next_whitespace(&mut self) -> Option<()> {
-        if let Some(position) = M::find_non_whitespace(self.slice())
-            && position > 0
-        {
-            self.advance(position);
-            Some(())
+        if let Some(pos) = M::find_non_whitespace(self.slice()) {
+            self.advance(pos);
         } else {
+            self.end();
+        }
+    }
+    /// S+
+    fn next_whitespace(&mut self) -> Option<()> {
+        let start = self.cursor();
+        self.skip_whitespace();
+        if self.cursor() == start {
             None
+        } else {
+            Some(())
         }
     }
     fn try_next<T, F: Fn(&mut Self) -> Option<T>>(&mut self, f: F) -> Option<T> {
@@ -106,7 +111,7 @@ pub trait TokeniserTrait<'a, M: MimeCategory> {
         self.cursor() >= self.src_str().len()
     }
     fn str(&self, range: Span) -> Str<'a> {
-        Str::new(&self.src_str()[range.start as usize..range.end as usize])
+        Str::from(&self.src_str()[range.start as usize..range.end as usize])
     }
 }
 
@@ -242,18 +247,6 @@ impl<'a, M: MimeCategory> TokeniserTrait<'a, M> for Tokeniser<'a, M> {
     }
 }
 
-impl<'a, M: MimeCategory> Iterator for Tokeniser<'a, M> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Tokeniser::next(self);
-        match self.current_token().kind() {
-            TokenKind::StreamEnd => None,
-            _ => Some(self.token),
-        }
-    }
-}
-
 impl<'a, M: MimeCategory> Tokeniser<'a, M> {
     pub fn new(source: &'a str) -> Self {
         let src = source.as_bytes();
@@ -299,6 +292,32 @@ impl<'a, M: MimeCategory> Tokeniser<'a, M> {
                 }
             }
         };
+    }
+
+    pub fn next_raw(&mut self, name: &str) -> Token {
+        debug_assert!(M::IS_HTML);
+        let start = self.cursor;
+        let name = name.as_bytes();
+        while let Some(i) = crate::simd::find::<true, _>(self.slice(), [b'<']) {
+            self.advance(i);
+            let rest = &self.slice()[1..];
+            if rest.first() == Some(&b'/')
+                && rest
+                    .get(1..1 + name.len())
+                    .is_some_and(|n| n.eq_ignore_ascii_case(name))
+                && matches!(
+                    rest.get(1 + name.len()),
+                    Some(b'\t' | b'\n' | 0x0C | b'\r' | b' ' | b'/' | b'>')
+                )
+            {
+                self.token = Token::new(TokenKind::Text, Span::new_usize(start, self.cursor));
+                return self.token;
+            }
+            self.advance(1);
+        }
+        self.end();
+        self.token = Token::new(TokenKind::Text, Span::new_usize(start, self.cursor));
+        self.token
     }
 
     fn next_start(&mut self) -> Token {

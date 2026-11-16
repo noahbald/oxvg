@@ -2075,6 +2075,7 @@ version = "0.0.9"
 dependencies = [
  "criterion",
  "oxc_allocator",
+ "oxc_str",
  "roxmltree",
  "wide",
 ]

@@ -5,14 +5,13 @@ use oxc_allocator::GetAllocator;
 use crate::{
     Error, ErrorKind, Span,
     ast::{EscapedStr, Name, TextSpan},
-    options::{AllowDTD, AllowDTDOptions},
+    options::AllowDTDOptions,
+    span::SPAN,
 };
 
 #[derive(Default)]
-pub enum Entities<'a, const HTML: bool> {
-    #[default]
-    Default,
-    Declared(HashMap<&'a str, &'a str>),
+pub struct Entities<'a, const HTML: bool> {
+    declared: HashMap<&'a str, &'a str>,
 }
 
 impl<'a, const HTML: bool> Entities<'a, HTML> {
@@ -116,43 +115,27 @@ impl<'a, const HTML: bool> Entities<'a, HTML> {
         ))
     }
 
-    pub fn register(&mut self, name: &'a str, value: &'a str, options: &AllowDTDOptions) {
-        if options.check_entity_references {}
-        if let Self::Declared(set) = self {
-            set.insert(name, value);
-        } else {
-            *self = Self::Declared([(name, value)].into())
+    pub fn register(
+        &mut self,
+        name: &'a str,
+        value: &'a str,
+        options: &AllowDTDOptions,
+    ) -> Result<(), ErrorKind> {
+        if options.check_entity_references
+            && self.declared.len() >= options.max_entity_references as usize
+        {
+            return Err(ErrorKind::DTDMaxEntityReferencesExceeded);
         }
+        self.declared.entry(name).or_insert(value);
+        Ok(())
     }
 
     pub fn push(&self, name: &str, scratch: &mut String) -> Result<(), ()> {
-        let default = match name {
-            "lt" => Some('<'),
-            "gt" => Some('>'),
-            "amp" => Some('&'),
-            "apos" => Some('\''),
-            "quot" => Some('"'),
-            _ => None,
+        let Some(reference) = self.declared.get(name) else {
+            return Err(());
         };
-        if let Some(char) = default {
-            scratch.push(char);
-            return Ok(());
-        }
-        #[cfg(feature = "html")]
-        if HTML {
-            todo!()
-        }
-        match self {
-            Self::Default => Err(()),
-            Self::Declared(set) => {
-                if let Some(reference) = set.get(name) {
-                    scratch.push_str(reference);
-                    Ok(())
-                } else {
-                    Err(())
-                }
-            }
-        }
+        scratch.push_str(reference);
+        Ok(())
     }
 }
 

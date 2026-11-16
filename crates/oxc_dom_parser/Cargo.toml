@@ -18,6 +18,7 @@ doctest = true
 
 [dependencies]
 oxc_allocator = ">=0.137.0"
+oxc_str = ">=0.137.0"
 wide = {version = "1.7.1", optional = true}
 
 [dev-dependencies]
