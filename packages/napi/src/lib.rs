@@ -89,6 +89,18 @@ pub fn optimise(
 
 #[napi]
 #[allow(clippy::needless_pass_by_value)]
+/// @see {optimise}
+pub fn optimize(
+  env: &Env,
+  svg: String,
+  #[napi(ts_arg_type = "Jobs | undefined | null")] config: Option<Object>,
+) -> napi::Result<String> {
+  optimise(env, svg, config)
+}
+
+
+#[napi]
+#[allow(clippy::needless_pass_by_value)]
 /// Returns the given config with omitted options replaced with the config provided by `extends`.
 /// I.e. acts like `{ ...extends, ...config }`
 pub fn extend(extend: Extends, config: Option<Jobs>) -> Jobs {
