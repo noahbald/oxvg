@@ -1176,6 +1176,9 @@ export declare function extend(extend: Extends, config?: Jobs | undefined | null
  * ```
  */
 export declare function optimise(svg: string, config?: Jobs | undefined | null): string
+
+/** @see {optimise} */
+export declare function optimize(svg: string, config?: Jobs | undefined | null): string
 /**
  * Adds attributes to SVG elements in the document. This is not an optimisation
  * and will increase the size of SVG documents.
