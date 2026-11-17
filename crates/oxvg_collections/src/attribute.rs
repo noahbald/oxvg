@@ -1,4 +1,6 @@
 //! Types of data which can be assigned to an element's attributes
+use std::collections::HashMap;
+
 use animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
 use animation_addition::{Accumulate, Additive};
 use animation_timing::{Dur, Fill, MinMax, RepeatCount, RepeatDur, Restart};
@@ -2792,6 +2794,20 @@ thread_local! {
     static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: DashMap<AttributeGroup, &'static [&'static AttrId<'static>]> = DashMap::new();
 }
 
+static ATTR_IDS: std::sync::LazyLock<
+    HashMap<(&'static Prefix<'static>, &'static Atom<'static>), Vec<&'static AttrId<'static>>>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = HashMap::<
+        (&'static Prefix<'static>, &'static Atom<'static>),
+        Vec<&'static AttrId<'static>>,
+    >::new();
+    for attr in _attr_id::all {
+        let key = (attr.prefix(), attr.local_name());
+        map.entry(key).or_default().push(*attr);
+    }
+    map
+});
+
 impl AttributeGroup {
     /// Returns the list of attributes associated with the attribute group
     ///
@@ -2832,26 +2848,25 @@ impl AttributeGroup {
         prefix: &Prefix<'input>,
         local: Atom<'input>,
     ) -> AttrId<'input> {
-        self.attributes()
-            .iter()
-            .find(|attr| attr.prefix() == prefix && *attr.local_name() == local)
-            .map_or_else(
-                || {
-                    AttrId::Unknown(QualName {
+        match ATTR_IDS.get(&(prefix, &local)).and_then(|attrs| {
+            attrs
+                .iter()
+                .find(|attr| self.intersects(attr.attribute_group()))
+        }) {
+            Some(attr) => {
+                if prefix.is_aliased() {
+                    AttrId::Aliased {
                         prefix: prefix.clone(),
-                        local,
-                    })
-                },
-                |attr| {
-                    if prefix.is_aliased() {
-                        AttrId::Aliased {
-                            prefix: prefix.clone(),
-                            attr_id: Box::new((*attr).clone()),
-                        }
-                    } else {
-                        (*attr).clone()
+                        attr_id: Box::new((*attr).clone()),
                     }
-                },
-            )
+                } else {
+                    (*attr).clone()
+                }
+            }
+            None => AttrId::Unknown(QualName {
+                prefix: prefix.clone(),
+                local,
+            }),
+        }
     }
 }
