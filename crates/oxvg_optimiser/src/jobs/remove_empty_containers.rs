@@ -76,6 +76,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyContainers {
         {
             return Ok(());
         }
+        if is_element!(element, Glyph | MissingGlyph) && has_attribute!(element, D) {
+            return Ok(());
+        }
         if is_element!(element, G) {
             let computed_styles = ComputedStyles::default()
                 .with_all(element, &context.query_has_stylesheet_result)
@@ -216,6 +219,23 @@ fn remove_empty_containers() -> anyhow::Result<()> {
     </mask>
     <text x="16" y="16" style="mask: url(#b)">•ᴗ•</text>
 </svg>"##
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeEmptyContainers": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <!-- preserve glyphs with path data -->
+    <defs>
+        <font horiz-adv-x="500">
+            <font-face font-family="G" units-per-em="1000"/>
+            <missing-glyph d="M0 0h500v700H0z"/>
+            <glyph unicode="A" d="M0 0h500v700z"/>
+        </font>
+    </defs>
+    <text font-family="G" y="50">A</text>
+</svg>"#
         ),
     )?);
 
