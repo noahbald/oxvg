@@ -82,6 +82,12 @@ pub fn optimise(svg: &str, config: Option<Jobs>) -> Result<String, String> {
     .map_err(|e| e.to_string())?;
 }
 
+#[wasm_bindgen]
+/// @see {optimise}
+pub fn optimize(svg: &str, config: Option<Jobs>) -> Result<String, String> {
+    optimise(svg, config)
+}
+
 #[wasm_bindgen(js_name = convertSvgoConfig)]
 /// Converts a JSON value of SVGO's `Config["plugins"]` into [`Jobs`].
 ///
