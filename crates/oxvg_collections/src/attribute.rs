@@ -258,7 +258,10 @@ macro_rules! define_attrs {
                 attr_id: Box<AttrId<'input>>,
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(QualName<'input>),
+            Unknown {
+                /// The qualified name of the attribute
+                name: QualName<'input>
+            },
         }
 
         #[cfg(feature = "napi")]
@@ -274,7 +277,7 @@ macro_rules! define_attrs {
                             _ => unreachable!()
                         },
                     },
-                    Self::Unknown(name) => AttrIdNapi::Unknown(name.to_napi()),
+                    Self::Unknown { name } => AttrIdNapi::Unknown { name: name.to_napi() },
                 }
             }
         }
@@ -298,7 +301,10 @@ macro_rules! define_attrs {
                 name: (String, String),
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(crate::name::QualNameNapi),
+            Unknown {
+                /// The qualified name of the attribute
+                name: crate::name::QualNameNapi
+            },
         }
 
         #[derive(Debug, Clone)]
@@ -343,7 +349,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _prefix::$attr,)+
                     Self::Aliased { prefix, .. } => prefix,
-                    Self::Unknown(QualName { prefix, .. }) => prefix,
+                    Self::Unknown { name: QualName { prefix, .. } } => prefix,
                 }
             }
 
@@ -361,7 +367,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _local_name::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.local_name(),
-                    Self::Unknown(QualName { local, .. }) => local,
+                    Self::Unknown { name: QualName { local, .. } } => local,
                 }
             }
 
@@ -370,7 +376,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _c::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.attribute_group(),
-                    Self::Unknown(_) => AttributeGroup::empty(),
+                    Self::Unknown { .. } => AttributeGroup::empty(),
                 }
             }
 
@@ -398,7 +404,7 @@ macro_rules! define_attrs {
                         $(, Separators::$and)?
                     ))?,)+
                     Self::Aliased { attr_id, .. } => attr_id.r#type(),
-                    Self::Unknown(_) => ContentTypeId::Anything,
+                    Self::Unknown { .. } => ContentTypeId::Anything,
                 }
             }
         }
@@ -422,8 +428,8 @@ macro_rules! define_attrs {
                         prefix,
                         value: Box::new(Self::new(*attr_id, value)),
                     },
-                    AttrId::Unknown(name) => Self::Unparsed {
-                        attr_id: AttrId::Unknown(name),
+                    AttrId::Unknown { name } => Self::Unparsed {
+                        attr_id: AttrId::Unknown { name },
                         value: value.into(),
                     },
                 }
@@ -514,7 +520,7 @@ macro_rules! define_attrs {
                     $((Self::$attr, Self::$attr) => true,)+
                     (Self::Aliased { .. }, _) => unreachable!(),
                     (_, Self::Aliased { .. }) => unreachable!(),
-                    (Self::Unknown(a), Self::Unknown(b)) => a == b,
+                    (Self::Unknown { name: a }, Self::Unknown { name: b }) => a == b,
                     _ => false,
                 }
             }
@@ -2625,10 +2631,10 @@ macro_rules! try_from_into_property {
                         name: CustomPropertyName::Unknown(name),
                         value,
                     }) => Attr::CSSUnknown {
-                        attr_id: AttrId::Unknown(QualName {
+                        attr_id: AttrId::Unknown { name: QualName {
                             prefix: Prefix::SVG,
                             local: name.0.into(),
-                        }),
+                        } },
                         value: TokenList(value),
                     },
                     Property::Unparsed(UnparsedProperty {
@@ -2863,10 +2869,12 @@ impl AttributeGroup {
                     (*attr).clone()
                 }
             }
-            None => AttrId::Unknown(QualName {
-                prefix: prefix.clone(),
-                local,
-            }),
+            None => AttrId::Unknown {
+                name: QualName {
+                    prefix: prefix.clone(),
+                    local,
+                },
+            },
         }
     }
 }

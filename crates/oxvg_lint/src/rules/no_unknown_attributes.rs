@@ -18,7 +18,7 @@ pub fn no_unknown_attributes(
     }: &mut RuleData<'_, '_>,
     severity: Severity,
 ) {
-    if matches!(element, ElementId::Unknown(_)) {
+    if matches!(element, ElementId::Unknown { .. }) {
         return;
     }
 
@@ -60,37 +60,51 @@ mod test {
         name::{NS, Prefix, QualName},
     };
 
-    const UNKNOWN_ELEMENT: ElementId<'static> = ElementId::Unknown(QualName {
-        prefix: Prefix::SVG,
-        local: Atom::Static("foo"),
-    });
-    const KNOWN_ELEMENT: ElementId<'static> = ElementId::Svg;
-    const UNKNOWN_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
-        prefix: Prefix::SVG,
-        local: Atom::Static("foo"),
-    });
-    const UNKNOWN_ATTR: Attr<'static> = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
+    const UNKNOWN_ELEMENT: ElementId<'static> = ElementId::Unknown {
+        name: QualName {
             prefix: Prefix::SVG,
             local: Atom::Static("foo"),
-        }),
+        },
+    };
+    const KNOWN_ELEMENT: ElementId<'static> = ElementId::Svg;
+    const UNKNOWN_ATTR_ID: AttrId<'static> = AttrId::Unknown {
+        name: QualName {
+            prefix: Prefix::SVG,
+            local: Atom::Static("foo"),
+        },
+    };
+    const UNKNOWN_ATTR: Attr<'static> = Attr::Unparsed {
+        attr_id: AttrId::Unknown {
+            name: QualName {
+                prefix: Prefix::SVG,
+                local: Atom::Static("foo"),
+            },
+        },
         value: Atom::Static("bar"),
     };
-    const UNKNOWN_PREFIXED_ATTR_ID: AttrId<'static> = AttrId::Unknown(QualName {
-        prefix: Prefix::Unknown {
-            prefix: Some(Atom::Static("xml")),
-            ns: NS::Unknown(Atom::Static("https://unknown.org")),
-        },
-        local: Atom::Static("foo"),
-    });
-    const UNKNOWN_PREFIXED_ATTR: Attr<'static> = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
+    const UNKNOWN_PREFIXED_ATTR_ID: AttrId<'static> = AttrId::Unknown {
+        name: QualName {
             prefix: Prefix::Unknown {
                 prefix: Some(Atom::Static("xml")),
-                ns: NS::Unknown(Atom::Static("https://unknown.org")),
+                ns: NS::Unknown {
+                    uri: Atom::Static("https://unknown.org"),
+                },
             },
             local: Atom::Static("foo"),
-        }),
+        },
+    };
+    const UNKNOWN_PREFIXED_ATTR: Attr<'static> = Attr::Unparsed {
+        attr_id: AttrId::Unknown {
+            name: QualName {
+                prefix: Prefix::Unknown {
+                    prefix: Some(Atom::Static("xml")),
+                    ns: NS::Unknown {
+                        uri: Atom::Static("https://unknown.org"),
+                    },
+                },
+                local: Atom::Static("foo"),
+            },
+        },
         value: Atom::Static("bar"),
     };
     const KNOWN_ATTR: Attr<'static> = Attr::Version(Atom::Static("1.1"));
