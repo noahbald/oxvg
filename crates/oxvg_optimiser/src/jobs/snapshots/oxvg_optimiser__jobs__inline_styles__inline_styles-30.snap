@@ -1,0 +1,12 @@
+---
+source: crates/oxvg_optimiser/src/jobs/inline_styles.rs
+expression: "test_config(r#\"{ \"inlineStyles\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- selectors overridden by one that stays aren't inlined -->\n    <style>.a{fill:red}.b{fill:blue}</style>\n    <rect class=\"a b\" width=\"10\" height=\"10\"/>\n    <rect class=\"b\" x=\"20\" width=\"10\" height=\"10\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by one that stays aren't inlined -->
+    <style>
+        .a{fill:red}.b{fill:#00f}
+    </style>
+    <rect class="a b" width="10" height="10"/>
+    <rect class="b" x="20" width="10" height="10"/>
+</svg>
