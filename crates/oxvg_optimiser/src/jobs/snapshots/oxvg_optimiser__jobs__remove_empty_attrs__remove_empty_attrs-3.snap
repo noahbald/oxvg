@@ -1,0 +1,13 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_attrs.rs
+expression: "test_config(r#\"{ \"removeEmptyAttrs\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:cc=\"http://creativecommons.org/ns#\">\n    <!-- keep empty attrs of other vocabularies -->\n    <metadata>\n        <rdf:RDF><cc:Work rdf:about=\"\"/></rdf:RDF>\n    </metadata>\n    <g attr1=\"\" xml:lang=\"\" />\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:cc="http://creativecommons.org/ns#">
+    <!-- keep empty attrs of other vocabularies -->
+    <metadata>
+        <rdf:RDF>
+            <cc:Work rdf:about=""/>
+        </rdf:RDF>
+    </metadata>
+    <g xml:lang=""/>
+</svg>
