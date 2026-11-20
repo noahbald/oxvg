@@ -1,0 +1,9 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_text.rs
+expression: "test_config(r#\"{ \"removeEmptyText\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep text of a no-break space -->\n    <text>A<tspan>&#160;</tspan>B</text>\n    <text>&#160;</text>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep text of a no-break space -->
+    <text>A<tspan> </tspan>B</text>
+    <text> </text>
+</svg>
