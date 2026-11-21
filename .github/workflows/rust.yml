@@ -98,6 +98,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Qualify artifacts
+        run: for f in */*; do [ -f "$f" ] && mv -v "$f" "${f/\//-}"; done
+        shell: bash
       - name: List artifacts
         run: ls -R artifacts
         shell: bash
