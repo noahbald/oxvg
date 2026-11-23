@@ -378,8 +378,11 @@ impl Path {
 
         let mut candidates = Vec::with_capacity(4);
 
-        let (_, smooth_bezier, quadratic_bezier, smooth_quadratic_bezier) =
-            curve.types(start, control, tolerance_squared);
+        let cubic_control = smooth_control(previous, control, false);
+        let quadratic_control = smooth_control(previous, control, true);
+        let (_, smooth_bezier, _, _) = curve.types(start, cubic_control, tolerance_squared);
+        let (_, _, quadratic_bezier, smooth_quadratic_bezier) =
+            curve.types(start, quadratic_control, tolerance_squared);
         if let Some(SmoothBezierTo {
             end_control,
             end_point: _,
@@ -464,10 +467,10 @@ impl Path {
                 quadratic_bezier.map(|q| q.quad_control)
             }
             ID::SmoothQuadraticBezierTo | ID::SmoothQuadraticBezierBy => {
-                control.map(|c| c.reflect(start))
+                quadratic_control.map(|c| c.reflect(start))
             }
             ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierBy | ID::SmoothBezierTo => {
-                Some(quadratic_bezier.map_or(end_control, |q| q.quad_control))
+                Some(end_control)
             }
             _ => None,
         };
@@ -535,6 +538,33 @@ impl Path {
         let a_to = command::Data::ArcTo(arc_to);
         compactest(previous, a_by, a_to, implicit, precision)
     }
+}
+
+/// The control point that a smooth command after `previous` reflects: `S`
+/// reflects only a cubic's last control point, `T` (`quadratic`) only a
+/// quadratic's. After any other command, theirs is the current point (`None`).
+fn smooth_control(
+    previous: Option<&command::Data>,
+    control: Option<Point>,
+    quadratic: bool,
+) -> Option<Point> {
+    let follows_same_kind = previous.is_some_and(|previous| {
+        if quadratic {
+            matches!(
+                previous.id().as_explicit(),
+                ID::QuadraticBezierTo
+                    | ID::QuadraticBezierBy
+                    | ID::SmoothQuadraticBezierTo
+                    | ID::SmoothQuadraticBezierBy
+            )
+        } else {
+            matches!(
+                previous.id().as_explicit(),
+                ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierTo | ID::SmoothBezierBy
+            )
+        }
+    });
+    control.filter(|_| follows_same_kind)
 }
 
 fn compactest_vec(
@@ -719,6 +749,32 @@ mod test {
             path.to_string().as_str(),
             "M10 50q15-25 30 0t30 0 30 0 30 0 30 0 30 0"
         );
+    }
+
+    #[test]
+    fn quadratic_curve_after_cubic() {
+        // The quadratic's control point (-6, -15) reflects the cubic's last
+        // one, but `T` reflects only a quadratic's: after a cubic it would
+        // start at the current point and draw a straight line.
+        let source = "M0 0S-6-6-6-10.5C-6-13.5-5-16.5-3-19.5";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "M0 0s-6-6-6-10.5q0-4.5 3-9");
+    }
+
+    #[test]
+    fn cubic_curve_after_quadratic() {
+        // The cubic's first control point (30, -10) reflects the quadratic's,
+        // but `S` reflects only a cubic's: after a quadratic it would start
+        // at the current point.
+        let source = "M0 0Q10 10 20 0C30-10 45-5 50 0";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "M0 0q10 10 20 0c10-10 25-5 30 0");
     }
 
     #[test]
