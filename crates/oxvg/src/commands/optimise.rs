@@ -58,8 +58,7 @@ impl RunCommand for Optimise {
         let jobs = config
             .optimise
             .as_ref()
-            .map(config::Optimise::resolve_jobs)
-            .unwrap_or_default();
+            .map_or_default(config::Optimise::resolve_jobs);
         future::ready(self.walk(jobs))
     }
 }
@@ -93,8 +92,7 @@ impl Optimise {
                         let input_bytes = source.len() as f64;
                         let info = Info {
                             path: path.cloned(),
-                            multipass_count: 0,
-                            allocator,
+                            ..Info::new(allocator)
                         };
                         jobs.run(dom, &info)
                             .map_err(|e| anyhow::Error::msg(e.to_string()))?;

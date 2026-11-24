@@ -485,18 +485,11 @@ impl std::fmt::Display for Args<'_> {
                 return short_number_from_buffer(buffer.format(*current), f);
             };
             let current = *current;
-            let raw = buffer.format(current);
-            #[allow(clippy::float_cmp)] // This is fine for formatting
-            if current >= 1.0
-                || (current == 0.0)
-                || (previous == 0.0 && current >= 0.0)
-                || (previous % 1.0 == 0.0 && raw.starts_with("0."))
-                || (current > 0.0 && current < 1e-4)
-            {
+            if Args::is_space_between(previous, current) {
                 f.write_char(' ')?;
             }
             previous_option = Some(current);
-            short_number_from_buffer(raw, f)
+            short_number_from_buffer(buffer.format(current), f)
         })
     }
 }
@@ -506,7 +499,25 @@ impl Args<'_> {
     /// command.
     /// This check is only needed when `self` is for an implicit command.
     pub(crate) fn is_space_needed(&self, prev: &Self) -> bool {
-        (prev.last() % 1.0) == 0.0 || self.first() >= &1.0 || self.first() == &0.0
+        Self::is_space_between(*prev.last(), *self.first())
+    }
+
+    /// Whether a space must come between `previous` and `current`, written in
+    /// their shortest form, for them to read as two numbers: before a number
+    /// that starts with a digit, and before one that starts with a point after
+    /// a number without a point of its own or in exponent form. A minus sign
+    /// always starts a number.
+    #[allow(clippy::float_cmp)] // This is fine for formatting
+    fn is_space_between(previous: f64, current: f64) -> bool {
+        if current < 0.0 {
+            return false;
+        }
+        let mut buffer = ryu::Buffer::new();
+        current >= 1.0
+            || current == 0.0
+            || buffer.format(current).contains('e')
+            || previous % 1.0 == 0.0
+            || buffer.format(previous).contains('e')
     }
 }
 
@@ -555,4 +566,27 @@ fn short_number_keeps_exponent() {
     assert_eq!(short_number(1000.0_f64), "1000");
     assert_eq!(short_number(-0.5_f64), "-.5");
     assert_eq!(short_number(-0.0_f64), "0");
+}
+
+#[cfg(test)]
+#[test]
+fn separates_numbers_only_where_needed() {
+    use oxvg_parse::Parse;
+    for (input, expected) in [
+        // No space before a point after a number that has one
+        ("M0 0l-.80904.00001", "M0 0l-.80904.00001"),
+        // A space before a number in exponent form: it starts with a digit
+        ("M0 0l.5 .00000001", "M0 0l.5 1e-8"),
+        // ... also between implicit commands
+        ("M0 0l.5 .5 .00000001 .5", "M0 0l.5.5 1e-8 .5"),
+        // A space before a point after a number in exponent form
+        ("M0 0l.00000001 .5", "M0 0l1e-8 .5"),
+        // No space before a minus sign
+        ("M0 0l.00000001-.5", "M0 0l1e-8-.5"),
+    ] {
+        let path = crate::Path::parse_string(input).unwrap();
+        let formatted = path.to_string();
+        assert_eq!(formatted, expected);
+        assert_eq!(crate::Path::parse_string(&formatted).unwrap().0, path.0);
+    }
 }

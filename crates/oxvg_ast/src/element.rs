@@ -109,10 +109,13 @@ impl<'input, 'arena> Element<'input, 'arena> {
                     }
                     Attr::Unparsed {
                         attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
+                            AttrId::Unknown {
+                                name:
+                                    QualName {
+                                        prefix: Prefix::XMLNS,
+                                        local,
+                                    },
+                            },
                         value,
                     } if matching_prefix.is_none() && value == uri => {
                         matching_prefix = Some(local.clone());
@@ -140,10 +143,13 @@ impl<'input, 'arena> Element<'input, 'arena> {
                     }
                     Attr::Unparsed {
                         attr_id:
-                            AttrId::Unknown(QualName {
-                                prefix: Prefix::XMLNS,
-                                local,
-                            }),
+                            AttrId::Unknown {
+                                name:
+                                    QualName {
+                                        prefix: Prefix::XMLNS,
+                                        local,
+                                    },
+                            },
                         value,
                     } => {
                         if let Some(prefix) = prefix
@@ -791,10 +797,7 @@ impl Debug for Element<'_, '_> {
         let attributes = self.attributes();
         let child_node_count = self.child_node_count();
         let text = match child_node_count {
-            1 => self
-                .text_content()
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default(),
+            1 => self.text_content().map_or_default(|s| s.trim().to_string()),
             _ => String::new(),
         };
         f.debug_struct("Element")

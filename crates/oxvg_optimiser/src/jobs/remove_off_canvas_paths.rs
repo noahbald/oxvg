@@ -6,7 +6,9 @@ use oxvg_ast::{
     get_attribute, get_attribute_mut, has_attribute, is_element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::attribute::{path, presentation::LengthPercentage, uncategorised::ViewBox};
+use oxvg_collections::attribute::{
+    core_attrs::Number, path, presentation::LengthPercentage, uncategorised::ViewBox,
+};
 use oxvg_path::{
     command::Data,
     geometry::{Point, Tolerance},
@@ -21,7 +23,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Clone, Default, Debug)]
@@ -94,10 +96,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
 
         let visible = path.0.iter().any(|c| match c.as_explicit() {
             Data::MoveTo([x, y]) => {
-                *x >= view_box_data.min_x as f64
-                    && *x <= (view_box_data.min_x + view_box_data.width) as f64
-                    && *y >= view_box_data.min_y as f64
-                    && *y <= (view_box_data.min_y + view_box_data.height) as f64
+                *x >= view_box_data.min_x.0 as f64
+                    && *x <= (view_box_data.min_x.0 + view_box_data.width.0) as f64
+                    && *y >= view_box_data.min_y.0 as f64
+                    && *y <= (view_box_data.min_y.0 + view_box_data.height.0) as f64
             }
             _ => false,
         });
@@ -114,10 +116,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
             width,
             height,
         } = view_box_data;
-        let min_x = *min_x as f64;
-        let min_y = *min_y as f64;
-        let max_x = min_x + *width as f64;
-        let max_y = min_y + *height as f64;
+        let min_x = min_x.0 as f64;
+        let min_y = min_y.0 as f64;
+        let max_x = min_x + width.0 as f64;
+        let max_y = min_y + height.0 as f64;
 
         let mut view_box_path_data = Segment::with_capacity(Point::new(min_x, min_y), 3);
         view_box_path_data.push(segment::Data::LineTo(Point::new(max_x, min_y)));
@@ -149,14 +151,18 @@ fn gather(element: Element) -> Result<ViewBox, GatherViewboxDataError> {
                 Some(LengthPercentage(DimensionPercentage::Dimension(height))),
             ) => {
                 return Ok(ViewBox {
-                    min_x: 0.0,
-                    min_y: 0.0,
-                    width: width
-                        .to_px()
-                        .ok_or(GatherViewboxDataError::ParseFloatError)?,
-                    height: height
-                        .to_px()
-                        .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    min_x: Number(0.0),
+                    min_y: Number(0.0),
+                    width: Number(
+                        width
+                            .to_px()
+                            .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    ),
+                    height: Number(
+                        height
+                            .to_px()
+                            .ok_or(GatherViewboxDataError::ParseFloatError)?,
+                    ),
                 });
             }
             _ => return Err(GatherViewboxDataError::MissingViewbox),

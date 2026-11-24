@@ -34,7 +34,7 @@ pub struct CleanupListOfValues {
     /// Whether to remove `px` from a number's unit.
     pub default_px: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_convert_to_px"))]
-    /// Whether to convert absolute units like `cm` and `in` to `px`.
+    /// Whether to convert absolute units like `cm` and `in` to `px`, where that's shorter.
     pub convert_to_px: bool,
 }
 
@@ -133,6 +133,16 @@ fn cleanup_list_of_values() -> anyhow::Result<()> {
             r#"<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 1.23456 2.34567">
     <!-- Should cleanup lists in presentation attributes -->
     <path stroke-dasharray="1.23456 2.34567" d="M0 0h10"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupListOfValues": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should convert to px only when that's shorter -->
+    <path stroke-dasharray="1mm 2.54cm" d="M0 0h10"/>
 </svg>"#
         )
     )?);

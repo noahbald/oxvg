@@ -15,7 +15,7 @@ use tsify::Tsify;
 use crate::{error::JobsError, utils::is_executable_url::is_executable_url};
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default)]

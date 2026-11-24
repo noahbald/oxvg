@@ -468,7 +468,9 @@ impl selectors::Element for SelectElement<'_, '_> {
         }
         (match self.element.qual_name() {
             ElementId::A => true,
-            ElementId::Unknown(QualName { local, .. }) => matches!(local.as_str(), "area" | "link"),
+            ElementId::Unknown {
+                name: QualName { local, .. },
+            } => matches!(local.as_str(), "area" | "link"),
             _ => false,
         }) && self.element.has_attribute(&AttrId::Href)
     }
