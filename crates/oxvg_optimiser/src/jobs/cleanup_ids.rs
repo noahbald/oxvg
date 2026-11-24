@@ -123,7 +123,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for CleanupIds {
             return Ok(PrepareOutcome::skip);
         }
 
-        state.prepare_id_rename(document);
+        state.prepare_id_rename(document, &context.info.external_references);
         state.start_with_context(document, context)?;
         Ok(PrepareOutcome::skip) // work done with `state`
     }
@@ -298,7 +298,11 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
     /// Prepares tracking of ids for removal/renaming
     /// - Adds non-preserved ids to `self.replaceable_ids`
     /// - Removes any duplicate replaceable ids
-    fn prepare_id_rename(&mut self, root: Element<'input, 'arena>) {
+    fn prepare_id_rename(
+        &mut self,
+        root: Element<'input, 'arena>,
+        external_references: &HashSet<String>,
+    ) {
         let mut preserved_ids = Vec::new();
         log::debug!(
             "CleanupIds: prepare_id: preserve: {:#?} <-> {:#?}",
@@ -326,7 +330,8 @@ impl<'input, 'arena> State<'_, 'input, 'arena> {
                     .options
                     .preserve
                     .as_ref()
-                    .is_some_and(|preserve| preserve.contains(&id));
+                    .is_some_and(|preserve| preserve.contains(&id))
+                    || external_references.contains(&id);
                 if is_preserved_prefix || is_preserve {
                     preserved_ids.push(id);
                     return true;
@@ -1109,6 +1114,25 @@ fn cleanup_ids_check_rename() -> anyhow::Result<()> {
     <tref xlink:href="#test53"/>
 </svg>"##
         )
+    )?);
+
+    Ok(())
+}
+
+#[test]
+fn cleanup_ids_external_references() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config!(
+        r#"{ "cleanupIds": {} }"#,
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- preserve ids referenced from other documents -->
+    <circle id="external" r="4"/>
+    <circle id="unreferenced" r="4"/>
+    <linearGradient id="referenced"/>
+    <rect fill="url(#referenced)"/>
+</svg>"#,
+        external_references: ["external"],
     )?);
 
     Ok(())

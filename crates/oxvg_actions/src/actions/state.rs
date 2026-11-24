@@ -26,10 +26,12 @@ impl<'input> Actor<'input, '_> {
         self.effect_selection(&vec![].into())?;
         self.effect_state(StateEffect::Remove)?;
         if let Some(root) = self.root.find_element() {
-            root.remove_attribute(&AttrId::Unknown(QualName {
-                prefix: Prefix::XMLNS,
-                local: OXVG_PREFIX.into(),
-            }));
+            root.remove_attribute(&AttrId::Unknown {
+                name: QualName {
+                    prefix: Prefix::XMLNS,
+                    local: OXVG_PREFIX.into(),
+                },
+            });
         }
         Ok(())
     }
@@ -46,7 +48,9 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select.md")]
     pub fn select(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::Select(query.to_string().into()))?;
+        self.effect_history(&Action::Select {
+            query: query.to_string().into(),
+        })?;
         self.state.state.remove();
 
         let selections = self.select_internal(query)?;
@@ -66,7 +70,9 @@ impl<'input> Actor<'input, '_> {
     ///
     #[doc = include_str!("../spec/state/select-more.md")]
     pub fn select_more(&mut self, query: &str) -> Result<(), Error<'input>> {
-        self.effect_history(&Action::SelectMore(query.to_string().into()))?;
+        self.effect_history(&Action::SelectMore {
+            query: query.to_string().into(),
+        })?;
         self.state.state.remove();
 
         let mut selections = self.get_selections_list()?.unwrap_or_default();

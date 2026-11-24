@@ -1,0 +1,14 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_one_stop_gradients.rs
+expression: "test_config!(r#\"{ \"convertOneStopGradients\": true }\"#, svg:\nr#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep gradients referenced from other documents, but replace internal references -->\n    <defs>\n        <linearGradient id=\"external\"><stop offset=\"0\" stop-color=\"red\"/></linearGradient>\n        <linearGradient id=\"internal\"><stop offset=\"0\" stop-color=\"blue\"/></linearGradient>\n    </defs>\n    <rect fill=\"url(#external)\"/>\n    <rect fill=\"url(#internal)\"/>\n</svg>\"#,\nexternal_references: [\"external\"],)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep gradients referenced from other documents, but replace internal references -->
+    <defs>
+        <linearGradient id="external">
+            <stop offset="0" stop-color="red"/>
+        </linearGradient>
+    </defs>
+    <rect fill="red"/>
+    <rect fill="#00f"/>
+</svg>

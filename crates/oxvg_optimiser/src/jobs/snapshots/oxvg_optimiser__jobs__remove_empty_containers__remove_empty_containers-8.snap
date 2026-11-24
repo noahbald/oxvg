@@ -1,0 +1,15 @@
+---
+source: crates/oxvg_optimiser/src/jobs/remove_empty_containers.rs
+expression: "test_config(r#\"{ \"removeEmptyContainers\": true }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\">\n    <!-- preserve glyphs with path data -->\n    <defs>\n        <font horiz-adv-x=\"500\">\n            <font-face font-family=\"G\" units-per-em=\"1000\"/>\n            <missing-glyph d=\"M0 0h500v700H0z\"/>\n            <glyph unicode=\"A\" d=\"M0 0h500v700z\"/>\n        </font>\n    </defs>\n    <text font-family=\"G\" y=\"50\">A</text>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <!-- preserve glyphs with path data -->
+    <defs>
+        <font horiz-adv-x="500">
+            <font-face font-family="G" units-per-em="1000"/>
+            <missing-glyph d="M0 0h500v700H0Z"/>
+            <glyph unicode="A" d="M0 0h500v700Z"/>
+        </font>
+    </defs>
+    <text font-family="G" y="50">A</text>
+</svg>

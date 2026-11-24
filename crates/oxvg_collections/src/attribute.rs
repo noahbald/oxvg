@@ -1,4 +1,6 @@
 //! Types of data which can be assigned to an element's attributes
+use std::collections::HashMap;
+
 use animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
 use animation_addition::{Accumulate, Additive};
 use animation_timing::{Dur, Fill, MinMax, RepeatCount, RepeatDur, Restart};
@@ -256,7 +258,10 @@ macro_rules! define_attrs {
                 attr_id: Box<AttrId<'input>>,
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(QualName<'input>),
+            Unknown {
+                /// The qualified name of the attribute
+                name: QualName<'input>
+            },
         }
 
         #[cfg(feature = "napi")]
@@ -272,7 +277,7 @@ macro_rules! define_attrs {
                             _ => unreachable!()
                         },
                     },
-                    Self::Unknown(name) => AttrIdNapi::Unknown(name.to_napi()),
+                    Self::Unknown { name } => AttrIdNapi::Unknown { name: name.to_napi() },
                 }
             }
         }
@@ -296,7 +301,10 @@ macro_rules! define_attrs {
                 name: (String, String),
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(crate::name::QualNameNapi),
+            Unknown {
+                /// The qualified name of the attribute
+                name: crate::name::QualNameNapi
+            },
         }
 
         #[derive(Debug, Clone)]
@@ -341,7 +349,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _prefix::$attr,)+
                     Self::Aliased { prefix, .. } => prefix,
-                    Self::Unknown(QualName { prefix, .. }) => prefix,
+                    Self::Unknown { name: QualName { prefix, .. } } => prefix,
                 }
             }
 
@@ -359,7 +367,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _local_name::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.local_name(),
-                    Self::Unknown(QualName { local, .. }) => local,
+                    Self::Unknown { name: QualName { local, .. } } => local,
                 }
             }
 
@@ -368,7 +376,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _c::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.attribute_group(),
-                    Self::Unknown(_) => AttributeGroup::empty(),
+                    Self::Unknown { .. } => AttributeGroup::empty(),
                 }
             }
 
@@ -396,7 +404,7 @@ macro_rules! define_attrs {
                         $(, Separators::$and)?
                     ))?,)+
                     Self::Aliased { attr_id, .. } => attr_id.r#type(),
-                    Self::Unknown(_) => ContentTypeId::Anything,
+                    Self::Unknown { .. } => ContentTypeId::Anything,
                 }
             }
         }
@@ -420,8 +428,8 @@ macro_rules! define_attrs {
                         prefix,
                         value: Box::new(Self::new(*attr_id, value)),
                     },
-                    AttrId::Unknown(name) => Self::Unparsed {
-                        attr_id: AttrId::Unknown(name),
+                    AttrId::Unknown { name } => Self::Unparsed {
+                        attr_id: AttrId::Unknown { name },
                         value: value.into(),
                     },
                 }
@@ -512,7 +520,7 @@ macro_rules! define_attrs {
                     $((Self::$attr, Self::$attr) => true,)+
                     (Self::Aliased { .. }, _) => unreachable!(),
                     (_, Self::Aliased { .. }) => unreachable!(),
-                    (Self::Unknown(a), Self::Unknown(b)) => a == b,
+                    (Self::Unknown { name: a }, Self::Unknown { name: b }) => a == b,
                     _ => false,
                 }
             }
@@ -581,7 +589,7 @@ define_attrs! {
     Amplitude(Number) {
         name: "amplitude",
         categories: AttributeGroup::TransferFunction,
-        default: 1.0,
+        default: Number(1.0),
     },
     ArabicForm(ArabicForm) {
         name: "arabic-form",
@@ -822,11 +830,11 @@ define_attrs! {
     },
     Azimuth(Number) {
         name: "azimuth",
-        default: 0.0,
+        default: Number(0.0),
     },
     BaseFrequency(NumberOptionalNumber) {
         name: "baseFrequency",
-        default: NumberOptionalNumber(0.0, None),
+        default: NumberOptionalNumber(Number(0.0), None),
     },
     BaseProfile(Anything<'input>) {
         name: "baseProfile",
@@ -844,7 +852,7 @@ define_attrs! {
     },
     Bias(Number) {
         name: "bias",
-        default: 0.0,
+        default: Number(0.0),
     },
     By(Anything<'input>) {
         name: "by",
@@ -905,11 +913,11 @@ define_attrs! {
     },
     DiffuseConstant(Number) {
         name: "diffuseConstant",
-        default: 1.0,
+        default: Number(1.0),
     },
     Divisor(Number) {
         name: "divisor",
-        default: 1.0,
+        default: Number(1.0),
     },
     Download(Anything<'input>) {
         name: "download",
@@ -924,16 +932,16 @@ define_attrs! {
     },
     DXFeDropShadow(Length) {
         name: "dx",
-        default: Length::Number(2.0),
+        default: Length::Number(Number(2.0)),
     },
     DXFeOffset(Number) {
         name: "dx",
-        default: 0.0,
+        default: Number(0.0),
     },
     DXGlyphRef(Number) {
         name: "dx",
         info: AttributeInfo::DeprecatedUnsafe,
-        default: 0.0,
+        default: Number(0.0),
     },
     DXText(ListOf<Length, SpaceOrComma>) {
         name: "dx",
@@ -947,11 +955,11 @@ define_attrs! {
     },
     DYFeDropShadow(Number) {
         name: "dy",
-        default: 2.0,
+        default: Number(2.0),
     },
     DYFeOffset(Number) {
         name: "dy",
-        default: 0.0,
+        default: Number(0.0),
     },
     DYGlyphRef(ListOf<Length, SpaceOrComma>) {
         name: "dy",
@@ -973,7 +981,7 @@ define_attrs! {
     },
     Elevation(Number) {
         name: "elevation",
-        default: 0.0,
+        default: Number(0.0),
     },
     End(ListOf<BeginEnd<'input>, Semicolon>) {
         name: "end",
@@ -982,7 +990,7 @@ define_attrs! {
     Exponent(Number) {
         name: "exponent",
         categories: AttributeGroup::TransferFunction,
-        default: 1.0,
+        default: Number(1.0),
     },
     ExternalResourcesRequired(TrueFalse) {
         name: "externalResourcesRequired",
@@ -1101,12 +1109,12 @@ define_attrs! {
     HorizOriginX(Number) {
         name: "horiz-origin-x",
         info: AttributeInfo::DeprecatedUnsafe,
-        default: 0.0,
+        default: Number(0.0),
     },
     HorizOriginY(Number) {
         name: "horiz-origin-y",
         info: AttributeInfo::DeprecatedUnsafe,
-        default: 0.0,
+        default: Number(0.0),
     },
     Href(Url<'input>) {
         name: "href",
@@ -1132,7 +1140,7 @@ define_attrs! {
     Intercept(Number) {
         name: "intercept",
         categories: AttributeGroup::TransferFunction,
-        default: 0.0,
+        default: Number(0.0),
     },
     K(Number) {
         name: "k",
@@ -1140,19 +1148,19 @@ define_attrs! {
     },
     K1(Number) {
         name: "k1",
-        default: 0.0,
+        default: Number(0.0),
     },
     K2(Number) {
         name: "k2",
-        default: 0.0,
+        default: Number(0.0),
     },
     K3(Number) {
         name: "k3",
-        default: 0.0,
+        default: Number(0.0),
     },
     K4(Number) {
         name: "k4",
-        default: 0.0,
+        default: Number(0.0),
     },
     KernelMatrix(ListOf<Number, SpaceOrComma>) {
         name: "kernelMatrix",
@@ -1255,7 +1263,7 @@ define_attrs! {
     OffsetFe(Number) {
         name: "offset",
         categories: AttributeGroup::TransferFunction,
-        default: 0.0,
+        default: Number(0.0),
     },
     OffsetHatchPath(NumberPercentage) {
         name: "offset",
@@ -1561,11 +1569,11 @@ define_attrs! {
     },
     Order(NumberOptionalNumber) {
         name: "order",
-        default: NumberOptionalNumber(3.0, None),
+        default: NumberOptionalNumber(Number(3.0), None),
     },
     Orient(Orient) {
         name: "orient",
-        default: Orient::Number(0.0),
+        default: Orient::Number(Number(0.0)),
     },
     Orientation(Orientation) {
         name: "orientation",
@@ -1625,15 +1633,15 @@ define_attrs! {
     },
     PointsAtX(Number) {
         name: "pointsAtX",
-        default: 0.0,
+        default: Number(0.0),
     },
     PointsAtY(Number) {
         name: "pointsAtY",
-        default: 0.0,
+        default: Number(0.0),
     },
     PointsAtZ(Number) {
         name: "pointsAtZ",
-        default: 0.0,
+        default: Number(0.0),
     },
     PreserveAlpha(TrueFalse) {
         name: "preserveAlpha",
@@ -1649,7 +1657,7 @@ define_attrs! {
     },
     Radius(NumberOptionalNumber) {
         name: "radius",
-        default: NumberOptionalNumber(0.0, None),
+        default: NumberOptionalNumber(Number(0.0), None),
     },
     ReferrerPolicy(ReferrerPolicy) {
         name: "referrerpolicy",
@@ -1705,7 +1713,7 @@ define_attrs! {
     },
     RotateAnimate(Rotate) {
         name: "rotate",
-        default: Rotate::Number(0.0),
+        default: Rotate::Number(Number(0.0)),
     },
     RotateHatch(Angle) {
         name: "rotate",
@@ -1727,11 +1735,11 @@ define_attrs! {
     },
     Scale(Number) {
         name: "scale",
-        default: 0.0,
+        default: Number(0.0),
     },
     Seed(Number) {
         name: "seed",
-        default: 0.0,
+        default: Number(0.0),
     },
     Side(TextPathSide) {
         name: "side",
@@ -1740,12 +1748,12 @@ define_attrs! {
     SlopeFont(Number) {
         name: "slope",
         info: AttributeInfo::DeprecatedUnsafe,
-        default: 0.0,
+        default: Number(0.0),
     },
     SlopeFe(Number) {
         name: "slope",
         categories: AttributeGroup::TransferFunction,
-        default: 1.0,
+        default: Number(1.0),
     },
     // https://udn.realityripple.com/docs/Web/SVG/Element/solidColor
     SolidColor(Paint<'input>) {
@@ -1761,11 +1769,11 @@ define_attrs! {
     },
     SpecularConstant(Number) {
         name: "specularConstant",
-        default: 1.0,
+        default: Number(1.0),
     },
     SpecularExponent(Number) {
         name: "specularExponent",
-        default: 1.0,
+        default: Number(1.0),
     },
     SpreadMethod(SpreadMethod) {
         name: "spreadMethod",
@@ -1777,11 +1785,11 @@ define_attrs! {
     },
     StdDeviationFeDropShadow(NumberOptionalNumber) {
         name: "stdDeviation",
-        default: NumberOptionalNumber(2.0, None),
+        default: NumberOptionalNumber(Number(2.0), None),
     },
     StdDeviationFeGaussianBlur(NumberOptionalNumber) {
         name: "stdDeviation",
-        default: NumberOptionalNumber(0.0, None),
+        default: NumberOptionalNumber(Number(0.0), None),
     },
     Stemh(Number) {
         name: "stemh",
@@ -1813,7 +1821,7 @@ define_attrs! {
     },
     SurfaceScale(Number) {
         name: "surfaceScale",
-        default: 1.0,
+        default: Number(1.0),
     },
     SystemLanguage(Anything<'input>) {
         name: "systemLanguage",
@@ -1911,7 +1919,7 @@ define_attrs! {
     UnitsPerEm(Number) {
         name: "units-per-em",
         info: AttributeInfo::DeprecatedUnsafe,
-        default: 1000.0,
+        default: Number(1000.0),
     },
     VAlphabetic(Number) {
         name: "v-alphabetic",
@@ -2017,11 +2025,11 @@ define_attrs! {
     },
     XFePointLight(Number) {
         name: "x",
-        default: 0.0,
+        default: Number(0.0),
     },
     XFeSpotLight(Number) {
         name: "x",
-        default: 0.0,
+        default: Number(0.0),
     },
     XFilter(LengthPercentage) {
         name: "x",
@@ -2156,11 +2164,11 @@ define_attrs! {
     },
     YFePointLight(Number) {
         name: "y",
-        default: 0.0,
+        default: Number(0.0),
     },
     YFeSpotLight(Number) {
         name: "y",
-        default: 0.0,
+        default: Number(0.0),
     },
     YFilter(LengthPercentage) {
         name: "y",
@@ -2219,7 +2227,7 @@ define_attrs! {
     },
     ZFe(Number) {
         name: "z",
-        default: 0.0,
+        default: Number(0.0),
     },
     ZoomAndPan(ZoomAndPan) {
         name: "zoomAndPan",
@@ -2532,7 +2540,7 @@ define_attrs! {
         name: "stroke-miterlimit",
         categories: AttributeGroup::Presentation,
         info: AttributeInfo::Inheritable,
-        default: Inheritable::Defined(4.0),
+        default: Inheritable::Defined(Number(4.0)),
     },
     StrokeOpacity(Inheritable<Opacity>) {
         name: "stroke-opacity",
@@ -2623,10 +2631,10 @@ macro_rules! try_from_into_property {
                         name: CustomPropertyName::Unknown(name),
                         value,
                     }) => Attr::CSSUnknown {
-                        attr_id: AttrId::Unknown(QualName {
+                        attr_id: AttrId::Unknown { name: QualName {
                             prefix: Prefix::SVG,
                             local: name.0.into(),
-                        }),
+                        } },
                         value: TokenList(value),
                     },
                     Property::Unparsed(UnparsedProperty {
@@ -2719,7 +2727,7 @@ try_from_into_property! {
     StrokeDashoffset(value) => Inheritable::Defined(LengthPercentage(value)) => value.option().ok_or(())?.0,
     StrokeLinecap(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     StrokeLinejoin(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
-    StrokeMiterlimit(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
+    StrokeMiterlimit(value) => Inheritable::Defined(Number(value)) => value.option().ok_or(())?.0,
     StrokeOpacity(value) => Inheritable::Defined(value) => value.option().ok_or(())?,
     StrokeWidth(value) => Inheritable::Defined(LengthPercentage(value)) => value.option().ok_or(())?.0,
     TextDecoration(value, vp) => Inheritable::Defined(value) => value.option().ok_or(())?,
@@ -2792,6 +2800,20 @@ thread_local! {
     static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: DashMap<AttributeGroup, &'static [&'static AttrId<'static>]> = DashMap::new();
 }
 
+static ATTR_IDS: std::sync::LazyLock<
+    HashMap<(&'static Prefix<'static>, &'static Atom<'static>), Vec<&'static AttrId<'static>>>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = HashMap::<
+        (&'static Prefix<'static>, &'static Atom<'static>),
+        Vec<&'static AttrId<'static>>,
+    >::new();
+    for attr in _attr_id::all {
+        let key = (attr.prefix(), attr.local_name());
+        map.entry(key).or_default().push(*attr);
+    }
+    map
+});
+
 impl AttributeGroup {
     /// Returns the list of attributes associated with the attribute group
     ///
@@ -2832,26 +2854,27 @@ impl AttributeGroup {
         prefix: &Prefix<'input>,
         local: Atom<'input>,
     ) -> AttrId<'input> {
-        self.attributes()
-            .iter()
-            .find(|attr| attr.prefix() == prefix && *attr.local_name() == local)
-            .map_or_else(
-                || {
-                    AttrId::Unknown(QualName {
+        match ATTR_IDS.get(&(prefix, &local)).and_then(|attrs| {
+            attrs
+                .iter()
+                .find(|attr| self.intersects(attr.attribute_group()))
+        }) {
+            Some(attr) => {
+                if prefix.is_aliased() {
+                    AttrId::Aliased {
                         prefix: prefix.clone(),
-                        local,
-                    })
-                },
-                |attr| {
-                    if prefix.is_aliased() {
-                        AttrId::Aliased {
-                            prefix: prefix.clone(),
-                            attr_id: Box::new((*attr).clone()),
-                        }
-                    } else {
-                        (*attr).clone()
+                        attr_id: Box::new((*attr).clone()),
                     }
+                } else {
+                    (*attr).clone()
+                }
+            }
+            None => AttrId::Unknown {
+                name: QualName {
+                    prefix: prefix.clone(),
+                    local,
                 },
-            )
+            },
+        }
     }
 }

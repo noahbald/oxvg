@@ -4,46 +4,46 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "svg",
             ),
-        ),
-        Matrix(
-            1.0,
-            2.0,
-            3.0,
-            4.0,
-            5.0,
-            6.0,
-        ),
-        Translate(
-            1.0,
-            Some(
+        },
+        Matrix {
+            a: 1.0,
+            b: 2.0,
+            c: 3.0,
+            d: 4.0,
+            e: 5.0,
+            f: 6.0,
+        },
+        Translate {
+            x: 1.0,
+            y: Some(
                 1.0,
             ),
-        ),
-        Scale(
-            1.0,
-            Some(
+        },
+        Scale {
+            x: 1.0,
+            y: Some(
                 1.0,
             ),
-        ),
-        Rotate(
-            90.0,
-            Some(
+        },
+        Rotate {
+            angle: 90.0,
+            origin: Some(
                 (
                     1.0,
                     1.0,
                 ),
             ),
-        ),
-        SkewX(
-            1.0,
-        ),
-        SkewY(
-            1.0,
-        ),
+        },
+        SkewX {
+            angle: 1.0,
+        },
+        SkewY {
+            angle: 1.0,
+        },
     ],
     selection: [
         1,
@@ -105,14 +105,14 @@ DerivedState {
                     XMLNS: Cow(
                         "http://www.w3.org/2000/svg",
                     ),
-                    Unknown(
-                        QualName {
+                    Unknown {
+                        name: QualName {
                             prefix: XMLNS,
                             local: Cow(
                                 "oxvg",
                             ),
                         },
-                    ): Cow(
+                    }: Cow(
                         "https://oxvg.noahwbaldwin.me",
                     ),
                 },

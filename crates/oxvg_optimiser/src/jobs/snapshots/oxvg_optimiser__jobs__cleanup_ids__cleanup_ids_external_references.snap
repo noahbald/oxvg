@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/cleanup_ids.rs
+expression: "test_config!(r#\"{ \"cleanupIds\": {} }\"#, svg:\nr#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- preserve ids referenced from other documents -->\n    <circle id=\"external\" r=\"4\"/>\n    <circle id=\"unreferenced\" r=\"4\"/>\n    <linearGradient id=\"referenced\"/>\n    <rect fill=\"url(#referenced)\"/>\n</svg>\"#,\nexternal_references: [\"external\"],)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- preserve ids referenced from other documents -->
+    <circle id="external" r="4"/>
+    <circle r="4"/>
+    <linearGradient id="b"/>
+    <rect fill="url(#b)"/>
+</svg>

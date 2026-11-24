@@ -35,7 +35,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Default, Clone, Debug)]
@@ -216,10 +216,12 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'input, 'arena> {
 
         if !defs.is_empty() {
             defs.set_attribute(Attr::Unparsed {
-                attr_id: AttrId::Unknown(QualName {
-                    prefix: Prefix::XMLNS,
-                    local: Prefix::XLink.value().unwrap(),
-                }),
+                attr_id: AttrId::Unknown {
+                    name: QualName {
+                        prefix: Prefix::XMLNS,
+                        local: Prefix::XLink.value().unwrap(),
+                    },
+                },
                 value: NS::XLink.uri().clone(),
             });
         }

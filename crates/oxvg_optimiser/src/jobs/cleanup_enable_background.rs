@@ -31,7 +31,7 @@ use crate::error::JobsError;
 use tsify::Tsify;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone)]
@@ -160,8 +160,8 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State {
             let LengthPercentage(DimensionPercentage::Dimension(height)) = &*height else {
                 return Ok(());
             };
-            if width.to_px().is_none_or(|px| px != *eb_width)
-                || height.to_px().is_none_or(|px| px != *eb_height)
+            if width.to_px().is_none_or(|px| px != eb_width.0)
+                || height.to_px().is_none_or(|px| px != eb_height.0)
             {
                 return Ok(());
             }

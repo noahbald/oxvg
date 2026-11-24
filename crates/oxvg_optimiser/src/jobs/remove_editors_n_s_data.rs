@@ -64,10 +64,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEditorsNSData {
         element.attributes().retain(|attr| {
             if let Attr::Unparsed {
                 attr_id:
-                    AttrId::Unknown(QualName {
-                        prefix: Prefix::XMLNS,
-                        local: _,
-                    }),
+                    AttrId::Unknown {
+                        name:
+                            QualName {
+                                prefix: Prefix::XMLNS,
+                                local: _,
+                            },
+                    },
                 value,
             } = attr
             {

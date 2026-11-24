@@ -1,4 +1,6 @@
 //! Container for all the possible content that can be used by an attribute
+use oxvg_path::command::short_number;
+
 use super::attribute::animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
 use super::attribute::animation_addition::{Accumulate, Additive};
 use super::attribute::animation_timing::{
@@ -549,7 +551,9 @@ impl<'input> ContentType<'_, 'input> {
                     return;
                 }
                 Self::ControlPoint(ContentTypeRef::RefMut(ControlPoint(values))) => {
-                    values.iter_mut().for_each(f);
+                    for Number(n) in values.iter_mut() {
+                        f(n);
+                    }
                     return;
                 }
                 Self::ListOf(ListOf { list, .. }) => {
@@ -569,28 +573,28 @@ impl<'input> ContentType<'_, 'input> {
     {
         match self {
             // Length
-            Self::Length(ContentTypeRef::RefMut(Length::Number(n)))
-            | Self::Kerning(ContentTypeRef::RefMut(Kerning::Length(Length::Number(n))))
+            Self::Length(ContentTypeRef::RefMut(Length::Number(Number(n))))
+            | Self::Kerning(ContentTypeRef::RefMut(Kerning::Length(Length::Number(Number(n)))))
             // Angle
             | Self::Angle(ContentTypeRef::RefMut(
                 Angle::Deg(n) | Angle::Rad(n) | Angle::Grad(n) | Angle::Turn(n),
             ))
             // Frequency
-            | Self::Frequency(ContentTypeRef::RefMut(Frequency::Hz(n) | Frequency::KHz(n)))
+            | Self::Frequency(ContentTypeRef::RefMut(Frequency::Hz(Number(n)) | Frequency::KHz(Number(n))))
             // Opacity
             | Self::Opacity(ContentTypeRef::RefMut(AlphaValue(n)))
             // RepeatCount
-            | Self::RepeatCount(ContentTypeRef::RefMut(RepeatCount::Number(n)))
+            | Self::RepeatCount(ContentTypeRef::RefMut(RepeatCount::Number(Number(n))))
             // Rotate
-            | Self::Rotate(ContentTypeRef::RefMut(Rotate::Number(n)))
+            | Self::Rotate(ContentTypeRef::RefMut(Rotate::Number(Number(n))))
             // Number
-            | Self::NumberPercentage(ContentTypeRef::RefMut(NumberPercentage::Number(n)))
+            | Self::NumberPercentage(ContentTypeRef::RefMut(NumberPercentage::Number(Number(n))))
             // LengthOrNumber
             | Self::LengthOrNumber(ContentTypeRef::RefMut(LengthOrNumber::Number(n)))
             | Self::RefX(ContentTypeRef::RefMut(RefX::LengthOrNumber(LengthOrNumber::Number(n))))
-            | Self::RefY(ContentTypeRef::RefMut(RefY::LengthOrNumber(LengthOrNumber::Number(n)))) => f(n),
+            | Self::RefY(ContentTypeRef::RefMut(RefY::LengthOrNumber(LengthOrNumber::Number(n))))
             // Number
-            Self::Number(ContentTypeRef::RefMut(n)) => f(n),
+            | Self::Number(ContentTypeRef::RefMut(Number(n))) => f(n),
             Self::Percentage(ContentTypeRef::RefMut(Percentage(p)))
             | Self::Radius(ContentTypeRef::RefMut(Radius::LengthPercentage(LengthPercentage(DimensionPercentage::Percentage(Percentage(p))))))
             | Self::LengthPercentage(ContentTypeRef::RefMut(LengthPercentage(DimensionPercentage::Percentage(Percentage(p)))))
@@ -643,7 +647,15 @@ impl<'input> ContentType<'_, 'input> {
         if convert_px {
             self.visit_length_value(
                 |l| {
-                    if let Some(px) = l.to_px() {
+                    let Some(mut px) = l.to_px() else {
+                        return;
+                    };
+                    // As in SVGO, only when that's shorter: `1in` becomes `96`,
+                    // `210mm` stays rather than becoming `793.701`.
+                    let (mut value, unit) = l.to_unit_value();
+                    round_float(&mut value);
+                    round_float(&mut px);
+                    if short_number(px).len() < short_number(value).len() + unit.len() {
                         *l = LengthValue::Px(px);
                     }
                 },

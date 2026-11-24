@@ -63,17 +63,21 @@ mod test {
     const SVG_ATTR: Attr = Attr::Href(Atom::Static("#"));
     const XLINK_ATTR: Attr = Attr::XLinkHref(Atom::Static("#"));
     const UNKNOWN_XLINK_ATTR: Attr = Attr::Unparsed {
-        attr_id: AttrId::Unknown(QualName {
-            prefix: Prefix::XLink,
-            local: Atom::Static("foo"),
-        }),
+        attr_id: AttrId::Unknown {
+            name: QualName {
+                prefix: Prefix::XLink,
+                local: Atom::Static("foo"),
+            },
+        },
         value: Atom::Static("bar"),
     };
     const XLINK_ATTR_ID: AttrId = AttrId::XLinkHref;
-    const UNKNOWN_XLINK_ATTR_ID: AttrId = AttrId::Unknown(QualName {
-        prefix: Prefix::XLink,
-        local: Atom::Static("foo"),
-    });
+    const UNKNOWN_XLINK_ATTR_ID: AttrId = AttrId::Unknown {
+        name: QualName {
+            prefix: Prefix::XLink,
+            local: Atom::Static("foo"),
+        },
+    };
 
     #[test]
     fn report_no_xlink_ok() {

@@ -14,7 +14,7 @@ pub fn is_oxvg_xmlns(prefix: &Prefix) -> bool {
     matches!(
             prefix,
             Prefix::Unknown {
-                ns: NS::Unknown(ns),
+                ns: NS::Unknown { uri: ns },
                 ..
             } if ns.as_str() == OXVG_XMLNS)
 }
@@ -44,9 +44,9 @@ pub fn get_oxvg_attr<'a, 'input>(
     element: &'a Element<'input, '_>,
     local_name: &'static str,
 ) -> Result<Option<cell::Ref<'a, Atom<'input>>>, Error<'static>> {
-    let attr = element
-        .attributes()
-        .get_named_item(&AttrId::Unknown(create_oxvg_qual_name(local_name)));
+    let attr = element.attributes().get_named_item(&AttrId::Unknown {
+        name: create_oxvg_qual_name(local_name),
+    });
     let Some(attr) = attr.as_ref() else {
         return Ok(None);
     };
@@ -60,7 +60,9 @@ pub fn get_oxvg_attr<'a, 'input>(
 }
 
 pub const fn create_oxvg_element(local_name: &'static str) -> ElementId<'static> {
-    ElementId::Unknown(create_oxvg_qual_name(local_name))
+    ElementId::Unknown {
+        name: create_oxvg_qual_name(local_name),
+    }
 }
 
 pub const fn create_oxvg_attr<'input>(
@@ -74,14 +76,18 @@ pub const fn create_oxvg_attr<'input>(
 }
 
 pub const fn create_oxvg_attr_id(local_name: &'static str) -> AttrId<'static> {
-    AttrId::Unknown(create_oxvg_qual_name(local_name))
+    AttrId::Unknown {
+        name: create_oxvg_qual_name(local_name),
+    }
 }
 
 pub const fn create_oxvg_qual_name(local_name: &'static str) -> QualName<'static> {
     QualName {
         prefix: Prefix::Unknown {
             prefix: Some(Atom::Static(OXVG_PREFIX)),
-            ns: NS::Unknown(Atom::Static(OXVG_XMLNS)),
+            ns: NS::Unknown {
+                uri: Atom::Static(OXVG_XMLNS),
+            },
         },
         local: Atom::Static(local_name),
     }

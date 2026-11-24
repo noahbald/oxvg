@@ -299,12 +299,10 @@ impl RunCommand for JSX {
                             if let Some(output) = &mut output {
                                 output.set_extension(if typescript { "tsx" } else { "jsx" });
                             }
-                            let state = path
-                                .and_then(|p| p.file_stem())
-                                .map(|p| State {
+                            let state =
+                                path.and_then(|p| p.file_stem()).map_or_default(|p| State {
                                     component_name: path_to_component_name(p),
-                                })
-                                .unwrap_or_default();
+                                });
 
                             if let Some(output) = output {
                                 if let Some(parent) = output.parent() {
