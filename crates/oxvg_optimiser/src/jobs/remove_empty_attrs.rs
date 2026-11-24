@@ -56,15 +56,13 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
         element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
-        // An unknown attribute may mean something when empty, such as
+        // Keep an empty attribute whose empty value means something, such as
+        // `systemLanguage=""`, or that the element doesn't expect, such as
         // `rdf:about=""` for this document.
         element.attributes().retain(|a| {
-            if a.name().info().contains(AttributeInfo::EmptySemantics)
-                || !element.qual_name().is_permitted_attribute(a.name())
-            {
-                return true;
-            }
             !a.value().is_empty()
+                || a.name().info().contains(AttributeInfo::EmptySemantics)
+                || !element.qual_name().is_permitted_attribute(a.name())
         });
         Ok(())
     }
