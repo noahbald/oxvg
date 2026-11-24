@@ -30,6 +30,12 @@ use crate::error::JobsError;
 ///
 /// For removing empty groups, see [`super::RemoveEmptyContainers`].
 ///
+/// # Differences to SVGO
+///
+/// SVGO moves an attribute whose effect stacks, such as `opacity`, from the
+/// group to its only child when the child has the same value, so the effect
+/// applies once instead of twice. We keep the group.
+///
 /// # Correctness
 ///
 /// This job should never visually change the document.
@@ -142,8 +148,12 @@ fn move_attributes_to_child(element: Element) {
             if Inheritable::Inherited == inheritable {
                 log::debug!("collapse_groups: moved {attr:?}: is explicit inherit");
                 *child_attr = attr.clone();
-            } else if !attr.name().info().contains(AttributeInfo::Inheritable) {
-                log::debug!("collapse_groups: keeping {attr:?}: not inherited, child has its own");
+            } else if attr
+                .name()
+                .info()
+                .contains(AttributeInfo::PresentationNonInheritableGroupAttrs)
+            {
+                log::debug!("collapse_groups: keeping {attr:?}: stacks with the child's own");
                 removals.pop();
                 break;
             }
@@ -502,7 +512,7 @@ fn collapse_groups() -> anyhow::Result<()> {
         r#"{ "collapseGroups": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- Should preserve group when child has its own value of a property that isn't inherited -->
+    <!-- Should preserve group when child has its own value of a property whose effect stacks -->
     <g opacity=".5">
         <path opacity=".5" d="..."/>
     </g>
@@ -515,6 +525,10 @@ fn collapse_groups() -> anyhow::Result<()> {
     <!-- Should still move a property that isn't inherited to a child without it -->
     <g opacity=".5">
         <path d="..."/>
+    </g>
+    <!-- Should drop a property that doesn't stack when the child has its own -->
+    <g flood-color="red">
+        <path flood-color="blue" d="..."/>
     </g>
 </svg>"#
         )

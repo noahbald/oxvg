@@ -1450,6 +1450,12 @@ export interface CleanupNumericValues {
  *
  * For removing empty groups, see [`super::RemoveEmptyContainers`].
  *
+ * # Differences to SVGO
+ *
+ * SVGO moves an attribute whose effect stacks, such as `opacity`, from the
+ * group to its only child when the child has the same value, so the effect
+ * applies once instead of twice. We keep the group.
+ *
  * # Correctness
  *
  * This job should never visually change the document.
