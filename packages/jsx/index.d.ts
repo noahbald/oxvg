@@ -551,9 +551,12 @@ export interface CleanupNumericValues {
  *
  * # Differences to SVGO
  *
- * SVGO moves an attribute whose effect stacks, such as `opacity`, from the
- * group to its only child when the child has the same value, so the effect
- * applies once instead of twice. We keep the group.
+ * When the only child has its own value of an attribute that isn't inherited,
+ * SVGO keeps the group if the values differ and drops the group's value if
+ * they are the same, so an attribute whose effect stacks, such as `opacity`,
+ * then applies once instead of twice. We keep the group for an attribute that
+ * stacks, whatever the child's value, and drop the group's value of one that
+ * doesn't, such as `flood-color`.
  *
  * # Correctness
  *
