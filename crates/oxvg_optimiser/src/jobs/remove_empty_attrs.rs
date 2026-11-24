@@ -19,6 +19,12 @@ use crate::error::JobsError;
 #[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes empty attributes from elements when safe to do so.
 ///
+/// # Differences to SVGO
+///
+/// SVGO removes empty attributes that an element doesn't expect, such as
+/// `rdf:about` on `cc:Work`, and some whose empty value means something, such
+/// as `xml:lang`. We keep both.
+///
 /// # Correctness
 ///
 /// This job should never visually change the document.
@@ -78,8 +84,8 @@ fn remove_empty_attrs() -> anyhow::Result<()> {
         r#"{ "removeEmptyAttrs": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- remove empty attrs -->
-    <g attr1="" attr2=""/>
+    <!-- remove empty attrs, but not unknown ones -->
+    <g attr1="" attr2="" class="" id=""/>
 </svg>"#
         ),
     )?);
