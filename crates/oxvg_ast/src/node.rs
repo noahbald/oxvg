@@ -450,8 +450,7 @@ impl<'input, 'arena> Node<'input, 'arena> {
         self.first_child().is_none_or(|_| {
             self.child_nodes_iter().all(|n| {
                 n.node_type() == Type::Text
-                    && n.text_content()
-                        .is_none_or(|t| t.trim_matches(is_xml_whitespace).is_empty())
+                    && n.text_content().is_none_or(|t| t.trim_ascii().is_empty())
             })
         })
     }
