@@ -1182,6 +1182,7 @@ define_attrs! {
     Lang(Anything<'input>) {
         name: "lang",
         categories: AttributeGroup::Core,
+        info: AttributeInfo::EmptySemantics,
     },
     LengthAdjust(LengthAdjust) {
         name: "lengthAdjust",
@@ -1689,11 +1690,12 @@ define_attrs! {
     RequiredExtensions(Anything<'input>) {
         name: "requiredExtensions",
         categories: AttributeGroup::ConditionalProcessing,
+        info: AttributeInfo::EmptySemantics,
     },
     RequiredFeatures(Anything<'input>) {
         name: "requiredFeatures",
         categories: AttributeGroup::ConditionalProcessing,
-        info: AttributeInfo::DeprecatedUnsafe,
+        info: AttributeInfo::DeprecatedUnsafe.union(AttributeInfo::EmptySemantics),
     },
     Restart(Restart) {
         name: "restart",
@@ -1826,6 +1828,7 @@ define_attrs! {
     SystemLanguage(Anything<'input>) {
         name: "systemLanguage",
         categories: AttributeGroup::ConditionalProcessing,
+        info: AttributeInfo::EmptySemantics,
     },
     Tabindex(Integer) {
         name: "tabindex",
@@ -2129,6 +2132,7 @@ define_attrs! {
     XMLNS(Anything<'input>) {
         name: "xmlns",
         categories: AttributeGroup::Core,
+        info: AttributeInfo::EmptySemantics,
     },
     XmlBase(Anything<'input>) {
         prefix: XML,
@@ -2140,7 +2144,7 @@ define_attrs! {
         prefix: XML,
         name: "lang",
         categories: AttributeGroup::Core,
-        info: AttributeInfo::DeprecatedUnsafe,
+        info: AttributeInfo::DeprecatedUnsafe.union(AttributeInfo::EmptySemantics),
     },
     XmlSpace(XmlSpace) {
         prefix: XML,
