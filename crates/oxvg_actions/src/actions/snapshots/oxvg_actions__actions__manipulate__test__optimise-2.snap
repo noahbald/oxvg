@@ -4,9 +4,9 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Optimise(
-            None,
-        ),
+        Optimise {
+            jobs: None,
+        },
     ],
     selection: [],
     info: Some(

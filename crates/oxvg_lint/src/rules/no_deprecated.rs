@@ -59,17 +59,17 @@ mod test {
     use oxvg_ast::node::Ranges;
     use oxvg_collections::{
         atom::Atom,
-        attribute::{Attr, AttrId, uncategorised::ViewBox, xml::XmlSpace},
+        attribute::{Attr, AttrId, core_attrs::Number, uncategorised::ViewBox, xml::XmlSpace},
         element::ElementId,
     };
 
     const OK_ELEMENT: ElementId = ElementId::Svg;
     const LEGACY_ELEMENT: ElementId = ElementId::TRef;
     const OK_ATTRIBUTE: Attr = Attr::ViewBox(ViewBox {
-        min_x: 0.0,
-        min_y: 0.0,
-        width: 0.0,
-        height: 0.0,
+        min_x: Number(0.0),
+        min_y: Number(0.0),
+        width: Number(0.0),
+        height: Number(0.0),
     });
     const DEPRECATED_SAFE_ATTRIBUTE: Attr = Attr::Version(Atom::Static("1.1"));
     const DEPRECATED_UNSAFE_ATTRIBUTE: Attr = Attr::XmlSpace(XmlSpace::Default);

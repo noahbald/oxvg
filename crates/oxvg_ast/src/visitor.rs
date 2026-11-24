@@ -1,5 +1,5 @@
 //! Visitors for traversing and manipulating nodes of an xml document
-use std::{cell::RefCell, path::PathBuf};
+use std::{cell::RefCell, collections::HashSet, path::PathBuf};
 
 use lightningcss::rules::CssRuleList;
 
@@ -24,6 +24,10 @@ pub struct Info<'input, 'arena> {
     /// The allocator for the parsed file. Used for storing and creating new nodes within
     /// the document.
     pub allocator: Allocator<'input, 'arena>,
+    /// Ids of elements referenced from outside the document, e.g. by `<use href="sprite.svg#icon">`
+    /// in another file. Jobs keep these elements and their ids as though they were referenced
+    /// within the document.
+    pub external_references: HashSet<String>,
 }
 
 impl<'input, 'arena> Info<'input, 'arena> {
@@ -34,6 +38,7 @@ impl<'input, 'arena> Info<'input, 'arena> {
             path: None,
             multipass_count: 0,
             allocator,
+            external_references: HashSet::new(),
         }
     }
 }
@@ -265,8 +270,7 @@ pub trait Visitor<'input, 'arena> {
             root,
             &Info {
                 path,
-                multipass_count: 0,
-                allocator,
+                ..Info::new(allocator)
             },
             None,
         )

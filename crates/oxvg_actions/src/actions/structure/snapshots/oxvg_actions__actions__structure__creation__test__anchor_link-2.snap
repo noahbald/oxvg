@@ -4,16 +4,16 @@ expression: actor.derive_state().unwrap()
 ---
 DerivedState {
     history: [
-        Select(
-            Cow(
+        Select {
+            query: Cow(
                 "text",
             ),
-        ),
-        AnchorLink(
-            Cow(
+        },
+        AnchorLink {
+            href: Cow(
                 "#uri",
             ),
-        ),
+        },
     ],
     selection: [
         3,

@@ -124,7 +124,10 @@ macro_rules! define_prefix {
                 $prefix,
             )+
             /// A not well-known namespace
-            Unknown(Atom<'input>),
+            Unknown {
+                /// Namespace URI
+                uri: Atom<'input>,
+            },
         }
 
         #[cfg(feature = "napi")]
@@ -133,7 +136,7 @@ macro_rules! define_prefix {
             pub fn to_napi(&self) -> NSNapi {
                 match self {
                     $(Self::$prefix => NSNapi::$prefix,)+
-                    Self::Unknown(ns) => NSNapi::Unknown(ns.to_string()),
+                    Self::Unknown { uri } => NSNapi::Unknown { uri: uri.to_string() },
                 }
             }
         }
@@ -147,7 +150,10 @@ macro_rules! define_prefix {
                 $prefix,
             )+
             /// A not well-known namespace
-            Unknown(String),
+            Unknown {
+                /// Namespace URI
+                uri: String,
+            },
         }
 
         impl<'input> Prefix<'input> {
@@ -195,7 +201,7 @@ macro_rules! define_prefix {
             pub fn is_ns(&self, ns: &NS<'input>) -> bool {
                 match (self, ns) {
                     $((Self::$prefix, NS::$prefix) => true,)+
-                    (Self::Unknown { ns, .. }, NS::Unknown( uri )) => ns.uri() == uri,
+                    (Self::Unknown { ns, .. }, NS::Unknown { uri }) => ns.uri() == uri,
                     (Self::Aliased { prefix, .. }, ..) => prefix.is_ns(ns),
                     _ => false,
                 }
@@ -236,7 +242,7 @@ macro_rules! define_prefix {
             pub fn new(uri: Atom<'input>) -> Self {
                 match &*uri {
                     $($uri => Self::$prefix,)+
-                    _ => Self::Unknown(uri),
+                    _ => Self::Unknown { uri },
                 }
             }
 
@@ -244,7 +250,7 @@ macro_rules! define_prefix {
             pub fn uri<'a>(&'a self) -> &'a Atom<'input> {
                 match self {
                     $(Self::$prefix => _uri::$prefix,)+
-                    Self::Unknown(uri) => uri,
+                    Self::Unknown { uri } => uri,
                 }
             }
         }
@@ -253,7 +259,7 @@ macro_rules! define_prefix {
             fn eq(&self, other: &Self) -> bool {
                 match (self, other) {
                     $((Self::$prefix, Self::$prefix) => true,)+
-                    (Self::Unknown(uri), Self::Unknown(other_uri)) => uri == other_uri,
+                    (Self::Unknown { uri }, Self::Unknown { uri: other_uri }) => uri == other_uri,
                     _ => false,
                 }
             }
