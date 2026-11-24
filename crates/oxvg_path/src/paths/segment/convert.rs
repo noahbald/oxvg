@@ -10,13 +10,40 @@ use crate::{
     paths::segment::{Data, IterStartCursorItem, Path, Segment},
 };
 
+/// The control point a following smooth command may reflect, with the kind of
+/// curve it belongs to: `S` reflects only a cubic's last control point, `T`
+/// only a quadratic's. After any other command, theirs is the current point.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Control {
+    Cubic(Point),
+    Quadratic(Point),
+}
+
+impl Control {
+    /// The control point `S` reflects after `control`.
+    fn cubic(control: Option<Self>) -> Option<Point> {
+        match control {
+            Some(Self::Cubic(point)) => Some(point),
+            _ => None,
+        }
+    }
+
+    /// The control point `T` reflects after `control`.
+    fn quadratic(control: Option<Self>) -> Option<Point> {
+        match control {
+            Some(Self::Quadratic(point)) => Some(point),
+            _ => None,
+        }
+    }
+}
+
 impl Data {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn take(
         command: &command::Data,
         start: &mut Point,
         cursor: &mut Point,
-        control: &mut Option<Point>,
+        control: &mut Option<Control>,
         z_end: &mut bool,
     ) -> Option<Self> {
         let last_control = control.take();
@@ -60,7 +87,7 @@ impl Data {
                 let end_control = *cursor + Point::new(a[2], a[3]);
                 let end_point = *cursor + Point::new(a[4], a[5]);
 
-                *control = Some(end_control);
+                *control = Some(Control::Cubic(end_control));
                 *cursor = end_point;
                 Some(Self::CurveTo(Curve::new(
                     start_control,
@@ -72,14 +99,14 @@ impl Data {
                 let end_control = Point::new(a[2], a[3]);
                 let end_point = Point::new(a[4], a[5]);
 
-                *control = Some(end_control);
+                *control = Some(Control::Cubic(end_control));
                 *cursor = end_point;
                 Some(Data::CurveTo(Curve::from(*a)))
             }
             command::Data::QuadraticBezierBy(a) => {
                 let quad_control = *cursor + Point::new(a[0], a[1]);
                 let end = *cursor + Point::new(a[2], a[3]);
-                *control = Some(quad_control);
+                *control = Some(Control::Quadratic(quad_control));
 
                 let start = *cursor;
                 *cursor = end;
@@ -88,60 +115,48 @@ impl Data {
             command::Data::QuadraticBezierTo(a) => {
                 let quad_control = Point::new(a[0], a[1]);
                 let end = Point::new(a[2], a[3]);
-                *control = Some(quad_control);
+                *control = Some(Control::Quadratic(quad_control));
 
                 let start = *cursor;
                 *cursor = end;
                 Some(Data::CurveTo(Curve::new_quad(quad_control, start, end)))
             }
             command::Data::SmoothBezierBy(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
+                let start_control =
+                    Control::cubic(last_control).map_or(*cursor, |c| c.reflect(*cursor));
                 let end_control = *cursor + Point::new(a[0], a[1]);
                 let end = *cursor + Point::new(a[2], a[3]);
 
-                *control = Some(end_control);
+                *control = Some(Control::Cubic(end_control));
                 *cursor = end;
                 Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
             }
             command::Data::SmoothBezierTo(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
+                let start_control =
+                    Control::cubic(last_control).map_or(*cursor, |c| c.reflect(*cursor));
                 let end_control = Point::new(a[0], a[1]);
                 let end = Point::new(a[2], a[3]);
 
-                *control = Some(end_control);
+                *control = Some(Control::Cubic(end_control));
                 *cursor = end;
                 Some(Data::CurveTo(Curve::new(start_control, end_control, end)))
             }
             command::Data::SmoothQuadraticBezierBy(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
+                let start_control =
+                    Control::quadratic(last_control).map_or(*cursor, |c| c.reflect(*cursor));
                 let end = *cursor + Point::from(*a);
 
-                *control = Some(start_control);
+                *control = Some(Control::Quadratic(start_control));
                 let start = *cursor;
                 *cursor = end;
                 Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
             }
             command::Data::SmoothQuadraticBezierTo(a) => {
-                let start_control = if let Some(prev_cp) = last_control {
-                    prev_cp.reflect(*cursor)
-                } else {
-                    *cursor
-                };
+                let start_control =
+                    Control::quadratic(last_control).map_or(*cursor, |c| c.reflect(*cursor));
                 let end = Point::from(*a);
 
-                *control = Some(start_control);
+                *control = Some(Control::Quadratic(start_control));
                 let start = *cursor;
                 *cursor = end;
                 Some(Data::CurveTo(Curve::new_quad(start_control, start, end)))
@@ -261,7 +276,8 @@ impl Path {
             close,
         } in self.iter_start_cursor()
         {
-            let control = last_control.take();
+            // A subpath's first curve has no previous control point.
+            let control = last_control.take().filter(|_| command > 0);
             let Some(data) = data else {
                 let mut m = command::Data::MoveTo(start.into());
                 m.round(precision);
@@ -363,14 +379,14 @@ impl Path {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn to_svg_curve(
         previous: Option<&command::Data>,
-        control: Option<Point>,
+        control: Option<Control>,
         start: Point,
         curve: &Curve,
         next: Option<&Data>,
         implicit: Option<&ID>,
         tolerance_squared: ToleranceSquared,
         precision: TolerancePrecision,
-    ) -> (command::Data, Option<Point>) {
+    ) -> (command::Data, Option<Control>) {
         let start_control = curve.start_control;
         let end_control = curve.end_control;
         let to = curve.end_point;
@@ -378,9 +394,8 @@ impl Path {
 
         let mut candidates = Vec::with_capacity(4);
 
-        let cubic_control = smooth_control(previous, control, false);
-        let quadratic_control = smooth_control(previous, control, true);
-        let (_, smooth_bezier, _, _) = curve.types(start, cubic_control, tolerance_squared);
+        let smooth_bezier = curve.smooth_bezier(start, Control::cubic(control), tolerance_squared);
+        let quadratic_control = Control::quadratic(control);
         let (_, _, quadratic_bezier, smooth_quadratic_bezier) =
             curve.types(start, quadratic_control, tolerance_squared);
         if let Some(SmoothBezierTo {
@@ -464,13 +479,13 @@ impl Path {
         let result = compactest_vec(previous, candidates, implicit, precision);
         let control = match result.id().as_explicit() {
             ID::QuadraticBezierTo | ID::QuadraticBezierBy => {
-                quadratic_bezier.map(|q| q.quad_control)
+                quadratic_bezier.map(|q| Control::Quadratic(q.quad_control))
             }
             ID::SmoothQuadraticBezierTo | ID::SmoothQuadraticBezierBy => {
-                quadratic_control.map(|c| c.reflect(start))
+                quadratic_control.map(|c| Control::Quadratic(c.reflect(start)))
             }
             ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierBy | ID::SmoothBezierTo => {
-                Some(end_control)
+                Some(Control::Cubic(end_control))
             }
             _ => None,
         };
@@ -538,33 +553,6 @@ impl Path {
         let a_to = command::Data::ArcTo(arc_to);
         compactest(previous, a_by, a_to, implicit, precision)
     }
-}
-
-/// The control point that a smooth command after `previous` reflects: `S`
-/// reflects only a cubic's last control point, `T` (`quadratic`) only a
-/// quadratic's. After any other command, theirs is the current point (`None`).
-fn smooth_control(
-    previous: Option<&command::Data>,
-    control: Option<Point>,
-    quadratic: bool,
-) -> Option<Point> {
-    let follows_same_kind = previous.is_some_and(|previous| {
-        if quadratic {
-            matches!(
-                previous.id().as_explicit(),
-                ID::QuadraticBezierTo
-                    | ID::QuadraticBezierBy
-                    | ID::SmoothQuadraticBezierTo
-                    | ID::SmoothQuadraticBezierBy
-            )
-        } else {
-            matches!(
-                previous.id().as_explicit(),
-                ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierTo | ID::SmoothBezierBy
-            )
-        }
-    });
-    control.filter(|_| follows_same_kind)
 }
 
 fn compactest_vec(
@@ -775,6 +763,47 @@ mod test {
         let path = Path::from_svg(&path, &tolerance);
         let path = path.to_svg(&tolerance, true);
         assert_eq!(path.to_string().as_str(), "M0 0q10 10 20 0c10-10 25-5 30 0");
+    }
+
+    /// The path written once and then written again from what was written.
+    fn written_twice(source: &str) -> (String, String) {
+        let tolerance = Tolerance::default();
+        let write = |source: &str| {
+            let path = crate::Path::parse_string(source).unwrap();
+            Path::from_svg(&path, &tolerance)
+                .to_svg(&tolerance, true)
+                .to_string()
+        };
+        let once = write(source);
+        let twice = write(&once);
+        (once, twice)
+    }
+
+    #[test]
+    fn smooth_curve_after_other_kind_reads_back() {
+        // `S` after a quadratic and `T` after a cubic start at the current
+        // point when read as well, so a second pass writes the same.
+        for source in [
+            "M0 0Q10 0 3 0C3 0 4 8-9 8",
+            "M0 0Q10 10 20 0T40 0C40 0 50 10 60 0",
+            "M0 0C0-5 5-5 5 0Q5 0 10 0",
+        ] {
+            let (once, twice) = written_twice(source);
+            assert_eq!(once, twice, "{source}");
+        }
+        assert_eq!(
+            written_twice("M0 0Q10 0 3 0C3 0 4 8-9 8").0,
+            "M0 0q10 0 3 0S4 8-9 8"
+        );
+    }
+
+    #[test]
+    fn smooth_curve_starting_a_subpath() {
+        // A subpath's first curve reflects no control point of the one before.
+        assert_eq!(
+            written_twice("M0 0Q7-4 3-7ZQ-7 4 9-5T3 10").0,
+            "M0 0q7-4 3-7ZM0 0q-7 4 9-5T3 10"
+        );
     }
 
     #[test]

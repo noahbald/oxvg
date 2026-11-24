@@ -126,16 +126,18 @@ impl Path {
             cursor: start,
             data,
             next,
+            command,
             ..
         }) = segments.next()
         {
             next_i += 1;
+            // As in `to_svg`: only a curve right before passes on its control point.
+            let control = last_control.take().filter(|_| command > 0);
             let Some(data) = data else {
                 continue;
             };
             let implicit = previous.as_ref().map(|p| p.id().next_implicit());
             if let Data::CurveTo(curve) = data {
-                let control = last_control.take();
                 let (c, control) = Path::to_svg_curve(
                     previous.as_ref(),
                     control,
