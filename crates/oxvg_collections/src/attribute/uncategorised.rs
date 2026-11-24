@@ -8,8 +8,6 @@ use oxvg_serialize::{Printer, ToValue, error::PrinterError};
 
 use crate::{atom::Atom, enum_attr};
 
-#[cfg(feature = "serialize")]
-use super::core_attrs::write_number;
 use super::{
     core_attrs::{Angle, Anything, Number, Percentage},
     presentation::{LengthOrNumber, LengthPercentage},
@@ -474,7 +472,7 @@ fn number_percentage() {
     use oxvg_parse::Parse as _;
     assert_eq!(
         NumberPercentage::parse_string("10"),
-        Ok(NumberPercentage::Number(10.0))
+        Ok(NumberPercentage::Number(Number(10.0)))
     );
     assert_eq!(
         NumberPercentage::parse_string("10%"),
@@ -545,7 +543,7 @@ fn orient() {
         Orient::parse_string("90deg"),
         Ok(Orient::Angle(Angle::Deg(90.0)))
     );
-    assert_eq!(Orient::parse_string("90"), Ok(Orient::Number(90.0)));
+    assert_eq!(Orient::parse_string("90"), Ok(Orient::Number(Number(90.0))));
 
     assert_eq!(Orient::parse_string("90px"), Err(Error::ExpectedDone));
 }
@@ -939,7 +937,7 @@ fn rotate() {
         Rotate::parse_string("auto-reverse"),
         Ok(Rotate::AutoReverse)
     );
-    assert_eq!(Rotate::parse_string("10"), Ok(Rotate::Number(10.0)));
+    assert_eq!(Rotate::parse_string("10"), Ok(Rotate::Number(Number(10.0))));
 }
 
 enum_attr!(
@@ -1216,19 +1214,19 @@ pub struct ViewBox {
 impl<'input> Parse<'input> for ViewBox {
     fn parse<'t>(input: &mut Parser<'input>) -> Result<Self, Error<'input>> {
         input.skip_whitespace();
-        let min_x = f32::parse(input)?;
+        let min_x = Number::parse(input)?;
         input.skip_whitespace();
         input.skip_char(',');
         input.skip_whitespace();
-        let min_y = f32::parse(input)?;
+        let min_y = Number::parse(input)?;
         input.skip_whitespace();
         input.skip_char(',');
         input.skip_whitespace();
-        let width = f32::parse(input)?;
+        let width = Number::parse(input)?;
         input.skip_whitespace();
         input.skip_char(',');
         input.skip_whitespace();
-        let height = f32::parse(input)?;
+        let height = Number::parse(input)?;
         input.skip_whitespace();
         Ok(Self {
             min_x,
@@ -1244,13 +1242,13 @@ impl ToValue for ViewBox {
     where
         W: std::fmt::Write,
     {
-        write_number(self.min_x, dest)?;
+        self.min_x.write_value(dest)?;
         dest.write_char(' ')?;
-        write_number(self.min_y, dest)?;
+        self.min_y.write_value(dest)?;
         dest.write_char(' ')?;
-        write_number(self.width, dest)?;
+        self.width.write_value(dest)?;
         dest.write_char(' ')?;
-        write_number(self.height, dest)
+        self.height.write_value(dest)
     }
 }
 #[test]
@@ -1259,10 +1257,10 @@ fn view_box() {
     assert_eq!(
         ViewBox::parse_string("1 2 3 4"),
         Ok(ViewBox {
-            min_x: 1.0,
-            min_y: 2.0,
-            width: 3.0,
-            height: 4.0
+            min_x: Number(1.0),
+            min_y: Number(2.0),
+            width: Number(3.0),
+            height: Number(4.0)
         })
     );
 

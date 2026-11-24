@@ -16,7 +16,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone)]
@@ -101,10 +101,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveViewBox {
             return Ok(());
         }
 
-        if view_box.min_x == 0.0
-            && view_box.min_y == 0.0
-            && view_box.width == width
-            && view_box.height == height
+        if view_box.min_x.0 == 0.0
+            && view_box.min_y.0 == 0.0
+            && view_box.width.0 == width
+            && view_box.height.0 == height
         {
             log::debug!("removing viewBox from element");
             drop(view_box);

@@ -307,7 +307,7 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
     fn exit_document(
         &self,
         _root: Element<'input, 'arena>,
-        _context: &Context<'input, 'arena, '_>,
+        context: &Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         let dynamically_referenced = self.dynamically_referenced.borrow();
         let inlined = self.inlined.borrow();
@@ -359,7 +359,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for State<'_, 'input, 'arena> {
                     match token {
                         Token::Class { ident } => element.class_list().remove(ident),
                         Token::ID { ident } => {
-                            if referenced_ids.contains(ident) {
+                            if referenced_ids.contains(ident)
+                                || context.info.external_references.contains(ident.as_str())
+                            {
                                 continue;
                             }
                             remove_attribute!(element, Id);
@@ -1333,6 +1335,24 @@ fn inline_styles() -> anyhow::Result<()> {
     </style>
 </svg>"#
         ),
+    )?);
+
+    Ok(())
+}
+
+#[test]
+fn inline_styles_external_references() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config!(
+        r#"{ "inlineStyles": {} }"#,
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep ids referenced from other documents after inlining their selectors -->
+    <style>#external { fill: red } #internal { fill: blue }</style>
+    <path id="external" d="M0 0h1v1z"/>
+    <path id="internal" d="M0 0h1v1z"/>
+</svg>"#,
+        external_references: ["external"],
     )?);
 
     Ok(())

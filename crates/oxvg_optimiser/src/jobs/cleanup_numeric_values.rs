@@ -34,7 +34,7 @@ pub struct CleanupNumericValues {
     /// Whether to remove `px` from a number's unit.
     pub default_px: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_convert_to_px"))]
-    /// Whether to convert absolute units like `cm` and `in` to `px`.
+    /// Whether to convert absolute units like `cm` and `in` to `px`, where that's shorter.
     pub convert_to_px: bool,
 }
 
@@ -124,6 +124,16 @@ fn cleanup_numeric_values() -> anyhow::Result<()> {
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1052.4 744.1">
     <!-- Should round to zero decimal places -->
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "cleanupNumericValues": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 210 297">
+    <!-- Should convert to px only when that's shorter -->
+    <rect width="1mm" height="2.54cm"/>
 </svg>"#
         )
     )?);

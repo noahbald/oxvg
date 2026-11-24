@@ -139,3 +139,33 @@ fn resolve_jobs() {
         "extended value should be Some"
     );
 }
+
+#[test]
+fn resolve_jobs_camel_case_omit() -> anyhow::Result<()> {
+    let config: Optimise = serde_json::from_str(
+        r#"{
+        "extends": "default",
+        "jobs": {
+            "removeScripts": true
+        },
+        "omit": ["precheck", "removeDoctype"]
+    }"#,
+    )?;
+
+    let resolved = config.resolve_jobs();
+    assert!(resolved.precheck.is_none(), "omitted value should be None");
+    assert!(
+        resolved.remove_doctype.is_none(),
+        "omitted value should be None"
+    );
+    assert!(
+        resolved.remove_scripts.is_some(),
+        "specified value should be Some"
+    );
+    assert!(
+        resolved.remove_comments.is_some(),
+        "extended value should be Some"
+    );
+
+    Ok(())
+}

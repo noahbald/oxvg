@@ -271,7 +271,7 @@ fn attr_value_to_svg<'input, 'alloc, B: GetAstBuilder<'alloc>>(
             Span::default(),
             JSXExpression::new_numeric_literal(
                 Span::default(),
-                (*value).into(),
+                f64::from(value.0),
                 None,
                 NumberBase::Float,
                 builder,

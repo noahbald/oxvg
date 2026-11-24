@@ -448,13 +448,15 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 name: get_part(&mut parts)?,
                 value: get_part(&mut parts)?,
             },
-            CLASS => oxvg_actions::Action::Class(get_part(&mut parts)?),
-            OPTIMISE | OPTIMIZE => oxvg_actions::Action::Optimise(
-                get_part_peek(&mut parts)
+            CLASS => oxvg_actions::Action::Class {
+                name: get_part(&mut parts)?,
+            },
+            OPTIMISE | OPTIMIZE => oxvg_actions::Action::Optimise {
+                jobs: get_part_peek(&mut parts)
                     .map(|p| serde_json::from_str(p.as_str()))
                     .transpose()?
                     .map(Box::new),
-            ),
+            },
             PASTE => oxvg_actions::Action::Paste,
             PATH_INTERSECT => oxvg_actions::Action::PathIntersect,
             PATH_UNION => oxvg_actions::Action::PathUnion,
@@ -464,40 +466,51 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
                 property: get_part(&mut parts)?,
                 value: get_part(&mut parts)?,
             },
-            MATRIX => oxvg_actions::Action::Matrix(
-                get_part_f32(&mut parts)?,
-                get_part_f32(&mut parts)?,
-                get_part_f32(&mut parts)?,
-                get_part_f32(&mut parts)?,
-                get_part_f32(&mut parts)?,
-                get_part_f32(&mut parts)?,
-            ),
-            TRANSLATE => oxvg_actions::Action::Translate(
-                get_part_f32(&mut parts)?,
-                get_part_f32_peek(&mut parts),
-            ),
-            SCALE => oxvg_actions::Action::Scale(
-                get_part_f32(&mut parts)?,
-                get_part_f32_peek(&mut parts),
-            ),
-            ROTATE => oxvg_actions::Action::Rotate(
-                get_part_f32(&mut parts)?,
-                if let Some(x) = get_part_f32_peek(&mut parts) {
+            MATRIX => oxvg_actions::Action::Matrix {
+                a: get_part_f32(&mut parts)?,
+                b: get_part_f32(&mut parts)?,
+                c: get_part_f32(&mut parts)?,
+                d: get_part_f32(&mut parts)?,
+                e: get_part_f32(&mut parts)?,
+                f: get_part_f32(&mut parts)?,
+            },
+            TRANSLATE => oxvg_actions::Action::Translate {
+                x: get_part_f32(&mut parts)?,
+                y: get_part_f32_peek(&mut parts),
+            },
+            SCALE => oxvg_actions::Action::Scale {
+                x: get_part_f32(&mut parts)?,
+                y: get_part_f32_peek(&mut parts),
+            },
+            ROTATE => oxvg_actions::Action::Rotate {
+                angle: get_part_f32(&mut parts)?,
+                origin: if let Some(x) = get_part_f32_peek(&mut parts) {
                     Some((x, get_part_f32(&mut parts)?))
                 } else {
                     None
                 },
-            ),
-            SKEW_X => oxvg_actions::Action::SkewX(get_part_f32(&mut parts)?),
-            SKEW_Y => oxvg_actions::Action::SkewY(get_part_f32(&mut parts)?),
-            INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert(get_part(&mut parts)?),
-            INSERT_NS | CREATE_ELEMENT_NS => {
-                oxvg_actions::Action::InsertNS(get_part(&mut parts)?, get_part(&mut parts)?)
-            }
+            },
+            SKEW_X => oxvg_actions::Action::SkewX {
+                angle: get_part_f32(&mut parts)?,
+            },
+            SKEW_Y => oxvg_actions::Action::SkewY {
+                angle: get_part_f32(&mut parts)?,
+            },
+            INSERT | CREATE_ELEMENT => oxvg_actions::Action::Insert {
+                name: get_part(&mut parts)?,
+            },
+            INSERT_NS | CREATE_ELEMENT_NS => oxvg_actions::Action::InsertNS {
+                uri: get_part(&mut parts)?,
+                name: get_part(&mut parts)?,
+            },
             DUPLICATE => oxvg_actions::Action::Duplicate,
-            WRAP => oxvg_actions::Action::Wrap(get_part(&mut parts)?),
+            WRAP => oxvg_actions::Action::Wrap {
+                name: get_part(&mut parts)?,
+            },
             CLONE => oxvg_actions::Action::Clone,
-            ANCHOR_LINK => oxvg_actions::Action::AnchorLink(get_part(&mut parts)?),
+            ANCHOR_LINK => oxvg_actions::Action::AnchorLink {
+                href: get_part(&mut parts)?,
+            },
             GROUP => oxvg_actions::Action::Group,
             DELETE => oxvg_actions::Action::Delete,
             FLATTEN => oxvg_actions::Action::Flatten,
@@ -508,8 +521,12 @@ fn parse(command_list: Vec<String>) -> anyhow::Result<Vec<oxvg_actions::Action<'
             STEP_IN => oxvg_actions::Action::StepIn,
             STEP_OUT => oxvg_actions::Action::StepOut,
             FORGET => oxvg_actions::Action::Forget,
-            SELECT => oxvg_actions::Action::Select(get_part(&mut parts)?),
-            SELECT_MORE => oxvg_actions::Action::SelectMore(get_part(&mut parts)?),
+            SELECT => oxvg_actions::Action::Select {
+                query: get_part(&mut parts)?,
+            },
+            SELECT_MORE => oxvg_actions::Action::SelectMore {
+                query: get_part(&mut parts)?,
+            },
             FIRST_CHILD => oxvg_actions::Action::FirstChild,
             PREVIOUS_SIBLING => oxvg_actions::Action::PreviousSibling,
             NEXT_SIBLING => oxvg_actions::Action::NextSibling,

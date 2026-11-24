@@ -270,9 +270,10 @@ macro_rules! jobs {
                 })+
             }
 
-            /// Removes a job from the config via the specified name of the field, in `snake_case`
+            /// Removes a job from the config via the specified name of the field, in `snake_case` or `camelCase`
             pub fn omit(&mut self, name: &str) {
-                match name {
+                let name = Self::from_svgo_plugin_to_snake_case(name);
+                match name.as_str() {
                     $(stringify!($name) => self.$name = None,)+
                     _ => {}
                 }
@@ -434,6 +435,9 @@ macro_rules! test_config {
     ($config_json:literal, svg: $svg:literal$(,)?) => {
         $crate::jobs::test_config($config_json, Some($svg))
     };
+    ($config_json:literal, svg: $svg:literal, external_references: [$($id:literal),*]$(,)?) => {
+        $crate::jobs::test_config_with_external_references($config_json, Some($svg), &[$($id),*])
+    };
     ($config_json:literal) => {
         $crate::jobs::test_config($config_json, None)
     };
@@ -441,6 +445,15 @@ macro_rules! test_config {
 
 #[cfg(test)]
 pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyhow::Result<String> {
+    test_config_with_external_references(config_json, svg, &[])
+}
+
+#[cfg(test)]
+pub(crate) fn test_config_with_external_references(
+    config_json: &str,
+    svg: Option<&'static str>,
+    external_references: &[&str],
+) -> anyhow::Result<String> {
     use oxvg_ast::{
         parse::roxmltree::{ParsingOptions, parse_with_options},
         serialize::{Node as _, Options, Space},
@@ -458,7 +471,12 @@ pub(crate) fn test_config(config_json: &str, svg: Option<&'static str>) -> anyho
             ..ParsingOptions::default()
         },
         |dom, allocator| {
-            jobs.run(dom, &Info::new(allocator))
+            let mut info = Info::new(allocator);
+            info.external_references = external_references
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+            jobs.run(dom, &info)
                 .map_err(|e| anyhow::Error::msg(format!("{e}")))?;
             Ok(dom.serialize_with_options(Options {
                 trim_whitespace: Space::Default,
@@ -491,6 +509,20 @@ fn large_coordinates_keep_their_digits() -> anyhow::Result<()> {
     <g transform="translate(691234.56,5334567.89)">
         <path d="M10 10h980v980H10z" fill="none" stroke="black" stroke-width="3"/>
     </g>
+</svg>"#
+        )
+    )?);
+    Ok(())
+}
+
+#[test]
+fn numbers_keep_every_digit() -> anyhow::Result<()> {
+    insta::assert_snapshot!(test_config(
+        "{}",
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4.2333332 4.2333335">
+    <filter id="a"><feOffset dx="0.21329178" dy="-2229.106"/></filter>
+    <path stroke-miterlimit="2.2360679" pathLength="1234.567" transform="translate(2888.4292,-2229.106)" d="M1 1L5 2.5e-10"/>
 </svg>"#
         )
     )?);

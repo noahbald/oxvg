@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\">\n    <!-- keep zero-length segments when a selector list makes their caps round -->\n    <style>.a, path { stroke-linecap: round }</style>\n    <path d=\"M10 10 l0 0\" stroke=\"black\" stroke-width=\"10\"/>\n</svg>\"#),)?"
+---
+<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep zero-length segments when a selector list makes their caps round -->
+    <style>
+        .a,path{stroke-linecap:round}
+    </style>
+    <path d="M10 10Z" stroke="#000" stroke-width="10"/>
+</svg>
