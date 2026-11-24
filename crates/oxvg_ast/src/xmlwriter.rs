@@ -82,7 +82,7 @@ use oxvg_collections::attribute::xml::XmlSpace;
 use oxvg_collections::element::ElementId;
 use oxvg_serialize::{Printer, PrinterOptions, ToValue as _};
 
-use crate::{error::XmlWriterError, is_element, node::is_xml_whitespace};
+use crate::{error::XmlWriterError, is_element};
 
 /// A result from serializing a document.
 pub type Result = result::Result<(), XmlWriterError>;
@@ -1141,4 +1141,10 @@ fn is_text_content_element(data: &DepthData) -> bool {
             A | Text | TextPath | TSpan | AltGlyph | AltGlyphDef | Glyph | GlyphRef | TRef
         )
     })
+}
+
+/// Whitespace as XML defines it; other spaces, such as a no-break space, are
+/// characters of the text.
+fn is_xml_whitespace(char: char) -> bool {
+    matches!(char, ' ' | '\t' | '\n' | '\r')
 }

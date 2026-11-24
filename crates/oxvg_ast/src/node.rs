@@ -814,9 +814,3 @@ impl<'input> NodeData<'input> {
         }
     }
 }
-
-/// Whitespace as XML defines it; other spaces, such as a no-break space, are
-/// characters of the text.
-pub(crate) fn is_xml_whitespace(char: char) -> bool {
-    matches!(char, ' ' | '\t' | '\n' | '\r')
-}
