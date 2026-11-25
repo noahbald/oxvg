@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, iter::Peekable};
 
 use crate::{
     command::{self, ID},
@@ -176,7 +176,7 @@ impl Data {
 
 impl Segment {
     fn take<'a>(
-        iterator: &mut impl Iterator<Item = &'a command::Data>,
+        iterator: &mut Peekable<impl Iterator<Item = &'a command::Data>>,
         start: &mut Point,
         cursor: &mut Point,
         tolerance: &Tolerance,
@@ -188,7 +188,7 @@ impl Segment {
         };
         let mut z_end = false;
         let mut control = None;
-        for command in iterator {
+        for command in iterator.by_ref() {
             if let Some(data) = Data::take(command, start, cursor, &mut control, &mut z_end) {
                 result.data.push(data);
             } else {
@@ -201,6 +201,12 @@ impl Segment {
         if z_end {
             *cursor = result.start;
             result.closed = true;
+            // A move right after `Z` starts the next segment: it sets `start` and `cursor`
+            if let Some(command) = iterator.next_if(|command| {
+                matches!(command, command::Data::MoveTo(_) | command::Data::MoveBy(_))
+            }) {
+                Data::take(command, start, cursor, &mut control, &mut z_end);
+            }
             return result;
         }
 
@@ -229,7 +235,13 @@ impl Path {
             let component = Segment::take(&mut iterator, &mut start, &mut cursor, tolerance);
             result.0.push(component);
         }
-        if result.0.is_empty() {
+        // A move at the end starts a segment without data, as does a path of only a move
+        if result.0.is_empty()
+            || matches!(
+                value.0.last(),
+                Some(command::Data::MoveTo(_) | command::Data::MoveBy(_))
+            )
+        {
             result.0.push(Segment {
                 start,
                 data: vec![],
@@ -693,6 +705,55 @@ mod test {
 
         let path = path.to_svg(&tolerance, true);
         assert_eq!(path.to_string().as_str(), "M5 5v10h10V5H5Zm15 15 5 5");
+    }
+
+    #[test]
+    fn move_after_close() {
+        // The move after `Z` starts the next segment, not one of its own,
+        // and a move at the end starts one without data
+        for (source, starts, closed) in [
+            (
+                "M1 1h4v4zM5 5h1",
+                vec![Point::splat(1.0), Point::splat(5.0)],
+                vec![true, false],
+            ),
+            (
+                "M1 1h4v4zm5 5h1",
+                vec![Point::splat(1.0), Point::splat(6.0)],
+                vec![true, false],
+            ),
+            (
+                "M1 1h4v4zM5 5",
+                vec![Point::splat(1.0), Point::splat(5.0)],
+                vec![true, false],
+            ),
+            (
+                "M1 1h4M5 5",
+                vec![Point::splat(1.0), Point::splat(5.0)],
+                vec![false, false],
+            ),
+            (
+                "M1 1M5 5",
+                vec![Point::splat(1.0), Point::splat(5.0)],
+                vec![false, false],
+            ),
+            ("M5 5", vec![Point::splat(5.0)], vec![false]),
+        ] {
+            let path = crate::Path::parse_string(source).unwrap();
+            let tolerance = Tolerance::default();
+            let path = Path::from_svg(&path, &tolerance);
+
+            assert_eq!(
+                path.0.iter().map(|s| *s.start()).collect::<Vec<_>>(),
+                starts,
+                "{source}"
+            );
+            assert_eq!(
+                path.0.iter().map(Segment::closed).collect::<Vec<_>>(),
+                closed,
+                "{source}"
+            );
+        }
     }
 
     #[test]
