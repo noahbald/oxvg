@@ -192,8 +192,6 @@ impl Path {
 pub struct IterStartCursorItem<T> {
     /// The start point of the data item's segment
     pub segment_start: Point,
-    /// The relative start point of the data item's segment
-    pub segment_start_by: Point,
     /// The start point for the current data item
     pub cursor: Point,
     /// The data item. If the item is `None` then this item represents a standalone `M` segment
@@ -227,11 +225,6 @@ impl<'a> Iterator for IterStartCursor<'a> {
         loop {
             let segment = self.path.0.get(self.segment)?;
             let segment_start = segment.start;
-            let segment_start_by = if self.segment > 0 {
-                segment.start - self.path.0[self.segment - 1].end_point()
-            } else {
-                segment.start
-            };
             if self.command == 0 {
                 self.cursor = segment.start;
             }
@@ -242,7 +235,6 @@ impl<'a> Iterator for IterStartCursor<'a> {
                 self.cursor = data.end_point();
                 return Some(IterStartCursorItem {
                     segment_start,
-                    segment_start_by,
                     cursor,
                     data: Some(data),
                     next: segment.data.get(self.command),
@@ -253,7 +245,6 @@ impl<'a> Iterator for IterStartCursor<'a> {
                 self.segment += 1;
                 return Some(IterStartCursorItem {
                     segment_start,
-                    segment_start_by,
                     cursor: segment_start,
                     data: None,
                     next: None,
@@ -268,18 +259,11 @@ impl<'a> Iterator for IterStartCursor<'a> {
 }
 impl IterStartCursorMut<'_> {
     fn next(&mut self) -> Option<IterStartCursorItem<&mut Data>> {
-        let mut last_segment_end = if self.segment > 0 {
-            Some(self.path.0[self.segment - 1].end_point())
-        } else {
-            None
-        };
         for segment in self.path.0.iter_mut().skip(self.segment) {
             if self.command == 0 {
                 self.cursor = segment.start;
             }
             let segment_start = segment.start;
-            let segment_start_by = segment_start - last_segment_end.unwrap_or_default();
-            last_segment_end = Some(segment.end_point());
             let close = segment.closed && self.command == segment.data.len() - 1;
             if self.command < segment.data.len() {
                 let (left, right) = segment.data.split_at_mut(self.command + 1);
@@ -290,7 +274,6 @@ impl IterStartCursorMut<'_> {
                 self.cursor = data.end_point();
                 return Some(IterStartCursorItem {
                     segment_start,
-                    segment_start_by,
                     cursor,
                     data: Some(data),
                     next: right.first_mut(),
@@ -301,7 +284,6 @@ impl IterStartCursorMut<'_> {
                 self.segment += 1;
                 return Some(IterStartCursorItem {
                     segment_start,
-                    segment_start_by,
                     cursor: segment_start,
                     data: None,
                     next: None,
