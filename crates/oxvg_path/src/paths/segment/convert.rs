@@ -251,6 +251,8 @@ impl Path {
         let mut commands: Vec<command::Data> = vec![];
 
         let mut last_control = None;
+        // Where the last move took the reader of `commands`, when that's known exactly
+        let mut moved_to = Some(Point::ZERO);
         for IterStartCursorItem {
             segment_start,
             segment_start_by,
@@ -262,9 +264,14 @@ impl Path {
         } in self.iter_start_cursor()
         {
             let control = last_control.take();
+            // Before the first command and after a move or `Z`, the reader is where the last move went
+            let reader = match commands.last().map(command::Data::id) {
+                None | Some(ID::MoveTo | ID::MoveBy | ID::ClosePath) => moved_to,
+                Some(_) => None,
+            };
             let Some(data) = data else {
-                let mut m = command::Data::MoveTo(start.into());
-                m.round(precision);
+                let m = Self::to_svg_move(segment_start, segment_start_by, reader, precision);
+                moved_to = Self::moved_to(&m, reader);
                 commands.push(m);
                 continue;
             };
@@ -308,18 +315,18 @@ impl Path {
             };
 
             if is_start {
-                let mut m = match command.id().as_explicit() {
+                let m = match command.id().as_explicit() {
                     ID::LineBy => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveBy(segment_start_by.into())
+                        Self::to_svg_moves(segment_start, segment_start_by, reader, precision).1
                     }
                     ID::LineTo => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveTo(segment_start.into())
+                        Self::to_svg_moves(segment_start, segment_start_by, reader, precision).0
                     }
-                    _ => command::Data::MoveTo(segment_start.into()),
+                    _ => Self::to_svg_move(segment_start, segment_start_by, reader, precision),
                 };
-                m.round(precision);
+                moved_to = Self::moved_to(&m, reader);
                 commands.push(m);
             }
             let close = close && command.id() != ID::ClosePath;
@@ -330,6 +337,49 @@ impl Path {
         }
 
         crate::Path(commands)
+    }
+
+    /// `M` and `m` to the rounded start of a segment. `m` goes from where the reader is, when
+    /// that's known, so both go to the same point; else from the end of the last segment.
+    fn to_svg_moves(
+        segment_start: Point,
+        segment_start_by: Point,
+        reader: Option<Point>,
+        precision: TolerancePrecision,
+    ) -> (command::Data, command::Data) {
+        let to = Point::new(
+            precision.round(segment_start.x),
+            precision.round(segment_start.y),
+        );
+        let mut by =
+            command::Data::MoveBy(reader.map_or(segment_start_by, |reader| to - reader).into());
+        by.round(precision);
+        (command::Data::MoveTo(to.into()), by)
+    }
+
+    /// The move to the start of a segment: `m` when the reader's point is known and `m` is
+    /// shorter, else `M`.
+    fn to_svg_move(
+        segment_start: Point,
+        segment_start_by: Point,
+        reader: Option<Point>,
+        precision: TolerancePrecision,
+    ) -> command::Data {
+        let (to, by) = Self::to_svg_moves(segment_start, segment_start_by, reader, precision);
+        if reader.is_some() {
+            compactest(None, to, by, None, precision)
+        } else {
+            to
+        }
+    }
+
+    /// Where the move `m` takes a reader that was at `reader`.
+    fn moved_to(m: &command::Data, reader: Option<Point>) -> Option<Point> {
+        match m {
+            command::Data::MoveTo(to) => Some(Point::from(*to)),
+            command::Data::MoveBy(by) => reader.map(|reader| reader + Point::from(*by)),
+            _ => unreachable!("not a move"),
+        }
     }
 
     fn to_svg_line(
@@ -706,6 +756,69 @@ mod test {
             path.to_string().as_str(),
             "M10 90c20 0 15-80 40-80s20 80 40 80"
         );
+    }
+
+    #[test]
+    fn move_relative_when_shorter() {
+        // `m` only where the reader's point is known: after `Z` and after a move
+        for (source, expected) in [
+            (
+                "M100 100h10v10zM101 101c1 1 2 2 3 3",
+                "M100 100h10v10Zm1 1c1 1 2 2 3 3",
+            ),
+            (
+                "M100 100h10M111 101c1 1 2 2 3 3",
+                "M100 100h10M111 101c1 1 2 2 3 3",
+            ),
+            ("M1 1h1v1zM3 3c1 1 2 2 3 3", "M1 1h1v1ZM3 3c1 1 2 2 3 3"),
+        ] {
+            let path = crate::Path::parse_string(source).unwrap();
+            let tolerance = Tolerance::default();
+            let mut path = Path::from_svg(&path, &tolerance);
+            path.simplify(Options::RemoveEmptySegments, &tolerance);
+            let path = path.to_svg(&tolerance, true);
+            assert_eq!(path.to_string(), expected, "{source}");
+        }
+
+        let source = "M100 100h10M111 101M120 120h1";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance).to_svg(&tolerance, true);
+        assert_eq!(path.to_string(), "M100 100h10M111 101m9 19h1");
+    }
+
+    #[test]
+    fn move_relative_goes_where_move_absolute_goes() {
+        use std::fmt::Write as _;
+
+        // Each `m` goes to the rounded start, so rounding doesn't add up over subpaths
+        let tolerance = Tolerance::default();
+        let precision = tolerance.precision();
+        let starts: Vec<_> = (0..50)
+            .map(|i| Point::new(f64::from(i) * 2.000_6, 0.000_4))
+            .collect();
+        let mut source = String::new();
+        for (i, p) in starts.iter().enumerate() {
+            // with and without a relative line first
+            let shape = if i % 2 == 0 { "h1v1z" } else { "l1 1l1-2z" };
+            write!(source, "M{} {}{shape}", p.x, p.y).unwrap();
+        }
+        let path = crate::Path::parse_string(&source).unwrap();
+        let mut path = Path::from_svg(&path, &tolerance);
+        path.simplify(Options::RemoveEmptySegments, &tolerance);
+        let written = path.to_svg(&tolerance, true);
+        assert!(written.to_string().contains('m'), "{written}");
+
+        let mut read = Path::from_svg(&written, &tolerance);
+        read.simplify(Options::RemoveEmptySegments, &tolerance);
+        assert_eq!(read.0.len(), starts.len());
+        for (segment, start) in read.0.iter().zip(&starts) {
+            let rounded = Point::new(precision.round(start.x), precision.round(start.y));
+            assert!(
+                segment.start().distance(rounded) < 1e-9,
+                "{segment:?} {rounded:?}"
+            );
+        }
     }
 
     #[test]

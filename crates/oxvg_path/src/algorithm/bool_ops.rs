@@ -206,7 +206,7 @@ mod test {
         let output = background.union(&foreground).to_svg(tolerance, false);
         assert_eq!(
             &output.to_string(),
-            "M2 10V2h8v3.832A4 4 0 1 1 5.833 10ZM6.33 10A3.5 3.5 0 1 0 10 6.329V10Z"
+            "M2 10V2h8v3.832A4 4 0 1 1 5.833 10Zm4.33 0A3.5 3.5 0 1 0 10 6.329V10Z"
         );
     }
 
@@ -225,7 +225,7 @@ mod test {
         let output = background.difference(&foreground).to_svg(tolerance, false);
         assert_eq!(
             &output.to_string(),
-            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166ZM6.33 9.997a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
+            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166Zm4.33-.003a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
         );
     }
 
@@ -244,7 +244,7 @@ mod test {
         let output = background.xor(&foreground).to_svg(tolerance, false);
         assert_eq!(
             &output.to_string(),
-            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166ZM5.834 10.025A4 4 0 0 1 5.833 10h.497A3.5 3.5 0 1 0 10 6.329v-.497a4 4 0 1 1-4.152 4.388ZM6.33 9.997a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
+            "M2 10V2h8v3.832a4 4 0 0 0-4.167 4.166Zm3.834.025A4 4 0 0 1 5.833 10h.497A3.5 3.5 0 1 0 10 6.329v-.497a4 4 0 1 1-4.152 4.388Zm.496-.028a3.5 3.5 0 0 1 3.669-3.668L10 10H6.33Z"
         );
     }
 
