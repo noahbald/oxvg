@@ -26,7 +26,7 @@ pub fn gather_optimize_options(
     });
     let maybe_has_linecap = linecap.as_ref().entry().is_some_and(|linecap| {
         linecap.is_none_or(|(linecap, mode)| {
-            mode == Mode::Static && !matches!(linecap, Inheritable::Defined(StrokeLinecap::Butt))
+            mode == Mode::Dynamic || !matches!(linecap, Inheritable::Defined(StrokeLinecap::Butt))
         })
     });
     let safe_to_close = !maybe_has_stroke

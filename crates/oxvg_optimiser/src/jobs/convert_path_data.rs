@@ -626,3 +626,21 @@ fn convert_path_data_selector_list() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn convert_path_data_media_query() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep zero-length segments when a media query may make their caps round -->
+    <style>@media (min-width: 1px) { path { stroke-linecap: round } }</style>
+    <path d="M10 10 l0 0" stroke="black" stroke-width="10"/>
+</svg>"#
+        ),
+    )?);
+
+    Ok(())
+}
