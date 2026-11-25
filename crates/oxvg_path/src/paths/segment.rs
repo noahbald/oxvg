@@ -120,12 +120,12 @@ impl Segment {
         self.data.push(data);
     }
 
-    /// Marks the segment as unclosed, equivalent to ending without `Z`.
+    /// Marks the segment as closed, equivalent to ending with `Z`.
     pub fn close(&mut self) {
         self.closed = true;
     }
 
-    /// Marks the segment as closed, equivalent to ending with `Z`.
+    /// Marks the segment as unclosed, equivalent to ending without `Z`.
     pub fn unclose(&mut self) {
         self.closed = false;
     }
