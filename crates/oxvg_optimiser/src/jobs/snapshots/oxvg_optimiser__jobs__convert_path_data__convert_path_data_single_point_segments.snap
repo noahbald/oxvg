@@ -1,0 +1,11 @@
+---
+source: crates/oxvg_optimiser/src/jobs/convert_path_data.rs
+expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\">\n    <!-- a closed segment of a single point is a dot with round or square caps -->\n    <path d=\"M4 4z\"/>\n    <path d=\"M2 2h4M8 8z\"/>\n    <!-- but nothing with butt caps -->\n    <path d=\"M2 2h4M8 8z\" stroke-linecap=\"butt\"/>\n</svg>\"#))?"
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round">
+    <!-- a closed segment of a single point is a dot with round or square caps -->
+    <path d="M4 4Z"/>
+    <path d="M2 2h4M8 8Z"/>
+    <!-- but nothing with butt caps -->
+    <path d="M2 2h4" stroke-linecap="butt"/>
+</svg>

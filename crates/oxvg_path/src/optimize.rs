@@ -48,7 +48,8 @@ bitflags! {
         /// - `stroke`: Safe
         /// - `marker-*`: Unsafe
         const RemoveEmptySegments = 1 << 3;
-        /// Remove commands where all command args are effectively zero.
+        /// Remove commands where all command args are effectively zero, and the `Z` of a
+        /// segment that is a single point (`M x y Z`).
         ///
         /// - `fill`: Safe
         /// - `fill-rule: "evenodd"`: Safe

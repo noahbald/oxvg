@@ -610,6 +610,26 @@ fn convert_path_data_open_segments() -> anyhow::Result<()> {
 }
 
 #[test]
+fn convert_path_data_single_point_segments() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round">
+    <!-- a closed segment of a single point is a dot with round or square caps -->
+    <path d="M4 4z"/>
+    <path d="M2 2h4M8 8z"/>
+    <!-- but nothing with butt caps -->
+    <path d="M2 2h4M8 8z" stroke-linecap="butt"/>
+</svg>"#
+        )
+    )?);
+
+    Ok(())
+}
+
+#[test]
 fn convert_path_data_selector_list() -> anyhow::Result<()> {
     use crate::test_config;
 
