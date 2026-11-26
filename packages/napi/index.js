@@ -706,6 +706,7 @@ module.exports.Actor = nativeBinding.Actor
 module.exports.convertSvgoConfig = nativeBinding.convertSvgoConfig
 module.exports.extend = nativeBinding.extend
 module.exports.optimise = nativeBinding.optimise
+module.exports.optimize = nativeBinding.optimize
 module.exports.Extends = nativeBinding.Extends
 module.exports.Method = nativeBinding.Method
 module.exports.RemoveUnused = nativeBinding.RemoveUnused
