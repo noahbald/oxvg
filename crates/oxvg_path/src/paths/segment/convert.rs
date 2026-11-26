@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, iter::Peekable};
 
 use crate::{
     command::{self, ID},
@@ -176,7 +176,7 @@ impl Data {
 
 impl Segment {
     fn take<'a>(
-        iterator: &mut impl Iterator<Item = &'a command::Data>,
+        iterator: &mut Peekable<impl Iterator<Item = &'a command::Data>>,
         start: &mut Point,
         cursor: &mut Point,
         tolerance: &Tolerance,
@@ -188,19 +188,24 @@ impl Segment {
         };
         let mut z_end = false;
         let mut control = None;
-        for command in iterator {
+        for command in iterator.by_ref() {
             if let Some(data) = Data::take(command, start, cursor, &mut control, &mut z_end) {
                 result.data.push(data);
             } else {
                 break;
             }
         }
-        if result.data.is_empty() {
-            return result;
-        }
         if z_end {
+            // A `Z` right after another one closes nothing
+            while iterator
+                .next_if(|command| matches!(command.as_explicit(), command::Data::ClosePath))
+                .is_some()
+            {}
             *cursor = result.start;
             result.closed = true;
+            return result;
+        }
+        if result.data.is_empty() {
             return result;
         }
 
@@ -266,6 +271,9 @@ impl Path {
                 let mut m = command::Data::MoveTo(start.into());
                 m.round(precision);
                 commands.push(m);
+                if close {
+                    commands.push(command::Data::ClosePath);
+                }
                 continue;
             };
             let is_start = command == 0;
@@ -693,6 +701,41 @@ mod test {
 
         let path = path.to_svg(&tolerance, true);
         assert_eq!(path.to_string().as_str(), "M5 5v10h10V5H5Zm15 15 5 5");
+    }
+
+    #[test]
+    fn closed_segment_of_a_single_point() {
+        // `M8 8z` has no data, but it's still closed: with round or square
+        // caps it's drawn as a dot.
+        let source = "M2 2h4M8 8z";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+
+        assert_eq!(
+            path.0.iter().map(Segment::closed).collect::<Vec<_>>(),
+            vec![false, true]
+        );
+
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "M2 2h4M8 8Z");
+    }
+
+    #[test]
+    fn close_after_close() {
+        // A second `Z` right after the first closes nothing.
+        let source = "M4 4v4zz";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance);
+
+        assert_eq!(
+            path.0.iter().map(Segment::closed).collect::<Vec<_>>(),
+            vec![true]
+        );
+
+        let path = path.to_svg(&tolerance, true);
+        assert_eq!(path.to_string().as_str(), "M4 4v4Z");
     }
 
     #[test]

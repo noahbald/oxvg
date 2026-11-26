@@ -196,7 +196,7 @@ pub struct IterStartCursorItem<T> {
     pub segment_start_by: Point,
     /// The start point for the current data item
     pub cursor: Point,
-    /// The data item. If the item is `None` then this item represents a standalone `M` segment
+    /// The data item. If the item is `None` then this item represents a standalone `M` (or `M Z`) segment
     pub data: Option<T>,
     /// The proceeding data item.
     pub next: Option<T>,
@@ -258,7 +258,7 @@ impl<'a> Iterator for IterStartCursor<'a> {
                     data: None,
                     next: None,
                     command: 0,
-                    close: false,
+                    close: segment.closed,
                 });
             }
             self.segment += 1;
@@ -280,8 +280,8 @@ impl IterStartCursorMut<'_> {
             let segment_start = segment.start;
             let segment_start_by = segment_start - last_segment_end.unwrap_or_default();
             last_segment_end = Some(segment.end_point());
-            let close = segment.closed && self.command == segment.data.len() - 1;
             if self.command < segment.data.len() {
+                let close = segment.closed && self.command == segment.data.len() - 1;
                 let (left, right) = segment.data.split_at_mut(self.command + 1);
                 let data = left.last_mut().unwrap();
                 let command = self.command;
@@ -306,7 +306,7 @@ impl IterStartCursorMut<'_> {
                     data: None,
                     next: None,
                     command: 0,
-                    close: false,
+                    close: segment.closed,
                 });
             }
             self.segment += 1;

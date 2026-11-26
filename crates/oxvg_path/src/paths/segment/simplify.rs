@@ -215,6 +215,8 @@ impl Path {
                 start = command.end_point();
                 !is_zero
             });
+            // `M x y Z` is a zero-length segment too
+            segment.closed &= !segment.data.is_empty();
         }
         if let Some(segment) = self.0.last_mut()
             && segment.closed
@@ -377,7 +379,8 @@ impl Path {
     }
 
     fn remove_empty_segments(&mut self) {
-        self.0.retain(|segment| !segment.data.is_empty());
+        self.0
+            .retain(|segment| !segment.data.is_empty() || segment.closed);
     }
 }
 
