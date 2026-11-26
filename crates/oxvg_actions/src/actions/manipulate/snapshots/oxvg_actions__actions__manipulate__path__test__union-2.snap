@@ -42,7 +42,7 @@ DerivedState {
                 },
                 values: {
                     D: Cow(
-                        "M2 10V2h8v3.832A4 4 0 1 1 5.833 10ZM6.33 10A3.5 3.5 0 1 0 10 6.329V10Z",
+                        "M2 10V2h8v3.832A4 4 0 1 1 5.833 10Zm4.33 0A3.5 3.5 0 1 0 10 6.329V10Z",
                     ),
                     FillRule: Cow(
                         "evenodd",

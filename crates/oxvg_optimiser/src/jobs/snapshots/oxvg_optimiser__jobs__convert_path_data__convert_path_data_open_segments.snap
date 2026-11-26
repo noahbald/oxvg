@@ -6,7 +6,7 @@ expression: "test_config(r#\"{ \"convertPathData\": {} }\"#,\nSome(r#\"<svg xmln
     <!-- a segment isn't closed by the next one starting where it ends -->
     <path d="m2 2 4 4m0 0 4-4"/>
     <path d="m2 12 4-4 2 2a6 6 0 0 1 3-3l2-1m0 0-3-1m3 1-1 3"/>
-    <path d="M8.683 5a3.75 3.75 0 0 1 6.635 0M15.318 5c.427-.283.815-.62 1.155-.999"/>
+    <path d="M8.683 5a3.75 3.75 0 0 1 6.635 0m0 0c.427-.283.815-.62 1.155-.999"/>
     <!-- but is by returning to its own start -->
     <path d="M2 2h4v4Zm0 0 8 8"/>
     <path d="M2 2h4v4H2V2Zm8 8 4 4"/>

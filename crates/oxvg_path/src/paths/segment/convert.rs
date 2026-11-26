@@ -251,32 +251,41 @@ impl Path {
         let mut commands: Vec<command::Data> = vec![];
 
         let mut last_control = None;
+        let mut reader = Reader::default();
         for IterStartCursorItem {
             segment_start,
-            segment_start_by,
             cursor: start,
             data,
             next,
             command,
             close,
+            ..
         } in self.iter_start_cursor()
         {
             let control = last_control.take();
             let Some(data) = data else {
-                let mut m = command::Data::MoveTo(start.into());
-                m.round(precision);
-                commands.push(m);
+                let m = Self::to_svg_move(segment_start, reader.point, precision);
+                reader.push(&mut commands, m);
                 continue;
             };
             let is_start = command == 0;
             let previous = if is_start { None } else { commands.last() };
             let implicit = previous.map(|d| d.id().next_implicit());
+            // Relative commands go from where the reader is: after the move, at the start
+            let origin = if is_start {
+                Self::rounded(segment_start, precision)
+            } else {
+                reader.point
+            };
 
             let mut command = match data {
                 Data::LineTo(to) => Self::to_svg_line(
                     previous,
                     segment_start,
-                    start,
+                    CommandStart {
+                        exact: start,
+                        read: origin,
+                    },
                     *to,
                     implicit.as_ref(),
                     precision,
@@ -284,7 +293,10 @@ impl Path {
                 Data::ArcTo(arc) => Self::to_svg_arc(
                     previous,
                     arc,
-                    start,
+                    CommandStart {
+                        exact: start,
+                        read: origin,
+                    },
                     implicit.as_ref(),
                     tolerance,
                     tolerance_squared,
@@ -295,7 +307,10 @@ impl Path {
                     let (command, control) = Self::to_svg_curve(
                         previous,
                         control,
-                        start,
+                        CommandStart {
+                            exact: start,
+                            read: origin,
+                        },
                         curve,
                         next,
                         implicit.as_ref(),
@@ -308,46 +323,74 @@ impl Path {
             };
 
             if is_start {
-                let mut m = match command.id().as_explicit() {
+                let (move_to, move_by) = Self::to_svg_moves(segment_start, reader.point, precision);
+                let m = match command.id().as_explicit() {
                     ID::LineBy => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveBy(segment_start_by.into())
+                        move_by
                     }
                     ID::LineTo => {
                         command = command::Data::Implicit(Box::new(command));
-                        command::Data::MoveTo(segment_start.into())
+                        move_to
                     }
-                    _ => command::Data::MoveTo(segment_start.into()),
+                    _ => compactest(None, move_to, move_by, None, precision),
                 };
-                m.round(precision);
-                commands.push(m);
+                reader.push(&mut commands, m);
             }
             let close = close && command.id() != ID::ClosePath;
-            commands.push(command);
+            reader.push(&mut commands, command);
             if close {
-                commands.push(command::Data::ClosePath);
+                reader.push(&mut commands, command::Data::ClosePath);
             }
         }
 
         crate::Path(commands)
     }
 
+    /// `point`, rounded.
+    fn rounded(point: Point, precision: TolerancePrecision) -> Point {
+        Point::new(precision.round(point.x), precision.round(point.y))
+    }
+
+    /// `M` and `m` to the rounded start of a segment, `m` from where the reader is, so
+    /// both go to the same point.
+    fn to_svg_moves(
+        segment_start: Point,
+        reader: Point,
+        precision: TolerancePrecision,
+    ) -> (command::Data, command::Data) {
+        let to = Self::rounded(segment_start, precision);
+        let mut by = command::Data::MoveBy((to - reader).into());
+        by.round(precision);
+        (command::Data::MoveTo(to.into()), by)
+    }
+
+    /// The shorter of `M` and `m` to the rounded start of a segment; `M` when both are as long.
+    fn to_svg_move(
+        segment_start: Point,
+        reader: Point,
+        precision: TolerancePrecision,
+    ) -> command::Data {
+        let (to, by) = Self::to_svg_moves(segment_start, reader, precision);
+        compactest(None, to, by, None, precision)
+    }
+
     fn to_svg_line(
         previous: Option<&command::Data>,
         segment_start: Point,
-        start: Point,
+        from: CommandStart,
         to: Point,
         implicit: Option<&ID>,
         precision: TolerancePrecision,
     ) -> command::Data {
-        let by = to - start;
-        if start == to {
+        let by = from.relative(to, precision);
+        if from.exact == to {
             command::Data::ClosePath
-        } else if precision.round(to.x) == precision.round(start.x) {
+        } else if precision.round(to.x) == precision.round(from.read.x) {
             let v_to = command::Data::VerticalLineTo([to.y]);
             let v_by = command::Data::VerticalLineBy([by.y]);
             compactest(previous, v_by, v_to, implicit, precision)
-        } else if precision.round(to.y) == precision.round(start.y) {
+        } else if precision.round(to.y) == precision.round(from.read.y) {
             let h_to = command::Data::HorizontalLineTo([to.x]);
             let h_by = command::Data::HorizontalLineBy([by.x]);
             compactest(previous, h_by, h_to, implicit, precision)
@@ -364,7 +407,7 @@ impl Path {
     pub(crate) fn to_svg_curve(
         previous: Option<&command::Data>,
         control: Option<Point>,
-        start: Point,
+        from: CommandStart,
         curve: &Curve,
         next: Option<&Data>,
         implicit: Option<&ID>,
@@ -374,20 +417,21 @@ impl Path {
         let start_control = curve.start_control;
         let end_control = curve.end_control;
         let to = curve.end_point;
-        let by = to - start;
+        let [by, start_control_by, end_control_by] =
+            [to, start_control, end_control].map(|point| from.relative(point, precision));
 
         let mut candidates = Vec::with_capacity(4);
 
         let (_, smooth_bezier, quadratic_bezier, smooth_quadratic_bezier) =
-            curve.types(start, control, tolerance_squared);
+            curve.types(from.exact, control, tolerance_squared);
         if let Some(SmoothBezierTo {
             end_control,
             end_point: _,
         }) = smooth_bezier
         {
             candidates.push(command::Data::SmoothBezierBy([
-                end_control.x - start.x,
-                end_control.y - start.y,
+                end_control_by.x,
+                end_control_by.y,
                 by.x,
                 by.y,
             ]));
@@ -399,10 +443,10 @@ impl Path {
             ]));
         } else {
             candidates.push(command::Data::CubicBezierBy([
-                start_control.x - start.x,
-                start_control.y - start.y,
-                end_control.x - start.x,
-                end_control.y - start.y,
+                start_control_by.x,
+                start_control_by.y,
+                end_control_by.x,
+                end_control_by.y,
                 by.x,
                 by.y,
             ]));
@@ -444,9 +488,10 @@ impl Path {
             end_point: _,
         }) = quadratic_bezier
         {
+            let quad_control_by = from.relative(quad_control, precision);
             candidates.push(command::Data::QuadraticBezierBy([
-                quad_control.x - start.x,
-                quad_control.y - start.y,
+                quad_control_by.x,
+                quad_control_by.y,
                 by.x,
                 by.y,
             ]));
@@ -464,7 +509,7 @@ impl Path {
                 quadratic_bezier.map(|q| q.quad_control)
             }
             ID::SmoothQuadraticBezierTo | ID::SmoothQuadraticBezierBy => {
-                control.map(|c| c.reflect(start))
+                control.map(|c| c.reflect(from.exact))
             }
             ID::CubicBezierTo | ID::CubicBezierBy | ID::SmoothBezierBy | ID::SmoothBezierTo => {
                 Some(quadratic_bezier.map_or(end_control, |q| q.quad_control))
@@ -478,20 +523,25 @@ impl Path {
     pub(crate) fn to_svg_arc(
         previous: Option<&command::Data>,
         arc: &Arc,
-        start: Point,
+        from: CommandStart,
         implicit: Option<&ID>,
         tolerance: &Tolerance,
         tolerance_squared: ToleranceSquared,
         precision: TolerancePrecision,
         smart_arc_rounding: bool,
     ) -> command::Data {
-        let by = arc.end_point() - start;
+        let by = from.relative(arc.end_point(), precision);
         let mut arc_to = arc.to_arc_to(tolerance, tolerance_squared, precision);
         let mut arc_by = arc_to;
         arc_by[5] = by.x;
         arc_by[6] = by.y;
 
-        if smart_arc_rounding && let Some(saggita) = math::saggita(&arc_by, tolerance.positional) {
+        // An arc whose end rounds onto its start has no saggita to keep
+        let ends_at_start = precision.round(by.x) == 0.0 && precision.round(by.y) == 0.0;
+        if smart_arc_rounding
+            && !ends_at_start
+            && let Some(saggita) = math::saggita(&arc_by, tolerance.positional)
+        {
             let mut p = precision.0;
             let mut new_arc = arc_by;
             while p >= 1.0 {
@@ -516,17 +566,18 @@ impl Path {
             precision.round(precision.descale(tangent.x)),
             precision.round(precision.descale(tangent.y)),
         );
-        if precision.round(arc_by[5]) == 0.0 && precision.round(arc_by[6]) == 0.0 {
+        if ends_at_start {
             arc_by[5] = min_by.x;
             arc_by[6] = min_by.y;
         } else {
             arc_by[5] = precision.round(arc_by[5]);
             arc_by[6] = precision.round(arc_by[6]);
         }
-        let start = Point::new(precision.round(start.x), precision.round(start.y));
-        if precision.round(arc_to[5]) == start.x && precision.round(arc_to[6]) == start.y {
-            arc_to[5] = start.x + min_by.x;
-            arc_to[6] = start.y + min_by.y;
+        // The reader's point is a sum of rounded values: rounded again, it's on the grid
+        let origin = Self::rounded(from.read, precision);
+        if precision.round(arc_to[5]) == origin.x && precision.round(arc_to[6]) == origin.y {
+            arc_to[5] = origin.x + min_by.x;
+            arc_to[6] = origin.y + min_by.y;
         } else {
             arc_to[5] = precision.round(arc_to[5]);
             arc_to[6] = precision.round(arc_to[6]);
@@ -534,6 +585,58 @@ impl Path {
         let a_by = command::Data::ArcBy(arc_by);
         let a_to = command::Data::ArcTo(arc_to);
         compactest(previous, a_by, a_to, implicit, precision)
+    }
+}
+
+/// Where a command starts: the point exactly, and where a reader of the written path is.
+#[derive(Clone, Copy)]
+pub(crate) struct CommandStart {
+    pub(crate) exact: Point,
+    pub(crate) read: Point,
+}
+
+impl CommandStart {
+    /// `to` relative to the reader: the distance from the exact point while that still
+    /// reads within half a step of `to`, else from where the reader is.
+    pub(crate) fn relative(self, to: Point, precision: TolerancePrecision) -> Point {
+        let half_step = 0.5 / precision.0;
+        let axis = |to: f64, exact: f64, read: f64| {
+            let from_exact = precision.round(to - exact);
+            if (read + from_exact - to).abs() <= half_step * (1.0 + 1e-9) {
+                from_exact
+            } else {
+                to - read
+            }
+        };
+        Point::new(
+            axis(to.x, self.exact.x, self.read.x),
+            axis(to.y, self.exact.y, self.read.y),
+        )
+    }
+}
+
+/// Where a reader of written path data is: the start of its subpath and its point.
+#[derive(Default)]
+struct Reader {
+    start: Point,
+    point: Point,
+}
+
+impl Reader {
+    /// Appends `command` to `commands` and moves as reading it does.
+    fn push(&mut self, commands: &mut Vec<command::Data>, command: command::Data) {
+        let (mut control, mut z_end) = (None, false);
+        Data::take(
+            &command,
+            &mut self.start,
+            &mut self.point,
+            &mut control,
+            &mut z_end,
+        );
+        if z_end {
+            self.point = self.start;
+        }
+        commands.push(command);
     }
 }
 
@@ -706,6 +809,99 @@ mod test {
             path.to_string().as_str(),
             "M10 90c20 0 15-80 40-80s20 80 40 80"
         );
+    }
+
+    #[test]
+    fn move_relative_when_shorter() {
+        // `m` where it's shorter than `M`, and `M` when both are as long
+        for (source, expected) in [
+            (
+                "M100 100h10v10zM101 101c1 1 2 2 3 3",
+                "M100 100h10v10Zm1 1c1 1 2 2 3 3",
+            ),
+            (
+                "M100 100h10M111 101c1 1 2 2 3 3",
+                "M100 100h10m1 1c1 1 2 2 3 3",
+            ),
+            ("M1 1h1v1zM3 3c1 1 2 2 3 3", "M1 1h1v1ZM3 3c1 1 2 2 3 3"),
+        ] {
+            let path = crate::Path::parse_string(source).unwrap();
+            let tolerance = Tolerance::default();
+            let mut path = Path::from_svg(&path, &tolerance);
+            path.simplify(Options::RemoveEmptySegments, &tolerance);
+            let path = path.to_svg(&tolerance, true);
+            assert_eq!(path.to_string(), expected, "{source}");
+        }
+
+        let source = "M100 100h10M111 101M120 120h1";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance).to_svg(&tolerance, true);
+        assert_eq!(path.to_string(), "M100 100h10m1 1m9 19h1");
+    }
+
+    #[test]
+    fn relative_commands_go_where_absolute_ones_go() {
+        use std::fmt::Write as _;
+
+        // Each relative command goes from where the reader is, so rounding doesn't
+        // add up: every end point is read within half a step of where it was
+        let tolerance = Tolerance::default();
+        let half_step = 0.5 / tolerance.precision().0;
+        let mut source = String::new();
+        for i in 0..50 {
+            let x = f64::from(i) * 2.000_6;
+            let shape = match i % 4 {
+                0 => "h1v1z",
+                1 => "l1.0004 1.0004l1.0004-2.0004",
+                2 => "h1.0004v1.0004h.0004v-1.0004",
+                _ => "c.0004 1.0004 1.0004 1.0004 1.0004.0004",
+            };
+            write!(source, "M{x} .0004{shape}").unwrap();
+        }
+        let path = crate::Path::parse_string(&source).unwrap();
+        let mut path = Path::from_svg(&path, &tolerance);
+        path.simplify(Options::RemoveEmptySegments, &tolerance);
+        let written = path.to_svg(&tolerance, true);
+        assert!(written.to_string().contains('m'), "{written}");
+
+        let mut read = Path::from_svg(&written, &tolerance);
+        read.simplify(Options::RemoveEmptySegments, &tolerance);
+        assert_eq!(read.0.len(), path.0.len());
+        for (before, after) in path.0.iter().zip(&read.0) {
+            let points = |segment: &Segment| {
+                std::iter::once(*segment.start())
+                    .chain(segment.data().iter().map(Data::end_point))
+                    .collect::<Vec<_>>()
+            };
+            for (a, b) in points(before).into_iter().zip(points(after)) {
+                assert!(
+                    (a.x - b.x).abs() <= half_step + 1e-9 && (a.y - b.y).abs() <= half_step + 1e-9,
+                    "{a:?} read as {b:?} in {written}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn arc_back_to_the_reader() {
+        // An arc that ends where it starts draws nothing; ending one step on, it draws
+        // nearly a circle, also when the reader's point is a sum like .1 + .2
+        let source = "M.1 0h.2a5 5 0 1 1 .0001 0";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance).to_svg(&tolerance, true);
+        assert_eq!(path.to_string(), "M.1 0h.2a5 5 0 1 1 .001 0");
+    }
+
+    #[test]
+    fn small_arc_back_to_the_reader() {
+        // Rounding the radii of an arc that ends one step on keeps it an arc
+        let source = "M.44377 .9913L.38192 .50025a.10205 .10128 0 0 1-.0004.00023";
+        let path = crate::Path::parse_string(source).unwrap();
+        let tolerance = Tolerance::default();
+        let path = Path::from_svg(&path, &tolerance).to_svg(&tolerance, true);
+        assert!(!path.to_string().contains("a0 0"), "{path}");
     }
 
     #[test]
