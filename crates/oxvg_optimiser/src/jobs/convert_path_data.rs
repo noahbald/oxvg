@@ -626,3 +626,26 @@ fn convert_path_data_selector_list() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn convert_path_data_move_after_close() -> anyhow::Result<()> {
+    use crate::test_config;
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "convertPathData": {} }"#,
+        Some(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <marker id="m" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+        <path d="M0 0h6v3H0z"/>
+    </marker>
+    <!-- a move after `Z` adds no vertex for a marker (not `M2 2h8v8ZM2 2M12 12h6`) -->
+    <path d="M2 2h8v8zM12 12h6" fill="none" stroke="#000" marker-mid="url(#m)"/>
+    <!-- but a move at the end moves the end marker (not dropped, not `M2 2h8v8ZM2 2`) -->
+    <path d="M2 2h8v8zM16 16" fill="none" stroke="#000" marker-end="url(#m)"/>
+    <path d="M2 2h8M16 16" fill="none" stroke="#000" marker-end="url(#m)"/>
+</svg>"##
+        ),
+    )?);
+
+    Ok(())
+}
