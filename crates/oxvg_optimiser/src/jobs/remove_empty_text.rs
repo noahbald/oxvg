@@ -110,5 +110,16 @@ fn remove_empty_text() -> anyhow::Result<()> {
         ),
     )?);
 
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeEmptyText": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- keep text of a no-break space -->
+    <text>A<tspan>&#160;</tspan>B</text>
+    <text>&#160;</text>
+</svg>"#
+        ),
+    )?);
+
     Ok(())
 }
