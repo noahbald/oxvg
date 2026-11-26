@@ -45,6 +45,7 @@ DerivedState {
                     Style,
                     Switch,
                     Text,
+                    TSpan,
                     View,
                 },
             },

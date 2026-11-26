@@ -1497,10 +1497,6 @@ export type RemoveTitle =
  * the default for a given element. Removes elements that are not expected as a child
  * for a given element.
  *
- * # Differences to SVGO
- *
- * SVGO will avoid removing `<tspan>` from `<a>`, whereas we will remove it.
- *
  * # Correctness
  *
  * This job should never visually change the document.
