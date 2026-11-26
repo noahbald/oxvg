@@ -549,6 +549,15 @@ export interface CleanupNumericValues {
  *
  * For removing empty groups, see [`super::RemoveEmptyContainers`].
  *
+ * # Differences to SVGO
+ *
+ * When the only child has its own value of an attribute that isn't inherited,
+ * SVGO keeps the group if the values differ and drops the group's value if
+ * they are the same, so an attribute whose effect stacks, such as `opacity`,
+ * then applies once instead of twice. We keep the group for an attribute that
+ * stacks, whatever the child's value, and drop the group's value of one that
+ * doesn't, such as `flood-color`.
+ *
  * # Correctness
  *
  * This job should never visually change the document.
