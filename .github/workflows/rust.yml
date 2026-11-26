@@ -70,19 +70,27 @@ jobs:
       - name: List
         run: ls -R
         shell: bash
+      - name: Rename artifact
+        if: ${{ contains(matrix.settings.target, 'windows') }}
+        run: cp target/${{ matrix.settings.target }}/release/oxvg.exe oxvg-${{ matrix.settings.target }}.exe
+        shell: bash
+      - name: Rename artifact
+        if: ${{ !contains(matrix.settings.target, 'windows') }}
+        run: cp target/${{ matrix.settings.target }}/release/oxvg oxvg-${{ matrix.settings.target }}
+        shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         if: ${{ contains(matrix.settings.target, 'windows') }}
         with:
-          name: oxvg-${{ matrix.settings.target }}
-          path: target/${{ matrix.settings.target }}/release/oxvg.exe
+          name: oxvg-${{ matrix.settings.target }}.exe
+          path: oxvg-${{ matrix.settings.target }}.exe
           if-no-files-found: error
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         if: ${{ !contains(matrix.settings.target, 'windows') }}
         with:
           name: oxvg-${{ matrix.settings.target }}
-          path: target/${{ matrix.settings.target }}/release/oxvg
+          path: oxvg-${{ matrix.settings.target }}
           if-no-files-found: error
   publish:
     name: Publish
