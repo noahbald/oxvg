@@ -63,6 +63,64 @@ describe("optimise", async () => {
     );
   });
 
+  test("optimise with pretty indent spaces", () => {
+    const result = optimise(
+      `<svg xmlns="http://www.w3.org/2000/svg"><g><rect width="10" height="10"/></g></svg>`,
+      extend("None"),
+      { indent: 4 },
+    );
+
+    assert.equal(
+      result,
+      `<svg xmlns="http://www.w3.org/2000/svg">\n    <g>\n        <rect width="10" height="10"/>\n    </g>\n</svg>\n`,
+    );
+  });
+
+  test("optimise with pretty indent tabs and none", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg"><g><rect width="10" height="10"/></g></svg>`;
+    const tabsResult = optimise(svg, null, { indent: "Tabs" });
+    assert.equal(
+      tabsResult,
+      `<svg xmlns="http://www.w3.org/2000/svg">\n\t<path d="M0 0h10v10H0Z"/>\n</svg>\n`,
+    );
+
+    const noneResult = optimise(tabsResult, null, { indent: "None" });
+    assert.equal(
+      noneResult,
+      `<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10H0Z"/></svg>`,
+    );
+  });
+
+  test("optimise with serialize options", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg"><g><rect style="color: rgb(255, 0, 0)" width="10" height="10"/><text>  hello  </text></g></svg>`;
+    const result = optimise(svg, extend("None"), {
+      indent: 2,
+      attributesIndent: 2,
+      useSingleQuote: true,
+      enableSelfClosing: false,
+      trimWhitespace: "Never",
+      minify: false,
+    });
+
+    assert.equal(
+      result,
+      `<svg\n  xmlns='http://www.w3.org/2000/svg'>\n  <g>\n    <rect\n      style='color: red'\n      width='10'\n      height='10'>\n    </rect>\n    <text>  hello  </text>\n  </g>\n</svg>\n`,
+    );
+
+    const minified = optimise(svg, extend("None"), { minify: true });
+    assert.equal(
+      minified,
+      `<svg xmlns="http://www.w3.org/2000/svg"><g><rect style="color:red" width="10" height="10"/><text>hello</text></g></svg>`,
+    );
+
+    assert.throws(() =>
+      optimise(`<svg/>`, null, {
+        // @ts-expect-error
+        indent: -1,
+      }),
+    );
+  });
+
   await test("optimise with invalid config", () => {
     assert.throws(
       () =>
@@ -216,5 +274,15 @@ describe("actor", async () => {
     assert.snapshot(actor.deriveState(), snapshotOptions);
 
     assert.snapshot(actor.document());
+  });
+
+  await test("document with options", () => {
+    const actor = new Actor(
+      `<svg xmlns="http://www.w3.org/2000/svg"><g><rect width="10" height="10"/></g></svg>`,
+    );
+    assert.equal(
+      actor.document({ indent: 2 }),
+      `<svg xmlns="http://www.w3.org/2000/svg">\n  <g>\n    <rect width="10" height="10"/>\n  </g>\n</svg>\n`,
+    );
   });
 });

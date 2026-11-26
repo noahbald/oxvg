@@ -1,7 +1,7 @@
 //! NAPI bindings for OXVG
 use napi::{
   Env, Error, JsValue, Status,
-  bindgen_prelude::{FromNapiValue, Object, Unknown},
+  bindgen_prelude::{Either, FromNapiValue, Object, Unknown},
 };
 use oxvg_actions::{Action, ActionNapi, DerivedState, DerivedStateNapi};
 use oxvg_ast::{
@@ -13,6 +13,92 @@ use oxvg_ast::{
 use oxvg_optimiser::{Extends, Jobs};
 #[macro_use]
 extern crate napi_derive;
+
+#[napi(string_enum)]
+#[derive(Debug, Default, Clone, Copy)]
+/// Set whether to trim whitespace around text.
+pub enum Space {
+  /// Never modify whitespace characters from the original
+  Never,
+  /// Determine post-processing based on `xml:space` attributes
+  #[default]
+  Auto,
+  /// Handle whitespace equivalent to default `xml:space` behaviour
+  Default,
+  /// Handle whitespace equivalent to preserve `xml:space` behaviour
+  Preserve,
+}
+
+impl From<Space> for oxvg_ast::xmlwriter::Space {
+  fn from(value: Space) -> Self {
+    match value {
+      Space::Never => Self::Never,
+      Space::Auto => Self::Auto,
+      Space::Default => Self::Default,
+      Space::Preserve => Self::Preserve,
+    }
+  }
+}
+
+#[napi(string_enum)]
+#[derive(Debug, Default, Clone, Copy)]
+/// Indentation preset for XML nodes and attributes.
+///
+/// Use a number (`0..=255`) for space indentation, `"Tabs"` for tab indentation,
+/// or `"None"` to disable indentation.
+pub enum Indent {
+  /// Do not add indentation or newlines
+  #[default]
+  None,
+  /// Indent using tab characters
+  Tabs,
+}
+
+fn resolve_indent(indent: Either<u8, Indent>) -> oxvg_ast::xmlwriter::Indent {
+  match indent {
+    Either::A(spaces) => oxvg_ast::xmlwriter::Indent::Spaces(spaces),
+    Either::B(Indent::None) => oxvg_ast::xmlwriter::Indent::None,
+    Either::B(Indent::Tabs) => oxvg_ast::xmlwriter::Indent::Tabs,
+  }
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+/// Options that control how the output SVG document is serialized.
+pub struct SerializeOptions {
+  /// Use single quote marks instead of double quote.
+  pub use_single_quote: Option<bool>,
+  /// Set XML nodes indentation (number of spaces, `"Tabs"`, or `"None"`).
+  pub indent: Option<Either<u8, Indent>>,
+  /// Set whether to trim whitespace around text.
+  pub trim_whitespace: Option<Space>,
+  /// Set XML attributes indentation (number of spaces, `"Tabs"`, or `"None"`).
+  pub attributes_indent: Option<Either<u8, Indent>>,
+  /// Write self-closing tags when element is empty.
+  pub enable_self_closing: Option<bool>,
+  /// Whether to minify while printing attributes and style content.
+  pub minify: Option<bool>,
+}
+
+impl From<SerializeOptions> for Options {
+  fn from(value: SerializeOptions) -> Self {
+    let defaults = Self::default();
+    Self {
+      use_single_quote: value.use_single_quote.unwrap_or(defaults.use_single_quote),
+      indent: value.indent.map_or(defaults.indent, resolve_indent),
+      trim_whitespace: value
+        .trim_whitespace
+        .map_or(defaults.trim_whitespace, Into::into),
+      attributes_indent: value
+        .attributes_indent
+        .map_or(defaults.attributes_indent, resolve_indent),
+      enable_self_closing: value
+        .enable_self_closing
+        .unwrap_or(defaults.enable_self_closing),
+      minify: value.minify.unwrap_or(defaults.minify),
+    }
+  }
+}
 
 fn validate_jobs_object(env: &Env, config: Option<Object>) -> napi::Result<Option<Jobs>> {
   if let Some(config) = config.as_ref()
@@ -34,7 +120,7 @@ fn validate_jobs_object(env: &Env, config: Option<Object>) -> napi::Result<Optio
 
 #[napi]
 #[allow(clippy::needless_pass_by_value)]
-/// Optimise an SVG document using the provided config
+/// Optimise an SVG document using the provided config and serialization options
 ///
 /// # Errors
 /// - If the document fails to parse
@@ -67,22 +153,30 @@ fn validate_jobs_object(env: &Env, config: Option<Object>) -> napi::Result<Optio
 ///
 /// const result = optimise(
 ///     `<svg />`,
-///     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
+///     extend("Default", { convertPathData: { removeUseless: false } }),
 /// );
+/// ```
+///
+/// Or, pretty-print the output
+///
+/// ```js
+/// import { optimise } from "@oxvg/napi";
+///
+/// const result = optimise(`<svg><rect/></svg>`, null, { indent: 4 });
 /// ```
 pub fn optimise(
   env: &Env,
   svg: String,
   #[napi(ts_arg_type = "Jobs | undefined | null")] config: Option<Object>,
+  options: Option<SerializeOptions>,
 ) -> napi::Result<String> {
   let config = validate_jobs_object(env, config)?.unwrap_or_default();
+  let options = options.map_or_default(Into::into);
   parse(&svg, |dom, allocator| {
     config
       .run(dom, &Info::new(allocator))
       .map_err(generic_error)?;
-    dom
-      .serialize_with_options(Options::default())
-      .map_err(generic_error)
+    dom.serialize_with_options(options).map_err(generic_error)
   })
   .map_err(|e| Error::new(Status::InvalidArg, e.to_string()))?
 }
@@ -656,8 +750,12 @@ impl Actor {
   ///
   /// If serialization fails
   #[napi]
-  pub fn document(&self) -> napi::Result<String> {
-    self.actor.root.serialize().map_err(generic_error)
+  pub fn document(&self, options: Option<SerializeOptions>) -> napi::Result<String> {
+    self
+      .actor
+      .root
+      .serialize_with_options(options.map_or_default(Into::into))
+      .map_err(generic_error)
   }
 }
 

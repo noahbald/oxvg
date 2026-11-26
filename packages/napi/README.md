@@ -51,6 +51,14 @@ import { config } from "./svgo.config.js";
 const result = optimise(`<svg />`, convertSvgoConfig(config.plugins));
 ```
 
+Pretty-print output by passing serialization options as the third argument
+
+```js
+import { optimise } from "@oxvg/napi";
+
+const result = optimise(`<svg><rect/></svg>`, null, { indent: 4 });
+```
+
 ### 🤖 Actions
 
 Actions are a set of commands invoked by a program in order to manipulate an SVG document or pull information from it.

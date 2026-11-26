@@ -1109,7 +1109,7 @@ export declare class Actor {
    *
    * If serialization fails
    */
-  document(): string
+  document(options?: SerializeOptions | undefined | null): string
 }
 
 /**
@@ -1138,7 +1138,18 @@ export declare function convertSvgoConfig(config?: Array<'preset-default' | {[K 
 export declare function extend(extend: Extends, config?: Jobs | undefined | null): Jobs
 
 /**
- * Optimise an SVG document using the provided config
+ * Indentation preset for XML nodes and attributes.
+ *
+ * Use a number (`0..=255`) for space indentation, `"Tabs"` for tab indentation,
+ * or `"None"` to disable indentation.
+ */
+export type Indent = /** Do not add indentation or newlines */
+'None'|
+/** Indent using tab characters */
+'Tabs';
+
+/**
+ * Optimise an SVG document using the provided config and serialization options
  *
  * # Errors
  * - If the document fails to parse
@@ -1171,11 +1182,45 @@ export declare function extend(extend: Extends, config?: Jobs | undefined | null
  *
  * const result = optimise(
  *     `<svg />`,
- *     extend(Extends.Default, { convertPathData: { removeUseless: false } }),
+ *     extend("Default", { convertPathData: { removeUseless: false } }),
  * );
  * ```
+ *
+ * Or, pretty-print the output
+ *
+ * ```js
+ * import { optimise } from "@oxvg/napi";
+ *
+ * const result = optimise(`<svg><rect/></svg>`, null, { indent: 4 });
+ * ```
  */
-export declare function optimise(svg: string, config?: Jobs | undefined | null): string
+export declare function optimise(svg: string, config?: Jobs | undefined | null, options?: SerializeOptions | undefined | null): string
+
+/** Options that control how the output SVG document is serialized. */
+export interface SerializeOptions {
+  /** Use single quote marks instead of double quote. */
+  useSingleQuote?: boolean
+  /** Set XML nodes indentation (number of spaces, `"Tabs"`, or `"None"`). */
+  indent?: number | Indent
+  /** Set whether to trim whitespace around text. */
+  trimWhitespace?: Space
+  /** Set XML attributes indentation (number of spaces, `"Tabs"`, or `"None"`). */
+  attributesIndent?: number | Indent
+  /** Write self-closing tags when element is empty. */
+  enableSelfClosing?: boolean
+  /** Whether to minify while printing attributes and style content. */
+  minify?: boolean
+}
+
+/** Set whether to trim whitespace around text. */
+export type Space = /** Never modify whitespace characters from the original */
+'Never'|
+/** Determine post-processing based on `xml:space` attributes */
+'Auto'|
+/** Handle whitespace equivalent to default `xml:space` behaviour */
+'Default'|
+/** Handle whitespace equivalent to preserve `xml:space` behaviour */
+'Preserve';
 /**
  * Adds attributes to SVG elements in the document. This is not an optimisation
  * and will increase the size of SVG documents.
