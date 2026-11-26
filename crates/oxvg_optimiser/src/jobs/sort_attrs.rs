@@ -11,7 +11,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi)]
+#[cfg_attr(feature = "napi", napi(string_enum))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -23,11 +23,6 @@ pub enum XMLNSOrder {
     #[default]
     /// Keep xmlns attributes at the front of the list
     Front,
-    #[doc(hidden)]
-    #[cfg(feature = "napi")]
-    /// Compatibility option for NAPI
-    // FIXME: force discriminated union to prevent NAPI from failing CI
-    Napi(),
 }
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]

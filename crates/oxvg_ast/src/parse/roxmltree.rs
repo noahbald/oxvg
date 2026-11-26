@@ -407,10 +407,12 @@ fn find_new_xmlns<'a, 'input: 'a>(
         }
         // return `xmlns:ns="uri"`
         Some(Attr::Unparsed {
-            attr_id: AttrId::Unknown(QualName {
-                prefix: Prefix::XMLNS,
-                local: prefix.into(),
-            }),
+            attr_id: AttrId::Unknown {
+                name: QualName {
+                    prefix: Prefix::XMLNS,
+                    local: prefix.into(),
+                },
+            },
             value: uri.into(),
         })
     } else if !ns.uri().is_empty() {
@@ -563,6 +565,21 @@ fn serialize_escapes_parsed_style_content() {
 
     assert!(output.contains("&amp;&lt;"));
     roxmltree::Document::parse(&output).unwrap();
+}
+
+#[test]
+fn serialize_keeps_no_break_spaces_in_text() {
+    use crate::serialize::Node;
+
+    let source = "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>A\u{a0}\u{a0} \n B</text><text>\u{a0}</text></svg>";
+    let output = parse(source, |document, _| document.serialize())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output,
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><text>A\u{a0}\u{a0} B</text><text>\u{a0}</text></svg>"
+    );
 }
 
 #[test]

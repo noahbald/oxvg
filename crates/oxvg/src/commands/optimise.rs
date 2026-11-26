@@ -58,8 +58,7 @@ impl RunCommand for Optimise {
         let jobs = config
             .optimise
             .as_ref()
-            .map(config::Optimise::resolve_jobs)
-            .unwrap_or_default();
+            .map_or_default(config::Optimise::resolve_jobs);
         future::ready(self.walk(jobs))
     }
 }

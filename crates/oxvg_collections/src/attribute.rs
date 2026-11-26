@@ -1,4 +1,6 @@
 //! Types of data which can be assigned to an element's attributes
+use std::collections::HashMap;
+
 use animation::{AttributeType, BeginEnd, CalcMode, ControlPoint};
 use animation_addition::{Accumulate, Additive};
 use animation_timing::{Dur, Fill, MinMax, RepeatCount, RepeatDur, Restart};
@@ -256,7 +258,10 @@ macro_rules! define_attrs {
                 attr_id: Box<AttrId<'input>>,
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(QualName<'input>),
+            Unknown {
+                /// The qualified name of the attribute
+                name: QualName<'input>
+            },
         }
 
         #[cfg(feature = "napi")]
@@ -272,7 +277,7 @@ macro_rules! define_attrs {
                             _ => unreachable!()
                         },
                     },
-                    Self::Unknown(name) => AttrIdNapi::Unknown(name.to_napi()),
+                    Self::Unknown { name } => AttrIdNapi::Unknown { name: name.to_napi() },
                 }
             }
         }
@@ -296,7 +301,10 @@ macro_rules! define_attrs {
                 name: (String, String),
             },
             /// An attribute that doesn't match the expected type for a given `ElementId`
-            Unknown(crate::name::QualNameNapi),
+            Unknown {
+                /// The qualified name of the attribute
+                name: crate::name::QualNameNapi
+            },
         }
 
         #[derive(Debug, Clone)]
@@ -341,7 +349,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _prefix::$attr,)+
                     Self::Aliased { prefix, .. } => prefix,
-                    Self::Unknown(QualName { prefix, .. }) => prefix,
+                    Self::Unknown { name: QualName { prefix, .. } } => prefix,
                 }
             }
 
@@ -359,7 +367,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _local_name::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.local_name(),
-                    Self::Unknown(QualName { local, .. }) => local,
+                    Self::Unknown { name: QualName { local, .. } } => local,
                 }
             }
 
@@ -368,7 +376,7 @@ macro_rules! define_attrs {
                 match self {
                     $(Self::$attr => _c::$attr,)+
                     Self::Aliased { attr_id, .. } => attr_id.attribute_group(),
-                    Self::Unknown(_) => AttributeGroup::empty(),
+                    Self::Unknown { .. } => AttributeGroup::empty(),
                 }
             }
 
@@ -396,7 +404,7 @@ macro_rules! define_attrs {
                         $(, Separators::$and)?
                     ))?,)+
                     Self::Aliased { attr_id, .. } => attr_id.r#type(),
-                    Self::Unknown(_) => ContentTypeId::Anything,
+                    Self::Unknown { .. } => ContentTypeId::Anything,
                 }
             }
         }
@@ -420,8 +428,8 @@ macro_rules! define_attrs {
                         prefix,
                         value: Box::new(Self::new(*attr_id, value)),
                     },
-                    AttrId::Unknown(name) => Self::Unparsed {
-                        attr_id: AttrId::Unknown(name),
+                    AttrId::Unknown { name } => Self::Unparsed {
+                        attr_id: AttrId::Unknown { name },
                         value: value.into(),
                     },
                 }
@@ -512,7 +520,7 @@ macro_rules! define_attrs {
                     $((Self::$attr, Self::$attr) => true,)+
                     (Self::Aliased { .. }, _) => unreachable!(),
                     (_, Self::Aliased { .. }) => unreachable!(),
-                    (Self::Unknown(a), Self::Unknown(b)) => a == b,
+                    (Self::Unknown { name: a }, Self::Unknown { name: b }) => a == b,
                     _ => false,
                 }
             }
@@ -2623,10 +2631,10 @@ macro_rules! try_from_into_property {
                         name: CustomPropertyName::Unknown(name),
                         value,
                     }) => Attr::CSSUnknown {
-                        attr_id: AttrId::Unknown(QualName {
+                        attr_id: AttrId::Unknown { name: QualName {
                             prefix: Prefix::SVG,
                             local: name.0.into(),
-                        }),
+                        } },
                         value: TokenList(value),
                     },
                     Property::Unparsed(UnparsedProperty {
@@ -2792,6 +2800,20 @@ thread_local! {
     static ATTRIBUTE_GROUP_ATTRIBUTES_MEMO: DashMap<AttributeGroup, &'static [&'static AttrId<'static>]> = DashMap::new();
 }
 
+static ATTR_IDS: std::sync::LazyLock<
+    HashMap<(&'static Prefix<'static>, &'static Atom<'static>), Vec<&'static AttrId<'static>>>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = HashMap::<
+        (&'static Prefix<'static>, &'static Atom<'static>),
+        Vec<&'static AttrId<'static>>,
+    >::new();
+    for attr in _attr_id::all {
+        let key = (attr.prefix(), attr.local_name());
+        map.entry(key).or_default().push(*attr);
+    }
+    map
+});
+
 impl AttributeGroup {
     /// Returns the list of attributes associated with the attribute group
     ///
@@ -2832,26 +2854,27 @@ impl AttributeGroup {
         prefix: &Prefix<'input>,
         local: Atom<'input>,
     ) -> AttrId<'input> {
-        self.attributes()
-            .iter()
-            .find(|attr| attr.prefix() == prefix && *attr.local_name() == local)
-            .map_or_else(
-                || {
-                    AttrId::Unknown(QualName {
+        match ATTR_IDS.get(&(prefix, &local)).and_then(|attrs| {
+            attrs
+                .iter()
+                .find(|attr| self.intersects(attr.attribute_group()))
+        }) {
+            Some(attr) => {
+                if prefix.is_aliased() {
+                    AttrId::Aliased {
                         prefix: prefix.clone(),
-                        local,
-                    })
-                },
-                |attr| {
-                    if prefix.is_aliased() {
-                        AttrId::Aliased {
-                            prefix: prefix.clone(),
-                            attr_id: Box::new((*attr).clone()),
-                        }
-                    } else {
-                        (*attr).clone()
+                        attr_id: Box::new((*attr).clone()),
                     }
+                } else {
+                    (*attr).clone()
+                }
+            }
+            None => AttrId::Unknown {
+                name: QualName {
+                    prefix: prefix.clone(),
+                    local,
                 },
-            )
+            },
+        }
     }
 }

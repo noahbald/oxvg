@@ -8,7 +8,7 @@ use oxvg_ast::{
 };
 use oxvg_collections::{
     atom::Atom,
-    attribute::{Attr, inheritable::Inheritable},
+    attribute::{Attr, AttributeInfo, inheritable::Inheritable},
     content_type::ContentType,
     element::ElementCategory,
     is_prefix,
@@ -22,7 +22,7 @@ use tsify::Tsify;
 use crate::error::JobsError;
 
 #[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "napi", napi(object))]
+#[cfg_attr(feature = "napi", napi(transparent))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "jsonschema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone)]
@@ -30,6 +30,15 @@ use crate::error::JobsError;
 /// Filters `<g>` elements that have no effect.
 ///
 /// For removing empty groups, see [`super::RemoveEmptyContainers`].
+///
+/// # Differences to SVGO
+///
+/// When the only child has its own value of an attribute that isn't inherited,
+/// SVGO keeps the group if the values differ and drops the group's value if
+/// they are the same, so an attribute whose effect stacks, such as `opacity`,
+/// then applies once instead of twice. We keep the group for an attribute that
+/// stacks, whatever the child's value, and drop the group's value of one that
+/// doesn't, such as `flood-color`.
 ///
 /// # Correctness
 ///
@@ -149,6 +158,14 @@ fn move_attributes_to_child(element: Element, has_stylesheet: bool) {
             if Inheritable::Inherited == inheritable {
                 log::debug!("collapse_groups: moved {attr:?}: is explicit inherit");
                 *child_attr = attr.clone();
+            } else if attr
+                .name()
+                .info()
+                .contains(AttributeInfo::PresentationNonInheritableGroupAttrs)
+            {
+                log::debug!("collapse_groups: keeping {attr:?}: stacks with the child's own");
+                removals.pop();
+                break;
             }
         } else if *attr != *child_attr {
             log::debug!("collapse_groups: removing {attr:?}: inheritable attr is not inherited");
@@ -547,6 +564,32 @@ fn collapse_groups() -> anyhow::Result<()> {
         </g>
     </g>
     <circle cx="25" cy="15" r="10" stroke="black" stroke-width=".1" fill="none"/>
+</svg>"#
+        )
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "collapseGroups": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- Should preserve group when child has its own value of a property whose effect stacks -->
+    <g opacity=".5">
+        <path opacity=".5" d="..."/>
+    </g>
+    <g display="none">
+        <path display="inline" d="..."/>
+    </g>
+    <g fill="red" opacity=".5">
+        <path opacity=".5" d="..."/>
+    </g>
+    <!-- Should still move a property that isn't inherited to a child without it -->
+    <g opacity=".5">
+        <path d="..."/>
+    </g>
+    <!-- Should drop a property that doesn't stack when the child has its own -->
+    <g flood-color="red">
+        <path flood-color="blue" d="..."/>
+    </g>
 </svg>"#
         )
     )?);

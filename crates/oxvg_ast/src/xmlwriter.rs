@@ -808,16 +808,18 @@ impl<'input, W: Write> XmlWriter<'input, W> {
 
         match space {
             Space::Default => {
-                if text.trim_start().is_empty() {
+                if text.trim_start_matches(is_xml_whitespace).is_empty() {
                     return Ok(());
                 }
                 self.before_write_text(false)?;
-                let mut parts = text.split_whitespace();
+                let mut parts = text
+                    .split(is_xml_whitespace)
+                    .filter(|part| !part.is_empty());
                 if let Some(first) = parts.next() {
                     let mut chars = text.chars();
                     if !is_first
                         && self.opt.indent == Indent::None
-                        && chars.next().is_some_and(char::is_whitespace)
+                        && chars.next().is_some_and(is_xml_whitespace)
                     {
                         self.fmt_writer
                             .write_char(' ')
@@ -838,7 +840,7 @@ impl<'input, W: Write> XmlWriter<'input, W> {
 
                     if !is_last
                         && self.opt.indent == Indent::None
-                        && text.chars().next_back().is_some_and(char::is_whitespace)
+                        && text.chars().next_back().is_some_and(is_xml_whitespace)
                     {
                         self.fmt_writer
                             .write_char(' ')
@@ -1139,4 +1141,10 @@ fn is_text_content_element(data: &DepthData) -> bool {
             A | Text | TextPath | TSpan | AltGlyph | AltGlyphDef | Glyph | GlyphRef | TRef
         )
     })
+}
+
+/// Whitespace as XML defines it; other spaces, such as a no-break space, are
+/// characters of the text.
+fn is_xml_whitespace(char: char) -> bool {
+    matches!(char, ' ' | '\t' | '\n' | '\r')
 }

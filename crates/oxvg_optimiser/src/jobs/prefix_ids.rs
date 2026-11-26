@@ -22,7 +22,10 @@ use crate::error::JobsError;
 /// Various types of ways prefixes can be generated for an id.
 pub enum PrefixGenerator {
     /// A string to use as a prefix
-    Prefix(String),
+    Prefix {
+        /// A string to use as a prefix
+        prefix: String,
+    },
     /// No prefix
     None,
     /// Use "prefix" as prefix
@@ -273,7 +276,7 @@ impl<'de> Deserialize<'de> for PrefixGenerator {
         let value = serde_json::Value::deserialize(deserializer)?;
 
         match value {
-            serde_json::Value::String(string) => Ok(PrefixGenerator::Prefix(string)),
+            serde_json::Value::String(prefix) => Ok(PrefixGenerator::Prefix { prefix }),
             serde_json::Value::Bool(bool) => {
                 if bool {
                     Ok(PrefixGenerator::Default)
@@ -296,7 +299,7 @@ impl Serialize for PrefixGenerator {
         S: serde::Serializer,
     {
         match self {
-            PrefixGenerator::Prefix(prefix) => prefix.serialize(serializer),
+            PrefixGenerator::Prefix { prefix } => prefix.serialize(serializer),
             PrefixGenerator::Default => true.serialize(serializer),
             PrefixGenerator::None => false.serialize(serializer),
         }
@@ -326,7 +329,7 @@ impl<'a> GeneratePrefix<'a> {
 
     fn generate(&mut self) -> String {
         match self.prefix_generator {
-            PrefixGenerator::Prefix(s) => format!("{s}{}", self.delim),
+            PrefixGenerator::Prefix { prefix } => format!("{prefix}{}", self.delim),
             PrefixGenerator::None => String::new(),
             PrefixGenerator::Default => match &self.path {
                 Some(path) => match get_basename(path) {
