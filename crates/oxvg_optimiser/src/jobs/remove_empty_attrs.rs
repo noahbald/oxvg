@@ -21,9 +21,9 @@ use crate::error::JobsError;
 ///
 /// # Differences to SVGO
 ///
-/// SVGO removes empty attributes that an element doesn't expect, such as
-/// `rdf:about` on `cc:Work`, and some whose empty value means something, such
-/// as `xml:lang`. We keep both.
+/// SVGO removes unknown empty attributes, such as `rdf:about` on `cc:Work`,
+/// and some whose empty value means something, such as `xml:lang`. We keep
+/// both.
 ///
 /// # Correctness
 ///
@@ -57,12 +57,9 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
         // Keep an empty attribute whose empty value means something, such as
-        // `systemLanguage=""`, or that the element doesn't expect, such as
-        // `rdf:about=""` for this document.
+        // `systemLanguage=""`, or that is unknown, such as `rdf:about=""`.
         element.attributes().retain(|a| {
-            !a.value().is_empty()
-                || a.name().info().contains(AttributeInfo::EmptySemantics)
-                || !element.qual_name().is_permitted_attribute(a.name())
+            !a.value().is_empty() || a.name().info().contains(AttributeInfo::EmptySemantics)
         });
         Ok(())
     }

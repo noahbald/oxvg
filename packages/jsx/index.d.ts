@@ -1258,9 +1258,9 @@ export interface RemoveElementsByAttr {
  *
  * # Differences to SVGO
  *
- * SVGO removes empty attributes that an element doesn't expect, such as
- * `rdf:about` on `cc:Work`, and some whose empty value means something, such
- * as `xml:lang`. We keep both.
+ * SVGO removes unknown empty attributes, such as `rdf:about` on `cc:Work`,
+ * and some whose empty value means something, such as `xml:lang`. We keep
+ * both.
  *
  * # Correctness
  *

@@ -384,6 +384,7 @@ macro_rules! define_attrs {
             pub fn info(&self) -> AttributeInfo {
                 match self {
                     $($(Self::$attr => $info,)?)+
+                    Self::Unknown { .. } => AttributeInfo::EmptySemantics,
                     _ => AttributeInfo::empty(),
                 }
             }
