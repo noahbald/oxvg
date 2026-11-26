@@ -84,6 +84,42 @@ jobs:
           name: oxvg-${{ matrix.settings.target }}
           path: target/${{ matrix.settings.target }}/release/oxvg
           if-no-files-found: error
+  dist:
+    name: Crate tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install pycargoebuild
+        shell: bash
+        run: pip install pycargoebuild
+      - name: Grab the license mapping
+        shell: bash
+        run: |
+          wget https://raw.githubusercontent.com/gentoo/gentoo/refs/heads/master/metadata/license-mapping.conf
+      - name: Cache fetched crates
+        uses: actions/cache@v6
+        with:
+          path: /tmp/dist
+          key: dist
+      - name: Create a dist tarball
+        shell: bash
+        run: |
+          pycargoebuild \
+            --write-crate-tarball \
+            --crate-tarball-path "oxvg-${{ github.ref_name }}-crates.tar.xz" \
+            --distdir /tmp/dist \
+            --license-mapping license-mapping.conf \
+            crates/oxvg
+      - name: Upload crate tarball
+        uses: actions/upload-artifact@v5
+        with:
+          name: oxvg-crates-tarball
+          path: oxvg-${{ github.ref_name }}-crates.tar.xz
+          if-no-files-found: error
   publish:
     name: Publish
     runs-on: ubuntu-latest
