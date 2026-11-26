@@ -1,6 +1,6 @@
 {
   "name": "@oxvg/jsx-linux-x64-musl",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "cpu": [
     "x64"
   ],

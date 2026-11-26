@@ -21,7 +21,7 @@ must_use_candidate = "allow"
 used_underscore_items = "allow"
 
 [workspace.package]
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Noah <noahwbaldwin@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/noahbald/oxvg"
