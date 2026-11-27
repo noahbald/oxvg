@@ -2,7 +2,7 @@ use oxvg_ast::{
     element::Element,
     visitor::{Context, PrepareOutcome, Visitor},
 };
-use oxvg_collections::attribute::AttributeGroup;
+use oxvg_collections::attribute::AttributeInfo;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +18,12 @@ use crate::error::JobsError;
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", serde(transparent))]
 /// Removes empty attributes from elements when safe to do so.
+///
+/// # Differences to SVGO
+///
+/// SVGO removes unknown empty attributes, such as `rdf:about` on `cc:Work`,
+/// and some whose empty value means something, such as `xml:lang`. We keep
+/// both.
 ///
 /// # Correctness
 ///
@@ -50,14 +56,10 @@ impl<'input, 'arena> Visitor<'input, 'arena> for RemoveEmptyAttrs {
         element: Element<'input, 'arena>,
         _context: &mut Context<'input, 'arena, '_>,
     ) -> Result<(), Self::Error> {
+        // Keep an empty attribute whose empty value means something, such as
+        // `systemLanguage=""`, or that is unknown, such as `rdf:about=""`.
         element.attributes().retain(|a| {
-            if a.name()
-                .attribute_group()
-                .contains(AttributeGroup::ConditionalProcessing)
-            {
-                return true;
-            }
-            !a.value().is_empty()
+            !a.value().is_empty() || a.name().info().contains(AttributeInfo::EmptySemantics)
         });
         Ok(())
     }
@@ -77,8 +79,8 @@ fn remove_empty_attrs() -> anyhow::Result<()> {
         r#"{ "removeEmptyAttrs": true }"#,
         Some(
             r#"<svg xmlns="http://www.w3.org/2000/svg">
-    <!-- remove empty attrs -->
-    <g attr1="" attr2=""/>
+    <!-- remove empty attrs, but not unknown ones -->
+    <g attr1="" attr2="" class="" id=""/>
 </svg>"#
         ),
     )?);
@@ -91,6 +93,19 @@ fn remove_empty_attrs() -> anyhow::Result<()> {
     <g requiredFeatures=""/>
     <g requiredExtensions=""/>
     <g systemLanguage=""/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "removeEmptyAttrs": true }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:cc="http://creativecommons.org/ns#">
+    <!-- keep empty attrs that mean something or are unknown -->
+    <metadata>
+        <rdf:RDF><cc:Work rdf:about=""/></rdf:RDF>
+    </metadata>
+    <g class="" attr1="" xml:lang="" lang="" />
 </svg>"#
         ),
     )?);

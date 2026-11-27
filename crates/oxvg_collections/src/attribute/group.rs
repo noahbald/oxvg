@@ -115,5 +115,8 @@ bitflags! {
         /// The attribute is an inheritable presentation attribute but
         /// compounds, so it cannot be arbitrarily added or removed.
         const PresentationNonInheritableGroupAttrs = 1 << 3;
+        /// An empty value of the attribute means something, so it cannot be
+        /// removed when empty. Unknown attributes are treated this way too.
+        const EmptySemantics = 1 << 4;
     }
 }
