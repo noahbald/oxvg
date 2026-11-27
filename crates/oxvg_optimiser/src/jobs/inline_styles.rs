@@ -5,7 +5,7 @@ use lightningcss::{
     declaration::DeclarationBlock,
     error::PrinterError,
     printer::{Printer, PrinterOptions},
-    properties::Property,
+    properties::{Property, PropertyId},
     rules::{CssRule, CssRuleList},
     selector::{Component, Selector},
     traits::ToCss,
@@ -113,6 +113,29 @@ struct FindDynamicTokens<'a, 'o, 'input, 'arena> {
 struct CollectMatchingSelectors<'a, 'o, 'input, 'arena> {
     find_removable_tokens: &'a mut FindRemovableTokens<'o, 'input, 'arena>,
     root: Element<'input, 'arena>,
+    /// Every selector of the stylesheet in order, found by the first visit; the second visit
+    /// removes those that are inlined.
+    selectors: Vec<SelectorMatches<'input, 'arena>>,
+    /// `None` while the first visit collects `selectors`, then the index of the next one the
+    /// second visit comes to.
+    visited: Option<usize>,
+}
+
+#[derive(Debug)]
+struct SelectorMatches<'input, 'arena> {
+    /// `None` when the elements it matches can't be found.
+    matches: Option<Vec<Element<'input, 'arena>>>,
+    /// The tokens to remove from the matching elements when inlining; `None` when the selector
+    /// stays in the stylesheet.
+    tokens: Option<Vec<Token<'input>>>,
+    /// Every token of the selector, which stay on the elements when it stays.
+    all_tokens: Vec<Token<'input>>,
+    specificity: u32,
+    declarations: DeclarationBlock<'input>,
+    /// The names of the properties the declarations set, with their parts (`properties`).
+    properties: Vec<String>,
+    /// The same for the important declarations.
+    important_properties: Vec<String>,
 }
 
 struct InlinePresentationAttributes<'a, 'o, 'input, 'arena> {
@@ -391,15 +414,67 @@ impl<'o, 'input, 'arena> FindRemovableTokens<'o, 'input, 'arena> {
     ) -> Result<(), anyhow::Error> {
         // First pass to find dynamic tokens, which will skip inlining.
         stylesheet.visit(self)?;
-        // Second pass will take matching selectors from the stylesheet
+        // Second pass finds which selectors match and could be inlined
         let mut collect_matching_selectors = CollectMatchingSelectors {
             find_removable_tokens: self,
             root,
+            selectors: Vec::new(),
+            visited: None,
         };
+        stylesheet.visit(&mut collect_matching_selectors)?;
+        collect_matching_selectors.keep_overridden();
+        // Third pass will take inlined selectors from the stylesheet
+        collect_matching_selectors.visited = Some(0);
         stylesheet.visit(&mut collect_matching_selectors)?;
 
         Ok(())
     }
+}
+
+impl SelectorMatches<'_, '_> {
+    /// Whether this selector, at `index` in the stylesheet, sets a property of `other`'s at
+    /// `other_index` on an element they both match (or may, when its matches can't be found),
+    /// where it would win in the cascade.
+    fn overrides(&self, index: usize, other: &Self, other_index: usize) -> bool {
+        (self.specificity, index) > (other.specificity, other_index)
+            && (self.properties.iter().any(|p| other.properties.contains(p))
+                || self
+                    .important_properties
+                    .iter()
+                    .any(|p| other.important_properties.contains(p)))
+            && self.matches.as_ref().is_none_or(|matches| {
+                other
+                    .matches
+                    .as_ref()
+                    .is_none_or(|other_matches| matches.iter().any(|m| other_matches.contains(m)))
+            })
+    }
+}
+
+/// The names of the properties set and their parts, without vendor prefixes: the longhands of a
+/// shorthand, with what `font` resets too, and the markers `marker` sets.
+fn properties(properties: &[Property<'_>]) -> Vec<String> {
+    let mut names = Vec::new();
+    for property in properties {
+        let id = property.property_id();
+        names.extend(
+            id.longhands()
+                .unwrap_or_default()
+                .iter()
+                .map(|part| part.name().to_string()),
+        );
+        match id {
+            PropertyId::Font => names.extend(
+                ["font-variant", "font-size-adjust", "font-kerning"].map(String::from),
+            ),
+            PropertyId::Marker => {
+                names.extend(["marker-start", "marker-mid", "marker-end"].map(String::from));
+            }
+            _ => {}
+        }
+        names.push(id.name().to_string());
+    }
+    names
 }
 
 impl<'input, 'arena> CollectMatchingSelectors<'_, '_, 'input, 'arena> {
@@ -417,6 +492,97 @@ impl<'input, 'arena> CollectMatchingSelectors<'_, '_, 'input, 'arena> {
         match new_selector {
             Some(s) => s.to_string(),
             None => selector,
+        }
+    }
+
+    /// The elements a selector matches, and whether it could be inlined into them.
+    fn collect(
+        &mut self,
+        selector: &mut Selector<'input>,
+        declarations: &DeclarationBlock<'input>,
+    ) -> SelectorMatches<'input, 'arena> {
+        let dynamic = self.is_dynamically_referenced(selector);
+        let matches = selector
+            .to_css_string(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            })
+            .ok()
+            .and_then(|selector_string| {
+                let selector_string = self.strip_allowed_pseudos(selector_string);
+                self.root
+                    .select(&selector_string)
+                    .ok()
+                    .map(Iterator::collect::<Vec<_>>)
+            });
+        let tokens = match &matches {
+            _ if dynamic => {
+                log::debug!("retained selector: dynamic reference used");
+                None
+            }
+            None => {
+                log::debug!("retained selector: no matches");
+                None
+            }
+            Some(matches) => self.is_selector_removable(selector, matches),
+        };
+        let mut selector_iter = selector.iter();
+        let mut all_tokens: Vec<_> = selector_iter.by_ref().map(Token::from).collect();
+        while selector_iter.next_sequence().is_some() {
+            all_tokens.extend(selector_iter.by_ref().map(Token::from));
+        }
+        SelectorMatches {
+            matches,
+            tokens,
+            all_tokens,
+            specificity: selector.specificity(),
+            declarations: declarations.clone(),
+            properties: properties(&declarations.declarations),
+            important_properties: properties(&declarations.important_declarations),
+        }
+    }
+
+    /// Whether the selector uses a dynamic token, marking all of its tokens as dynamic if so.
+    fn is_dynamically_referenced(&mut self, selector: &Selector<'input>) -> bool {
+        let selector_iter = &mut selector.iter();
+        let tail: Vec<_> = selector_iter.map(Token::from).collect();
+        let dynamically_referenced = &mut self.find_removable_tokens.dynamically_referenced;
+        if !tail.iter().any(|token| dynamically_referenced.contains(token)) {
+            return false;
+        }
+        dynamically_referenced.extend(tail);
+        while selector_iter.next_sequence().is_some() {
+            dynamically_referenced.extend(selector_iter.map(Token::from));
+        }
+        true
+    }
+
+    /// Keeps a selector in the stylesheet when one that stays would override it: inlined, it
+    /// would win instead. The tokens of every selector that stays then stay on the elements, so
+    /// that it still matches them.
+    fn keep_overridden(&mut self) {
+        let selectors = &mut self.selectors;
+        loop {
+            let mut kept_any = false;
+            for i in 0..selectors.len() {
+                if selectors[i].tokens.is_some()
+                    && selectors.iter().enumerate().any(|(j, kept)| {
+                        kept.tokens.is_none() && kept.overrides(j, &selectors[i], i)
+                    })
+                {
+                    log::debug!("retained selector: overridden by a rule that stays");
+                    selectors[i].tokens = None;
+                    kept_any = true;
+                }
+            }
+            if !kept_any {
+                break;
+            }
+        }
+        for selector in selectors.iter().filter(|s| s.tokens.is_none()) {
+            self.find_removable_tokens
+                .dynamically_referenced
+                .extend(selector.all_tokens.iter().cloned());
         }
     }
 
@@ -518,52 +684,34 @@ impl<'input> visitor::Visitor<'input> for CollectMatchingSelectors<'_, '_, 'inpu
             return rule.visit_children(self);
         };
 
-        if !style.rules.0.is_empty() {
-            // treat nested selectors as dynamic
+        // treat nested selectors as dynamic
+        let nested = !style.rules.0.is_empty();
+        let Some(index) = &mut self.visited else {
+            for selector in &mut style.selectors.0 {
+                let mut collected = self.collect(selector, &style.declarations);
+                if nested {
+                    collected.tokens = None;
+                }
+                self.selectors.push(collected);
+            }
+            return Ok(());
+        };
+        if nested {
+            *index += style.selectors.0.len();
             return Ok(());
         }
-        let declarations = &style.declarations;
-
-        style.selectors.0.retain(|selector| {
-            let selector_iter = &mut selector.iter();
-            let tail: Vec<_> = selector_iter.map(Token::from).collect();
-            if tail.iter().any(|token| {
-                self.find_removable_tokens
-                    .dynamically_referenced
-                    .contains(token)
-            }) {
-                self.find_removable_tokens
-                    .dynamically_referenced
-                    .extend(tail);
-                while selector_iter.next_sequence().is_some() {
-                    self.find_removable_tokens
-                        .dynamically_referenced
-                        .extend(selector_iter.map(Token::from));
-                }
-                log::debug!("retained selector: dynamic reference used");
-                return true;
-            }
-            let Ok(selector_string) = selector.to_css_string(PrinterOptions {
-                minify: true,
-                ..PrinterOptions::default()
-            }) else {
+        style.selectors.0.retain(|_| {
+            let selector = &self.selectors[*index];
+            *index += 1;
+            let Some(matching_tokens) = &selector.tokens else {
                 return true;
             };
-            let selector_string = self.strip_allowed_pseudos(selector_string);
-            let Ok(matches) = self.root.select(&selector_string) else {
-                log::debug!("retained selector: no matches");
-                return true;
-            };
-            let matches: Vec<_> = matches.collect();
-            let Some(matching_tokens) = self.is_selector_removable(selector, &matches) else {
-                return true;
-            };
-            for m in matches {
+            for m in selector.matches.iter().flatten() {
                 self.find_removable_tokens.inlines.push(RemovedToken {
-                    element: m,
+                    element: *m,
                     tokens: matching_tokens.clone(),
-                    specificity: selector.specificity(),
-                    declarations: declarations.clone(),
+                    specificity: selector.specificity,
+                    declarations: selector.declarations.clone(),
                 });
             }
             false
@@ -1333,6 +1481,79 @@ fn inline_styles() -> anyhow::Result<()> {
             background: #fff;
         }
     </style>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "inlineStyles": {} }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by one that stays aren't inlined -->
+    <style>.a{fill:red}.b{fill:blue}</style>
+    <rect class="a b" width="10" height="10"/>
+    <rect class="b" x="20" width="10" height="10"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "inlineStyles": { "onlyMatchedOnce": false } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by one that stays aren't inlined, also through a shorthand -->
+    <style>
+        .a{fill:red}
+        g .a{fill:blue}
+        .b{font-size:10px}
+        g .b{font:12px serif}
+        #c{stroke:red}
+        .d{stroke:blue!important}
+        g .d{stroke:green}
+        .e{marker-start:url(#x)}
+        g .e{marker:url(#y)}
+        .f{font-variant:small-caps}
+        g .f{font:12px serif}
+        .h{transform:rotate(1deg)}
+        g .h{-webkit-transform:rotate(2deg)}
+    </style>
+    <g>
+        <path class="a" d="M0 0h10v10z"/>
+        <text class="b">x</text>
+        <path class="e" d="M0 0h10v10z"/>
+        <text class="f">x</text>
+        <path class="h" d="M0 0h10v10z"/>
+        <!-- those that win over the one that stays are inlined -->
+        <path id="c" class="d" d="M0 0h10v10z"/>
+    </g>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "inlineStyles": { "onlyMatchedOnce": false } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by a rule with nested rules aren't inlined -->
+    <style>
+        .a{fill:red}
+        .b{fill:blue;&amp;:hover{stroke:red}}
+    </style>
+    <rect class="a b" width="10" height="10"/>
+</svg>"#
+        ),
+    )?);
+
+    insta::assert_snapshot!(test_config(
+        r#"{ "inlineStyles": { "onlyMatchedOnce": false } }"#,
+        Some(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+    <!-- selectors overridden by a rule whose matches can't be found aren't inlined -->
+    <style>
+        .a{fill:red}
+        rect:unknown-pseudo-class{fill:blue}
+    </style>
+    <rect class="a" width="10" height="10"/>
 </svg>"#
         ),
     )?);
